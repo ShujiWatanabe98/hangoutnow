@@ -62,7 +62,8 @@ export class AuthService {
     if(this.sms.enabled)await this.sms.request(input.phone);
     await this.repository.createPhoneVerification({ id: uuidv7(), userId, phone: input.phone, codeHash: this.sms.enabled?'twilio':this.phoneCodeHash(input.phone, code), expiresAt: new Date(Date.now() + 10 * 60_000), usedAt: null, attempts: 0, requestIp });
     // An SMS provider should send the code in production. It is returned only for the local demo.
-    return { expiresIn: 600, resendAfter:60, ...(process.env.NODE_ENV === 'production'||this.sms.enabled ? {} : { demoCode: code }) };
+    const exposeDemoCode = !this.sms.enabled && (process.env.NODE_ENV !== 'production' || process.env.DEMO_MODE === 'true');
+    return { expiresIn: 600, resendAfter:60, ...(exposeDemoCode ? { demoCode: code } : {}) };
   }
   async confirmPhoneVerification(userId: string, input: ConfirmPhoneVerificationDto): Promise<PublicUser> {
     const row = await this.repository.findPhoneVerification(userId, input.phone);

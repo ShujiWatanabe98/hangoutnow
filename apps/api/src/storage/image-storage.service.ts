@@ -17,7 +17,7 @@ export class ImageStorageService {
     const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
     const publicBase = process.env.S3_PUBLIC_BASE_URL;
     if (!endpoint || !region || !bucket || !accessKeyId || !secretAccessKey || !publicBase) {
-      if (process.env.NODE_ENV === 'production') throw new ServiceUnavailableException('Image storage is not configured');
+      if (process.env.NODE_ENV === 'production' && process.env.DEMO_MODE !== 'true') throw new ServiceUnavailableException('Image storage is not configured');
       return dataUrl;
     }
     const mediaType = match[1]!;
