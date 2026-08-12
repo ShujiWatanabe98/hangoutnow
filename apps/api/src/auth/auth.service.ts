@@ -48,6 +48,7 @@ export class AuthService {
   }
 
   async getProfile(userId: string): Promise<PublicUser> { return this.publicUser(await this.requireUser(userId)); }
+  async deleteAccount(userId:string):Promise<void>{const user=await this.requireUser(userId);await this.images.deleteProfilePhoto(userId,user.profilePhoto);await this.repository.deleteUser(userId)}
   async updateProfile(userId: string, input: UpdateProfileDto): Promise<PublicUser> {
     const normalized = input.interests ? [...new Set(input.interests.map((value) => value.trim()).filter(Boolean))] : undefined;
     const profilePhoto=await this.images.storeProfilePhoto(userId,input.profilePhoto);

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Inject, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Inject, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AccessTokenGuard, AuthenticatedRequest } from './access-token.guard';
 import { AuthService } from './auth.service';
@@ -19,6 +19,7 @@ export class UsersController {
   constructor(@Inject(AuthService) private readonly auth: AuthService) {}
   @Get('me') getMe(@Req() request: AuthenticatedRequest) { return this.auth.getProfile(request.userId); }
   @Patch('me') updateMe(@Req() request: AuthenticatedRequest, @Body() input: UpdateProfileDto) { return this.auth.updateProfile(request.userId, input); }
+  @Delete('me') @HttpCode(204) async deleteMe(@Req() request:AuthenticatedRequest):Promise<void>{await this.auth.deleteAccount(request.userId)}
   @Post('me/phone/request') requestPhone(@Req() request: AuthenticatedRequest, @Body() input: RequestPhoneVerificationDto) { return this.auth.requestPhoneVerification(request.userId, input, request.ip||request.socket.remoteAddress||'unknown'); }
   @Post('me/phone/confirm') confirmPhone(@Req() request: AuthenticatedRequest, @Body() input: ConfirmPhoneVerificationDto) { return this.auth.confirmPhoneVerification(request.userId, input); }
 }

@@ -21,6 +21,7 @@ Response:
 
 - `GET /users/me` — requires `Authorization: Bearer <accessToken>`.
 - `PATCH /users/me` — updates display name, bio, home area, and interests.
+- `DELETE /users/me` — permanently deletes the authenticated account and associated data.
 
 Passwords and refresh tokens are never persisted as plaintext.
 

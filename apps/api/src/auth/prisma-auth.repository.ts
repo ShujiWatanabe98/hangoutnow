@@ -61,4 +61,5 @@ export class PrismaAuthRepository extends AuthRepository {
     return this.loadUser(userId).then((user) => this.mapUser(user));
   }
   async phoneVerificationCounts(userId:string,phone:string,requestIp:string,since:Date){const[user,phoneCount,ip]=await Promise.all([this.prisma.phoneVerification.count({where:{userId,createdAt:{gte:since}}}),this.prisma.phoneVerification.count({where:{phone,createdAt:{gte:since}}}),this.prisma.phoneVerification.count({where:{requestIp,createdAt:{gte:since}}})]);return{user,phone:phoneCount,ip}}
+  async deleteUser(userId:string):Promise<void>{await this.prisma.user.delete({where:{id:userId}})}
 }

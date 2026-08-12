@@ -14,6 +14,22 @@
     },
     "extra": {
       "apiUrl": "https://hangoutnow-api.onrender.com"
-    }
+    },
+    "plugins": [
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "プロフィール写真を選択するため、写真ライブラリへのアクセスを使用します。",
+          "cameraPermission": "プロフィール写真を撮影するため、カメラへのアクセスを使用します。"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "近くのHangoutを表示するため、現在地を使用します。"
+        }
+      ]
+    ]
   }
 }

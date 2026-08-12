@@ -32,6 +32,7 @@ class MemoryAuthRepository extends AuthRepository {
   async failPhoneVerification(id: string) { const item=this.phoneCodes.find((row)=>row.id===id); if(item)item.attempts+=1; }
   async verifyPhone(userId: string, phone: string, verificationId: string) { const user=await this.findUserById(userId); if(!user)throw new Error(); const row=this.phoneCodes.find((item)=>item.id===verificationId); if(row)row.usedAt=new Date(); user.phoneNumber=phone;user.verificationStatus='PHONE_VERIFIED';return user; }
   async phoneVerificationCounts(userId:string,phone:string,requestIp:string,since:Date){const rows=this.phoneCodes.filter(x=>(x.createdAt??new Date())>=since);return{user:rows.filter(x=>x.userId===userId).length,phone:rows.filter(x=>x.phone===phone).length,ip:rows.filter(x=>x.requestIp===requestIp).length}}
+  async deleteUser(userId:string){this.users=this.users.filter((user)=>user.id!==userId);this.tokens=this.tokens.filter((token)=>token.userId!==userId);this.phoneCodes=this.phoneCodes.filter((row)=>row.userId!==userId)}
 }
 
 describe('authentication and profile', () => {
@@ -79,4 +80,13 @@ describe('authentication and profile', () => {
     expect(rotated.body.refreshToken).not.toBe(registered.body.refreshToken);
     await request(app.getHttpServer()).post('/auth/refresh').send({ refreshToken: registered.body.refreshToken }).expect(401);
   }, 15_000);
+
+  it('deletes the authenticated account and invalidates access', async()=>{
+    app=await createApp();
+    const registered=await request(app.getHttpServer()).post('/auth/register').send({email:'delete@example.com',password:'a-secure-password',displayName:'Delete',birthDate:'1990-01-01'}).expect(201);
+    const auth={Authorization:`Bearer ${registered.body.accessToken as string}`};
+    await request(app.getHttpServer()).delete('/users/me').set(auth).expect(204);
+    await request(app.getHttpServer()).get('/users/me').set(auth).expect(401);
+    await request(app.getHttpServer()).post('/auth/login').send({email:'delete@example.com',password:'a-secure-password'}).expect(401);
+  },15_000);
 });

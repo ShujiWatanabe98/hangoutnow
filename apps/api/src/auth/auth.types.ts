@@ -28,4 +28,5 @@ export abstract class AuthRepository {
   abstract failPhoneVerification(id: string): Promise<void>;
   abstract verifyPhone(userId: string, phone: string, verificationId: string): Promise<StoredUser>;
   abstract phoneVerificationCounts(userId: string, phone: string, requestIp: string, since: Date): Promise<{user: number; phone: number; ip: number}>;
+  abstract deleteUser(userId: string): Promise<void>;
 }
