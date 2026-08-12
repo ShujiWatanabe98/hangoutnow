@@ -11,4 +11,4 @@ RUN npm ci
 COPY apps/api apps/api
 RUN npm run prisma:generate -w @hangout-now/api && npm run build -w @hangout-now/api
 EXPOSE 3000
-CMD ["node", "apps/api/dist/src/main.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy --schema apps/api/prisma/schema.prisma && exec node apps/api/dist/src/main.js"]

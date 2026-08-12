@@ -4,7 +4,6 @@ services:
     runtime: docker
     plan: free
     dockerfilePath: ./apps/api/Dockerfile
-    dockerCommand: sh -c "npx prisma migrate deploy --schema apps/api/prisma/schema.prisma && node apps/api/dist/src/main.js"
     healthCheckPath: /health
     autoDeployTrigger: checksPass
     envVars:
