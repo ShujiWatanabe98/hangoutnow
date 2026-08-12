@@ -9,7 +9,9 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.hangoutnow.app",
-      "buildNumber": "1"
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.hangoutnow.app"
