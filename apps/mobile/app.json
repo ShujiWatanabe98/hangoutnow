@@ -3,17 +3,22 @@
     "name": "Hangout Now",
     "slug": "hangout-now",
     "version": "0.1.0",
+    "scheme": "hangoutnow",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.hangoutnow.app"
+      "bundleIdentifier": "com.hangoutnow.app",
+      "buildNumber": "1"
     },
     "android": {
       "package": "com.hangoutnow.app"
     },
     "extra": {
-      "apiUrl": "https://hangoutnow-api.onrender.com"
+      "apiUrl": "https://hangoutnow-api.onrender.com",
+      "eas": {
+        "projectId": "bea5cd54-c3f7-481e-abb9-c7ebf60be13f"
+      }
     },
     "plugins": [
       "expo-secure-store",
@@ -30,6 +35,7 @@
           "locationWhenInUsePermission": "近くのHangoutを表示するため、現在地を使用します。"
         }
       ]
-    ]
+    ],
+    "owner": "shujiwatanabe"
   }
 }
