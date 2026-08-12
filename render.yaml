@@ -1,0 +1,75 @@
+services:
+  - type: web
+    name: hangoutnow-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerCommand: sh -c "npx prisma migrate deploy --schema apps/api/prisma/schema.prisma && node apps/api/dist/src/main.js"
+    healthCheckPath: /health
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hangoutnow-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: hangoutnow-cache
+          type: keyvalue
+          property: connectionString
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: ADMIN_API_TOKEN
+        generateValue: true
+      - key: PHONE_CODE_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: https://hangoutnow-demo.onrender.com
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_REGION
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: S3_PUBLIC_BASE_URL
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_VERIFY_SERVICE_SID
+        sync: false
+
+  - type: web
+    name: hangoutnow-demo
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start -w @hangout-now/demo
+    healthCheckPath: /
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: API_URL
+        value: https://hangoutnow-api.onrender.com
+
+  - type: keyvalue
+    name: hangoutnow-cache
+    plan: free
+    ipAllowList: []
+    maxmemoryPolicy: allkeys-lru
+
+databases:
+  - name: hangoutnow-db
+    plan: free
+    postgresMajorVersion: "16"
+    databaseName: hangoutnow
+    user: hangoutnow
+    ipAllowList: []

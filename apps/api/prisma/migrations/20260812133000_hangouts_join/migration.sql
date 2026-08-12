@@ -1,0 +1,11 @@
+CREATE TYPE "HangoutStatus" AS ENUM ('OPEN','FULL','STARTED','FINISHED','CANCELLED');
+CREATE TYPE "JoinRequestStatus" AS ENUM ('PENDING','ACCEPTED','REJECTED','CANCELLED');
+CREATE TABLE "hangouts" ("id" UUID NOT NULL,"host_user_id" UUID NOT NULL,"title" TEXT NOT NULL,"description" TEXT,"category" TEXT NOT NULL,"start_at" TIMESTAMP(3) NOT NULL,"location_name" TEXT NOT NULL,"latitude" DOUBLE PRECISION,"longitude" DOUBLE PRECISION,"public_latitude" DOUBLE PRECISION,"public_longitude" DOUBLE PRECISION,"max_participants" INTEGER NOT NULL,"status" "HangoutStatus" NOT NULL DEFAULT 'OPEN',"created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,"updated_at" TIMESTAMP(3) NOT NULL,CONSTRAINT "hangouts_pkey" PRIMARY KEY ("id"));
+CREATE TABLE "join_requests" ("id" UUID NOT NULL,"hangout_id" UUID NOT NULL,"user_id" UUID NOT NULL,"message" TEXT,"status" "JoinRequestStatus" NOT NULL DEFAULT 'PENDING',"created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,"updated_at" TIMESTAMP(3) NOT NULL,CONSTRAINT "join_requests_pkey" PRIMARY KEY ("id"));
+CREATE INDEX "hangouts_status_start_at_idx" ON "hangouts"("status","start_at");
+CREATE INDEX "hangouts_host_user_id_idx" ON "hangouts"("host_user_id");
+CREATE UNIQUE INDEX "join_requests_hangout_id_user_id_key" ON "join_requests"("hangout_id","user_id");
+CREATE INDEX "join_requests_hangout_id_status_idx" ON "join_requests"("hangout_id","status");
+ALTER TABLE "hangouts" ADD CONSTRAINT "hangouts_host_user_id_fkey" FOREIGN KEY ("host_user_id") REFERENCES "users"("id") ON DELETE CASCADE;
+ALTER TABLE "join_requests" ADD CONSTRAINT "join_requests_hangout_id_fkey" FOREIGN KEY ("hangout_id") REFERENCES "hangouts"("id") ON DELETE CASCADE;
+ALTER TABLE "join_requests" ADD CONSTRAINT "join_requests_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE;

@@ -1,0 +1,24 @@
+import { Body, Controller, Get, HttpCode, Inject, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
+import { AccessTokenGuard, AuthenticatedRequest } from './access-token.guard';
+import { AuthService } from './auth.service';
+import { ConfirmPhoneVerificationDto, LoginDto, RefreshDto, RegisterDto, RequestPhoneVerificationDto, UpdateProfileDto } from './auth.dto';
+
+@Controller('auth')
+export class AuthController {
+  constructor(@Inject(AuthService) private readonly auth: AuthService) {}
+  @Post('register') @Throttle({ default: { limit: 5, ttl: 60_000 } }) register(@Body() input: RegisterDto) { return this.auth.register(input); }
+  @Post('login') @Throttle({ default: { limit: 5, ttl: 60_000 } }) @HttpCode(200) login(@Body() input: LoginDto) { return this.auth.login(input); }
+  @Post('refresh') @HttpCode(200) refresh(@Body() input: RefreshDto) { return this.auth.refresh(input.refreshToken); }
+  @Post('logout') @HttpCode(204) async logout(@Body() input: RefreshDto): Promise<void> { await this.auth.logout(input.refreshToken); }
+}
+
+@Controller('users')
+@UseGuards(AccessTokenGuard)
+export class UsersController {
+  constructor(@Inject(AuthService) private readonly auth: AuthService) {}
+  @Get('me') getMe(@Req() request: AuthenticatedRequest) { return this.auth.getProfile(request.userId); }
+  @Patch('me') updateMe(@Req() request: AuthenticatedRequest, @Body() input: UpdateProfileDto) { return this.auth.updateProfile(request.userId, input); }
+  @Post('me/phone/request') requestPhone(@Req() request: AuthenticatedRequest, @Body() input: RequestPhoneVerificationDto) { return this.auth.requestPhoneVerification(request.userId, input, request.ip||request.socket.remoteAddress||'unknown'); }
+  @Post('me/phone/confirm') confirmPhone(@Req() request: AuthenticatedRequest, @Body() input: ConfirmPhoneVerificationDto) { return this.auth.confirmPhoneVerification(request.userId, input); }
+}

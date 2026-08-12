@@ -1,0 +1,217 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  PHONE_VERIFIED
+}
+
+model User {
+  id             String         @id @db.Uuid
+  email          String         @unique
+  passwordHash   String         @map("password_hash")
+  displayName    String         @map("display_name")
+  birthDate      DateTime       @map("birth_date") @db.Date
+  bio            String?
+  homeArea       String?        @map("home_area")
+  verification   VerificationStatus @default(UNVERIFIED)
+  profilePhoto   String?        @map("profile_photo") @db.Text
+  phoneNumber    String?        @unique @map("phone_number")
+  notificationsEnabled Boolean @default(true) @map("notifications_enabled")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  interests      UserInterest[]
+  refreshTokens  RefreshToken[]
+  hostedHangouts Hangout[]      @relation("HostHangouts")
+  joinRequests   JoinRequest[]
+  messages       Message[]
+  blocksCreated  Block[]        @relation("Blocker")
+  blocksReceived Block[]        @relation("Blocked")
+  reportsCreated Report[]       @relation("Reporter")
+  reportsReceived Report[]      @relation("ReportedUser")
+  phoneVerifications PhoneVerification[]
+  notifications Notification[]
+
+  @@map("users")
+}
+
+model Notification {
+  id        String   @id @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  type      String
+  title     String
+  body      String
+  link      String?
+  eventKey  String?  @unique @map("event_key")
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+  @@map("notifications")
+}
+
+model PhoneVerification {
+  id        String    @id @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  phone     String
+  codeHash  String    @map("code_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  attempts  Int       @default(0)
+  requestIp String?   @map("request_ip")
+  createdAt DateTime  @default(now()) @map("created_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([phone, createdAt])
+  @@index([requestIp, createdAt])
+  @@map("phone_verifications")
+}
+
+enum HangoutStatus {
+  OPEN
+  FULL
+  STARTED
+  FINISHED
+  CANCELLED
+}
+enum JoinRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+model Hangout {
+  id              String         @id @db.Uuid
+  hostUserId      String         @map("host_user_id") @db.Uuid
+  title           String
+  description     String?
+  category        String
+  startAt         DateTime       @map("start_at")
+  locationName    String         @map("location_name")
+  latitude        Float?
+  longitude       Float?
+  publicLatitude  Float?         @map("public_latitude")
+  publicLongitude Float?         @map("public_longitude")
+  maxParticipants Int            @map("max_participants")
+  status          HangoutStatus  @default(OPEN)
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  host            User           @relation("HostHangouts", fields: [hostUserId], references: [id], onDelete: Cascade)
+  joinRequests    JoinRequest[]
+  chatRoom        ChatRoom?
+  reports         Report[]
+
+  @@index([status, startAt])
+  @@index([hostUserId])
+  @@map("hangouts")
+}
+
+enum ReportStatus {
+  OPEN
+  REVIEWING
+  RESOLVED
+  DISMISSED
+}
+model Block {
+  id        String   @id @db.Uuid
+  blockerId String   @map("blocker_id") @db.Uuid
+  blockedId String   @map("blocked_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  blocker   User     @relation("Blocker", fields:[blockerId], references:[id], onDelete:Cascade)
+  blocked   User     @relation("Blocked", fields:[blockedId], references:[id], onDelete:Cascade)
+  @@unique([blockerId, blockedId])
+  @@map("blocks")
+}
+model Report {
+  id           String       @id @db.Uuid
+  reporterId   String       @map("reporter_id") @db.Uuid
+  targetUserId String       @map("target_user_id") @db.Uuid
+  hangoutId    String?      @map("hangout_id") @db.Uuid
+  reason       String
+  details      String?
+  status       ReportStatus @default(OPEN)
+  createdAt    DateTime     @default(now()) @map("created_at")
+  reporter     User         @relation("Reporter", fields:[reporterId], references:[id], onDelete:Cascade)
+  targetUser   User         @relation("ReportedUser", fields:[targetUserId], references:[id], onDelete:Cascade)
+  hangout      Hangout?     @relation(fields:[hangoutId], references:[id], onDelete:SetNull)
+  @@unique([reporterId, targetUserId, hangoutId])
+  @@index([status, createdAt])
+  @@map("reports")
+}
+
+model ChatRoom {
+  id        String    @id @db.Uuid
+  hangoutId String    @unique @map("hangout_id") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at")
+  hangout   Hangout   @relation(fields: [hangoutId], references: [id], onDelete: Cascade)
+  messages  Message[]
+  @@map("chat_rooms")
+}
+
+model Message {
+  id           String   @id @db.Uuid
+  roomId       String   @map("room_id") @db.Uuid
+  senderUserId String   @map("sender_user_id") @db.Uuid
+  body         String
+  createdAt    DateTime @default(now()) @map("created_at")
+  room         ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sender       User     @relation(fields: [senderUserId], references: [id], onDelete: Cascade)
+  @@index([roomId, createdAt])
+  @@map("messages")
+}
+
+model JoinRequest {
+  id        String            @id @db.Uuid
+  hangoutId String            @map("hangout_id") @db.Uuid
+  userId    String            @map("user_id") @db.Uuid
+  message   String?
+  status    JoinRequestStatus @default(PENDING)
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+  hangout   Hangout           @relation(fields: [hangoutId], references: [id], onDelete: Cascade)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([hangoutId, userId])
+  @@index([hangoutId, status])
+  @@map("join_requests")
+}
+
+model Interest {
+  id    String @id @db.Uuid
+  name  String @unique
+  users UserInterest[]
+
+  @@map("interests")
+}
+
+model UserInterest {
+  userId     String @map("user_id") @db.Uuid
+  interestId String @map("interest_id") @db.Uuid
+  user       User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interest   Interest @relation(fields: [interestId], references: [id], onDelete: Cascade)
+
+  @@id([userId, interestId])
+  @@map("user_interests")
+}
+
+model RefreshToken {
+  id        String    @id @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}

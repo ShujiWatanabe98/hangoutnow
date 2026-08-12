@@ -1,0 +1,6 @@
+{
+  "name": "@hangout-now/demo",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": { "start": "node server.mjs", "typecheck": "node --check server.mjs && node --check public/app.js" }
+}

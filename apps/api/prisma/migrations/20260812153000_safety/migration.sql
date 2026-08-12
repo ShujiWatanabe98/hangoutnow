@@ -1,0 +1,11 @@
+CREATE TYPE "ReportStatus" AS ENUM ('OPEN','REVIEWING','RESOLVED','DISMISSED');
+CREATE TABLE "blocks" ("id" UUID NOT NULL,"blocker_id" UUID NOT NULL,"blocked_id" UUID NOT NULL,"created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,CONSTRAINT "blocks_pkey" PRIMARY KEY("id"));
+CREATE TABLE "reports" ("id" UUID NOT NULL,"reporter_id" UUID NOT NULL,"target_user_id" UUID NOT NULL,"hangout_id" UUID,"reason" TEXT NOT NULL,"details" TEXT,"status" "ReportStatus" NOT NULL DEFAULT 'OPEN',"created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,CONSTRAINT "reports_pkey" PRIMARY KEY("id"));
+CREATE UNIQUE INDEX "blocks_blocker_id_blocked_id_key" ON "blocks"("blocker_id","blocked_id");
+CREATE UNIQUE INDEX "reports_reporter_id_target_user_id_hangout_id_key" ON "reports"("reporter_id","target_user_id","hangout_id");
+CREATE INDEX "reports_status_created_at_idx" ON "reports"("status","created_at");
+ALTER TABLE "blocks" ADD CONSTRAINT "blocks_blocker_id_fkey" FOREIGN KEY("blocker_id") REFERENCES "users"("id") ON DELETE CASCADE;
+ALTER TABLE "blocks" ADD CONSTRAINT "blocks_blocked_id_fkey" FOREIGN KEY("blocked_id") REFERENCES "users"("id") ON DELETE CASCADE;
+ALTER TABLE "reports" ADD CONSTRAINT "reports_reporter_id_fkey" FOREIGN KEY("reporter_id") REFERENCES "users"("id") ON DELETE CASCADE;
+ALTER TABLE "reports" ADD CONSTRAINT "reports_target_user_id_fkey" FOREIGN KEY("target_user_id") REFERENCES "users"("id") ON DELETE CASCADE;
+ALTER TABLE "reports" ADD CONSTRAINT "reports_hangout_id_fkey" FOREIGN KEY("hangout_id") REFERENCES "hangouts"("id") ON DELETE SET NULL;
