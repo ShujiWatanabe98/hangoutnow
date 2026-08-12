@@ -10,5 +10,9 @@
     "dev:api": "npm run dev -w @hangout-now/api",
     "demo:seed": "node scripts/seed-public-demo.mjs"
   },
+  "overrides": {
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
   "engines": { "node": ">=20" }
 }
