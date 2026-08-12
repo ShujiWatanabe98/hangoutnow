@@ -89,27 +89,53 @@ async function loginOrRegister(account) {
 
 const host = await loginOrRegister(accounts.host);
 const guest = await loginOrRegister(accounts.guest);
-const title = '新宿でデモカフェ交流会';
+const samples = [
+  {
+    title: '新宿でデモカフェ交流会',
+    description: '公開デモ用の架空イベントです。参加申請とチャットを自由にお試しください。',
+    category: 'CAFE', startInMinutes: 180, locationName: '新宿駅周辺（デモ）',
+    latitude: 35.6901, longitude: 139.7005, maxParticipants: 4,
+  },
+  {
+    title: '代々木公園をゆっくりランニング',
+    description: '会話できるペースで約5km走ります。初心者も歓迎する架空の募集です。',
+    category: 'RUNNING', startInMinutes: 60, locationName: '代々木公園入口（デモ）',
+    latitude: 35.6717, longitude: 139.6949, maxParticipants: 6,
+  },
+  {
+    title: '新宿で話題のラーメンを食べよう',
+    description: '気になっていたラーメン店へ一緒に行く、公開デモ用の架空募集です。',
+    category: 'FOOD', startInMinutes: 30, locationName: '新宿駅東口（デモ）',
+    latitude: 35.6920, longitude: 139.7038, maxParticipants: 4,
+  },
+  {
+    title: '夕方のショートツーリング',
+    description: '安全第一で景色を楽しむ、公開デモ用の架空ツーリング募集です。',
+    category: 'MOTORCYCLE', startInMinutes: 180, locationName: '世田谷公園周辺（デモ）',
+    latitude: 35.6437, longitude: 139.6816, maxParticipants: 5,
+  },
+  {
+    title: '渋谷で気軽に街歩き',
+    description: '写真を撮りながらゆっくり散策する、公開デモ用の架空募集です。',
+    category: 'WALKING', startInMinutes: 60, locationName: '渋谷駅周辺（デモ）',
+    latitude: 35.6580, longitude: 139.7016, maxParticipants: 5,
+  },
+];
 
 let hangouts = await call('/hangouts?latitude=35.69&longitude=139.70&radiusKm=20', {}, host.token)
   .then((result) => result.body);
-let hangout = hangouts.find((item) => item.hostUserId === host.id && item.title === title && ['OPEN', 'FULL'].includes(item.status));
-
-if (!hangout) {
-  hangout = await call('/hangouts', {
-    method: 'POST',
-    body: JSON.stringify({
-      title,
-      description: '公開デモ用の架空イベントです。参加申請とチャットを自由にお試しください。',
-      category: 'CAFE',
-      startInMinutes: 180,
-      locationName: '新宿駅周辺（デモ）',
-      latitude: 35.6901,
-      longitude: 139.7005,
-      maxParticipants: 4,
-    }),
-  }, host.token).then((result) => result.body);
+const seededHangouts = [];
+for (const sample of samples) {
+  let item = hangouts.find((candidate) => candidate.hostUserId === host.id && candidate.title === sample.title && ['OPEN', 'FULL'].includes(candidate.status));
+  if (!item) {
+    item = await call('/hangouts', {
+      method: 'POST', body: JSON.stringify(sample),
+    }, host.token).then((result) => result.body);
+    hangouts.push(item);
+  }
+  seededHangouts.push(item);
 }
+const hangout = seededHangouts[0];
 
 const guestView = await call(`/hangouts/${hangout.id}`, {}, guest.token).then((result) => result.body);
 let joinStatus = guestView.myJoinStatus;
@@ -143,6 +169,7 @@ process.stdout.write(`${JSON.stringify({
   demoUrl,
   host: { email: host.email, password, created: host.created },
   guest: { email: guest.email, password, created: guest.created },
-  hangout: { id: hangout.id, title: hangout.title, joinStatus },
+  hangouts: seededHangouts.map((item) => ({ id: item.id, title: item.title, category: item.category })),
+  primaryHangout: { id: hangout.id, title: hangout.title, joinStatus },
   chat: { roomId: room.id, ready: true },
 }, null, 2)}\n`);
