@@ -89,4 +89,10 @@ describe('authentication and profile', () => {
     await request(app.getHttpServer()).get('/users/me').set(auth).expect(401);
     await request(app.getHttpServer()).post('/auth/login').send({email:'delete@example.com',password:'a-secure-password'}).expect(401);
   },15_000);
+
+  it('protects shared demo accounts from deletion',async()=>{
+    app=await createApp();
+    const registered=await request(app.getHttpServer()).post('/auth/register').send({email:'shared@hangoutnow.example',password:'a-secure-password',displayName:'Shared Demo',birthDate:'1990-01-01'}).expect(201);
+    await request(app.getHttpServer()).delete('/users/me').set('Authorization',`Bearer ${registered.body.accessToken as string}`).expect(403);
+  },15_000);
 });
