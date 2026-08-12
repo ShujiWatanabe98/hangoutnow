@@ -13,7 +13,9 @@ let activeScreen = 'home';
 const joined = new Set(saved?.joined || []);
 const chats = saved?.chats || {};
 const API_URL = globalThis.HANGOUT_NOW_CONFIG?.apiUrl || 'http://localhost:3000';
+const DEMO_ACCOUNTS = globalThis.HANGOUT_NOW_CONFIG?.demoAccounts || null;
 let session = JSON.parse(localStorage.getItem('hangout-now-session') || 'null');
+let demoRole = localStorage.getItem('hangout-now-demo-role');
 const areas={新宿:{latitude:35.6901,longitude:139.7005},渋谷:{latitude:35.6580,longitude:139.7016},池袋:{latitude:35.7295,longitude:139.7109},東京:{latitude:35.6812,longitude:139.7671}};
 let userLocation=saved?.userLocation||null;
 let unreadNotifications=0;
@@ -46,9 +48,33 @@ function timeLabel(startAt){const minutes=Math.max(0,Math.round((new Date(startA
 
 function authScreen(mode = 'register') {
   const register = mode === 'register';
-  app.innerHTML = `<main class="phone auth-page"><div class="auth-brand">Hangout <i>Now</i></div><div class="auth-visual"><span>🍜</span><span>🏃</span><span>☕</span></div><section class="auth-card"><div class="eyebrow">今から、誰かと。</div><h1>${register ? 'アカウントを作る' : 'おかえりなさい'}</h1><p>${register ? '18歳以上の方が利用できます。' : '登録したメールアドレスでログイン'}</p><form id="auth-form"><label>メールアドレス</label><input id="email" type="email" required value="demo@example.com">${register ? '<label>表示名</label><input id="display-name" required value="Demo User"><label>生年月日</label><input id="birth-date" type="date" required value="1990-01-01">' : ''}<label>パスワード</label><input id="password" type="password" minlength="12" required value="demo-password-123"><div id="auth-error" class="auth-error"></div><button class="primary" type="submit">${register ? '無料で登録' : 'ログイン'}</button></form><button class="secondary" id="switch-auth">${register ? 'アカウントをお持ちの方はログイン' : '新しくアカウントを作る'}</button><small>登録により利用規約とプライバシーポリシーに同意します。</small></section></main>`;
+  const demoChoices = DEMO_ACCOUNTS ? `<section class="demo-entry"><span class="demo-label">公開デモ・すべて架空のデータです</span><h2>役割を選んですぐに体験</h2><p>登録や電話番号入力は必要ありません。</p><div class="demo-buttons"><button data-demo-role="host"><b>主催者として見る</b><small>募集管理・承認を体験</small></button><button data-demo-role="guest"><b>参加者として見る</b><small>検索・チャットを体験</small></button></div><div id="demo-error" class="auth-error"></div></section>` : '';
+  app.innerHTML = `<main class="phone auth-page"><div class="auth-brand">Hangout <i>Now</i></div><div class="auth-visual"><span>🍜</span><span>🏃</span><span>☕</span></div>${demoChoices}<section class="auth-card"><div class="eyebrow">今から、誰かと。</div><h1>${register ? 'アカウントを作る' : 'おかえりなさい'}</h1><p>${register ? '18歳以上の方が利用できます。' : '登録したメールアドレスでログイン'}</p><form id="auth-form"><label>メールアドレス</label><input id="email" type="email" required value="demo@example.com">${register ? '<label>表示名</label><input id="display-name" required value="Demo User"><label>生年月日</label><input id="birth-date" type="date" required value="1990-01-01">' : ''}<label>パスワード</label><input id="password" type="password" minlength="12" required value="demo-password-123"><div id="auth-error" class="auth-error"></div><button class="primary" type="submit">${register ? '無料で登録' : 'ログイン'}</button></form><button class="secondary" id="switch-auth">${register ? 'アカウントをお持ちの方はログイン' : '新しくアカウントを作る'}</button><small>登録により利用規約とプライバシーポリシーに同意します。</small></section></main>`;
+  document.querySelectorAll('[data-demo-role]').forEach((button)=>button.onclick=()=>demoLogin(button.dataset.demoRole,button));
   document.querySelector('#switch-auth').onclick = () => authScreen(register ? 'login' : 'register');
-  document.querySelector('#auth-form').onsubmit = async (event) => { event.preventDefault(); const button=event.submitter; button.disabled=true; button.textContent='接続中…'; const body={email:document.querySelector('#email').value,password:document.querySelector('#password').value}; if(register)Object.assign(body,{displayName:document.querySelector('#display-name').value,birthDate:document.querySelector('#birth-date').value}); try{session=await api(register?'/auth/register':'/auth/login',{method:'POST',body:JSON.stringify(body)});localStorage.setItem('hangout-now-session',JSON.stringify(session));connectRealtime();loadNotificationCount();profileSetup(register)}catch(error){document.querySelector('#auth-error').textContent=error.message;button.disabled=false;button.textContent=register?'無料で登録':'ログイン'} };
+  document.querySelector('#auth-form').onsubmit = async (event) => { event.preventDefault(); const button=event.submitter; button.disabled=true; button.textContent='接続中…'; const body={email:document.querySelector('#email').value,password:document.querySelector('#password').value}; if(register)Object.assign(body,{displayName:document.querySelector('#display-name').value,birthDate:document.querySelector('#birth-date').value}); try{session=await api(register?'/auth/register':'/auth/login',{method:'POST',body:JSON.stringify(body)});demoRole=null;localStorage.removeItem('hangout-now-demo-role');localStorage.setItem('hangout-now-session',JSON.stringify(session));connectRealtime();loadNotificationCount();profileSetup(register)}catch(error){document.querySelector('#auth-error').textContent=error.message;button.disabled=false;button.textContent=register?'無料で登録':'ログイン'} };
+}
+
+async function demoLogin(role, button) {
+  const account = DEMO_ACCOUNTS?.[role];
+  if (!account) return;
+  const original = button.innerHTML;
+  document.querySelectorAll('[data-demo-role]').forEach((item)=>item.disabled=true);
+  button.innerHTML = '<b>ログイン中…</b><small>公開デモを準備しています</small>';
+  try {
+    session = null;
+    session = await api('/auth/login',{method:'POST',body:JSON.stringify(account)});
+    demoRole = role;
+    localStorage.setItem('hangout-now-demo-role',role);
+    localStorage.setItem('hangout-now-session',JSON.stringify(session));
+    connectRealtime();
+    await Promise.all([loadNotificationCount(),loadHangouts()]);
+    navigate(role==='host'?'home':'chatScreen');
+  } catch(error) {
+    document.querySelector('#demo-error').textContent=error.message;
+    document.querySelectorAll('[data-demo-role]').forEach((item)=>item.disabled=false);
+    button.innerHTML=original;
+  }
 }
 
 function profileSetup(firstRegistration) {
@@ -60,7 +86,11 @@ function profileSetup(firstRegistration) {
 
 function shell(content, showFab = true) {
   const nav = [['home','⌂','ホーム'],['mapScreen','⌖','マップ'],['chatScreen','♡','チャット'],['profileScreen','☻','プロフィール']];
-  app.innerHTML = `<main class="phone"><header class="top"><div class="brand">Hangout <i>Now</i></div><div class="header-actions"><button class="notification-button" aria-label="通知">♢<span class="notification-badge ${unreadNotifications?'':'hidden'}">${unreadNotifications}</span></button><div class="avatar"${photoStyle(session.user.profilePhoto)} aria-label="あなたのプロフィール写真"></div></div></header>${content}${showFab ? '<button class="fab" aria-label="Hangoutを作る">＋</button>' : ''}<nav class="nav">${nav.map(([screen,icon,label])=>`<button data-screen="${screen}" class="${activeScreen===screen?'on':''}"><b>${icon}</b>${label}</button>`).join('')}</nav></main>`;
+  const demoGuide=demoRole==='host'?'「新宿でデモカフェ交流会」を開いて募集管理を体験':'チャットを開いて主催者との会話を体験';
+  const demoBanner=demoRole?`<div class="demo-banner"><span><b>デモ：${demoRole==='host'?'主催者':'参加者'}として体験中</b><small>${demoGuide}</small></span><button id="switch-demo-role">役割を切り替える</button></div>`:'';
+  app.innerHTML = `<main class="phone">${demoBanner}<header class="top"><div class="brand">Hangout <i>Now</i></div><div class="header-actions"><button class="notification-button" aria-label="通知">♢<span class="notification-badge ${unreadNotifications?'':'hidden'}">${unreadNotifications}</span></button><div class="avatar"${photoStyle(session.user.profilePhoto)} aria-label="あなたのプロフィール写真"></div></div></header>${content}${showFab ? '<button class="fab" aria-label="Hangoutを作る">＋</button>' : ''}<nav class="nav">${nav.map(([screen,icon,label])=>`<button data-screen="${screen}" class="${activeScreen===screen?'on':''}"><b>${icon}</b>${label}</button>`).join('')}</nav></main>`;
+  const switchDemoRole=app.querySelector('#switch-demo-role');
+  if(switchDemoRole)switchDemoRole.onclick=()=>{realtimeSocket?.disconnect();session=null;demoRole=null;localStorage.removeItem('hangout-now-session');localStorage.removeItem('hangout-now-demo-role');authScreen('login')};
   const fab = app.querySelector('.fab');
   if (fab) fab.onclick = showCreate;
   app.querySelector('.notification-button').onclick=notificationScreen;

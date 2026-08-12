@@ -8,7 +8,18 @@ const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=
 
 createServer(async (request, response) => {
   const requestedPath = request.url?.split('?')[0] ?? '/';
-  if(requestedPath==='/config.js'){response.writeHead(200,{'content-type':'text/javascript; charset=utf-8','cache-control':'no-store'});response.end(`globalThis.HANGOUT_NOW_CONFIG=${JSON.stringify({apiUrl:process.env.API_URL||'http://localhost:3000'})};`);return}
+  if(requestedPath==='/config.js'){
+    const config={
+      apiUrl:process.env.API_URL||'http://localhost:3000',
+      demoAccounts:{
+        host:{email:process.env.HANGOUTNOW_DEMO_HOST_EMAIL||'demo-host@hangoutnow.example',password:process.env.HANGOUTNOW_DEMO_PASSWORD||'HangoutNow-Demo-2026!'},
+        guest:{email:process.env.HANGOUTNOW_DEMO_GUEST_EMAIL||'demo-guest@hangoutnow.example',password:process.env.HANGOUTNOW_DEMO_PASSWORD||'HangoutNow-Demo-2026!'},
+      },
+    };
+    response.writeHead(200,{'content-type':'text/javascript; charset=utf-8','cache-control':'no-store'});
+    response.end(`globalThis.HANGOUT_NOW_CONFIG=${JSON.stringify(config)};`);
+    return;
+  }
   const pathname = requestedPath === '/' ? '/index.html' : requestedPath;
   const file = normalize(join(root, pathname));
   if (!file.startsWith(root)) { response.writeHead(403).end(); return; }
