@@ -8,6 +8,7 @@ export class CreateHangoutDto {
   @IsEnum(ServiceArea) serviceArea!: ServiceArea;
   @IsIn([30, 60, 180]) startInMinutes!: number;
   @IsString() @MinLength(1) @MaxLength(100) locationName!: string;
+  @IsString() @MinLength(1) @MaxLength(100) publicLocationName!: string;
   @IsOptional() @IsLatitude() latitude?: number;
   @IsOptional() @IsLongitude() longitude?: number;
   @IsInt() @Min(2) @Max(12) maxParticipants!: number;
@@ -18,6 +19,7 @@ export class UpdateHangoutDto {
   @IsOptional() @IsString() @MinLength(1) @MaxLength(80) title?: string;
   @IsOptional() @IsString() @MaxLength(500) description?: string;
   @IsOptional() @IsString() @MaxLength(100) locationName?: string;
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(100) publicLocationName?: string;
   @IsOptional() @IsEnum(GenderRestriction) genderRestriction?: GenderRestriction;
   @IsOptional() @IsIn([29, 39, 59]) maxAge?: number | null;
 }

@@ -44,6 +44,7 @@ interface TestHangout {
   serviceArea: 'SHINJUKU'|'SHIBUYA';
   startAt: Date;
   locationName: string;
+  publicLocationName: string;
   latitude: number | null;
   longitude: number | null;
   publicLatitude: number | null;
@@ -323,7 +324,7 @@ describe('social journey safety boundaries', () => {
 
   async function createHangout(): Promise<string> {
     const response = await request(app.getHttpServer()).post('/hangouts').set(auth('host')).send({
-      title: '新宿でコーヒー', category: 'CAFE', serviceArea: 'SHINJUKU', startInMinutes: 60, locationName: '新宿駅東口のカフェ',
+      title: '新宿でコーヒー', category: 'CAFE', serviceArea: 'SHINJUKU', startInMinutes: 60, publicLocationName: '新宿駅周辺', locationName: 'カフェ新宿店 東京都新宿区新宿1-2-3',
       latitude: 35.691234, longitude: 139.704567, maxParticipants: 3,
     }).expect(201);
     return response.body.id as string;
@@ -333,16 +334,17 @@ describe('social journey safety boundaries', () => {
     await request(app.getHttpServer()).get('/hangouts').expect(401);
     const pipe = new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true });
     await expect(pipe.transform({
-      title: 'Invalid', category: 'CAFE', startInMinutes: 15, locationName: 'Secret', latitude: 91, longitude: 200, maxParticipants: 1, unexpected: 'field',
+      title: 'Invalid', category: 'CAFE', startInMinutes: 15, publicLocationName: '新宿駅周辺', locationName: 'Secret', latitude: 91, longitude: 200, maxParticipants: 1, unexpected: 'field',
     }, { type: 'body', metatype: CreateHangoutDto })).rejects.toMatchObject({ status: 400 });
   });
 
-  it('hides exact coordinates until the host accepts the join request', async () => {
+  it('hides the exact venue, address, and coordinates until the host accepts the join request', async () => {
     const hangoutId = await createHangout();
     const before = await request(app.getHttpServer()).get(`/hangouts/${hangoutId}`).set(auth('guest')).expect(200);
     expect(before.body.locationPrecision).toBe('APPROXIMATE');
     expect(before.body.latitude).toBeUndefined();
     expect(before.body.longitude).toBeUndefined();
+    expect(before.body.locationName).toBe('新宿駅周辺');
     expect(before.body.publicLatitude).toBe(35.69);
     expect(before.body.publicLongitude).toBe(139.7);
 
@@ -355,16 +357,18 @@ describe('social journey safety boundaries', () => {
     expect(after.body.locationPrecision).toBe('EXACT');
     expect(after.body.latitude).toBe(35.691234);
     expect(after.body.longitude).toBe(139.704567);
+    expect(after.body.locationName).toBe('カフェ新宿店 東京都新宿区新宿1-2-3');
 
     const outsider = await request(app.getHttpServer()).get(`/hangouts/${hangoutId}`).set(auth('outsider')).expect(200);
     expect(outsider.body.locationPrecision).toBe('APPROXIMATE');
     expect(outsider.body.latitude).toBeUndefined();
+    expect(outsider.body.locationName).toBe('新宿駅周辺');
   });
 
   it('waitlists a full Hangout and safely reopens a slot after attendance cancellation', async () => {
     const response = await request(app.getHttpServer()).post('/hangouts').set(auth('host')).send({
       title: '新宿ランニング', category: 'RUNNING', serviceArea: 'SHINJUKU', startInMinutes: 60,
-      locationName: '新宿駅周辺', maxParticipants: 3,
+      publicLocationName: '新宿駅周辺', locationName: '新宿サンプル店 東京都新宿区新宿2-3-4', maxParticipants: 3,
     }).expect(201);
     const hangoutId = response.body.id as string;
     const joined = await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('guest')).send({}).expect(201);
@@ -383,7 +387,7 @@ describe('social journey safety boundaries', () => {
 
   it('enforces gender and age participation conditions on the API', async () => {
     const response = await request(app.getHttpServer()).post('/hangouts').set(auth('host')).send({
-      title: '20代女性限定カフェ', category: 'CAFE', serviceArea: 'SHINJUKU', startInMinutes: 60, locationName: '新宿駅',
+      title: '20代女性限定カフェ', category: 'CAFE', serviceArea: 'SHINJUKU', startInMinutes: 60, publicLocationName: '新宿駅周辺', locationName: '新宿カフェ 東京都新宿区新宿3-4-5',
       maxParticipants: 3, genderRestriction: 'FEMALE_ONLY', maxAge: 29,
     }).expect(201);
     const hangoutId = response.body.id as string;
@@ -414,6 +418,7 @@ describe('social journey safety boundaries', () => {
     expect(roomId).toBeTruthy();
 
     await request(app.getHttpServer()).get(`/chat-rooms/${roomId}/messages`).set(auth('outsider')).expect(403);
+    await request(app.getHttpServer()).post(`/chat-rooms/${roomId}/messages`).set(auth('host')).send({ body: '承認しました。よろしくお願いします' }).expect(201);
     await request(app.getHttpServer()).post(`/chat-rooms/${roomId}/messages`).set(auth('guest')).send({ body: '向かっています' }).expect(201);
     await request(app.getHttpServer()).post('/safety/blocks/host').set(auth('guest')).expect(201);
     await request(app.getHttpServer()).get(`/chat-rooms/${roomId}/messages`).set(auth('guest')).expect(403);

@@ -10,8 +10,9 @@ describe('Shinjuku/Shibuya launch constraints and funnel events', () => {
   const pipe = new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true });
 
   it('accepts only the two launch service areas', async () => {
-    const base = { title: '30分後にラーメン', category: 'RAMEN', startInMinutes: 30, locationName: '新宿駅東口', maxParticipants: 4 };
+    const base = { title: '30分後にラーメン', category: 'RAMEN', startInMinutes: 30, publicLocationName: '新宿駅周辺', locationName: '新宿駅東口の店舗', maxParticipants: 4 };
     await expect(pipe.transform({ ...base, serviceArea: ServiceArea.SHINJUKU }, { type: 'body', metatype: CreateHangoutDto })).resolves.toMatchObject({ serviceArea: 'SHINJUKU' });
+    await expect(pipe.transform({ ...base, serviceArea: ServiceArea.SHIBUYA }, { type: 'body', metatype: CreateHangoutDto })).resolves.toMatchObject({ serviceArea: 'SHIBUYA' });
     await expect(pipe.transform({ ...base, serviceArea: 'IKEBUKURO' }, { type: 'body', metatype: CreateHangoutDto })).rejects.toMatchObject({ status: 400 });
   });
 

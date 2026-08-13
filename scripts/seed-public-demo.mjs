@@ -8,14 +8,20 @@ const accounts = {
     email: process.env.HANGOUTNOW_DEMO_HOST_EMAIL || 'demo-host@hangoutnow.example',
     displayName: 'ユウキ（デモ主催者）',
     phone: '+819011110001',
+    birthDate: '1988-04-12',
     gender: 'MALE',
+    homeArea: '新宿',
+    interests: ['カフェ', 'ラーメン', 'ランニング'],
     bio: 'カフェ巡りとランニングが好きです。これは公開デモ用の架空プロフィールです。',
   },
   guest: {
     email: process.env.HANGOUTNOW_DEMO_GUEST_EMAIL || 'demo-guest@hangoutnow.example',
     displayName: 'ミサキ（デモ参加者）',
     phone: '+819011110002',
+    birthDate: '1993-09-20',
     gender: 'FEMALE',
+    homeArea: '渋谷',
+    interests: ['カフェ', '街歩き', '写真'],
     bio: '気軽に参加できるHangoutを探しています。これは公開デモ用の架空プロフィールです。',
   },
 };
@@ -52,7 +58,7 @@ async function loginOrRegister(account) {
         email: account.email,
         password,
         displayName: account.displayName,
-        birthDate: '1990-01-01',
+        birthDate: account.birthDate,
       }),
     });
     session = registration.body;
@@ -68,8 +74,8 @@ async function loginOrRegister(account) {
       gender: account.gender,
       profilePhoto: photo,
       bio: account.bio,
-      homeArea: '新宿・渋谷',
-      interests: ['カフェ', 'ランニング', 'デモ'],
+      homeArea: account.homeArea,
+      interests: account.interests,
     }),
   }, token).then((result) => result.body);
 
@@ -96,31 +102,31 @@ const samples = [
   {
     title: '【デモ手順】新宿カフェ交流会',
     description: '作成・参加申請・承認・グループチャット・終了・相互★5・1対1チャットまで確認する公開デモ用の架空イベントです。',
-    category: 'CAFE', startInMinutes: 180, locationName: '新宿駅周辺（デモ）',
+    category: 'CAFE', serviceArea: 'SHINJUKU', startInMinutes: 180, publicLocationName: '新宿駅周辺（デモ）', locationName: 'デモカフェ新宿店 東京都新宿区新宿3-1-1',
     latitude: 35.6901, longitude: 139.7005, maxParticipants: 4, genderRestriction: 'ANY', maxAge: 39,
   },
   {
     title: '代々木公園をゆっくりランニング',
     description: '会話できるペースで約5km走ります。初心者も歓迎する架空の募集です。',
-    category: 'RUNNING', startInMinutes: 60, locationName: '代々木公園入口（デモ）',
+    category: 'RUNNING', serviceArea: 'SHINJUKU', startInMinutes: 60, publicLocationName: '代々木公園周辺（デモ）', locationName: '代々木公園 原宿門 東京都渋谷区代々木神園町2-1',
     latitude: 35.6717, longitude: 139.6949, maxParticipants: 6, genderRestriction: 'FEMALE_ONLY', maxAge: 39,
   },
   {
     title: '新宿で話題のラーメンを食べよう',
     description: '気になっていたラーメン店へ一緒に行く、公開デモ用の架空募集です。',
-    category: 'FOOD', startInMinutes: 30, locationName: '新宿駅東口（デモ）',
+    category: 'FOOD', serviceArea: 'SHINJUKU', startInMinutes: 30, publicLocationName: '新宿駅東口周辺（デモ）', locationName: 'デモラーメン新宿店 東京都新宿区歌舞伎町1-2-3',
     latitude: 35.6920, longitude: 139.7038, maxParticipants: 4, genderRestriction: 'MALE_ONLY', maxAge: 59,
   },
   {
     title: '夕方のショートツーリング',
     description: '安全第一で景色を楽しむ、公開デモ用の架空ツーリング募集です。',
-    category: 'MOTORCYCLE', startInMinutes: 180, locationName: '世田谷公園周辺（デモ）',
+    category: 'MOTORCYCLE', serviceArea: 'SHIBUYA', startInMinutes: 180, publicLocationName: '渋谷駅周辺（デモ）', locationName: '渋谷区立宮下公園 東京都渋谷区神宮前6-20-10',
     latitude: 35.6437, longitude: 139.6816, maxParticipants: 5, genderRestriction: 'ANY', maxAge: 59,
   },
   {
     title: '渋谷で気軽に街歩き',
     description: '写真を撮りながらゆっくり散策する、公開デモ用の架空募集です。',
-    category: 'WALKING', startInMinutes: 60, locationName: '渋谷駅周辺（デモ）',
+    category: 'WALKING', serviceArea: 'SHIBUYA', startInMinutes: 60, publicLocationName: '渋谷駅周辺（デモ）', locationName: '渋谷区立宮下公園 南入口 東京都渋谷区渋谷1-26-5',
     latitude: 35.6580, longitude: 139.7016, maxParticipants: 5, genderRestriction: 'ANY',
   },
 ];
@@ -135,6 +141,18 @@ for (const sample of samples) {
       method: 'POST', body: JSON.stringify(sample),
     }, host.token).then((result) => result.body);
     hangouts.push(item);
+  } else {
+    item = await call(`/hangouts/${item.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        title: sample.title,
+        description: sample.description,
+        publicLocationName: sample.publicLocationName,
+        locationName: sample.locationName,
+        genderRestriction: sample.genderRestriction,
+        maxAge: sample.maxAge ?? null,
+      }),
+    }, host.token).then((result) => result.body);
   }
   seededHangouts.push(item);
 }

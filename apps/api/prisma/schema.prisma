@@ -172,6 +172,7 @@ model Hangout {
   serviceArea     ServiceArea    @map("service_area")
   startAt         DateTime       @map("start_at")
   locationName    String         @map("location_name")
+  publicLocationName String      @map("public_location_name")
   latitude        Float?
   longitude       Float?
   publicLatitude  Float?         @map("public_latitude")
