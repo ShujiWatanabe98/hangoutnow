@@ -31,6 +31,9 @@ model User {
   hostedHangouts Hangout[]      @relation("HostHangouts")
   joinRequests   JoinRequest[]
   messages       Message[]
+  directChatsStarted DirectChat[] @relation("DirectChatStarter")
+  directChatsReceived DirectChat[] @relation("DirectChatRecipient")
+  directMessages DirectMessage[]
   blocksCreated  Block[]        @relation("Blocker")
   blocksReceived Block[]        @relation("Blocked")
   reportsCreated Report[]       @relation("Reporter")
@@ -167,6 +170,35 @@ model Message {
   sender       User     @relation(fields: [senderUserId], references: [id], onDelete: Cascade)
   @@index([roomId, createdAt])
   @@map("messages")
+}
+
+model DirectChat {
+  id            String          @id @db.Uuid
+  userOneId     String          @map("user_one_id") @db.Uuid
+  userTwoId     String          @map("user_two_id") @db.Uuid
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+  userOne       User            @relation("DirectChatStarter", fields: [userOneId], references: [id], onDelete: Cascade)
+  userTwo       User            @relation("DirectChatRecipient", fields: [userTwoId], references: [id], onDelete: Cascade)
+  messages      DirectMessage[]
+
+  @@unique([userOneId, userTwoId])
+  @@index([userOneId, updatedAt])
+  @@index([userTwoId, updatedAt])
+  @@map("direct_chats")
+}
+
+model DirectMessage {
+  id           String     @id @db.Uuid
+  directChatId String     @map("direct_chat_id") @db.Uuid
+  senderUserId String     @map("sender_user_id") @db.Uuid
+  body         String
+  createdAt    DateTime   @default(now()) @map("created_at")
+  directChat   DirectChat @relation(fields: [directChatId], references: [id], onDelete: Cascade)
+  sender       User       @relation(fields: [senderUserId], references: [id], onDelete: Cascade)
+
+  @@index([directChatId, createdAt])
+  @@map("direct_messages")
 }
 
 model JoinRequest {

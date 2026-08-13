@@ -11,7 +11,7 @@ import { HealthController } from './health/health.controller';
 import { PrismaService } from './prisma/prisma.service';
 import { HangoutController, JoinRequestController } from './hangouts/hangout.controller';
 import { HangoutService } from './hangouts/hangout.service';
-import { ChatController } from './chat/chat.controller';
+import { ChatController, DirectChatController } from './chat/chat.controller';
 import { ChatService } from './chat/chat.service';
 import { ReportAdminController, SafetyController } from './safety/safety.controller';
 import { SafetyService } from './safety/safety.service';
@@ -29,7 +29,7 @@ import { ImageStorageService } from './storage/image-storage.service';
       return { secret };
     },
   }), ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }])],
-  controllers: [HealthController, AuthController, UsersController, HangoutController, JoinRequestController, ChatController, SafetyController, ReportAdminController, NotificationController],
+  controllers: [HealthController, AuthController, UsersController, HangoutController, JoinRequestController, ChatController, DirectChatController, SafetyController, ReportAdminController, NotificationController],
   providers: [PrismaService, HangoutService, ChatService, SafetyService, NotificationService, RealtimeGateway, SmsVerificationProvider, ImageStorageService, PrismaAuthRepository, { provide: AuthRepository, useExisting: PrismaAuthRepository }, AuthService, AccessTokenGuard, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}
