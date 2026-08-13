@@ -135,10 +135,15 @@ let hangouts = await call('/hangouts?latitude=35.69&longitude=139.70&radiusKm=20
   .then((result) => result.body);
 const seededHangouts = [];
 for (const sample of samples) {
+  const addressIndex = sample.locationName.indexOf(' 東京都');
+  const meetingPlaceName = addressIndex > 0 ? sample.locationName.slice(0, addressIndex) : sample.locationName;
+  const meetingAddress = addressIndex > 0 ? sample.locationName.slice(addressIndex + 1) : sample.locationName;
+  const navigationUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${meetingPlaceName} ${meetingAddress}`)}`;
+  const currentSample = { ...sample, meetingPlaceName, meetingAddress, navigationUrl, hostMaleCount: 1, hostFemaleCount: 0 };
   let item = hangouts.find((candidate) => candidate.hostUserId === host.id && candidate.title === sample.title && ['OPEN', 'FULL'].includes(candidate.status));
   if (!item) {
     item = await call('/hangouts', {
-      method: 'POST', body: JSON.stringify(sample),
+      method: 'POST', body: JSON.stringify(currentSample),
     }, host.token).then((result) => result.body);
     hangouts.push(item);
   } else {
@@ -149,6 +154,11 @@ for (const sample of samples) {
         description: sample.description,
         publicLocationName: sample.publicLocationName,
         locationName: sample.locationName,
+        meetingPlaceName,
+        meetingAddress,
+        navigationUrl,
+        hostMaleCount: 1,
+        hostFemaleCount: 0,
         genderRestriction: sample.genderRestriction,
         maxAge: sample.maxAge ?? null,
       }),

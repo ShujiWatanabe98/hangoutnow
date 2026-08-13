@@ -172,12 +172,17 @@ model Hangout {
   serviceArea     ServiceArea    @map("service_area")
   startAt         DateTime       @map("start_at")
   locationName    String         @map("location_name")
+  meetingPlaceName String?       @map("meeting_place_name")
+  meetingAddress  String?        @map("meeting_address")
+  navigationUrl   String?        @map("navigation_url")
   publicLocationName String      @map("public_location_name")
   latitude        Float?
   longitude       Float?
   publicLatitude  Float?         @map("public_latitude")
   publicLongitude Float?         @map("public_longitude")
   maxParticipants Int            @map("max_participants")
+  hostMaleCount   Int            @default(1) @map("host_male_count")
+  hostFemaleCount Int            @default(0) @map("host_female_count")
   genderRestriction GenderRestriction @default(ANY) @map("gender_restriction")
   maxAge          Int?           @map("max_age")
   status          HangoutStatus  @default(OPEN)
