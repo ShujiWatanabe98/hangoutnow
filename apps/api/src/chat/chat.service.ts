@@ -33,6 +33,7 @@ export class ChatService {
     return rows.map((room) => {
       const members = [room.hangout.host, ...room.hangout.joinRequests.map((request) => request.user)].map((member) => ({
         ...member,
+        myRatingScore: room.hangout.ratings.find((rating) => rating.raterUserId === uid && rating.ratedUserId === member.id)?.score ?? null,
         ratedFiveByMe: room.hangout.ratings.some((rating) => rating.raterUserId === uid && rating.ratedUserId === member.id && rating.score === 5),
         directChatEligible: room.hangout.status === HangoutStatus.FINISHED
           && room.hangout.ratings.some((rating) => rating.raterUserId === uid && rating.ratedUserId === member.id && rating.score === 5)

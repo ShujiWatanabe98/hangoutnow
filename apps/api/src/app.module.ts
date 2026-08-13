@@ -22,6 +22,8 @@ import { SmsVerificationProvider } from './auth/sms-verification.provider';
 import { ImageStorageService } from './storage/image-storage.service';
 import { StampController } from './stamps/stamp.controller';
 import { StampService } from './stamps/stamp.service';
+import { DemoController } from './demo/demo.controller';
+import { DemoService } from './demo/demo.service';
 
 @Module({
   imports: [JwtModule.registerAsync({
@@ -31,7 +33,7 @@ import { StampService } from './stamps/stamp.service';
       return { secret };
     },
   }), ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }])],
-  controllers: [HealthController, AuthController, UsersController, HangoutController, JoinRequestController, ChatController, DirectChatController, StampController, SafetyController, ReportAdminController, NotificationController],
-  providers: [PrismaService, HangoutService, ChatService, StampService, SafetyService, NotificationService, RealtimeGateway, SmsVerificationProvider, ImageStorageService, PrismaAuthRepository, { provide: AuthRepository, useExisting: PrismaAuthRepository }, AuthService, AccessTokenGuard, { provide: APP_GUARD, useClass: ThrottlerGuard }],
+  controllers: [HealthController, AuthController, UsersController, HangoutController, JoinRequestController, ChatController, DirectChatController, StampController, DemoController, SafetyController, ReportAdminController, NotificationController],
+  providers: [PrismaService, HangoutService, ChatService, StampService, DemoService, SafetyService, NotificationService, RealtimeGateway, SmsVerificationProvider, ImageStorageService, PrismaAuthRepository, { provide: AuthRepository, useExisting: PrismaAuthRepository }, AuthService, AccessTokenGuard, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}
