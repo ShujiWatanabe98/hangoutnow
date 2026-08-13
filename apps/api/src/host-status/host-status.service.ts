@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { HangoutStatus, ReportStatus, VerificationStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
-export type HostTier = 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM' | 'DIAMOND';
+export type HostTier = 'WHITE' | 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM' | 'DIAMOND';
 
 export interface HostStatus {
   tier: HostTier;
@@ -26,13 +26,14 @@ interface HostStatusInput {
 }
 
 const LEVELS = [
-  { tier: 'DIAMOND' as const, label: 'ダイアモンド', completed: 50, participants: 250, ratings: 50, average: 4.8, recent: 4.7, maxCancellation: 0.03 },
-  { tier: 'PLATINUM' as const, label: 'プラチナ', completed: 25, participants: 100, ratings: 25, average: 4.6, recent: 4.5, maxCancellation: 0.05 },
-  { tier: 'GOLD' as const, label: 'ゴールド', completed: 10, participants: 30, ratings: 10, average: 4.3, recent: 4.2, maxCancellation: 0.1 },
-  { tier: 'SILVER' as const, label: 'シルバー', completed: 3, participants: 8, ratings: 3, average: 4, recent: 4, maxCancellation: 0.2 },
+  { tier: 'DIAMOND' as const, label: 'ダイアモンド', completed: 100, participants: 600, ratings: 100, average: 4.9, recent: 4.8, maxCancellation: 0.02 },
+  { tier: 'PLATINUM' as const, label: 'プラチナ', completed: 50, participants: 250, ratings: 50, average: 4.8, recent: 4.7, maxCancellation: 0.03 },
+  { tier: 'GOLD' as const, label: 'ゴールド', completed: 25, participants: 100, ratings: 25, average: 4.6, recent: 4.5, maxCancellation: 0.05 },
+  { tier: 'SILVER' as const, label: 'シルバー', completed: 10, participants: 30, ratings: 10, average: 4.3, recent: 4.2, maxCancellation: 0.1 },
+  { tier: 'BRONZE' as const, label: 'ブロンズ', completed: 3, participants: 0, ratings: 0, average: 0, recent: 0, maxCancellation: 1 },
 ];
 
-const LABELS: Record<HostTier, string> = { BRONZE: 'ブロンズ', SILVER: 'シルバー', GOLD: 'ゴールド', PLATINUM: 'プラチナ', DIAMOND: 'ダイアモンド' };
+const LABELS: Record<HostTier, string> = { WHITE: 'ホワイト', BRONZE: 'ブロンズ', SILVER: 'シルバー', GOLD: 'ゴールド', PLATINUM: 'プラチナ', DIAMOND: 'ダイアモンド' };
 
 export function calculateHostStatus(input: HostStatusInput): HostStatus {
   const ratingCount = input.ratings.length;
@@ -44,8 +45,8 @@ export function calculateHostStatus(input: HostStatusInput): HostStatus {
   const cancellationRate = decided ? Number((input.cancelledHangouts / decided).toFixed(3)) : 0;
   const trusted = input.verification === VerificationStatus.PHONE_VERIFIED && input.resolvedReports === 0;
   const level = trusted ? LEVELS.find((candidate) => input.completedHangouts >= candidate.completed && input.totalParticipants >= candidate.participants && ratingCount >= candidate.ratings && (averageRating ?? 0) >= candidate.average && (recentAverageRating ?? 0) >= candidate.recent && cancellationRate <= candidate.maxCancellation) : undefined;
-  const tier: HostTier = level?.tier ?? 'BRONZE';
-  const ascending: HostTier[] = ['BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'DIAMOND'];
+  const tier: HostTier = level?.tier ?? 'WHITE';
+  const ascending: HostTier[] = ['WHITE', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'DIAMOND'];
   const nextTier = ascending[ascending.indexOf(tier) + 1] ?? null;
   return { tier, label: LABELS[tier], completedHangouts: input.completedHangouts, totalParticipants: input.totalParticipants, ratingCount, averageRating, recentAverageRating, cancellationRate, nextTier };
 }
