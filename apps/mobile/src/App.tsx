@@ -102,7 +102,7 @@ type NotificationItem = {
   readAt: string | null;
 };
 type NotificationInbox = { items: NotificationItem[]; unreadCount: number };
-type Screen = "home" | "create" | "detail" | "phone" | "chat" | "profile";
+type Screen = "home" | "map" | "create" | "detail" | "phone" | "chat" | "profile";
 type AlphaArea = "新宿" | "渋谷";
 type ApplicantProfile = {
   id: string;
@@ -135,6 +135,13 @@ const AREA_COORDINATES: Record<AlphaArea, { latitude: number; longitude: number 
   新宿: { latitude: 35.6909, longitude: 139.7003 },
   渋谷: { latitude: 35.658, longitude: 139.7016 },
 };
+const MAP_PIN_POSITIONS = [
+  { top: "18%", left: "20%" },
+  { top: "30%", right: "18%" },
+  { top: "53%", left: "34%" },
+  { bottom: "18%", right: "28%" },
+  { bottom: "12%", left: "12%" },
+] as const;
 type AuthMode = "login" | "register";
 type StampContent = { imageUrl: string; text: string };
 type UserStamp = { id: string; imageUrl: string; text: string };
@@ -851,25 +858,40 @@ export default function App() {
           <Text style={styles.brand}>
             Hangout <Text style={styles.brandAccent}>Now</Text>
           </Text>
-          <Text style={styles.userName}>{session.user.displayName}</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="自分のプロフィールを表示"
+            style={styles.headerProfileButton}
+            onPress={() => setScreen("profile")}
+          >
+            <Text style={styles.userName} numberOfLines={1}>{session.user.displayName}</Text>
+            {session.user.profilePhoto ? (
+              <Image source={{ uri: session.user.profilePhoto }} style={styles.headerProfilePhoto} />
+            ) : (
+              <View style={styles.headerProfileFallback}>
+                <Text style={styles.headerProfileInitial}>{session.user.displayName.slice(0, 1)}</Text>
+              </View>
+            )}
+          </Pressable>
         </View>
       )}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <View style={styles.content}>
         {screen === "home" && <HomeScreen user={session.user} hangouts={hangouts} refreshing={refreshing} locationLabel={locationLabel} selectedArea={selectedArea} onArea={chooseArea} onLocation={useCurrentLocation} onRefresh={refreshCurrent} onOpen={openHangout} onCreate={() => setScreen(session.user.verificationStatus === "PHONE_VERIFIED" ? "create" : "phone")} />}
+        {screen === "map" && <MapScreen hangouts={hangouts} locationLabel={locationLabel} onLocation={useCurrentLocation} onOpen={openHangout} />}
         {screen === "create" && <CreateHangoutScreen area={selectedArea} onBack={() => setScreen("home")} onSubmit={createHangout} />}
         {screen === "detail" && selectedHangout && <HangoutDetailScreen user={session.user} hangout={selectedHangout} requests={joinRequests} onBack={() => setScreen("home")} onJoin={joinHangout} onFinish={confirmFinishHangout} onDecide={decideJoinRequest} onReport={confirmReportHost} onAttendance={updateAttendance} />}
         {screen === "phone" && <PhoneVerificationScreen onBack={() => setScreen("profile")} onVerify={verifyPhone} />}
         {screen === "chat" && <ChatScreen user={session.user} rooms={rooms} stamps={stamps} chatTab={chatTab} selectedRoom={selectedRoom} messages={messages} messageBody={messageBody} sending={sending} refreshing={refreshing} unreadByRoom={unreadByRoom} realtimeOnline={realtimeOnline} onTab={setChatTab} onRefresh={refreshCurrent} onOpen={openRoom} onStartDirect={startDirect} onRate={rateParticipant} onSendStamp={sendStamp} onCreateStamp={createStamp} onBack={() => setSelectedRoom(null)} onChangeBody={setMessageBody} onSend={sendMessage} />}
         {screen === "profile" && <ProfileScreen user={session.user} hostStatus={hostStatus} demo={!!demoRole} onPhone={() => setScreen("phone")} onPhoto={chooseProfilePhoto} onDelete={confirmDeleteAccount} onLogout={logout} />}
       </View>
-      {!selectedRoom && ["home", "chat", "profile"].includes(screen) && (
+      {!selectedRoom && ["home", "map", "chat", "profile"].includes(screen) && (
         <View style={styles.nav}>
           {(
             [
               ["home", "ホーム"],
+              ["map", "マップ"],
               ["chat", "チャット"],
-              ["profile", "プロフィール"],
             ] as const
           ).map(([value, label]) => (
             <Pressable
@@ -1039,6 +1061,44 @@ function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, o
         </Pressable>
       ))}
       {!hangouts.length && <Text style={styles.empty}>現在募集中のHangoutはありません。</Text>}
+    </ScrollView>
+  );
+}
+
+function MapScreen({ hangouts, locationLabel, onLocation, onOpen }: { hangouts: Hangout[]; locationLabel: string; onLocation: () => void; onOpen: (hangout: Hangout) => void }) {
+  return (
+    <ScrollView contentContainerStyle={styles.mapPage}>
+      <View style={styles.mapHeading}>
+        <View>
+          <Text style={styles.eyebrow}>{locationLabel}</Text>
+          <Text style={styles.pageTitle}>近くのマップ</Text>
+        </View>
+        <Pressable style={styles.mapLocationButton} onPress={onLocation}>
+          <Text style={styles.locationText}>現在地を更新</Text>
+        </Pressable>
+      </View>
+      <View style={styles.mapCanvas}>
+        <View style={[styles.mapRoad, styles.mapRoadHorizontal]} />
+        <View style={[styles.mapRoad, styles.mapRoadVertical]} />
+        <View style={styles.mapYou}><Text style={styles.mapYouText}>現在地</Text></View>
+        {hangouts.slice(0, 5).map((hangout, index) => (
+          <Pressable key={hangout.id} style={[styles.mapPin, MAP_PIN_POSITIONS[index]]} onPress={() => onOpen(hangout)}>
+            <Text style={styles.mapPinText}>{index + 1}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <Text style={styles.mapPrivacy}>承認前は概略エリアのみ表示します。正確な集合場所は承認後に確認できます。</Text>
+      {hangouts.slice(0, 5).map((hangout, index) => (
+        <Pressable key={hangout.id} style={styles.mapResultCard} onPress={() => onOpen(hangout)}>
+          <Text style={styles.mapResultNumber}>{index + 1}</Text>
+          <View style={styles.cardCopy}>
+            <Text style={styles.cardTitle}>{hangout.title}</Text>
+            <Text style={styles.muted}>{hangout.locationName} ・ {hangout.participantCount}/{hangout.maxParticipants}人</Text>
+          </View>
+          <Text style={styles.detailLink}>詳細 ›</Text>
+        </Pressable>
+      ))}
+      {!hangouts.length && <Text style={styles.empty}>現在地周辺のHangoutはありません。</Text>}
     </ScrollView>
   );
 }
@@ -1548,6 +1608,10 @@ const styles = StyleSheet.create({
   brand: { fontSize: 21, fontWeight: "900", color: "#17221d" },
   brandAccent: { color: "#176b48" },
   userName: { fontSize: 12, color: "#6d766f", maxWidth: 170 },
+  headerProfileButton: { flexDirection: "row", alignItems: "center", gap: 9, paddingLeft: 8, paddingVertical: 2 },
+  headerProfilePhoto: { width: 38, height: 38, borderRadius: 19, backgroundColor: "#dfe6df" },
+  headerProfileFallback: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: "#176b48" },
+  headerProfileInitial: { color: "#fff", fontSize: 14, fontWeight: "900" },
   error: {
     marginHorizontal: 16,
     marginBottom: 8,
@@ -1601,6 +1665,20 @@ const styles = StyleSheet.create({
   navMarkOn: { width: 20, backgroundColor: "#176b48" },
   navLabel: { fontSize: 10, color: "#89908b", fontWeight: "700" },
   navOn: { color: "#176b48" },
+  mapPage: { padding: 18, paddingBottom: 40, backgroundColor: "#f7f8f3" },
+  mapHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  mapLocationButton: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 13, borderWidth: 1, borderColor: "#d8ded8", backgroundColor: "#fff" },
+  mapCanvas: { height: 310, marginTop: 4, borderRadius: 24, overflow: "hidden", backgroundColor: "#dfead9" },
+  mapRoad: { position: "absolute", backgroundColor: "#fff", borderColor: "#cbd6ca", borderWidth: 1 },
+  mapRoadHorizontal: { top: "43%", left: -20, right: -20, height: 38, transform: [{ rotate: "-8deg" }] },
+  mapRoadVertical: { top: -20, bottom: -20, left: "58%", width: 34, transform: [{ rotate: "12deg" }] },
+  mapYou: { position: "absolute", left: "48%", top: "45%", paddingHorizontal: 9, paddingVertical: 6, borderRadius: 999, backgroundColor: "#17221d" },
+  mapYouText: { color: "#fff", fontSize: 9, fontWeight: "900" },
+  mapPin: { position: "absolute", width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: "#fff", backgroundColor: "#176b48", shadowColor: "#17221d", shadowOpacity: 0.2, shadowRadius: 5 },
+  mapPinText: { color: "#fff", fontSize: 12, fontWeight: "900" },
+  mapPrivacy: { marginVertical: 13, color: "#59635c", fontSize: 11, lineHeight: 17 },
+  mapResultCard: { flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 8, padding: 13, borderRadius: 16, backgroundColor: "#fff" },
+  mapResultNumber: { width: 28, height: 28, borderRadius: 14, color: "#fff", backgroundColor: "#176b48", textAlign: "center", textAlignVertical: "center", fontSize: 11, fontWeight: "900" },
   authPage: { padding: 24, paddingBottom: 50, backgroundColor: "#eef5eb" },
   authBrand: {
     textAlign: "center",
