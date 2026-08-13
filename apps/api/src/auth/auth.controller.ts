@@ -3,6 +3,7 @@ import { Throttle } from '@nestjs/throttler';
 import { AccessTokenGuard, AuthenticatedRequest } from './access-token.guard';
 import { AuthService } from './auth.service';
 import { ConfirmPhoneVerificationDto, LoginDto, RefreshDto, RegisterDto, RequestPhoneVerificationDto, UpdateProfileDto } from './auth.dto';
+import { HostStatusService } from '../host-status/host-status.service';
 
 @Controller('auth')
 export class AuthController {
@@ -16,8 +17,9 @@ export class AuthController {
 @Controller('users')
 @UseGuards(AccessTokenGuard)
 export class UsersController {
-  constructor(@Inject(AuthService) private readonly auth: AuthService) {}
+  constructor(@Inject(AuthService) private readonly auth: AuthService, @Inject(HostStatusService) private readonly hostStatus: HostStatusService) {}
   @Get('me') getMe(@Req() request: AuthenticatedRequest) { return this.auth.getProfile(request.userId); }
+  @Get('me/host-status') getHostStatus(@Req() request: AuthenticatedRequest) { return this.hostStatus.forUser(request.userId); }
   @Patch('me') updateMe(@Req() request: AuthenticatedRequest, @Body() input: UpdateProfileDto) { return this.auth.updateProfile(request.userId, input); }
   @Delete('me') @HttpCode(204) async deleteMe(@Req() request:AuthenticatedRequest):Promise<void>{await this.auth.deleteAccount(request.userId)}
   @Post('me/phone/request') requestPhone(@Req() request: AuthenticatedRequest, @Body() input: RequestPhoneVerificationDto) { return this.auth.requestPhoneVerification(request.userId, input, request.ip||request.socket.remoteAddress||'unknown'); }

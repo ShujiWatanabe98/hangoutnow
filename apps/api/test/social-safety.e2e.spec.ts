@@ -10,6 +10,7 @@ import { ChatService } from '../src/chat/chat.service';
 import { HangoutController, JoinRequestController } from '../src/hangouts/hangout.controller';
 import { CreateHangoutDto } from '../src/hangouts/hangout.dto';
 import { HangoutService } from '../src/hangouts/hangout.service';
+import { HostStatusService } from '../src/host-status/host-status.service';
 import { NotificationController } from '../src/notifications/notification.controller';
 import { NotificationSettingsDto } from '../src/notifications/notification.dto';
 import { NotificationService } from '../src/notifications/notification.service';
@@ -294,6 +295,7 @@ describe('social journey safety boundaries', () => {
       controllers: [HangoutController, JoinRequestController, ChatController, SafetyController, NotificationController],
       providers: [
         HangoutService,
+        { provide: HostStatusService, useValue: { forUser: async () => ({ tier: 'BRONZE', label: 'ブロンズ' }), forUsers: async (ids: string[]) => new Map(ids.map((id) => [id, { tier: 'BRONZE', label: 'ブロンズ' }])) } },
         ChatService,
         { provide: StampService, useValue: { payload: async ()=>'__STAMP__{}' } },
         SafetyService,

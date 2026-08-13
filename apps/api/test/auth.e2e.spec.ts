@@ -6,6 +6,7 @@ import request from 'supertest';
 import { afterEach, describe, expect, it } from 'vitest';
 import { AccessTokenGuard } from '../src/auth/access-token.guard';
 import { AuthController, UsersController } from '../src/auth/auth.controller';
+import { HostStatusService } from '../src/host-status/host-status.service';
 import { AuthService } from '../src/auth/auth.service';
 import { AuthRepository, StoredPhoneVerification, StoredRefreshToken, StoredUser } from '../src/auth/auth.types';
 import { SmsVerificationProvider } from '../src/auth/sms-verification.provider';
@@ -41,7 +42,7 @@ describe('authentication and profile', () => {
     const moduleRef = await Test.createTestingModule({
       imports: [JwtModule.register({ secret: 'test-secret-that-is-long-enough-for-tests' })],
       controllers: [AuthController, UsersController],
-      providers: [AuthService, AccessTokenGuard, SmsVerificationProvider, ImageStorageService, { provide: AuthRepository, useClass: MemoryAuthRepository }],
+      providers: [AuthService, AccessTokenGuard, SmsVerificationProvider, ImageStorageService, { provide: HostStatusService, useValue: { forUser: async () => ({ tier: 'BRONZE', label: 'ブロンズ' }) } }, { provide: AuthRepository, useClass: MemoryAuthRepository }],
     }).compile();
     const instance = moduleRef.createNestApplication();
     instance.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));

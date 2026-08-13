@@ -1,0 +1,79 @@
+import { Injectable } from '@nestjs/common';
+import { HangoutStatus, ReportStatus, VerificationStatus } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+
+export type HostTier = 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM' | 'DIAMOND';
+
+export interface HostStatus {
+  tier: HostTier;
+  label: string;
+  completedHangouts: number;
+  totalParticipants: number;
+  ratingCount: number;
+  averageRating: number | null;
+  recentAverageRating: number | null;
+  cancellationRate: number;
+  nextTier: HostTier | null;
+}
+
+interface HostStatusInput {
+  completedHangouts: number;
+  cancelledHangouts: number;
+  totalParticipants: number;
+  ratings: Array<{ score: number; hangoutId: string; startAt: Date }>;
+  verification: VerificationStatus;
+  resolvedReports: number;
+}
+
+const LEVELS = [
+  { tier: 'DIAMOND' as const, label: 'ダイアモンド', completed: 50, participants: 250, ratings: 50, average: 4.8, recent: 4.7, maxCancellation: 0.03 },
+  { tier: 'PLATINUM' as const, label: 'プラチナ', completed: 25, participants: 100, ratings: 25, average: 4.6, recent: 4.5, maxCancellation: 0.05 },
+  { tier: 'GOLD' as const, label: 'ゴールド', completed: 10, participants: 30, ratings: 10, average: 4.3, recent: 4.2, maxCancellation: 0.1 },
+  { tier: 'SILVER' as const, label: 'シルバー', completed: 3, participants: 8, ratings: 3, average: 4, recent: 4, maxCancellation: 0.2 },
+];
+
+const LABELS: Record<HostTier, string> = { BRONZE: 'ブロンズ', SILVER: 'シルバー', GOLD: 'ゴールド', PLATINUM: 'プラチナ', DIAMOND: 'ダイアモンド' };
+
+export function calculateHostStatus(input: HostStatusInput): HostStatus {
+  const ratingCount = input.ratings.length;
+  const averageRating = ratingCount ? Number((input.ratings.reduce((sum, rating) => sum + rating.score, 0) / ratingCount).toFixed(1)) : null;
+  const recentHangoutIds = [...new Set([...input.ratings].sort((a, b) => b.startAt.getTime() - a.startAt.getTime()).map((rating) => rating.hangoutId))].slice(0, 10);
+  const recentRatings = input.ratings.filter((rating) => recentHangoutIds.includes(rating.hangoutId));
+  const recentAverageRating = recentRatings.length ? Number((recentRatings.reduce((sum, rating) => sum + rating.score, 0) / recentRatings.length).toFixed(1)) : null;
+  const decided = input.completedHangouts + input.cancelledHangouts;
+  const cancellationRate = decided ? Number((input.cancelledHangouts / decided).toFixed(3)) : 0;
+  const trusted = input.verification === VerificationStatus.PHONE_VERIFIED && input.resolvedReports === 0;
+  const level = trusted ? LEVELS.find((candidate) => input.completedHangouts >= candidate.completed && input.totalParticipants >= candidate.participants && ratingCount >= candidate.ratings && (averageRating ?? 0) >= candidate.average && (recentAverageRating ?? 0) >= candidate.recent && cancellationRate <= candidate.maxCancellation) : undefined;
+  const tier: HostTier = level?.tier ?? 'BRONZE';
+  const ascending: HostTier[] = ['BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'DIAMOND'];
+  const nextTier = ascending[ascending.indexOf(tier) + 1] ?? null;
+  return { tier, label: LABELS[tier], completedHangouts: input.completedHangouts, totalParticipants: input.totalParticipants, ratingCount, averageRating, recentAverageRating, cancellationRate, nextTier };
+}
+
+@Injectable()
+export class HostStatusService {
+  constructor(private readonly db: PrismaService) {}
+
+  async forUsers(userIds: string[]): Promise<Map<string, HostStatus>> {
+    const ids = [...new Set(userIds)];
+    if (!ids.length) return new Map();
+    const [users, hangouts, ratings, reports] = await Promise.all([
+      this.db.user.findMany({ where: { id: { in: ids } }, select: { id: true, verification: true } }),
+      this.db.hangout.findMany({ where: { hostUserId: { in: ids }, status: { in: [HangoutStatus.FINISHED, HangoutStatus.CANCELLED] } }, select: { id: true, hostUserId: true, status: true, joinRequests: { where: { status: 'ACCEPTED' }, select: { id: true } } } }),
+      this.db.hangoutRating.findMany({ where: { ratedUserId: { in: ids } }, select: { ratedUserId: true, score: true, hangoutId: true, hangout: { select: { hostUserId: true, startAt: true } } } }),
+      this.db.report.groupBy({ by: ['targetUserId'], where: { targetUserId: { in: ids }, status: ReportStatus.RESOLVED }, _count: { _all: true } }),
+    ]);
+    return new Map(users.map((user) => {
+      const hosted = hangouts.filter((hangout) => hangout.hostUserId === user.id);
+      const hostRatings = ratings.filter((rating) => rating.ratedUserId === user.id && rating.hangout.hostUserId === user.id).map((rating) => ({ score: rating.score, hangoutId: rating.hangoutId, startAt: rating.hangout.startAt }));
+      const status = calculateHostStatus({ completedHangouts: hosted.filter((hangout) => hangout.status === HangoutStatus.FINISHED).length, cancelledHangouts: hosted.filter((hangout) => hangout.status === HangoutStatus.CANCELLED).length, totalParticipants: hosted.filter((hangout) => hangout.status === HangoutStatus.FINISHED).reduce((sum, hangout) => sum + hangout.joinRequests.length, 0), ratings: hostRatings, verification: user.verification, resolvedReports: reports.find((report) => report.targetUserId === user.id)?._count._all ?? 0 });
+      return [user.id, status];
+    }));
+  }
+
+  async forUser(userId: string): Promise<HostStatus> {
+    const status = (await this.forUsers([userId])).get(userId);
+    if (!status) throw new Error('User not found');
+    return status;
+  }
+}
