@@ -1,10 +1,11 @@
-import { GenderRestriction } from '@prisma/client';
+import { GenderRestriction, ServiceArea } from '@prisma/client';
 import { IsEnum, IsIn, IsInt, IsLatitude, IsLongitude, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength } from 'class-validator';
 
 export class CreateHangoutDto {
   @IsString() @MinLength(1) @MaxLength(80) title!: string;
   @IsOptional() @IsString() @MaxLength(500) description?: string;
   @IsString() @MaxLength(30) category!: string;
+  @IsEnum(ServiceArea) serviceArea!: ServiceArea;
   @IsIn([30, 60, 180]) startInMinutes!: number;
   @IsString() @MinLength(1) @MaxLength(100) locationName!: string;
   @IsOptional() @IsLatitude() latitude?: number;

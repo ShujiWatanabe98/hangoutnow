@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { HangoutStatus, Prisma } from '@prisma/client';
+import { HangoutStatus, Prisma, ServiceArea } from '@prisma/client';
 import { v7 as uuidv7 } from 'uuid';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -28,6 +28,7 @@ export class DemoService {
         id: hangoutId, hostUserId: host.id, title: '【デモ手順】新宿カフェ交流会',
         description: '参加申請から終了、評価、1対1チャットまで順番に体験する架空のHangoutです。',
         category: 'CAFE', startAt: new Date(Date.now() + 30 * 60_000), locationName: '新宿駅周辺（デモ）',
+        serviceArea: ServiceArea.SHINJUKU,
         latitude: 35.6901, longitude: 139.7005, publicLatitude: 35.69, publicLongitude: 139.7,
         maxParticipants: 4, maxAge: 39, status: HangoutStatus.OPEN,
       } });

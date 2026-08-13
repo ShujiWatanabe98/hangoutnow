@@ -23,7 +23,7 @@ services:
       - key: PHONE_CODE_SECRET
         generateValue: true
       - key: CORS_ORIGINS
-        value: https://hangoutnow-demo.onrender.com
+        value: https://method-more.com,https://www.method-more.com,https://hangoutnow-demo.onrender.com
       - key: S3_ENDPOINT
         sync: false
       - key: S3_REGION

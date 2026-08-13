@@ -41,6 +41,7 @@ interface TestHangout {
   title: string;
   description?: string;
   category: string;
+  serviceArea: 'SHINJUKU'|'SHIBUYA';
   startAt: Date;
   locationName: string;
   latitude: number | null;
@@ -315,7 +316,7 @@ describe('social journey safety boundaries', () => {
 
   async function createHangout(): Promise<string> {
     const response = await request(app.getHttpServer()).post('/hangouts').set(auth('host')).send({
-      title: '新宿でコーヒー', category: 'CAFE', startInMinutes: 60, locationName: '新宿駅東口のカフェ',
+      title: '新宿でコーヒー', category: 'CAFE', serviceArea: 'SHINJUKU', startInMinutes: 60, locationName: '新宿駅東口のカフェ',
       latitude: 35.691234, longitude: 139.704567, maxParticipants: 3,
     }).expect(201);
     return response.body.id as string;
@@ -355,7 +356,7 @@ describe('social journey safety boundaries', () => {
 
   it('enforces gender and age participation conditions on the API', async () => {
     const response = await request(app.getHttpServer()).post('/hangouts').set(auth('host')).send({
-      title: '20代女性限定カフェ', category: 'CAFE', startInMinutes: 60, locationName: '新宿駅',
+      title: '20代女性限定カフェ', category: 'CAFE', serviceArea: 'SHINJUKU', startInMinutes: 60, locationName: '新宿駅',
       maxParticipants: 3, genderRestriction: 'FEMALE_ONLY', maxAge: 29,
     }).expect(201);
     const hangoutId = response.body.id as string;

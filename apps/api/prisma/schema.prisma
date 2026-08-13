@@ -12,6 +12,13 @@ enum VerificationStatus {
   PHONE_VERIFIED
 }
 
+enum AccountStatus {
+  ACTIVE
+  WARNED
+  SUSPENDED
+  BANNED
+}
+
 model User {
   id             String         @id @db.Uuid
   email          String         @unique
@@ -26,6 +33,7 @@ model User {
   profilePhoto   String?        @map("profile_photo") @db.Text
   phoneNumber    String?        @unique @map("phone_number")
   notificationsEnabled Boolean @default(true) @map("notifications_enabled")
+  accountStatus  AccountStatus @default(ACTIVE) @map("account_status")
   createdAt      DateTime       @default(now()) @map("created_at")
   updatedAt      DateTime       @updatedAt @map("updated_at")
   interests      UserInterest[]
@@ -43,6 +51,7 @@ model User {
   blocksReceived Block[]        @relation("Blocked")
   reportsCreated Report[]       @relation("Reporter")
   reportsReceived Report[]      @relation("ReportedUser")
+  moderationActions ModerationAction[] @relation("ModeratedUser")
   phoneVerifications PhoneVerification[]
   notifications Notification[]
 
@@ -102,6 +111,19 @@ enum HangoutStatus {
   FINISHED
   CANCELLED
 }
+enum ServiceArea {
+  SHINJUKU
+  SHIBUYA
+}
+
+enum FunnelEventType {
+  DISCOVERY_VIEWED
+  HANGOUT_VIEWED
+  JOIN_REQUESTED
+  JOIN_ACCEPTED
+  HANGOUT_CREATED
+  HANGOUT_COMPLETED
+}
 enum Gender {
   MALE
   FEMALE
@@ -126,6 +148,7 @@ model Hangout {
   title           String
   description     String?
   category        String
+  serviceArea     ServiceArea    @map("service_area")
   startAt         DateTime       @map("start_at")
   locationName    String         @map("location_name")
   latitude        Float?
@@ -143,10 +166,26 @@ model Hangout {
   chatRoom        ChatRoom?
   reports         Report[]
   ratings         HangoutRating[]
+  funnelEvents    FunnelEvent[]
 
   @@index([status, startAt])
+  @@index([serviceArea, status, startAt])
   @@index([hostUserId])
   @@map("hangouts")
+}
+
+model FunnelEvent {
+  id        String          @id @db.Uuid
+  userId    String          @map("user_id") @db.Uuid
+  hangoutId String?         @map("hangout_id") @db.Uuid
+  eventType FunnelEventType @map("event_type")
+  createdAt DateTime        @default(now()) @map("created_at")
+  hangout   Hangout?        @relation(fields: [hangoutId], references: [id], onDelete: SetNull)
+
+  @@index([eventType, createdAt])
+  @@index([hangoutId, eventType, createdAt])
+  @@index([userId, createdAt])
+  @@map("funnel_events")
 }
 
 model HangoutRating {
@@ -190,13 +229,41 @@ model Report {
   reason       String
   details      String?
   status       ReportStatus @default(OPEN)
+  assignedTo   String?      @map("assigned_to")
+  resolution   String?
+  updatedAt    DateTime     @updatedAt @map("updated_at")
   createdAt    DateTime     @default(now()) @map("created_at")
   reporter     User         @relation("Reporter", fields:[reporterId], references:[id], onDelete:Cascade)
   targetUser   User         @relation("ReportedUser", fields:[targetUserId], references:[id], onDelete:Cascade)
   hangout      Hangout?     @relation(fields:[hangoutId], references:[id], onDelete:SetNull)
+  actions      ModerationAction[]
   @@unique([reporterId, targetUserId, hangoutId])
   @@index([status, createdAt])
   @@map("reports")
+}
+
+enum ModerationActionType {
+  NOTE
+  WARNING
+  SUSPEND
+  BAN
+  RESTORE
+}
+
+model ModerationAction {
+  id           String               @id @db.Uuid
+  reportId     String               @map("report_id") @db.Uuid
+  targetUserId String               @map("target_user_id") @db.Uuid
+  action       ModerationActionType
+  reason       String
+  adminId      String               @map("admin_id")
+  createdAt    DateTime             @default(now()) @map("created_at")
+  report       Report               @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  targetUser   User                 @relation("ModeratedUser", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  @@index([reportId, createdAt])
+  @@index([targetUserId, createdAt])
+  @@map("moderation_actions")
 }
 
 model ChatRoom {
