@@ -69,7 +69,7 @@ async function demoLogin(role, button) {
     localStorage.setItem('hangout-now-session',JSON.stringify(session));
     connectRealtime();
     await Promise.all([loadNotificationCount(),loadHangouts()]);
-    navigate(role==='host'?'home':'chatScreen');
+    navigate('home');
   } catch(error) {
     document.querySelector('#demo-error').textContent=error.message;
     document.querySelectorAll('[data-demo-role]').forEach((item)=>item.disabled=false);
