@@ -33,6 +33,9 @@ interface TestUser {
   notificationsEnabled: boolean;
   birthDate: Date;
   gender: 'MALE'|'FEMALE'|'OTHER'|'UNDISCLOSED';
+  bio: string | null;
+  homeArea: string | null;
+  interests: Array<{interest:{name:string}}>;
 }
 
 interface TestHangout {
@@ -80,10 +83,10 @@ interface BlockWhere { OR?: Array<{ blockerId?: string; blockedId?: string }>; b
 
 class MemorySocialDb {
   readonly users: TestUser[] = [
-    { id: 'host', email: 'host@example.com', displayName: 'Host', verification: 'PHONE_VERIFIED', profilePhoto: 'host-photo', notificationsEnabled: true, birthDate:new Date('1990-01-01'), gender:'MALE' },
-    { id: 'guest', email: 'guest@example.com', displayName: 'Guest', verification: 'PHONE_VERIFIED', profilePhoto: 'guest-photo', notificationsEnabled: true, birthDate:new Date('2000-01-01'), gender:'FEMALE' },
-    { id: 'outsider', email: 'outsider@example.com', displayName: 'Outsider', verification: 'PHONE_VERIFIED', profilePhoto: 'outsider-photo', notificationsEnabled: true, birthDate:new Date('1980-01-01'), gender:'OTHER' },
-    { id: 'waiter', email: 'waiter@example.com', displayName: 'Waiter', verification: 'PHONE_VERIFIED', profilePhoto: 'waiter-photo', notificationsEnabled: true, birthDate:new Date('1995-01-01'), gender:'OTHER' },
+    { id: 'host', email: 'host@example.com', displayName: 'Host', verification: 'PHONE_VERIFIED', profilePhoto: 'host-photo', notificationsEnabled: true, birthDate:new Date('1990-01-01'), gender:'MALE', bio:'主催者です', homeArea:'新宿', interests:[] },
+    { id: 'guest', email: 'guest@example.com', displayName: 'Guest', verification: 'PHONE_VERIFIED', profilePhoto: 'guest-photo', notificationsEnabled: true, birthDate:new Date('2000-01-01'), gender:'FEMALE', bio:'カフェ巡りが好きです', homeArea:'渋谷', interests:[{interest:{name:'カフェ'}},{interest:{name:'ランニング'}}] },
+    { id: 'outsider', email: 'outsider@example.com', displayName: 'Outsider', verification: 'PHONE_VERIFIED', profilePhoto: 'outsider-photo', notificationsEnabled: true, birthDate:new Date('1980-01-01'), gender:'OTHER', bio:null, homeArea:null, interests:[] },
+    { id: 'waiter', email: 'waiter@example.com', displayName: 'Waiter', verification: 'PHONE_VERIFIED', profilePhoto: 'waiter-photo', notificationsEnabled: true, birthDate:new Date('1995-01-01'), gender:'OTHER', bio:null, homeArea:null, interests:[] },
   ];
   readonly hangouts: TestHangout[] = [];
   readonly joinRequests: TestJoinRequest[] = [];
@@ -253,7 +256,7 @@ class MemorySocialDb {
   private publicUser(id: string) {
     const user = this.users.find((item) => item.id === id);
     if (!user) throw new Error('User not found');
-    return { id: user.id, displayName: user.displayName, verification: user.verification, profilePhoto: user.profilePhoto };
+    return { id: user.id, displayName: user.displayName, verification: user.verification, profilePhoto: user.profilePhoto, birthDate:user.birthDate, bio:user.bio, homeArea:user.homeArea, interests:user.interests };
   }
 
   private requireHangout(id: string): TestHangout {
@@ -353,6 +356,10 @@ describe('social journey safety boundaries', () => {
     expect(before.body.publicLongitude).toBe(139.7);
 
     const joined = await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('guest')).send({ message: '参加したいです' }).expect(201);
+    const applications = await request(app.getHttpServer()).get(`/hangouts/${hangoutId}/requests`).set(auth('host')).expect(200);
+    expect(applications.body[0].user).toMatchObject({ displayName:'Guest', age:26, bio:'カフェ巡りが好きです', homeArea:'渋谷', interests:['カフェ','ランニング'] });
+    expect(applications.body[0].user.email).toBeUndefined();
+    expect(applications.body[0].user.birthDate).toBeUndefined();
     await request(app.getHttpServer()).post(`/join-requests/${joined.body.id as string}/accept`).set(auth('guest')).expect(403);
     await request(app.getHttpServer()).get(`/hangouts/${hangoutId}/requests`).set(auth('outsider')).expect(403);
     await request(app.getHttpServer()).post(`/join-requests/${joined.body.id as string}/accept`).set(auth('host')).expect(201);
