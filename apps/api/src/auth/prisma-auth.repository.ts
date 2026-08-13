@@ -12,7 +12,7 @@ export class PrismaAuthRepository extends AuthRepository {
   private mapUser(user: Awaited<ReturnType<PrismaAuthRepository['loadUser']>>): StoredUser {
     return {
       id: user.id, email: user.email, passwordHash: user.passwordHash, displayName: user.displayName,
-      birthDate: user.birthDate.toISOString().slice(0, 10), bio: user.bio, homeArea: user.homeArea,
+      birthDate: user.birthDate.toISOString().slice(0, 10), gender: user.gender, bio: user.bio, homeArea: user.homeArea,
       verificationStatus: user.verification, interests: user.interests.map((item) => item.interest.name),
       profilePhoto: user.profilePhoto, phoneNumber: user.phoneNumber,
     };
@@ -31,15 +31,15 @@ export class PrismaAuthRepository extends AuthRepository {
     const user = await this.prisma.user.findUnique({ where: { id }, include: includeInterests });
     return user ? this.mapUser(user) : null;
   }
-  async createUser(input: { email: string; passwordHash: string; displayName: string; birthDate: Date }): Promise<StoredUser> {
-    const user = await this.prisma.user.create({ data: { id: uuidv7(), ...input }, include: includeInterests });
+  async createUser(input: { email: string; passwordHash: string; displayName: string; birthDate: Date; gender?: string }): Promise<StoredUser> {
+    const user = await this.prisma.user.create({ data: { id: uuidv7(), ...input, gender: input.gender as 'MALE'|'FEMALE'|'OTHER'|'UNDISCLOSED'|undefined }, include: includeInterests });
     return this.mapUser(user);
   }
-  async updateProfile(userId: string, input: { displayName?: string; bio?: string | null; homeArea?: string | null; interests?: string[]; profilePhoto?: string | null }): Promise<StoredUser> {
-    const { interests, ...profile } = input;
+  async updateProfile(userId: string, input: { displayName?: string; bio?: string | null; homeArea?: string | null; interests?: string[]; profilePhoto?: string | null; gender?: string }): Promise<StoredUser> {
+    const { interests, gender, ...profile } = input;
     const user = await this.prisma.user.update({
       where: { id: userId }, data: {
-        ...profile,
+        ...profile, ...(gender ? { gender: gender as 'MALE'|'FEMALE'|'OTHER'|'UNDISCLOSED' } : {}),
         ...(interests ? { interests: { deleteMany: {}, create: interests.map((name) => ({ interest: { connectOrCreate: { where: { name }, create: { id: uuidv7(), name } } } })) } } : {}),
       }, include: includeInterests,
     });

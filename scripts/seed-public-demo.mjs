@@ -8,12 +8,14 @@ const accounts = {
     email: process.env.HANGOUTNOW_DEMO_HOST_EMAIL || 'demo-host@hangoutnow.example',
     displayName: 'ユウキ（デモ主催者）',
     phone: '+819011110001',
+    gender: 'MALE',
     bio: 'カフェ巡りとランニングが好きです。これは公開デモ用の架空プロフィールです。',
   },
   guest: {
     email: process.env.HANGOUTNOW_DEMO_GUEST_EMAIL || 'demo-guest@hangoutnow.example',
     displayName: 'ミサキ（デモ参加者）',
     phone: '+819011110002',
+    gender: 'FEMALE',
     bio: '気軽に参加できるHangoutを探しています。これは公開デモ用の架空プロフィールです。',
   },
 };
@@ -63,6 +65,7 @@ async function loginOrRegister(account) {
     method: 'PATCH',
     body: JSON.stringify({
       displayName: account.displayName,
+      gender: account.gender,
       profilePhoto: photo,
       bio: account.bio,
       homeArea: '新宿・渋谷',
@@ -91,34 +94,34 @@ const host = await loginOrRegister(accounts.host);
 const guest = await loginOrRegister(accounts.guest);
 const samples = [
   {
-    title: '新宿でデモカフェ交流会',
-    description: '公開デモ用の架空イベントです。参加申請とチャットを自由にお試しください。',
+    title: '【デモ手順】新宿カフェ交流会',
+    description: '作成・参加申請・承認・グループチャット・終了・相互★5・1対1チャットまで確認する公開デモ用の架空イベントです。',
     category: 'CAFE', startInMinutes: 180, locationName: '新宿駅周辺（デモ）',
-    latitude: 35.6901, longitude: 139.7005, maxParticipants: 4,
+    latitude: 35.6901, longitude: 139.7005, maxParticipants: 4, genderRestriction: 'ANY', maxAge: 39,
   },
   {
     title: '代々木公園をゆっくりランニング',
     description: '会話できるペースで約5km走ります。初心者も歓迎する架空の募集です。',
     category: 'RUNNING', startInMinutes: 60, locationName: '代々木公園入口（デモ）',
-    latitude: 35.6717, longitude: 139.6949, maxParticipants: 6,
+    latitude: 35.6717, longitude: 139.6949, maxParticipants: 6, genderRestriction: 'FEMALE_ONLY', maxAge: 39,
   },
   {
     title: '新宿で話題のラーメンを食べよう',
     description: '気になっていたラーメン店へ一緒に行く、公開デモ用の架空募集です。',
     category: 'FOOD', startInMinutes: 30, locationName: '新宿駅東口（デモ）',
-    latitude: 35.6920, longitude: 139.7038, maxParticipants: 4,
+    latitude: 35.6920, longitude: 139.7038, maxParticipants: 4, genderRestriction: 'MALE_ONLY', maxAge: 59,
   },
   {
     title: '夕方のショートツーリング',
     description: '安全第一で景色を楽しむ、公開デモ用の架空ツーリング募集です。',
     category: 'MOTORCYCLE', startInMinutes: 180, locationName: '世田谷公園周辺（デモ）',
-    latitude: 35.6437, longitude: 139.6816, maxParticipants: 5,
+    latitude: 35.6437, longitude: 139.6816, maxParticipants: 5, genderRestriction: 'ANY', maxAge: 59,
   },
   {
     title: '渋谷で気軽に街歩き',
     description: '写真を撮りながらゆっくり散策する、公開デモ用の架空募集です。',
     category: 'WALKING', startInMinutes: 60, locationName: '渋谷駅周辺（デモ）',
-    latitude: 35.6580, longitude: 139.7016, maxParticipants: 5,
+    latitude: 35.6580, longitude: 139.7016, maxParticipants: 5, genderRestriction: 'ANY',
   },
 ];
 
@@ -164,12 +167,29 @@ if (!messages.some((message) => message.body === 'こんにちは！デモチャ
   }, host.token);
 }
 
+for (const account of [host, guest]) {
+  const stamps = await call('/stamps', {}, account.token).then((result) => result.body);
+  for (const text of ['向かってます', '少し遅れます', '到着']) {
+    if (!stamps.some((stamp) => stamp.text === text)) {
+      await call('/stamps', { method: 'POST', body: JSON.stringify({ text }) }, account.token);
+    }
+  }
+}
+
 process.stdout.write(`${JSON.stringify({
   ok: true,
   demoUrl,
   host: { email: host.email, password, created: host.created },
   guest: { email: guest.email, password, created: guest.created },
   hangouts: seededHangouts.map((item) => ({ id: item.id, title: item.title, category: item.category })),
-  primaryHangout: { id: hangout.id, title: hangout.title, joinStatus },
-  chat: { roomId: room.id, ready: true },
+  primaryHangout: { id: hangout.id, title: hangout.title, joinStatus, genderRestriction: 'ANY', maxAge: 39 },
+  chat: { roomId: room.id, ready: true, personalStamps: ['向かってます', '少し遅れます', '到着'] },
+  walkthrough: [
+    '主催者で新しいHangoutを作成',
+    '参加者へ役割を切り替えて参加申請',
+    '主催者へ戻って申請を承認',
+    '双方で写真付きグループチャットとスタンプを確認',
+    '主催者がHangoutを終了して参加者へ★5',
+    '参加者も主催者へ★5を付け、1対1チャットを開始',
+  ],
 }, null, 2)}\n`);

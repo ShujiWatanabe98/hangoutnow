@@ -17,6 +17,7 @@ import { RealtimeGateway } from '../src/notifications/realtime.gateway';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { SafetyController } from '../src/safety/safety.controller';
 import { SafetyService } from '../src/safety/safety.service';
+import { StampService } from '../src/stamps/stamp.service';
 
 type Verification = 'UNVERIFIED' | 'PHONE_VERIFIED';
 type HangoutStatus = 'OPEN' | 'FULL' | 'STARTED' | 'FINISHED' | 'CANCELLED';
@@ -24,10 +25,13 @@ type JoinStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
 
 interface TestUser {
   id: string;
+  email: string;
   displayName: string;
   verification: Verification;
   profilePhoto: string | null;
   notificationsEnabled: boolean;
+  birthDate: Date;
+  gender: 'MALE'|'FEMALE'|'OTHER'|'UNDISCLOSED';
 }
 
 interface TestHangout {
@@ -43,6 +47,8 @@ interface TestHangout {
   publicLatitude: number | null;
   publicLongitude: number | null;
   maxParticipants: number;
+  genderRestriction: 'ANY'|'MALE_ONLY'|'FEMALE_ONLY';
+  maxAge: number | null;
   status: HangoutStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -69,9 +75,9 @@ interface BlockWhere { OR?: Array<{ blockerId?: string; blockedId?: string }>; b
 
 class MemorySocialDb {
   readonly users: TestUser[] = [
-    { id: 'host', displayName: 'Host', verification: 'PHONE_VERIFIED', profilePhoto: 'host-photo', notificationsEnabled: true },
-    { id: 'guest', displayName: 'Guest', verification: 'PHONE_VERIFIED', profilePhoto: 'guest-photo', notificationsEnabled: true },
-    { id: 'outsider', displayName: 'Outsider', verification: 'PHONE_VERIFIED', profilePhoto: 'outsider-photo', notificationsEnabled: true },
+    { id: 'host', email: 'host@example.com', displayName: 'Host', verification: 'PHONE_VERIFIED', profilePhoto: 'host-photo', notificationsEnabled: true, birthDate:new Date('1990-01-01'), gender:'MALE' },
+    { id: 'guest', email: 'guest@example.com', displayName: 'Guest', verification: 'PHONE_VERIFIED', profilePhoto: 'guest-photo', notificationsEnabled: true, birthDate:new Date('2000-01-01'), gender:'FEMALE' },
+    { id: 'outsider', email: 'outsider@example.com', displayName: 'Outsider', verification: 'PHONE_VERIFIED', profilePhoto: 'outsider-photo', notificationsEnabled: true, birthDate:new Date('1980-01-01'), gender:'OTHER' },
   ];
   readonly hangouts: TestHangout[] = [];
   readonly joinRequests: TestJoinRequest[] = [];
@@ -289,6 +295,7 @@ describe('social journey safety boundaries', () => {
       providers: [
         HangoutService,
         ChatService,
+        { provide: StampService, useValue: { payload: async ()=>'__STAMP__{}' } },
         SafetyService,
         NotificationService,
         AccessTokenGuard,
@@ -342,6 +349,31 @@ describe('social journey safety boundaries', () => {
     const outsider = await request(app.getHttpServer()).get(`/hangouts/${hangoutId}`).set(auth('outsider')).expect(200);
     expect(outsider.body.locationPrecision).toBe('APPROXIMATE');
     expect(outsider.body.latitude).toBeUndefined();
+  });
+
+  it('enforces gender and age participation conditions on the API', async () => {
+    const response = await request(app.getHttpServer()).post('/hangouts').set(auth('host')).send({
+      title: '20代女性限定カフェ', category: 'CAFE', startInMinutes: 60, locationName: '新宿駅',
+      maxParticipants: 3, genderRestriction: 'FEMALE_ONLY', maxAge: 29,
+    }).expect(201);
+    const hangoutId = response.body.id as string;
+    await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('guest')).send({}).expect(201);
+    await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('outsider')).send({}).expect(403);
+  });
+
+  it('keeps early finish restricted except for an identified public demo account in demo mode', async () => {
+    const hangoutId = await createHangout();
+    await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/finish`).set(auth('host')).send({}).expect(409);
+    const originalDemoMode = process.env.DEMO_MODE;
+    process.env.DEMO_MODE = 'true';
+    db.users[0]!.email = 'demo-host@hangoutnow.example';
+    try {
+      await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/finish`).set(auth('host')).send({}).expect(201);
+      expect(db.hangouts[0]?.status).toBe('FINISHED');
+    } finally {
+      if (originalDemoMode === undefined) delete process.env.DEMO_MODE;
+      else process.env.DEMO_MODE = originalDemoMode;
+    }
   });
 
   it('restricts chat to accepted members and revokes access after blocking the host', async () => {

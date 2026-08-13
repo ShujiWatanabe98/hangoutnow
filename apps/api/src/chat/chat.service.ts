@@ -1,8 +1,9 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { JoinRequestStatus, Prisma } from '@prisma/client';
+import { HangoutStatus, JoinRequestStatus } from '@prisma/client';
 import { v7 as uuidv7 } from 'uuid';
 import { NotificationService } from '../notifications/notification.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { StampService } from '../stamps/stamp.service';
 
 const publicUser = { id: true, displayName: true, profilePhoto: true, verification: true } as const;
 
@@ -11,6 +12,7 @@ export class ChatService {
   constructor(
     @Inject(PrismaService) private readonly db: PrismaService,
     @Inject(NotificationService) private readonly notifications: NotificationService,
+    @Inject(StampService) private readonly stamps: StampService,
   ) {}
 
   async rooms(uid: string) {
@@ -21,18 +23,23 @@ export class ChatService {
           include: {
             host: { select: publicUser },
             joinRequests: { where: { status: JoinRequestStatus.ACCEPTED }, include: { user: { select: publicUser } } },
+            ratings: { select: { raterUserId: true, ratedUserId: true, score: true } },
           },
         },
         messages: { orderBy: { createdAt: 'desc' }, take: 1 },
       },
       orderBy: { createdAt: 'desc' },
     });
-    return rows.map((room) => ({
-      ...room,
-      type: 'GROUP' as const,
-      members: [room.hangout.host, ...room.hangout.joinRequests.map((request) => request.user)],
-      lastMessage: room.messages[0] ?? null,
-    }));
+    return rows.map((room) => {
+      const members = [room.hangout.host, ...room.hangout.joinRequests.map((request) => request.user)].map((member) => ({
+        ...member,
+        ratedFiveByMe: room.hangout.ratings.some((rating) => rating.raterUserId === uid && rating.ratedUserId === member.id && rating.score === 5),
+        directChatEligible: room.hangout.status === HangoutStatus.FINISHED
+          && room.hangout.ratings.some((rating) => rating.raterUserId === uid && rating.ratedUserId === member.id && rating.score === 5)
+          && room.hangout.ratings.some((rating) => rating.raterUserId === member.id && rating.ratedUserId === uid && rating.score === 5),
+      }));
+      return { ...room, type: 'GROUP' as const, members, lastMessage: room.messages[0] ?? null };
+    });
   }
 
   async messages(uid: string, roomId: string) {
@@ -40,9 +47,10 @@ export class ChatService {
     return this.db.message.findMany({ where: { roomId }, include: { sender: { select: publicUser } }, orderBy: { createdAt: 'asc' }, take: 200 });
   }
 
-  async send(uid: string, roomId: string, body: string) {
+  async send(uid: string, roomId: string, body?: string, stampId?: string) {
     const room = await this.groupAccess(uid, roomId);
-    const message = await this.db.message.create({ data: { id: uuidv7(), roomId, senderUserId: uid, body: body.trim() }, include: { sender: { select: publicUser } } });
+    const content=stampId?await this.stamps.payload(uid,stampId):(body?.trim()??'');
+    const message = await this.db.message.create({ data: { id: uuidv7(), roomId, senderUserId: uid, body: content }, include: { sender: { select: publicUser } } });
     const recipients = new Set([room.hangout.hostUserId, ...room.hangout.joinRequests.map((request) => request.userId)]);
     recipients.delete(uid);
     for (const recipient of recipients) {
@@ -58,15 +66,18 @@ export class ChatService {
       include: { userOne: { select: publicUser }, userTwo: { select: publicUser }, messages: { orderBy: { createdAt: 'desc' }, take: 1 } },
       orderBy: { updatedAt: 'desc' },
     });
-    return rows
-      .map((room) => ({ ...room, type: 'DIRECT' as const, otherUser: room.userOneId === uid ? room.userTwo : room.userOne, lastMessage: room.messages[0] ?? null }))
-      .filter((room) => !blockedUserIds.has(room.otherUser.id));
+    const visible = await Promise.all(rows.map(async (room) => {
+      const otherUser = room.userOneId === uid ? room.userTwo : room.userOne;
+      if (blockedUserIds.has(otherUser.id) || !(await this.hasMutualFiveStarMeeting(uid, otherUser.id))) return null;
+      return { ...room, type: 'DIRECT' as const, otherUser, lastMessage: room.messages[0] ?? null };
+    }));
+    return visible.filter((room) => room !== null);
   }
 
   async createDirect(uid: string, targetUserId: string) {
     if (uid === targetUserId) throw new BadRequestException('自分自身とは1対1チャットを開始できません');
     await this.assertNotBlocked(uid, targetUserId);
-    if (!(await this.areMatched(uid, targetUserId))) throw new ForbiddenException('同じHangoutで承認された相手とのみチャットできます');
+    if (!(await this.hasMutualFiveStarMeeting(uid, targetUserId))) throw new ForbiddenException('Hangout終了後、お互いに★5を付けた相手とのみ1対1チャットできます');
     const orderedUserIds = [uid, targetUserId].sort();
     const userOneId = orderedUserIds[0]!;
     const userTwoId = orderedUserIds[1]!;
@@ -84,11 +95,12 @@ export class ChatService {
     return this.db.directMessage.findMany({ where: { directChatId: roomId }, include: { sender: { select: publicUser } }, orderBy: { createdAt: 'asc' }, take: 200 });
   }
 
-  async sendDirect(uid: string, roomId: string, body: string) {
+  async sendDirect(uid: string, roomId: string, body?: string, stampId?: string) {
     const room = await this.directAccess(uid, roomId);
     const recipient = room.userOneId === uid ? room.userTwoId : room.userOneId;
     const message = await this.db.$transaction(async (tx) => {
-      const created = await tx.directMessage.create({ data: { id: uuidv7(), directChatId: roomId, senderUserId: uid, body: body.trim() }, include: { sender: { select: publicUser } } });
+      const content=stampId?await this.stamps.payload(uid,stampId):(body?.trim()??'');
+      const created = await tx.directMessage.create({ data: { id: uuidv7(), directChatId: roomId, senderUserId: uid, body: content }, include: { sender: { select: publicUser } } });
       await tx.directChat.update({ where: { id: roomId }, data: { updatedAt: new Date() } });
       return created;
     });
@@ -110,6 +122,7 @@ export class ChatService {
     if (room.userOneId !== uid && room.userTwoId !== uid) throw new ForbiddenException();
     const otherUserId = room.userOneId === uid ? room.userTwoId : room.userOneId;
     await this.assertNotBlocked(uid, otherUserId);
+    if (!(await this.hasMutualFiveStarMeeting(uid, otherUserId))) throw new ForbiddenException('Mutual five-star rating required');
     return room;
   }
 
@@ -123,18 +136,17 @@ export class ChatService {
     return new Set(blocks.map((block) => block.blockerId === uid ? block.blockedId : block.blockerId));
   }
 
-  private async areMatched(uid: string, targetUserId: string) {
+  private async hasMutualFiveStarMeeting(uid: string, targetUserId: string) {
     const sharedHangout = await this.db.hangout.findFirst({
       where: {
-        OR: [
-          { hostUserId: uid, joinRequests: { some: { userId: targetUserId, status: JoinRequestStatus.ACCEPTED } } },
-          { hostUserId: targetUserId, joinRequests: { some: { userId: uid, status: JoinRequestStatus.ACCEPTED } } },
-          { AND: [
-            { joinRequests: { some: { userId: uid, status: JoinRequestStatus.ACCEPTED } } },
-            { joinRequests: { some: { userId: targetUserId, status: JoinRequestStatus.ACCEPTED } } },
-          ] },
+        status: HangoutStatus.FINISHED,
+        AND: [
+          { OR: [{ hostUserId: uid }, { joinRequests: { some: { userId: uid, status: JoinRequestStatus.ACCEPTED } } }] },
+          { OR: [{ hostUserId: targetUserId }, { joinRequests: { some: { userId: targetUserId, status: JoinRequestStatus.ACCEPTED } } }] },
+          { ratings: { some: { raterUserId: uid, ratedUserId: targetUserId, score: 5 } } },
+          { ratings: { some: { raterUserId: targetUserId, ratedUserId: uid, score: 5 } } },
         ],
-      } satisfies Prisma.HangoutWhereInput,
+      },
       select: { id: true },
     });
     return Boolean(sharedHangout);

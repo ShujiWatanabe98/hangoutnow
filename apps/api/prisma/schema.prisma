@@ -18,9 +18,11 @@ model User {
   passwordHash   String         @map("password_hash")
   displayName    String         @map("display_name")
   birthDate      DateTime       @map("birth_date") @db.Date
+  gender         Gender?
   bio            String?
   homeArea       String?        @map("home_area")
   verification   VerificationStatus @default(UNVERIFIED)
+  /// S3-compatible object URL in production. Never persist profile image bytes or base64 data URLs in production.
   profilePhoto   String?        @map("profile_photo") @db.Text
   phoneNumber    String?        @unique @map("phone_number")
   notificationsEnabled Boolean @default(true) @map("notifications_enabled")
@@ -34,6 +36,9 @@ model User {
   directChatsStarted DirectChat[] @relation("DirectChatStarter")
   directChatsReceived DirectChat[] @relation("DirectChatRecipient")
   directMessages DirectMessage[]
+  ratingsGiven   HangoutRating[] @relation("RatingsGiven")
+  ratingsReceived HangoutRating[] @relation("RatingsReceived")
+  stamps          UserStamp[]
   blocksCreated  Block[]        @relation("Blocker")
   blocksReceived Block[]        @relation("Blocked")
   reportsCreated Report[]       @relation("Reporter")
@@ -42,6 +47,18 @@ model User {
   notifications Notification[]
 
   @@map("users")
+}
+
+model UserStamp {
+  id        String   @id @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  imageUrl  String   @map("image_url") @db.Text
+  text      String
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("user_stamps")
 }
 
 model Notification {
@@ -85,6 +102,17 @@ enum HangoutStatus {
   FINISHED
   CANCELLED
 }
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  UNDISCLOSED
+}
+enum GenderRestriction {
+  ANY
+  MALE_ONLY
+  FEMALE_ONLY
+}
 enum JoinRequestStatus {
   PENDING
   ACCEPTED
@@ -105,6 +133,8 @@ model Hangout {
   publicLatitude  Float?         @map("public_latitude")
   publicLongitude Float?         @map("public_longitude")
   maxParticipants Int            @map("max_participants")
+  genderRestriction GenderRestriction @default(ANY) @map("gender_restriction")
+  maxAge          Int?           @map("max_age")
   status          HangoutStatus  @default(OPEN)
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")
@@ -112,10 +142,28 @@ model Hangout {
   joinRequests    JoinRequest[]
   chatRoom        ChatRoom?
   reports         Report[]
+  ratings         HangoutRating[]
 
   @@index([status, startAt])
   @@index([hostUserId])
   @@map("hangouts")
+}
+
+model HangoutRating {
+  id          String   @id @db.Uuid
+  hangoutId   String   @map("hangout_id") @db.Uuid
+  raterUserId String   @map("rater_user_id") @db.Uuid
+  ratedUserId String   @map("rated_user_id") @db.Uuid
+  score       Int
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  hangout     Hangout  @relation(fields: [hangoutId], references: [id], onDelete: Cascade)
+  rater       User     @relation("RatingsGiven", fields: [raterUserId], references: [id], onDelete: Cascade)
+  rated       User     @relation("RatingsReceived", fields: [ratedUserId], references: [id], onDelete: Cascade)
+
+  @@unique([hangoutId, raterUserId, ratedUserId])
+  @@index([raterUserId, ratedUserId, score])
+  @@map("hangout_ratings")
 }
 
 enum ReportStatus {

@@ -23,7 +23,7 @@ export class AuthService {
     if (!this.isAdult(input.birthDate)) throw new BadRequestException('You must be at least 18 years old');
     if (await this.repository.findUserByEmail(email)) throw new ConflictException('Email is already registered');
     const user = await this.repository.createUser({
-      email, passwordHash: await hash(input.password, 10), displayName: input.displayName.trim(), birthDate: new Date(`${input.birthDate}T00:00:00.000Z`),
+      email, passwordHash: await hash(input.password, 10), displayName: input.displayName.trim(), birthDate: new Date(`${input.birthDate}T00:00:00.000Z`), gender: input.gender,
     });
     return { user: this.publicUser(user), ...(await this.issueTokens(user.id)) };
   }
@@ -98,7 +98,7 @@ export class AuthService {
   }
   private publicUser(user: StoredUser): PublicUser {
     return {
-      id: user.id, email: user.email, displayName: user.displayName, birthDate: user.birthDate,
+      id: user.id, email: user.email, displayName: user.displayName, birthDate: user.birthDate, gender: user.gender,
       bio: user.bio, homeArea: user.homeArea, interests: user.interests, verificationStatus: user.verificationStatus,
       profilePhoto: user.profilePhoto, phoneNumber: user.phoneNumber,
     };

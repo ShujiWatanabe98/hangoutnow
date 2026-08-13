@@ -17,11 +17,11 @@ class MemoryAuthRepository extends AuthRepository {
   private phoneCodes: StoredPhoneVerification[] = [];
   async findUserByEmail(email: string) { return this.users.find((user) => user.email === email) ?? null; }
   async findUserById(id: string) { return this.users.find((user) => user.id === id) ?? null; }
-  async createUser(input: { email: string; passwordHash: string; displayName: string; birthDate: Date }) {
-    const user: StoredUser = { id: `user-${this.users.length + 1}`, ...input, birthDate: input.birthDate.toISOString().slice(0, 10), bio: null, homeArea: null, interests: [], verificationStatus: 'UNVERIFIED', profilePhoto: null, phoneNumber: null };
+  async createUser(input: { email: string; passwordHash: string; displayName: string; birthDate: Date; gender?: string }) {
+    const user: StoredUser = { id: `user-${this.users.length + 1}`, ...input, birthDate: input.birthDate.toISOString().slice(0, 10), gender: input.gender??null, bio: null, homeArea: null, interests: [], verificationStatus: 'UNVERIFIED', profilePhoto: null, phoneNumber: null };
     this.users.push(user); return user;
   }
-  async updateProfile(userId: string, input: { displayName?: string; bio?: string | null; homeArea?: string | null; interests?: string[]; profilePhoto?: string | null }) {
+  async updateProfile(userId: string, input: { displayName?: string; bio?: string | null; homeArea?: string | null; interests?: string[]; profilePhoto?: string | null; gender?: string }) {
     const user = await this.findUserById(userId); if (!user) throw new Error('missing user'); Object.assign(user, input); return user;
   }
   async saveRefreshToken(token: StoredRefreshToken) { this.tokens.push(token); }

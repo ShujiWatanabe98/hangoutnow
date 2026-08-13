@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
-import { ArrayMaxSize, IsArray, IsDateString, IsEmail, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { Gender } from '@prisma/client';
+import { ArrayMaxSize, IsArray, IsDateString, IsEmail, IsEnum, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 
 export class RegisterDto {
   @IsEmail() @Transform(({ value }: { value: unknown }) => typeof value === 'string' ? value.trim().toLowerCase() : value)
@@ -7,6 +8,7 @@ export class RegisterDto {
   @IsString() @MinLength(12) @MaxLength(128) password!: string;
   @IsString() @MinLength(1) @MaxLength(40) displayName!: string;
   @IsDateString({ strict: true }) birthDate!: string;
+  @IsOptional() @IsEnum(Gender) gender?: Gender;
 }
 
 export class LoginDto {
@@ -23,6 +25,7 @@ export class UpdateProfileDto {
   @IsOptional() @IsString() @MaxLength(80) homeArea?: string | null;
   @IsOptional() @IsArray() @ArrayMaxSize(20) @IsString({ each: true }) @MaxLength(40, { each: true }) interests?: string[];
   @IsOptional() @IsString() @MaxLength(1_500_000) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/) profilePhoto?: string | null;
+  @IsOptional() @IsEnum(Gender) gender?: Gender;
 }
 
 export class RequestPhoneVerificationDto { @IsString() @Matches(/^\+[1-9]\d{7,14}$/) phone!: string; }
