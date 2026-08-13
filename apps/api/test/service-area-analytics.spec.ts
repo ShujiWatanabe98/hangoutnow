@@ -16,6 +16,13 @@ describe('Shinjuku/Shibuya launch constraints and funnel events', () => {
     await expect(pipe.transform({ ...base, serviceArea: 'IKEBUKURO' }, { type: 'body', metatype: CreateHangoutDto })).rejects.toMatchObject({ status: 400 });
   });
 
+  it('allows a total size from one to eight people', async () => {
+    const base = { title: '少人数カフェ', category: 'CAFE', serviceArea: ServiceArea.SHINJUKU, startInMinutes: 30, publicLocationName: '新宿駅周辺', locationName: '新宿の店舗' };
+    await expect(pipe.transform({ ...base, maxParticipants: 1 }, { type: 'body', metatype: CreateHangoutDto })).resolves.toMatchObject({ maxParticipants: 1 });
+    await expect(pipe.transform({ ...base, maxParticipants: 8 }, { type: 'body', metatype: CreateHangoutDto })).resolves.toMatchObject({ maxParticipants: 8 });
+    await expect(pipe.transform({ ...base, maxParticipants: 9 }, { type: 'body', metatype: CreateHangoutDto })).rejects.toMatchObject({ status: 400 });
+  });
+
   it('requires a Hangout id for downstream funnel events and persists valid events', async () => {
     const create = vi.fn().mockResolvedValue({ id: 'event-id', eventType: FunnelEventType.HANGOUT_VIEWED, createdAt: new Date() });
     const db = { hangout: { findUnique: vi.fn().mockResolvedValue({ id: '01900000-0000-7000-8000-000000000001' }) }, funnelEvent: { create } } as unknown as PrismaService;

@@ -336,6 +336,10 @@ describe('social journey safety boundaries', () => {
     await expect(pipe.transform({
       title: 'Invalid', category: 'CAFE', startInMinutes: 15, publicLocationName: '新宿駅周辺', locationName: 'Secret', latitude: 91, longitude: 200, maxParticipants: 1, unexpected: 'field',
     }, { type: 'body', metatype: CreateHangoutDto })).rejects.toMatchObject({ status: 400 });
+    await request(app.getHttpServer()).post('/hangouts').set(auth('host')).send({
+      title: '人数不正', category: 'CAFE', serviceArea: 'SHINJUKU', startInMinutes: 30,
+      publicLocationName: '新宿駅周辺', locationName: '新宿の店舗', maxParticipants: 1, hostMaleCount: 2, hostFemaleCount: 0,
+    }).expect(400);
   });
 
   it('hides the exact venue, address, and coordinates until the host accepts the join request', async () => {
@@ -371,11 +375,11 @@ describe('social journey safety boundaries', () => {
       publicLocationName: '新宿駅周辺', locationName: '新宿サンプル店 東京都新宿区新宿2-3-4', maxParticipants: 3,
     }).expect(201);
     const hangoutId = response.body.id as string;
-    const joined = await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('guest')).send({}).expect(201);
+    const joined = await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('guest')).send({ message: '参加したいです' }).expect(201);
     await request(app.getHttpServer()).post(`/join-requests/${joined.body.id as string}/accept`).set(auth('host')).expect(201);
-    const second = await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('outsider')).send({}).expect(201);
+    const second = await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('outsider')).send({ message: 'よろしくお願いします' }).expect(201);
     await request(app.getHttpServer()).post(`/join-requests/${second.body.id as string}/accept`).set(auth('host')).expect(201);
-    const waiting = await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('waiter')).send({}).expect(201);
+    const waiting = await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('waiter')).send({ message: '空きが出たら参加したいです' }).expect(201);
     expect(waiting.body.status).toBe('WAITLISTED');
     await request(app.getHttpServer()).patch(`/join-requests/${joined.body.id as string}/attendance`).set(auth('guest')).send({ status: 'CONFIRMED' }).expect(200);
     await request(app.getHttpServer()).patch(`/join-requests/${joined.body.id as string}/attendance`).set(auth('outsider')).send({ status: 'CANCELLED' }).expect(403);
@@ -391,8 +395,8 @@ describe('social journey safety boundaries', () => {
       maxParticipants: 3, genderRestriction: 'FEMALE_ONLY', maxAge: 29,
     }).expect(201);
     const hangoutId = response.body.id as string;
-    await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('guest')).send({}).expect(201);
-    await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('outsider')).send({}).expect(403);
+    await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('guest')).send({ message: '参加希望です' }).expect(201);
+    await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('outsider')).send({ message: '参加希望です' }).expect(403);
   });
 
   it('keeps early finish restricted except for an identified public demo account in demo mode', async () => {

@@ -1,28 +1,33 @@
+import { readFileSync } from 'node:fs';
+
 const baseUrl = process.env.HANGOUTNOW_API_URL || 'https://hangoutnow-api.onrender.com';
 const demoUrl = process.env.HANGOUTNOW_DEMO_URL || 'https://hangoutnow-demo.onrender.com';
 const password = process.env.HANGOUTNOW_DEMO_PASSWORD || 'HangoutNow-Demo-2026!';
-const photo = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z6nAAAAAASUVORK5CYII=';
+const hostPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-guest-profile.jpg', import.meta.url)).toString('base64')}`;
+const guestPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-host-profile.jpg', import.meta.url)).toString('base64')}`;
 
 const accounts = {
   host: {
     email: process.env.HANGOUTNOW_DEMO_HOST_EMAIL || 'demo-host@hangoutnow.example',
-    displayName: 'ユウキ（デモ主催者）',
+    displayName: 'ミサキ（デモ主催者）',
     phone: '+819011110001',
     birthDate: '1988-04-12',
-    gender: 'MALE',
+    gender: 'FEMALE',
     homeArea: '新宿',
     interests: ['カフェ', 'ラーメン', 'ランニング'],
     bio: 'カフェ巡りとランニングが好きです。これは公開デモ用の架空プロフィールです。',
+    profilePhoto: hostPhoto,
   },
   guest: {
     email: process.env.HANGOUTNOW_DEMO_GUEST_EMAIL || 'demo-guest@hangoutnow.example',
-    displayName: 'ミサキ（デモ参加者）',
+    displayName: 'ユウキ（デモ参加者）',
     phone: '+819011110002',
     birthDate: '1993-09-20',
-    gender: 'FEMALE',
+    gender: 'MALE',
     homeArea: '渋谷',
     interests: ['カフェ', '街歩き', '写真'],
     bio: '気軽に参加できるHangoutを探しています。これは公開デモ用の架空プロフィールです。',
+    profilePhoto: guestPhoto,
   },
 };
 
@@ -72,7 +77,7 @@ async function loginOrRegister(account) {
     body: JSON.stringify({
       displayName: account.displayName,
       gender: account.gender,
-      profilePhoto: photo,
+      profilePhoto: account.profilePhoto,
       bio: account.bio,
       homeArea: account.homeArea,
       interests: account.interests,
@@ -139,7 +144,7 @@ for (const sample of samples) {
   const meetingPlaceName = addressIndex > 0 ? sample.locationName.slice(0, addressIndex) : sample.locationName;
   const meetingAddress = addressIndex > 0 ? sample.locationName.slice(addressIndex + 1) : sample.locationName;
   const navigationUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${meetingPlaceName} ${meetingAddress}`)}`;
-  const currentSample = { ...sample, meetingPlaceName, meetingAddress, navigationUrl, hostMaleCount: 1, hostFemaleCount: 0 };
+  const currentSample = { ...sample, meetingPlaceName, meetingAddress, navigationUrl, hostMaleCount: 0, hostFemaleCount: 1 };
   let item = hangouts.find((candidate) => candidate.hostUserId === host.id && candidate.title === sample.title && ['OPEN', 'FULL'].includes(candidate.status));
   if (!item) {
     item = await call('/hangouts', {
@@ -157,8 +162,8 @@ for (const sample of samples) {
         meetingPlaceName,
         meetingAddress,
         navigationUrl,
-        hostMaleCount: 1,
-        hostFemaleCount: 0,
+        hostMaleCount: 0,
+        hostFemaleCount: 1,
         genderRestriction: sample.genderRestriction,
         maxAge: sample.maxAge ?? null,
       }),
