@@ -54,8 +54,22 @@ model User {
   moderationActions ModerationAction[] @relation("ModeratedUser")
   phoneVerifications PhoneVerification[]
   notifications Notification[]
+  pushTokens PushToken[]
 
   @@map("users")
+}
+
+model PushToken {
+  id        String   @id @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String   @unique
+  platform  String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_tokens")
 }
 
 model UserStamp {
@@ -138,7 +152,14 @@ enum GenderRestriction {
 enum JoinRequestStatus {
   PENDING
   ACCEPTED
+  WAITLISTED
   REJECTED
+  CANCELLED
+}
+
+enum AttendanceStatus {
+  PENDING_CONFIRMATION
+  CONFIRMED
   CANCELLED
 }
 
@@ -322,6 +343,8 @@ model JoinRequest {
   userId    String            @map("user_id") @db.Uuid
   message   String?
   status    JoinRequestStatus @default(PENDING)
+  attendanceStatus AttendanceStatus? @map("attendance_status")
+  attendanceUpdatedAt DateTime? @map("attendance_updated_at")
   createdAt DateTime          @default(now()) @map("created_at")
   updatedAt DateTime          @updatedAt @map("updated_at")
   hangout   Hangout           @relation(fields: [hangoutId], references: [id], onDelete: Cascade)

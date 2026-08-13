@@ -1,4 +1,4 @@
-import { GenderRestriction, ServiceArea } from '@prisma/client';
+import { AttendanceStatus, GenderRestriction, ServiceArea } from '@prisma/client';
 import { IsEnum, IsIn, IsInt, IsLatitude, IsLongitude, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength } from 'class-validator';
 
 export class CreateHangoutDto {
@@ -18,8 +18,15 @@ export class UpdateHangoutDto {
   @IsOptional() @IsString() @MinLength(1) @MaxLength(80) title?: string;
   @IsOptional() @IsString() @MaxLength(500) description?: string;
   @IsOptional() @IsString() @MaxLength(100) locationName?: string;
+  @IsOptional() @IsEnum(GenderRestriction) genderRestriction?: GenderRestriction;
+  @IsOptional() @IsIn([29, 39, 59]) maxAge?: number | null;
 }
 export class JoinHangoutDto { @IsOptional() @IsString() @MaxLength(200) message?: string; }
+export class UpdateAttendanceDto {
+  @IsEnum(AttendanceStatus)
+  @IsIn([AttendanceStatus.CONFIRMED, AttendanceStatus.CANCELLED])
+  status!: AttendanceStatus;
+}
 export class RateParticipantDto {
   @IsUUID() ratedUserId!: string;
   @IsInt() @Min(1) @Max(5) score!: number;

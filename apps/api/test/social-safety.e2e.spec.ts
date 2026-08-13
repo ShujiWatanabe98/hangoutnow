@@ -62,6 +62,8 @@ interface TestJoinRequest {
   userId: string;
   message?: string;
   status: JoinStatus;
+  attendanceStatus?: 'PENDING_CONFIRMATION' | 'CONFIRMED' | 'CANCELLED' | null;
+  attendanceUpdatedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -80,6 +82,7 @@ class MemorySocialDb {
     { id: 'host', email: 'host@example.com', displayName: 'Host', verification: 'PHONE_VERIFIED', profilePhoto: 'host-photo', notificationsEnabled: true, birthDate:new Date('1990-01-01'), gender:'MALE' },
     { id: 'guest', email: 'guest@example.com', displayName: 'Guest', verification: 'PHONE_VERIFIED', profilePhoto: 'guest-photo', notificationsEnabled: true, birthDate:new Date('2000-01-01'), gender:'FEMALE' },
     { id: 'outsider', email: 'outsider@example.com', displayName: 'Outsider', verification: 'PHONE_VERIFIED', profilePhoto: 'outsider-photo', notificationsEnabled: true, birthDate:new Date('1980-01-01'), gender:'OTHER' },
+    { id: 'waiter', email: 'waiter@example.com', displayName: 'Waiter', verification: 'PHONE_VERIFIED', profilePhoto: 'waiter-photo', notificationsEnabled: true, birthDate:new Date('1995-01-01'), gender:'OTHER' },
   ];
   readonly hangouts: TestHangout[] = [];
   readonly joinRequests: TestJoinRequest[] = [];
@@ -154,25 +157,29 @@ class MemorySocialDb {
   };
 
   readonly joinRequest = {
-    create: async (query: { data: Omit<TestJoinRequest, 'status' | 'createdAt' | 'updatedAt'> }) => {
+    create: async (query: { data: Omit<TestJoinRequest, 'createdAt' | 'updatedAt'> & { status?: JoinStatus } }) => {
       if (this.joinRequests.some((item) => item.hangoutId === query.data.hangoutId && item.userId === query.data.userId)) throw new Error('duplicate');
       const now = new Date();
-      const row: TestJoinRequest = { ...query.data, status: 'PENDING', createdAt: now, updatedAt: now };
+      const row: TestJoinRequest = { ...query.data, status: query.data.status ?? 'PENDING', createdAt: now, updatedAt: now };
       this.joinRequests.push(row);
       return { ...row, user: this.publicUser(query.data.userId) };
     },
     findUnique: async (query: WhereId) => {
       const row = this.joinRequests.find((item) => item.id === query.where.id);
       if (!row) return null;
-      return { ...row, hangout: this.hangoutView(this.requireHangout(row.hangoutId), row.userId) };
+      const hangout = this.hangoutView(this.requireHangout(row.hangoutId), row.userId);
+      return { ...row, hangout: { ...hangout, joinRequests: this.joinRequests.filter((item) => item.hangoutId === row.hangoutId && item.status === 'ACCEPTED') } };
     },
     findMany: async (query: { where: { hangoutId: string } }) => this.joinRequests
       .filter((item) => item.hangoutId === query.where.hangoutId)
       .map((item) => ({ ...item, user: this.publicUser(item.userId) })),
-    update: async (query: { where: { id: string }; data: { status: JoinStatus } }) => {
+    findFirst: async (query: { where: { hangoutId: string; status: JoinStatus }; orderBy: { createdAt: 'asc' } }) => this.joinRequests
+      .filter((item) => item.hangoutId === query.where.hangoutId && item.status === query.where.status)
+      .sort((left, right) => left.createdAt.getTime() - right.createdAt.getTime())[0] ?? null,
+    update: async (query: { where: { id: string }; data: Partial<TestJoinRequest> }) => {
       const row = this.joinRequests.find((item) => item.id === query.where.id);
       if (!row) throw new Error('Join request not found');
-      row.status = query.data.status;
+      Object.assign(row, query.data);
       row.updatedAt = new Date();
       return row;
     },
@@ -278,7 +285,7 @@ class MemorySocialDb {
 
 class TestAuthService {
   verifyAccessToken(token: string): { sub: string } {
-    if (!['host', 'guest', 'outsider'].includes(token)) throw new Error('invalid token');
+    if (!['host', 'guest', 'outsider', 'waiter'].includes(token)) throw new Error('invalid token');
     return { sub: token };
   }
 }
@@ -352,6 +359,26 @@ describe('social journey safety boundaries', () => {
     const outsider = await request(app.getHttpServer()).get(`/hangouts/${hangoutId}`).set(auth('outsider')).expect(200);
     expect(outsider.body.locationPrecision).toBe('APPROXIMATE');
     expect(outsider.body.latitude).toBeUndefined();
+  });
+
+  it('waitlists a full Hangout and safely reopens a slot after attendance cancellation', async () => {
+    const response = await request(app.getHttpServer()).post('/hangouts').set(auth('host')).send({
+      title: '新宿ランニング', category: 'RUNNING', serviceArea: 'SHINJUKU', startInMinutes: 60,
+      locationName: '新宿駅周辺', maxParticipants: 3,
+    }).expect(201);
+    const hangoutId = response.body.id as string;
+    const joined = await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('guest')).send({}).expect(201);
+    await request(app.getHttpServer()).post(`/join-requests/${joined.body.id as string}/accept`).set(auth('host')).expect(201);
+    const second = await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('outsider')).send({}).expect(201);
+    await request(app.getHttpServer()).post(`/join-requests/${second.body.id as string}/accept`).set(auth('host')).expect(201);
+    const waiting = await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('waiter')).send({}).expect(201);
+    expect(waiting.body.status).toBe('WAITLISTED');
+    await request(app.getHttpServer()).patch(`/join-requests/${joined.body.id as string}/attendance`).set(auth('guest')).send({ status: 'CONFIRMED' }).expect(200);
+    await request(app.getHttpServer()).patch(`/join-requests/${joined.body.id as string}/attendance`).set(auth('outsider')).send({ status: 'CANCELLED' }).expect(403);
+    await request(app.getHttpServer()).patch(`/join-requests/${joined.body.id as string}/attendance`).set(auth('guest')).send({ status: 'CANCELLED' }).expect(200);
+    expect(db.hangouts[0]?.status).toBe('OPEN');
+    expect(db.joinRequests.find((item) => item.id === joined.body.id)?.status).toBe('CANCELLED');
+    expect(db.notifications.some((item) => item.userId === 'waiter' && item.type === 'WAITLIST_OPEN')).toBe(true);
   });
 
   it('enforces gender and age participation conditions on the API', async () => {

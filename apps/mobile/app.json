@@ -23,6 +23,7 @@
       }
     },
     "plugins": [
+      "expo-notifications",
       "expo-secure-store",
       [
         "expo-image-picker",
