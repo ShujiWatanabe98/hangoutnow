@@ -160,9 +160,12 @@ async function decideInlineRequest(hangoutId,requestId,accept,sheet){try{await a
 
 function showApplicantProfile(user){
   const interests=(user.interests||[]).map(interest=>`<span>${safeText(interest)}</span>`).join('')||'<span>未登録</span>';
-  document.body.insertAdjacentHTML('beforeend',`<div class="sheet applicant-profile-sheet"><section class="panel applicant-profile"><header><button class="brand-back" type="button" aria-label="プロフィールを閉じる"><span></span></button><b>申請者プロフィール</b><span></span></header><div class="applicant-profile-photo"${photoStyle(user.profilePhoto)}>${user.profilePhoto?'':safeText(user.displayName).slice(0,1)}</div><h2>${safeText(user.displayName)}</h2><div class="verified ${user.verification==='PHONE_VERIFIED'?'':'unverified'}">${user.verification==='PHONE_VERIFIED'?'✓ 電話番号確認済み':'本人確認前'}</div><dl><div><dt>年齢</dt><dd>${Number.isFinite(user.age)?`${user.age}歳`:'未登録'}</dd></div><div><dt>活動エリア</dt><dd>${safeText(user.homeArea||'未登録')}</dd></div></dl><section><h3>自己紹介</h3><p>${safeText(user.bio||'自己紹介は未登録です。')}</p></section><section><h3>興味のあること</h3><div class="tags">${interests}</div></section></section></div>`);
+  document.body.insertAdjacentHTML('beforeend',`<div class="sheet applicant-profile-sheet"><section class="panel applicant-profile"><header><button class="brand-back" type="button" aria-label="プロフィールを閉じる"><span></span></button><b>申請者プロフィール</b><span></span></header><div class="applicant-profile-photo profile-photo-zoom-trigger"${photoStyle(user.profilePhoto)} role="button" tabindex="0" aria-label="${safeText(user.displayName)}のプロフィール写真を拡大">${user.profilePhoto?'':safeText(user.displayName).slice(0,1)}</div><h2>${safeText(user.displayName)}</h2><div class="verified ${user.verification==='PHONE_VERIFIED'?'':'unverified'}">${user.verification==='PHONE_VERIFIED'?'✓ 電話番号確認済み':'本人確認前'}</div><dl><div><dt>年齢</dt><dd>${Number.isFinite(user.age)?`${user.age}歳`:'未登録'}</dd></div><div><dt>活動エリア</dt><dd>${safeText(user.homeArea||'未登録')}</dd></div></dl><section><h3>自己紹介</h3><p>${safeText(user.bio||'自己紹介は未登録です。')}</p></section><section><h3>興味のあること</h3><div class="tags">${interests}</div></section></section></div>`);
   const profile=document.querySelector('.applicant-profile-sheet');
   profile.querySelector('.brand-back').onclick=()=>profile.remove();
+  const photo=profile.querySelector('.applicant-profile-photo');
+  const openPhoto=()=>showProfilePhoto(user.profilePhoto,user.displayName);
+  photo.onclick=openPhoto;photo.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();openPhoto()}};
 }
 
 async function openHangoutFlowChat(hangoutId){let groups=[];try{groups=await api('/chat-rooms')}catch(error){toast(error.message);return}const room=groups.find(item=>item.hangout.id===hangoutId);if(!room){toast('参加承認後にチャットを開始できます');return}document.querySelector('.hangout-flow')?.classList.add('conversation-open');openChat(room)}
@@ -251,17 +254,33 @@ function showFinishConfirmation(hangoutId){document.body.insertAdjacentHTML('bef
 
 function showStampCreator(done){document.body.insertAdjacentHTML('beforeend',`<div class="sheet stamp-creator-sheet"><section class="panel"><div class="handle"></div><h2>写真スタンプを作る</h2><label>写真</label><input id="stamp-photo" type="file" accept="image/jpeg,image/png,image/webp"><label>文字</label><div class="stamp-phrases"><button>向かってます</button><button>少し遅れます</button><button>到着</button></div><input id="stamp-text" maxlength="30" value="向かってます"><p class="stamp-note">作成したスタンプは自分だけに保存され、配布されません。</p><button class="primary" id="save-stamp">保存</button><button class="secondary" id="cancel-stamp">キャンセル</button></section></div>`);const creator=document.querySelector('.stamp-creator-sheet');creator.querySelectorAll('.stamp-phrases button').forEach(button=>button.onclick=()=>creator.querySelector('#stamp-text').value=button.textContent);creator.querySelector('#cancel-stamp').onclick=()=>creator.remove();creator.querySelector('#save-stamp').onclick=async()=>{try{const file=creator.querySelector('#stamp-photo').files[0];const imageDataValue=file?await imageData(file):undefined;await api('/stamps',{method:'POST',body:JSON.stringify({text:creator.querySelector('#stamp-text').value.trim(),...(imageDataValue?{imageData:imageDataValue}:{})})});creator.remove();done();toast('自分用スタンプを保存しました')}catch(error){toast(error.message)}}}
 
+function showProfilePhoto(profilePhoto,displayName,extraClass=''){
+  document.querySelector('.profile-photo-viewer')?.remove();
+  const name=safeText(displayName||'プロフィール');
+  document.body.insertAdjacentHTML('beforeend',`<div class="profile-photo-viewer" role="dialog" aria-modal="true" aria-label="${name}のプロフィール写真"><button class="profile-photo-viewer-close" type="button" aria-label="大きい写真を閉じる">×</button><div class="profile-photo-viewer-image ${extraClass}"${photoStyle(profilePhoto)}>${profilePhoto?'':name.slice(0,1)}</div><b>${name}</b><small>タップして閉じる</small></div>`);
+  const viewer=document.querySelector('.profile-photo-viewer');
+  const close=()=>{document.removeEventListener('keydown',onKeydown);viewer.classList.add('closing');setTimeout(()=>viewer.remove(),180)};
+  const onKeydown=event=>{if(event.key==='Escape')close()};
+  document.addEventListener('keydown',onKeydown);
+  viewer.onclick=event=>{if(event.target===viewer||event.target.closest('.profile-photo-viewer-close'))close()};
+  setTimeout(()=>viewer.classList.add('open'),0);
+  viewer.querySelector('.profile-photo-viewer-close').focus();
+}
+
 async function profileScreen() {
   activeScreen = 'profileScreen';
   const hosted=hangouts.filter((h)=>h.host==='あなた').length;
   const verified=session.user.verificationStatus==='PHONE_VERIFIED';
   let hostStatus=null;try{hostStatus=await api('/users/me/host-status')}catch(error){toast(error.message)}
   document.querySelector('.profile-screen')?.remove();
-  document.body.insertAdjacentHTML('beforeend',`<div class="profile-screen"><header class="host-menu-header"><button class="brand-back" type="button" aria-label="ホームに戻る"><span></span></button><div><small>アカウント</small><b>プロフィール</b></div><span></span></header><main class="profile-screen-content"><section class="profile"><div class="profile-photo avatar"${photoStyle(session.user.profilePhoto)}></div><h1>${safeText(session.user.displayName)}</h1><div class="verified ${verified?'':'unverified'}">${verified?'✓ 電話番号確認済み':'電話番号未確認'}</div><p>${safeText(session.user.bio||'自己紹介を登録しましょう。')}</p><button class="primary profile-edit-button" id="edit-profile">プロフィールを編集</button><div class="stats"><div><b>4.9</b><span>評価</span></div><div><b>${joined.size}</b><span>参加</span></div><div><b>${hosted}</b><span>主催</span></div></div><h2>興味のあること</h2><div class="tags">${(session.user.interests||[]).map(i=>`<span>${safeText(i)}</span>`).join('')||'<span>未登録</span>'}</div><div class="safety">🛡️ 募集を作るには、顔が分かるプロフィール写真と電話番号確認が必要です。</div></section></main></div>`);
+  document.body.insertAdjacentHTML('beforeend',`<div class="profile-screen"><header class="host-menu-header"><button class="brand-back" type="button" aria-label="ホームに戻る"><span></span></button><div><small>アカウント</small><b>プロフィール</b></div><span></span></header><main class="profile-screen-content"><section class="profile"><div class="profile-photo avatar profile-photo-zoom-trigger"${photoStyle(session.user.profilePhoto)} role="button" tabindex="0" aria-label="${safeText(session.user.displayName)}のプロフィール写真を拡大"></div><small class="profile-photo-zoom-hint">写真をタップして拡大</small><h1>${safeText(session.user.displayName)}</h1><div class="verified ${verified?'':'unverified'}">${verified?'✓ 電話番号確認済み':'電話番号未確認'}</div><p>${safeText(session.user.bio||'自己紹介を登録しましょう。')}</p><button class="primary profile-edit-button" id="edit-profile">プロフィールを編集</button><div class="stats"><div><b>4.9</b><span>評価</span></div><div><b>${joined.size}</b><span>参加</span></div><div><b>${hosted}</b><span>主催</span></div></div><h2>興味のあること</h2><div class="tags">${(session.user.interests||[]).map(i=>`<span>${safeText(i)}</span>`).join('')||'<span>未登録</span>'}</div><div class="safety">🛡️ 募集を作るには、顔が分かるプロフィール写真と電話番号確認が必要です。</div></section></main></div>`);
   const screen=document.querySelector('.profile-screen');
   const closeProfile=()=>{activeScreen='home';screen.classList.remove('open');screen.classList.add('closing');setTimeout(()=>screen.remove(),240)};
   setTimeout(()=>screen.classList.add('open'),0);
   screen.querySelector('.brand-back').onclick=closeProfile;
+  const profilePhoto=screen.querySelector('.profile-photo');
+  const openProfilePhoto=()=>showProfilePhoto(session.user.profilePhoto,session.user.displayName,'avatar');
+  profilePhoto.onclick=openProfilePhoto;profilePhoto.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();openProfilePhoto()}};
   if(hostStatus){const nextLabel={BRONZE:'ブロンズ',SILVER:'シルバー',GOLD:'ゴールド',PLATINUM:'プラチナ',DIAMOND:'ダイアモンド'}[hostStatus.nextTier];screen.querySelector('.profile .verified').insertAdjacentHTML('afterend',`<section class="host-rank-card tier-${hostStatus.tier.toLowerCase()}"><small>主催者ステータス</small><strong>${hostStatus.label}</strong><p>開催完了 ${hostStatus.completedHangouts}回 ・ 累計参加者 ${hostStatus.totalParticipants}人<br>平均 ${hostStatus.averageRating??'未評価'} ・ 評価 ${hostStatus.ratingCount}件 ・ 中止率 ${Math.round(hostStatus.cancellationRate*100)}%</p><em>${nextLabel?`次のステータス：${nextLabel}`:'最高ステータスです'}</em></section>`);const stats=screen.querySelectorAll('.stats b');stats[0].textContent=hostStatus.averageRating??'—';stats[2].textContent=hostStatus.completedHangouts;screen.querySelectorAll('.stats span')[0].textContent='主催評価';screen.querySelectorAll('.stats span')[2].textContent='開催完了'}
   screen.querySelector('#edit-profile').onclick=showProfileEditor;
 }
