@@ -136,6 +136,8 @@ type CreateHangoutInput = {
   hostFemaleCount: number;
   area: AlphaArea;
 };
+type ProfileActivityItem = { id: string; title: string; status: string; startAt: string; imageUrl: string | null; category: string; publicLocationName: string };
+type ProfileActivity = { hosted: ProfileActivityItem[]; participated: ProfileActivityItem[] };
 type ReportReason = "HARASSMENT" | "SPAM" | "DANGEROUS" | "SEXUAL" | "SOLICITATION" | "FRAUD" | "HATE" | "IMPERSONATION" | "OTHER";
 const AREA_COORDINATES: Record<AlphaArea, { latitude: number; longitude: number }> = {
   新宿: { latitude: 35.6909, longitude: 139.7003 },
@@ -184,6 +186,7 @@ export default function App() {
     longitude: number;
   } | null>(null);
   const [hostStatus, setHostStatus] = useState<HostStatus | null>(null);
+  const [profileActivity, setProfileActivity] = useState<ProfileActivity>({ hosted: [], participated: [] });
   const [selectedArea, setSelectedArea] = useState<AlphaArea>("新宿");
   const [selectedHangout, setSelectedHangout] = useState<Hangout | null>(null);
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
@@ -241,7 +244,9 @@ export default function App() {
 
   const loadHostStatus = useCallback(async () => {
     if (!session) return;
-    setHostStatus(await request<HostStatus>("/users/me/host-status"));
+    const [status, activity] = await Promise.all([request<HostStatus>("/users/me/host-status"), request<ProfileActivity>("/hangouts/mine/activity")]);
+    setHostStatus(status);
+    setProfileActivity(activity);
   }, [request, session]);
 
   const refreshCurrent = useCallback(async () => {
@@ -854,7 +859,7 @@ export default function App() {
         {screen === "detail" && selectedHangout && <HangoutDetailScreen user={session.user} hangout={selectedHangout} requests={joinRequests} onBack={() => setScreen("home")} onJoin={joinHangout} onFinish={confirmFinishHangout} onDecide={decideJoinRequest} onReport={confirmReportHost} onAttendance={updateAttendance} />}
         {screen === "phone" && <PhoneVerificationScreen onBack={() => setScreen("profile")} onVerify={verifyPhone} />}
         {screen === "chat" && <ChatScreen user={session.user} rooms={rooms} chatTab={chatTab} selectedRoom={selectedRoom} messages={messages} messageBody={messageBody} sending={sending} refreshing={refreshing} unreadByRoom={unreadByRoom} realtimeOnline={realtimeOnline} onTab={setChatTab} onRefresh={refreshCurrent} onOpen={openRoom} onStartDirect={startDirect} onRate={rateParticipant} onBack={() => setSelectedRoom(null)} onChangeBody={setMessageBody} onSend={sendMessage} />}
-        {screen === "profile" && <ProfileScreen user={session.user} hostStatus={hostStatus} demo={!!demoRole} onPhone={() => setScreen("phone")} onPhoto={chooseProfilePhoto} onSave={updateProfile} onDelete={confirmDeleteAccount} onLogout={logout} />}
+        {screen === "profile" && <ProfileScreen user={session.user} hostStatus={hostStatus} activity={profileActivity} demo={!!demoRole} onPhone={() => setScreen("phone")} onPhoto={chooseProfilePhoto} onSave={updateProfile} onDelete={confirmDeleteAccount} onLogout={logout} />}
       </View>
       {!selectedRoom && ["home", "map", "chat", "profile"].includes(screen) && (
         <View style={styles.nav}>
@@ -1511,7 +1516,7 @@ function ChatScreen({ user, rooms, chatTab, selectedRoom, messages, messageBody,
   );
 }
 
-function ProfileScreen({ user, hostStatus, demo, onPhone, onPhoto, onSave, onDelete, onLogout }: { user: User; hostStatus: HostStatus | null; demo: boolean; onPhone: () => void; onPhoto: () => void; onSave: (input: Pick<User, "displayName" | "gender" | "bio" | "homeArea" | "interests">) => Promise<void>; onDelete: () => void; onLogout: () => void }) {
+function ProfileScreen({ user, hostStatus, activity, demo, onPhone, onPhoto, onSave, onDelete, onLogout }: { user: User; hostStatus: HostStatus | null; activity: ProfileActivity; demo: boolean; onPhone: () => void; onPhoto: () => void; onSave: (input: Pick<User, "displayName" | "gender" | "bio" | "homeArea" | "interests">) => Promise<void>; onDelete: () => void; onLogout: () => void }) {
   const white = hostStatus?.tier === "WHITE";
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState(user.displayName);
@@ -1564,6 +1569,20 @@ function ProfileScreen({ user, hostStatus, demo, onPhone, onPhoto, onSave, onDel
           </Text>
         ))}
       </View>
+      {([['主催したHangout', activity.hosted], ['参加したHangout', activity.participated]] as const).map(([heading, items]) => (
+        <View key={heading} style={styles.profileActivitySection}>
+          <Text style={styles.profileActivityHeading}>{heading}</Text>
+          {items.length ? items.map((item) => (
+            <View key={item.id} style={styles.profileActivityCard}>
+              {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={styles.profileActivityImage} /> : <View style={styles.profileActivityImageFallback}><Text>✨</Text></View>}
+              <View style={styles.cardCopy}>
+                <Text style={styles.profileActivityTitle}>{item.title}</Text>
+                <Text style={styles.muted}>{new Date(item.startAt).toLocaleDateString('ja-JP')} ・ {item.status === 'FINISHED' ? '終了' : item.status === 'CANCELLED' ? '中止' : item.status === 'STARTED' ? 'Hangout中' : '募集中'}</Text>
+              </View>
+            </View>
+          )) : <Text style={styles.empty}>まだありません。</Text>}
+        </View>
+      ))}
       <View style={styles.safety}>
         <Text>🛡️ 相手を尊重し、公開場所で安全に会いましょう。</Text>
       </View>
@@ -1773,6 +1792,12 @@ const styles = StyleSheet.create({
   fieldError: { color: "#b3261e", fontSize: 12, marginTop: 5, fontWeight: "700" },
   partyCounts: { flexDirection: "row", gap: 12 },
   partyCount: { flex: 1, gap: 7 },
+  profileActivitySection: { width: "100%", marginTop: 22 },
+  profileActivityHeading: { fontSize: 17, fontWeight: "900", color: "#17221d", marginBottom: 10 },
+  profileActivityCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#fff", borderRadius: 15, padding: 10, marginBottom: 8 },
+  profileActivityImage: { width: 58, height: 58, borderRadius: 12 },
+  profileActivityImageFallback: { width: 58, height: 58, borderRadius: 12, backgroundColor: "#eaf1e9", alignItems: "center", justifyContent: "center" },
+  profileActivityTitle: { fontWeight: "800", color: "#17221d" },
   authError: { color: "#bd3a28", fontSize: 12, marginTop: 8 },
   primary: {
     backgroundColor: "#176b48",
