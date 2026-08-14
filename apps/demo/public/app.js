@@ -88,10 +88,9 @@ function profileSetup(firstRegistration) {
 }
 
 function shell(content, showFab = true) {
-  const nav = [['home','ホーム'],['chatScreen','チャット']];
   const demoGuide=demoRole==='host'?'作成・承認・終了・★1〜5評価を操作':'参加申請・チャット・★1〜5評価を操作';
   const demoBanner=demoRole?`<div class="demo-banner"><span><b>デモ：${demoRole==='host'?'主催者':'参加者'}として体験中</b><small>${demoGuide}</small></span><div><button id="reset-demo">最初から</button><button id="switch-demo-role">役割切替</button></div></div>`:'';
-  app.innerHTML = `<main class="phone">${demoBanner}<header class="top"><div class="brand">Hangout <i>Now</i></div><div class="header-actions"><button class="notification-button" aria-label="通知"><span class="notification-mark"></span><span class="notification-badge ${unreadNotifications?'':'hidden'}">${unreadNotifications}</span></button><button class="profile-menu-button" aria-label="自分のプロフィールを表示"><span class="avatar"${photoStyle(session.user.profilePhoto)}>${session.user.profilePhoto?'':safeText(session.user.displayName).slice(0,1)}</span></button></div></header>${content}${showFab ? '<button class="fab" aria-label="Hangoutを作る">＋</button>' : ''}<nav class="nav">${nav.map(([screen,label])=>`<button data-screen="${screen}" class="${activeScreen===screen?'on':''}">${label}</button>`).join('')}</nav></main>`;
+  app.innerHTML = `<main class="phone">${demoBanner}<header class="top"><div class="brand">Hangout <i>Now</i></div><div class="header-actions"><button class="notification-button" aria-label="通知"><span class="notification-mark"></span><span class="notification-badge ${unreadNotifications?'':'hidden'}">${unreadNotifications}</span></button><button class="profile-menu-button" aria-label="自分のプロフィールを表示"><span class="avatar"${photoStyle(session.user.profilePhoto)}>${session.user.profilePhoto?'':safeText(session.user.displayName).slice(0,1)}</span></button></div></header>${content}${showFab ? '<button class="fab" aria-label="Hangoutを作る">＋</button>' : ''}</main>`;
   const switchDemoRole=app.querySelector('#switch-demo-role');
   if(switchDemoRole)switchDemoRole.onclick=()=>{realtimeSocket?.disconnect();session=null;demoRole=null;localStorage.removeItem('hangout-now-session');localStorage.removeItem('hangout-now-demo-role');authScreen('login')};
   const resetDemo=app.querySelector('#reset-demo');if(resetDemo)resetDemo.onclick=resetPublicDemo;
@@ -99,7 +98,6 @@ function shell(content, showFab = true) {
   if (fab) fab.onclick = showCreate;
   app.querySelector('.notification-button').onclick=notificationScreen;
   app.querySelector('.profile-menu-button').onclick=profileScreen;
-  app.querySelectorAll('[data-screen]').forEach((button)=>button.onclick=()=>navigate(button.dataset.screen));
 }
 
 function home() {
