@@ -801,6 +801,21 @@ export default function App() {
     }
   }
 
+  async function updateProfile(input: Pick<User, "displayName" | "gender" | "bio" | "homeArea" | "interests">) {
+    setLoading(true);
+    setError("");
+    try {
+      const user = await request<User>("/users/me", { method: "PATCH", body: JSON.stringify(input) });
+      setSession((current) => (current ? { ...current, user } : current));
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "プロフィールを更新できませんでした";
+      setError(message);
+      throw new Error(message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function confirmDeleteAccount() {
     if (demoRole) {
       Alert.alert("デモアカウント", "共有デモアカウントは削除できません。");
@@ -883,7 +898,7 @@ export default function App() {
         {screen === "detail" && selectedHangout && <HangoutDetailScreen user={session.user} hangout={selectedHangout} requests={joinRequests} onBack={() => setScreen("home")} onJoin={joinHangout} onFinish={confirmFinishHangout} onDecide={decideJoinRequest} onReport={confirmReportHost} onAttendance={updateAttendance} />}
         {screen === "phone" && <PhoneVerificationScreen onBack={() => setScreen("profile")} onVerify={verifyPhone} />}
         {screen === "chat" && <ChatScreen user={session.user} rooms={rooms} stamps={stamps} chatTab={chatTab} selectedRoom={selectedRoom} messages={messages} messageBody={messageBody} sending={sending} refreshing={refreshing} unreadByRoom={unreadByRoom} realtimeOnline={realtimeOnline} onTab={setChatTab} onRefresh={refreshCurrent} onOpen={openRoom} onStartDirect={startDirect} onRate={rateParticipant} onSendStamp={sendStamp} onCreateStamp={createStamp} onBack={() => setSelectedRoom(null)} onChangeBody={setMessageBody} onSend={sendMessage} />}
-        {screen === "profile" && <ProfileScreen user={session.user} hostStatus={hostStatus} demo={!!demoRole} onPhone={() => setScreen("phone")} onPhoto={chooseProfilePhoto} onDelete={confirmDeleteAccount} onLogout={logout} />}
+        {screen === "profile" && <ProfileScreen user={session.user} hostStatus={hostStatus} demo={!!demoRole} onPhone={() => setScreen("phone")} onPhoto={chooseProfilePhoto} onSave={updateProfile} onDelete={confirmDeleteAccount} onLogout={logout} />}
       </View>
       {!selectedRoom && ["home", "map", "chat", "profile"].includes(screen) && (
         <View style={styles.nav}>
@@ -1528,8 +1543,26 @@ function ChatScreen({ user, rooms, stamps, chatTab, selectedRoom, messages, mess
   );
 }
 
-function ProfileScreen({ user, hostStatus, demo, onPhone, onPhoto, onDelete, onLogout }: { user: User; hostStatus: HostStatus | null; demo: boolean; onPhone: () => void; onPhoto: () => void; onDelete: () => void; onLogout: () => void }) {
+function ProfileScreen({ user, hostStatus, demo, onPhone, onPhoto, onSave, onDelete, onLogout }: { user: User; hostStatus: HostStatus | null; demo: boolean; onPhone: () => void; onPhoto: () => void; onSave: (input: Pick<User, "displayName" | "gender" | "bio" | "homeArea" | "interests">) => Promise<void>; onDelete: () => void; onLogout: () => void }) {
   const white = hostStatus?.tier === "WHITE";
+  const [editing, setEditing] = useState(false);
+  const [displayName, setDisplayName] = useState(user.displayName);
+  const [homeArea, setHomeArea] = useState(user.homeArea ?? "");
+  const [bio, setBio] = useState(user.bio ?? "");
+  const [interests, setInterests] = useState(user.interests.join("、"));
+  const [gender, setGender] = useState(user.gender ?? "UNDISCLOSED");
+  const save = async () => {
+    const name = displayName.trim();
+    if (!name) return Alert.alert("表示名を入力してください");
+    const values = [...new Set(interests.split(/[、,]/).map((value) => value.trim()).filter(Boolean))].slice(0, 20);
+    try {
+      await onSave({ displayName: name, homeArea: homeArea.trim() || null, bio: bio.trim() || null, interests: values, gender });
+      setEditing(false);
+      Alert.alert("保存しました", "プロフィールを更新しました。");
+    } catch {
+      Alert.alert("更新できませんでした", "入力内容を確認してもう一度お試しください。");
+    }
+  };
   return (
     <ScrollView contentContainerStyle={styles.profile}>
       {user.profilePhoto ? (
@@ -1543,6 +1576,9 @@ function ProfileScreen({ user, hostStatus, demo, onPhone, onPhoto, onDelete, onL
         <Text style={styles.photoButtonText}>写真を変更</Text>
       </Pressable>
       <Text style={styles.profileName}>{user.displayName}</Text>
+      <Pressable style={styles.profileEditButton} onPress={() => setEditing(true)}>
+        <Text style={styles.profileEditButtonText}>プロフィールを編集</Text>
+      </Pressable>
       <Pressable disabled={user.verificationStatus === "PHONE_VERIFIED"} onPress={onPhone}>
         <Text style={[styles.verified, user.verificationStatus !== "PHONE_VERIFIED" && styles.unverified]}>{user.verificationStatus === "PHONE_VERIFIED" ? "✓ 電話番号確認済み" : "電話番号を確認する ›"}</Text>
       </Pressable>
@@ -1583,6 +1619,18 @@ function ProfileScreen({ user, hostStatus, demo, onPhone, onPhoto, onDelete, onL
       <Pressable style={styles.deleteButton} onPress={onDelete}>
         <Text style={styles.deleteText}>{demo ? "デモアカウントについて" : "アカウントを削除"}</Text>
       </Pressable>
+      <Modal visible={editing} animationType="slide" onRequestClose={() => setEditing(false)}>
+        <SafeAreaView style={styles.profileEditorPage}>
+          <View style={styles.profileEditorHeader}><Pressable onPress={() => setEditing(false)}><Text style={styles.profileEditorCancel}>キャンセル</Text></Pressable><Text style={styles.profileEditorTitle}>プロフィールを編集</Text><Pressable onPress={() => void save()}><Text style={styles.profileEditorSave}>保存</Text></Pressable></View>
+          <ScrollView contentContainerStyle={styles.profileEditorForm} keyboardShouldPersistTaps="handled">
+            <Text style={styles.profileEditorLabel}>表示名</Text><TextInput style={styles.profileEditorInput} value={displayName} onChangeText={setDisplayName} maxLength={40} />
+            <Text style={styles.profileEditorLabel}>活動エリア</Text><TextInput style={styles.profileEditorInput} value={homeArea} onChangeText={setHomeArea} maxLength={80} placeholder="例：新宿・渋谷" />
+            <Text style={styles.profileEditorLabel}>自己紹介</Text><TextInput style={[styles.profileEditorInput, styles.profileEditorBio]} value={bio} onChangeText={setBio} maxLength={500} multiline textAlignVertical="top" placeholder="好きなことや参加したいHangoutを書きましょう" />
+            <Text style={styles.profileEditorLabel}>興味のあること</Text><TextInput style={styles.profileEditorInput} value={interests} onChangeText={setInterests} maxLength={300} placeholder="カフェ、ランニング、ラーメン" /><Text style={styles.profileEditorHint}>「、」またはカンマで区切って20個まで登録できます。</Text>
+            <Text style={styles.profileEditorLabel}>性別</Text><View style={styles.profileGenderOptions}>{[["UNDISCLOSED", "回答しない"], ["MALE", "男性"], ["FEMALE", "女性"], ["OTHER", "その他"]].map(([value, label]) => <Pressable key={value} style={[styles.profileGenderOption, gender === value && styles.profileGenderOptionSelected]} onPress={() => setGender(value)}><Text style={gender === value ? styles.profileGenderOptionTextSelected : styles.profileGenderOptionText}>{label}</Text></Pressable>)}</View>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </ScrollView>
   );
 }
@@ -2264,6 +2312,23 @@ const styles = StyleSheet.create({
   },
   photoButtonText: { color: "#176b48", fontSize: 11, fontWeight: "900" },
   profileName: { fontSize: 25, fontWeight: "900", marginTop: 14 },
+  profileEditButton: { marginTop: 12, paddingHorizontal: 20, paddingVertical: 11, borderRadius: 14, backgroundColor: "#176b48" },
+  profileEditButtonText: { color: "#fff", fontSize: 13, fontWeight: "900" },
+  profileEditorPage: { flex: 1, backgroundColor: "#f7f8f3" },
+  profileEditorHeader: { minHeight: 58, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderColor: "#dfe5df", backgroundColor: "#fff" },
+  profileEditorTitle: { fontSize: 16, fontWeight: "900", color: "#17221d" },
+  profileEditorCancel: { color: "#687169", fontSize: 13, fontWeight: "700" },
+  profileEditorSave: { color: "#176b48", fontSize: 13, fontWeight: "900" },
+  profileEditorForm: { padding: 22, paddingBottom: 48 },
+  profileEditorLabel: { marginTop: 17, marginBottom: 7, color: "#435049", fontSize: 12, fontWeight: "900" },
+  profileEditorInput: { minHeight: 48, paddingHorizontal: 13, paddingVertical: 11, borderWidth: 1, borderColor: "#d8dfd9", borderRadius: 13, backgroundColor: "#fff", color: "#17221d" },
+  profileEditorBio: { minHeight: 130 },
+  profileEditorHint: { marginTop: 6, color: "#6d766f", fontSize: 10, lineHeight: 15 },
+  profileGenderOptions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  profileGenderOption: { paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: "#d8dfd9", borderRadius: 999, backgroundColor: "#fff" },
+  profileGenderOptionSelected: { borderColor: "#176b48", backgroundColor: "#e9f7ec" },
+  profileGenderOptionText: { color: "#59635c", fontSize: 12, fontWeight: "700" },
+  profileGenderOptionTextSelected: { color: "#176b48", fontSize: 12, fontWeight: "900" },
   verified: { color: "#176b48", fontWeight: "800", marginTop: 5 },
   unverified: { color: "#b25c31" },
   hostRankCard: {
