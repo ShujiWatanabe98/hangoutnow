@@ -3,7 +3,6 @@ import { HangoutStatus, JoinRequestStatus } from '@prisma/client';
 import { v7 as uuidv7 } from 'uuid';
 import { NotificationService } from '../notifications/notification.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { StampService } from '../stamps/stamp.service';
 
 const publicUser = { id: true, displayName: true, profilePhoto: true, verification: true } as const;
 
@@ -12,7 +11,6 @@ export class ChatService {
   constructor(
     @Inject(PrismaService) private readonly db: PrismaService,
     @Inject(NotificationService) private readonly notifications: NotificationService,
-    @Inject(StampService) private readonly stamps: StampService,
   ) {}
 
   async rooms(uid: string) {
@@ -48,10 +46,9 @@ export class ChatService {
     return this.db.message.findMany({ where: { roomId }, include: { sender: { select: publicUser } }, orderBy: { createdAt: 'asc' }, take: 200 });
   }
 
-  async send(uid: string, roomId: string, body?: string, stampId?: string) {
+  async send(uid: string, roomId: string, body: string) {
     const room = await this.groupAccess(uid, roomId);
-    const content=stampId?await this.stamps.payload(uid,stampId):(body?.trim()??'');
-    const message = await this.db.message.create({ data: { id: uuidv7(), roomId, senderUserId: uid, body: content }, include: { sender: { select: publicUser } } });
+    const message = await this.db.message.create({ data: { id: uuidv7(), roomId, senderUserId: uid, body: body.trim() }, include: { sender: { select: publicUser } } });
     const recipients = new Set([room.hangout.hostUserId, ...room.hangout.joinRequests.map((request) => request.userId)]);
     recipients.delete(uid);
     for (const recipient of recipients) {
@@ -96,12 +93,11 @@ export class ChatService {
     return this.db.directMessage.findMany({ where: { directChatId: roomId }, include: { sender: { select: publicUser } }, orderBy: { createdAt: 'asc' }, take: 200 });
   }
 
-  async sendDirect(uid: string, roomId: string, body?: string, stampId?: string) {
+  async sendDirect(uid: string, roomId: string, body: string) {
     const room = await this.directAccess(uid, roomId);
     const recipient = room.userOneId === uid ? room.userTwoId : room.userOneId;
     const message = await this.db.$transaction(async (tx) => {
-      const content=stampId?await this.stamps.payload(uid,stampId):(body?.trim()??'');
-      const created = await tx.directMessage.create({ data: { id: uuidv7(), directChatId: roomId, senderUserId: uid, body: content }, include: { sender: { select: publicUser } } });
+      const created = await tx.directMessage.create({ data: { id: uuidv7(), directChatId: roomId, senderUserId: uid, body: body.trim() }, include: { sender: { select: publicUser } } });
       await tx.directChat.update({ where: { id: roomId }, data: { updatedAt: new Date() } });
       return created;
     });

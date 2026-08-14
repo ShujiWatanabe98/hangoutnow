@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { ChatService } from '../src/chat/chat.service';
 import { NotificationService } from '../src/notifications/notification.service';
 import { PrismaService } from '../src/prisma/prisma.service';
-import { StampService } from '../src/stamps/stamp.service';
 
 function service(options: { mutualFiveStar: boolean; blocked?: boolean }) {
   const room = {
@@ -19,7 +18,7 @@ function service(options: { mutualFiveStar: boolean; blocked?: boolean }) {
     hangout: { findFirst: vi.fn().mockResolvedValue(options.mutualFiveStar ? { id: 'finished-five-star-hangout' } : null) },
     directChat: { upsert: vi.fn().mockResolvedValue(room) },
   };
-  return { chat: new ChatService(database as unknown as PrismaService, {} as NotificationService, {} as StampService), database };
+  return { chat: new ChatService(database as unknown as PrismaService, {} as NotificationService), database };
 }
 
 describe('direct chat safety', () => {

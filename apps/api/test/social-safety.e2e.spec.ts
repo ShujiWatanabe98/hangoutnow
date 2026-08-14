@@ -18,7 +18,6 @@ import { RealtimeGateway } from '../src/notifications/realtime.gateway';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { SafetyController } from '../src/safety/safety.controller';
 import { SafetyService } from '../src/safety/safety.service';
-import { StampService } from '../src/stamps/stamp.service';
 
 type Verification = 'UNVERIFIED' | 'PHONE_VERIFIED';
 type HangoutStatus = 'OPEN' | 'FULL' | 'STARTED' | 'FINISHED' | 'CANCELLED';
@@ -309,7 +308,6 @@ describe('social journey safety boundaries', () => {
         HangoutService,
         { provide: HostStatusService, useValue: { forUser: async () => ({ tier: 'BRONZE', label: 'ブロンズ' }), forUsers: async (ids: string[]) => new Map(ids.map((id) => [id, { tier: 'BRONZE', label: 'ブロンズ' }])) } },
         ChatService,
-        { provide: StampService, useValue: { payload: async ()=>'__STAMP__{}' } },
         SafetyService,
         NotificationService,
         AccessTokenGuard,

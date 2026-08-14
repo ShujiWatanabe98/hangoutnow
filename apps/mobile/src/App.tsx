@@ -143,15 +143,8 @@ const MAP_PIN_POSITIONS = [
   { bottom: "12%", left: "12%" },
 ] as const;
 type AuthMode = "login" | "register";
-type StampContent = { imageUrl: string; text: string };
-type UserStamp = { id: string; imageUrl: string; text: string };
-function stampContent(body: string): StampContent | null {
-  if (!body.startsWith("__STAMP__")) return null;
-  try {
-    return JSON.parse(body.slice(9)) as StampContent;
-  } catch {
-    return null;
-  }
+function messageText(body: string) {
+  return body.startsWith("__STAMP__") ? "過去のスタンプ" : body;
 }
 function stateLabel(hangout: Hangout) {
   return hangout.myJoinStatus === "ACCEPTED" ? "承認済み" : hangout.myJoinStatus === "PENDING" ? "申請中" : hangout.status === "FULL" ? "満員" : "募集中";
@@ -170,7 +163,6 @@ export default function App() {
   const [chatTab, setChatTab] = useState<"GROUP" | "DIRECT">("GROUP");
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [stamps, setStamps] = useState<UserStamp[]>([]);
   const [messageBody, setMessageBody] = useState("");
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -593,9 +585,8 @@ export default function App() {
     setError("");
     try {
       const base = room.type === "DIRECT" ? "/direct-chats" : "/chat-rooms";
-      const [nextMessages, nextStamps] = await Promise.all([request<Message[]>(`${base}/${room.id}/messages`), request<UserStamp[]>("/stamps")]);
+      const nextMessages = await request<Message[]>(`${base}/${room.id}/messages`);
       setMessages(nextMessages);
-      setStamps(nextStamps);
       setUnreadByRoom((current) => ({ ...current, [room.id]: 0 }));
       const inbox = await request<NotificationInbox>("/notifications");
       const link = `${room.type === "DIRECT" ? "direct-chat" : "group-chat"}:${room.id}`;
@@ -638,49 +629,6 @@ export default function App() {
       await openRoom(room);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "1対1チャットを開始できませんでした");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function sendStamp(stampId: string) {
-    if (!selectedRoom) return;
-    setSending(true);
-    try {
-      const base = selectedRoom.type === "DIRECT" ? "/direct-chats" : "/chat-rooms";
-      const sent = await request<Message>(`${base}/${selectedRoom.id}/messages`, { method: "POST", body: JSON.stringify({ stampId }) });
-      setMessages((current) => [...current, sent]);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "スタンプを送信できませんでした");
-    } finally {
-      setSending(false);
-    }
-  }
-  async function createStamp(text: string) {
-    setLoading(true);
-    setError("");
-    try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) throw new Error("写真ライブラリへのアクセスを許可してください");
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.65,
-        base64: true,
-      });
-      if (result.canceled) return;
-      const asset = result.assets[0];
-      if (!asset?.base64) throw new Error("写真を読み込めませんでした");
-      const mediaType = asset.mimeType === "image/png" ? "png" : asset.mimeType === "image/webp" ? "webp" : "jpeg";
-      const imageData = `data:image/${mediaType};base64,${asset.base64}`;
-      const stamp = await request<UserStamp>("/stamps", {
-        method: "POST",
-        body: JSON.stringify({ text, imageData }),
-      });
-      setStamps((current) => [...current, stamp]);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "スタンプを作成できませんでした");
     } finally {
       setLoading(false);
     }
@@ -897,7 +845,7 @@ export default function App() {
         {screen === "create" && <CreateHangoutScreen area={selectedArea} onBack={() => setScreen("home")} onSubmit={createHangout} />}
         {screen === "detail" && selectedHangout && <HangoutDetailScreen user={session.user} hangout={selectedHangout} requests={joinRequests} onBack={() => setScreen("home")} onJoin={joinHangout} onFinish={confirmFinishHangout} onDecide={decideJoinRequest} onReport={confirmReportHost} onAttendance={updateAttendance} />}
         {screen === "phone" && <PhoneVerificationScreen onBack={() => setScreen("profile")} onVerify={verifyPhone} />}
-        {screen === "chat" && <ChatScreen user={session.user} rooms={rooms} stamps={stamps} chatTab={chatTab} selectedRoom={selectedRoom} messages={messages} messageBody={messageBody} sending={sending} refreshing={refreshing} unreadByRoom={unreadByRoom} realtimeOnline={realtimeOnline} onTab={setChatTab} onRefresh={refreshCurrent} onOpen={openRoom} onStartDirect={startDirect} onRate={rateParticipant} onSendStamp={sendStamp} onCreateStamp={createStamp} onBack={() => setSelectedRoom(null)} onChangeBody={setMessageBody} onSend={sendMessage} />}
+        {screen === "chat" && <ChatScreen user={session.user} rooms={rooms} chatTab={chatTab} selectedRoom={selectedRoom} messages={messages} messageBody={messageBody} sending={sending} refreshing={refreshing} unreadByRoom={unreadByRoom} realtimeOnline={realtimeOnline} onTab={setChatTab} onRefresh={refreshCurrent} onOpen={openRoom} onStartDirect={startDirect} onRate={rateParticipant} onBack={() => setSelectedRoom(null)} onChangeBody={setMessageBody} onSend={sendMessage} />}
         {screen === "profile" && <ProfileScreen user={session.user} hostStatus={hostStatus} demo={!!demoRole} onPhone={() => setScreen("phone")} onPhoto={chooseProfilePhoto} onSave={updateProfile} onDelete={confirmDeleteAccount} onLogout={logout} />}
       </View>
       {!selectedRoom && ["home", "map", "chat", "profile"].includes(screen) && (
@@ -1348,7 +1296,7 @@ function PhoneVerificationScreen({ onBack, onVerify }: { onBack: () => void; onV
   );
 }
 
-function ChatScreen({ user, rooms, stamps, chatTab, selectedRoom, messages, messageBody, sending, refreshing, unreadByRoom, realtimeOnline, onTab, onRefresh, onOpen, onStartDirect, onRate, onSendStamp, onCreateStamp, onBack, onChangeBody, onSend }: { user: User; rooms: Room[]; stamps: UserStamp[]; chatTab: "GROUP" | "DIRECT"; selectedRoom: Room | null; messages: Message[]; messageBody: string; sending: boolean; refreshing: boolean; unreadByRoom: Record<string, number>; realtimeOnline: boolean; onTab: (tab: "GROUP" | "DIRECT") => void; onRefresh: () => void; onOpen: (room: Room) => void; onStartDirect: (userId: string) => void; onRate: (hangoutId: string, userId: string, score: number) => void; onSendStamp: (stampId: string) => void; onCreateStamp: (text: string) => void; onBack: () => void; onChangeBody: (value: string) => void; onSend: () => void }) {
+function ChatScreen({ user, rooms, chatTab, selectedRoom, messages, messageBody, sending, refreshing, unreadByRoom, realtimeOnline, onTab, onRefresh, onOpen, onStartDirect, onRate, onBack, onChangeBody, onSend }: { user: User; rooms: Room[]; chatTab: "GROUP" | "DIRECT"; selectedRoom: Room | null; messages: Message[]; messageBody: string; sending: boolean; refreshing: boolean; unreadByRoom: Record<string, number>; realtimeOnline: boolean; onTab: (tab: "GROUP" | "DIRECT") => void; onRefresh: () => void; onOpen: (room: Room) => void; onStartDirect: (userId: string) => void; onRate: (hangoutId: string, userId: string, score: number) => void; onBack: () => void; onChangeBody: (value: string) => void; onSend: () => void }) {
   const listRef = useRef<FlatList<Message>>(null);
   const time = (value?: string) =>
     value
@@ -1415,7 +1363,6 @@ function ChatScreen({ user, rooms, stamps, chatTab, selectedRoom, messages, mess
             const mine = item.senderUserId === user.id;
             const previous = messages[index - 1];
             const showName = previous?.senderUserId !== item.senderUserId;
-            const stamp = stampContent(item.body);
             const photo = item.sender.profilePhoto || (mine ? user.profilePhoto : null);
             const avatar = photo ? (
               <Image source={{ uri: photo }} style={styles.chatAvatar} />
@@ -1429,16 +1376,9 @@ function ChatScreen({ user, rooms, stamps, chatTab, selectedRoom, messages, mess
                 {!mine && avatar}
                 <View style={styles.bubbleGroup}>
                   {showName && <Text style={[styles.messageSender, mine && styles.messageSenderMine]}>{mine ? "あなた" : item.sender.displayName}</Text>}
-                  {stamp ? (
-                    <View style={styles.stampMessage}>
-                      <Image source={{ uri: stamp.imageUrl }} style={styles.stampImage} />
-                      <Text style={styles.stampText}>{stamp.text}</Text>
-                    </View>
-                  ) : (
-                    <View style={[styles.message, mine ? styles.mine : styles.theirs]}>
-                      <Text style={styles.messageText}>{item.body}</Text>
-                    </View>
-                  )}
+                  <View style={[styles.message, mine ? styles.mine : styles.theirs]}>
+                    <Text style={styles.messageText}>{messageText(item.body)}</Text>
+                  </View>
                   <Text style={[styles.messageTime, mine && styles.messageTimeMine]}>{time(item.createdAt)}</Text>
                 </View>
                 {mine && avatar}
@@ -1447,22 +1387,6 @@ function ChatScreen({ user, rooms, stamps, chatTab, selectedRoom, messages, mess
           }}
           ListEmptyComponent={<Text style={styles.empty}>最初のメッセージを送ってみましょう。</Text>}
         />
-        <View style={styles.mobileStampTray}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {stamps.map((stamp) => (
-              <Pressable key={stamp.id} style={styles.mobileStampChoice} onPress={() => onSendStamp(stamp.id)}>
-                <Image source={{ uri: stamp.imageUrl }} style={styles.stampImage} />
-                <Text style={styles.mobileStampLabel}>{stamp.text}</Text>
-              </Pressable>
-            ))}
-            {["向かってます", "少し遅れます", "到着"].map((text) => (
-              <Pressable key={text} style={styles.mobileStampCreate} onPress={() => onCreateStamp(text)}>
-                <Text style={styles.mobileStampPlus}>＋</Text>
-                <Text style={styles.mobileStampCreateText}>{text}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
         <View style={styles.composer}>
           <TextInput style={styles.composerInput} value={messageBody} onChangeText={onChangeBody} placeholder="メッセージ" placeholderTextColor="#8a918c" multiline maxLength={1000} />
           <Pressable disabled={sending || !messageBody.trim()} style={[styles.sendButton, (sending || !messageBody.trim()) && styles.sendDisabled]} onPress={onSend}>
@@ -2433,62 +2357,4 @@ const styles = StyleSheet.create({
   },
   genderChoiceOn: { backgroundColor: "#d9ff68" },
   genderChoiceText: { fontSize: 11, fontWeight: "800" },
-  stampMessage: {
-    width: 150,
-    height: 150,
-    borderRadius: 22,
-    overflow: "hidden",
-    backgroundColor: "#dfe6df",
-  },
-  stampImage: { width: "100%", height: "100%" },
-  stampText: {
-    position: "absolute",
-    left: 5,
-    right: 5,
-    bottom: 8,
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "900",
-    textAlign: "center",
-    textShadowColor: "#000",
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-  },
-  mobileStampTray: {
-    height: 84,
-    paddingVertical: 5,
-    paddingHorizontal: 8,
-    backgroundColor: "#fff",
-  },
-  mobileStampChoice: {
-    width: 72,
-    height: 72,
-    marginRight: 7,
-    borderRadius: 14,
-    overflow: "hidden",
-  },
-  mobileStampLabel: {
-    position: "absolute",
-    left: 3,
-    right: 3,
-    bottom: 4,
-    color: "#fff",
-    fontSize: 9,
-    fontWeight: "900",
-    textAlign: "center",
-    textShadowColor: "#000",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  mobileStampCreate: {
-    width: 72,
-    height: 72,
-    marginRight: 7,
-    borderRadius: 14,
-    backgroundColor: "#edf1ec",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  mobileStampPlus: { fontSize: 20, color: "#176b48" },
-  mobileStampCreateText: { fontSize: 8, fontWeight: "800", color: "#176b48" },
 });

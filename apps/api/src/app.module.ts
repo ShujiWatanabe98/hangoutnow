@@ -20,8 +20,6 @@ import { NotificationService } from './notifications/notification.service';
 import { RealtimeGateway } from './notifications/realtime.gateway';
 import { SmsVerificationProvider } from './auth/sms-verification.provider';
 import { ImageStorageService } from './storage/image-storage.service';
-import { StampController } from './stamps/stamp.controller';
-import { StampService } from './stamps/stamp.service';
 import { DemoController } from './demo/demo.controller';
 import { DemoService } from './demo/demo.service';
 import { HostStatusService } from './host-status/host-status.service';
@@ -36,7 +34,7 @@ import { AnalyticsService } from './analytics/analytics.service';
       return { secret };
     },
   }), ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }])],
-  controllers: [HealthController, AuthController, UsersController, HangoutController, JoinRequestController, ChatController, DirectChatController, StampController, DemoController, SafetyController, ReportAdminController, NotificationController, AnalyticsController],
-  providers: [PrismaService, HangoutService, ChatService, StampService, DemoService, HostStatusService, SafetyService, NotificationService, AnalyticsService, RealtimeGateway, SmsVerificationProvider, ImageStorageService, PrismaAuthRepository, { provide: AuthRepository, useExisting: PrismaAuthRepository }, AuthService, AccessTokenGuard, { provide: APP_GUARD, useClass: ThrottlerGuard }],
+  controllers: [HealthController, AuthController, UsersController, HangoutController, JoinRequestController, ChatController, DirectChatController, DemoController, SafetyController, ReportAdminController, NotificationController, AnalyticsController],
+  providers: [PrismaService, HangoutService, ChatService, DemoService, HostStatusService, SafetyService, NotificationService, AnalyticsService, RealtimeGateway, SmsVerificationProvider, ImageStorageService, PrismaAuthRepository, { provide: AuthRepository, useExisting: PrismaAuthRepository }, AuthService, AccessTokenGuard, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}
