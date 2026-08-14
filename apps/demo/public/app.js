@@ -36,6 +36,17 @@ const profileInterestObserver=new MutationObserver(()=>{
 });
 profileInterestObserver.observe(document.body,{childList:true,subtree:true});
 
+const hangoutImageObserver=new MutationObserver(()=>{
+  document.querySelectorAll('#hangout-image,#edit-image').forEach(input=>{input.accept='image/*'});
+  const input=document.querySelector('.host-menu-screen #edit-image');
+  if(!input||input.dataset.previewReady==='true')return;
+  input.dataset.previewReady='true';
+  const preview=document.createElement('div');preview.className='hangout-image-preview';preview.innerHTML='<span>選択した画像をここに表示</span>';
+  input.insertAdjacentElement('afterend',preview);
+  input.addEventListener('change',()=>{const file=input.files[0];if(!file)return;const url=URL.createObjectURL(file);preview.style.backgroundImage=`url('${url}')`;preview.classList.add('has-image');preview.innerHTML='<b>16:9のHangout画像へ変換して保存します</b>'});
+});
+hangoutImageObserver.observe(document.body,{childList:true,subtree:true});
+
 function portraitClass(photo) { return `host-${photo}`; }
 function photoStyle(url) { return url ? ` style="background-image:url('${url}')"` : ''; }
 function hangoutPhotoClass(h) { return h.imageUrl ? 'custom-hangout-photo' : `activity-photo-${h.photo%4}`; }
@@ -337,7 +348,44 @@ function showCreate() {
 }
 
 function saveSession(){localStorage.setItem('hangout-now-session',JSON.stringify(session))}
-function imageData(file){return new Promise((resolve,reject)=>{if(file.size>8*1024*1024){reject(new Error('画像は8MB以下にしてください'));return}const reader=new FileReader();reader.onerror=()=>reject(new Error('画像を読み込めません'));reader.onload=()=>{const img=new Image();img.onerror=()=>reject(new Error('画像形式を確認してください'));img.onload=()=>{const size=Math.min(512,Math.max(img.width,img.height));const scale=size/Math.max(img.width,img.height);const canvas=document.createElement('canvas');canvas.width=Math.round(img.width*scale);canvas.height=Math.round(img.height*scale);canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);resolve(canvas.toDataURL('image/jpeg',.84))};img.src=reader.result};reader.readAsDataURL(file)})}
+function imageData(file){
+  const hangoutImage=document.querySelector('#hangout-image')?.files[0]===file||document.querySelector('#edit-image')?.files[0]===file;
+  const sizeLimit=hangoutImage?25:8;
+  return new Promise((resolve,reject)=>{
+    if(!file||!file.type.startsWith('image/')){reject(new Error('画像ファイルを選択してください'));return}
+    if(file.size>sizeLimit*1024*1024){reject(new Error(`画像は${sizeLimit}MB以下にしてください`));return}
+    const reader=new FileReader();
+    reader.onerror=()=>reject(new Error('画像を読み込めません'));
+    reader.onload=()=>{
+      const img=new Image();
+      img.onerror=()=>reject(new Error('この画像形式は読み込めません。JPEG・PNG・WebPで選び直してください'));
+      img.onload=()=>{
+        const canvas=document.createElement('canvas');
+        const context=canvas.getContext('2d');
+        if(!context){reject(new Error('画像を変換できません'));return}
+        if(hangoutImage){
+          const targetRatio=16/9;const sourceRatio=img.width/img.height;
+          const sourceWidth=sourceRatio>targetRatio?img.height*targetRatio:img.width;
+          const sourceHeight=sourceRatio>targetRatio?img.height:img.width/targetRatio;
+          const sourceX=(img.width-sourceWidth)/2;const sourceY=(img.height-sourceHeight)/2;
+          canvas.width=Math.max(320,Math.min(1200,Math.round(sourceWidth)));
+          canvas.height=Math.round(canvas.width/targetRatio);
+          context.imageSmoothingEnabled=true;context.imageSmoothingQuality='high';
+          context.drawImage(img,sourceX,sourceY,sourceWidth,sourceHeight,0,0,canvas.width,canvas.height);
+          let quality=.86;let converted=canvas.toDataURL('image/jpeg',quality);
+          while(converted.length>1_400_000&&quality>.5){quality-=.08;converted=canvas.toDataURL('image/jpeg',quality)}
+          if(converted.length>1_500_000){reject(new Error('画像を保存用サイズへ変換できませんでした'));return}
+          resolve(converted);return;
+        }
+        const size=Math.min(512,Math.max(img.width,img.height));const scale=size/Math.max(img.width,img.height);
+        canvas.width=Math.round(img.width*scale);canvas.height=Math.round(img.height*scale);
+        context.drawImage(img,0,0,canvas.width,canvas.height);resolve(canvas.toDataURL('image/jpeg',.84));
+      };
+      img.src=String(reader.result);
+    };
+    reader.readAsDataURL(file);
+  });
+}
 function phoneDialog(){document.body.insertAdjacentHTML('beforeend',`<div class="sheet profile-phone-sheet"><section class="panel"><div class="handle"></div><h2>電話番号確認</h2><p>国番号から入力してください。開発デモでは確認コードをこの画面に表示します。</p><label>電話番号</label><input id="phone" type="tel" value="${session.user.phoneNumber||'+8190'}"><div id="phone-code-area" class="hidden"><label>6桁の確認コード</label><input id="phone-code" inputmode="numeric" maxlength="6"><small id="demo-code"></small></div><button class="primary" id="phone-action">確認コードを送る</button><button class="secondary" id="close">キャンセル</button></section></div>`);const sheet=document.querySelector('.profile-phone-sheet');sheet.querySelector('#close').onclick=()=>sheet.remove();let requested=false;sheet.querySelector('#phone-action').onclick=async()=>{try{const phone=sheet.querySelector('#phone').value.trim();if(!requested){const result=await api('/users/me/phone/request',{method:'POST',body:JSON.stringify({phone})});requested=true;sheet.querySelector('#phone-code-area').classList.remove('hidden');sheet.querySelector('#demo-code').textContent=result.demoCode?`デモ確認コード：${result.demoCode}`:'SMSに確認コードを送信しました';sheet.querySelector('#phone-action').textContent='電話番号を確認';return}session.user=await api('/users/me/phone/confirm',{method:'POST',body:JSON.stringify({phone,code:sheet.querySelector('#phone-code').value})});saveSession();sheet.remove();profileScreen();toast('電話番号を確認しました')}catch(error){toast(error.message)}}}
 
 function toast(text) {

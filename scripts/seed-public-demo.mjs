@@ -8,10 +8,24 @@ const guestPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/
 const masayaPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-masaya-profile.jpg', import.meta.url)).toString('base64')}`;
 const kentaPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-host-profile.jpg', import.meta.url)).toString('base64')}`;
 const aoiPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-guest-profile.jpg', import.meta.url)).toString('base64')}`;
-const ramenPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-ramen-mami-v3.jpg', import.meta.url)).toString('base64')}`;
+const hangoutPhoto = (name) => `data:image/jpeg;base64,${readFileSync(new URL(`../apps/demo/public/assets/${name}`, import.meta.url)).toString('base64')}`;
+const ramenPhoto = hangoutPhoto('hangout-ramen.jpg');
 const runningPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-running-hangout-v2.jpg', import.meta.url)).toString('base64')}`;
-const cafePhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-cafe-hangout.jpg', import.meta.url)).toString('base64')}`;
-const touringPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-touring-hangout-v2.jpg', import.meta.url)).toString('base64')}`;
+const cafePhoto = hangoutPhoto('hangout-coffee.jpg');
+const touringPhoto = hangoutPhoto('hangout-bike.jpg');
+const drinkingPhoto = hangoutPhoto('hangout-nomikai.jpg');
+const imageByCategory = {
+  BAR: hangoutPhoto('hangout-bar.jpg'),
+  IZAKAYA: drinkingPhoto,
+  YAKINIKU: hangoutPhoto('hangout-yakiniku.jpg'),
+  SWEETS: hangoutPhoto('hangout-sweet.jpg'),
+  DARTS: hangoutPhoto('hangout-dartu.jpg'),
+  GAME: hangoutPhoto('hangout-boardgame.jpg'),
+  SHISHA: hangoutPhoto('hangout-si-sha.jpg'),
+  ENGLISH: hangoutPhoto('hangout-english.jpg'),
+  DINNER: hangoutPhoto('hangout-gohan.jpg'),
+  WALKING: hangoutPhoto('hangout-sanpo.jpg'),
+};
 
 const accounts = {
   host: {
@@ -164,6 +178,7 @@ const samples = [
   {
     organizer: 'host',
     title: 'マミと新宿で気軽に飲もう',
+    imageUrl: drinkingPhoto,
     description: '仕事帰りに気軽に乾杯する、公開デモ用の架空の飲み会です。初参加も歓迎します。',
     category: 'DRINKING', serviceArea: 'SHINJUKU', startInMinutes: 60, publicLocationName: '新宿駅東口周辺（デモ）', locationName: 'デモ居酒屋 新宿店 東京都新宿区新宿3-1-1',
     latitude: 35.6901, longitude: 139.7005, maxParticipants: 4, genderRestriction: 'ANY', maxAge: 39,
@@ -219,7 +234,7 @@ samples.push(...[
   ['kenta','渋谷をのんびり散歩','WALKING','SHIBUYA',35.6540,139.6980,180],
   ['aoi','朝の新宿まち歩き','WALKING','SHINJUKU',35.6860,139.6970,30],
 ].map(([organizer,title,category,serviceArea,latitude,longitude,startInMinutes])=>({
-  organizer,title,category,serviceArea,latitude,longitude,startInMinutes,
+  organizer,title,category,serviceArea,latitude,longitude,startInMinutes,imageUrl:imageByCategory[category],
   description:`${title}。初参加歓迎の公開デモ用架空Hangoutです。`,
   publicLocationName:`${serviceArea==='SHINJUKU'?'新宿':'渋谷'}駅周辺（デモ）`,
   locationName:`デモ会場 ${serviceArea==='SHINJUKU'?'新宿':'渋谷'}店 東京都${serviceArea==='SHINJUKU'?'新宿区新宿3-2-1':'渋谷区渋谷1-2-3'}`,
