@@ -19,4 +19,9 @@ describe('host status rules', () => {
     expect(calculateHostStatus({ completedHangouts: 10, cancelledHangouts: 0, totalParticipants: 40, ratings, verification: VerificationStatus.PHONE_VERIFIED, resolvedReports: 1 }).tier).toBe('WHITE');
     expect(calculateHostStatus({ completedHangouts: 10, cancelledHangouts: 2, totalParticipants: 40, ratings, verification: VerificationStatus.PHONE_VERIFIED, resolvedReports: 0 }).tier).toBe('BRONZE');
   });
+
+  it('keeps organizer and participant ratings separate', () => {
+    const status = calculateHostStatus({ completedHangouts: 3, cancelledHangouts: 0, totalParticipants: 4, ratings: [rating(5, 0), rating(3, 1)], participantRatings: [{ score: 2 }, { score: 4 }, { score: 5 }], verification: VerificationStatus.PHONE_VERIFIED, resolvedReports: 0 });
+    expect(status).toMatchObject({ hostRatingCount: 2, hostAverageRating: 4, participantRatingCount: 3, participantAverageRating: 3.7 });
+  });
 });

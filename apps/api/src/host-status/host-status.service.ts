@@ -11,6 +11,10 @@ export interface HostStatus {
   totalParticipants: number;
   ratingCount: number;
   averageRating: number | null;
+  hostRatingCount: number;
+  hostAverageRating: number | null;
+  participantRatingCount: number;
+  participantAverageRating: number | null;
   recentAverageRating: number | null;
   cancellationRate: number;
   nextTier: HostTier | null;
@@ -21,6 +25,7 @@ interface HostStatusInput {
   cancelledHangouts: number;
   totalParticipants: number;
   ratings: Array<{ score: number; hangoutId: string; startAt: Date }>;
+  participantRatings?: Array<{ score: number }>;
   verification: VerificationStatus;
   resolvedReports: number;
 }
@@ -48,7 +53,9 @@ export function calculateHostStatus(input: HostStatusInput): HostStatus {
   const tier: HostTier = level?.tier ?? 'WHITE';
   const ascending: HostTier[] = ['WHITE', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'DIAMOND'];
   const nextTier = ascending[ascending.indexOf(tier) + 1] ?? null;
-  return { tier, label: LABELS[tier], completedHangouts: input.completedHangouts, totalParticipants: input.totalParticipants, ratingCount, averageRating, recentAverageRating, cancellationRate, nextTier };
+  const participantRatingCount = input.participantRatings?.length ?? 0;
+  const participantAverageRating = participantRatingCount ? Number((input.participantRatings!.reduce((sum, rating) => sum + rating.score, 0) / participantRatingCount).toFixed(1)) : null;
+  return { tier, label: LABELS[tier], completedHangouts: input.completedHangouts, totalParticipants: input.totalParticipants, ratingCount, averageRating, hostRatingCount: ratingCount, hostAverageRating: averageRating, participantRatingCount, participantAverageRating, recentAverageRating, cancellationRate, nextTier };
 }
 
 @Injectable()
@@ -67,7 +74,8 @@ export class HostStatusService {
     return new Map(users.map((user) => {
       const hosted = hangouts.filter((hangout) => hangout.hostUserId === user.id);
       const hostRatings = ratings.filter((rating) => rating.ratedUserId === user.id && rating.hangout.hostUserId === user.id).map((rating) => ({ score: rating.score, hangoutId: rating.hangoutId, startAt: rating.hangout.startAt }));
-      const status = calculateHostStatus({ completedHangouts: hosted.filter((hangout) => hangout.status === HangoutStatus.FINISHED).length, cancelledHangouts: hosted.filter((hangout) => hangout.status === HangoutStatus.CANCELLED).length, totalParticipants: hosted.filter((hangout) => hangout.status === HangoutStatus.FINISHED).reduce((sum, hangout) => sum + hangout.joinRequests.length, 0), ratings: hostRatings, verification: user.verification, resolvedReports: reports.find((report) => report.targetUserId === user.id)?._count._all ?? 0 });
+      const participantRatings = ratings.filter((rating) => rating.ratedUserId === user.id && rating.hangout.hostUserId !== user.id).map((rating) => ({ score: rating.score }));
+      const status = calculateHostStatus({ completedHangouts: hosted.filter((hangout) => hangout.status === HangoutStatus.FINISHED).length, cancelledHangouts: hosted.filter((hangout) => hangout.status === HangoutStatus.CANCELLED).length, totalParticipants: hosted.filter((hangout) => hangout.status === HangoutStatus.FINISHED).reduce((sum, hangout) => sum + hangout.joinRequests.length, 0), ratings: hostRatings, participantRatings, verification: user.verification, resolvedReports: reports.find((report) => report.targetUserId === user.id)?._count._all ?? 0 });
       return [user.id, status];
     }));
   }

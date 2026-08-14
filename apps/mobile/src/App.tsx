@@ -35,6 +35,10 @@ type HostStatus = {
   totalParticipants: number;
   ratingCount: number;
   averageRating: number | null;
+  hostRatingCount: number;
+  hostAverageRating: number | null;
+  participantRatingCount: number;
+  participantAverageRating: number | null;
   recentAverageRating: number | null;
   cancellationRate: number;
   nextTier: HostTier | null;
@@ -84,7 +88,7 @@ type GroupRoom = {
   id: string;
   type: "GROUP";
   hangoutId: string;
-  hangout: { id: string; title: string; status: string; host: ChatMember };
+  hangout: { id: string; title: string; status: string; hostUserId: string; host: ChatMember };
   members: ChatMember[];
   lastMessage: Message | null;
 };
@@ -1377,12 +1381,12 @@ function ChatScreen({ user, rooms, chatTab, selectedRoom, messages, messageBody,
               .map((member) => (
                 <View key={member.id} style={styles.memberRating}>
                   <Text style={styles.memberRatingName}>
-                    {member.displayName}
+                    {member.displayName}（{member.id === selectedRoom.hangout.hostUserId ? "主催者評価" : "参加者評価"}）
                     {member.myRatingScore ? `　評価済み ★${member.myRatingScore}` : ""}
                   </Text>
                   <View style={styles.scoreChoices}>
                     {[1, 2, 3, 4, 5].map((score) => (
-                      <Pressable key={score} accessibilityRole="button" accessibilityLabel={`${member.displayName}を星${score}で評価`} style={[styles.scoreButton, member.myRatingScore === score && styles.scoreButtonOn]} onPress={() => onRate(selectedRoom.hangout.id, member.id, score)}>
+                      <Pressable key={score} accessibilityRole="button" accessibilityLabel={`${member.displayName}の${member.id === selectedRoom.hangout.hostUserId ? "主催" : "参加"}を星${score}で評価`} style={[styles.scoreButton, member.myRatingScore === score && styles.scoreButtonOn]} onPress={() => onRate(selectedRoom.hangout.id, member.id, score)}>
                         <Text style={[styles.scoreText, member.myRatingScore === score && styles.scoreTextOn]}>{score}★</Text>
                       </Pressable>
                     ))}
@@ -1548,7 +1552,7 @@ function ProfileScreen({ user, hostStatus, demo, onPhone, onPhoto, onSave, onDel
           <Text style={[styles.hostRankCaption, white && styles.hostRankDark]}>主催者ステータス</Text>
           <Text style={[styles.hostRankName, white && styles.hostRankDark]}>{hostStatus.label}</Text>
           <Text style={[styles.hostRankStats, white && styles.hostRankDark]}>
-            開催完了 {hostStatus.completedHangouts}回 ・ 累計参加者 {hostStatus.totalParticipants}人{`\n`}平均 {hostStatus.averageRating ?? "未評価"} ・ 評価 {hostStatus.ratingCount}件 ・ 中止率 {Math.round(hostStatus.cancellationRate * 100)}%
+            開催完了 {hostStatus.completedHangouts}回 ・ 累計参加者 {hostStatus.totalParticipants}人{`\n`}主催評価 {hostStatus.hostAverageRating ?? "未評価"}（{hostStatus.hostRatingCount}件） ・ 参加評価 {hostStatus.participantAverageRating ?? "未評価"}（{hostStatus.participantRatingCount}件）{`\n`}中止率 {Math.round(hostStatus.cancellationRate * 100)}%
           </Text>
         </View>
       )}
