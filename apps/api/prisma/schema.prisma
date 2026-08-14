@@ -55,6 +55,7 @@ model User {
   phoneVerifications PhoneVerification[]
   notifications Notification[]
   pushTokens PushToken[]
+  hangoutHearts HangoutHeart[]
 
   @@map("users")
 }
@@ -195,11 +196,24 @@ model Hangout {
   reports         Report[]
   ratings         HangoutRating[]
   funnelEvents    FunnelEvent[]
+  hearts          HangoutHeart[]
 
   @@index([status, startAt])
   @@index([serviceArea, status, startAt])
   @@index([hostUserId])
   @@map("hangouts")
+}
+
+model HangoutHeart {
+  hangoutId String   @map("hangout_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  hangout   Hangout  @relation(fields: [hangoutId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([hangoutId, userId])
+  @@index([userId, createdAt])
+  @@map("hangout_hearts")
 }
 
 model FunnelEvent {

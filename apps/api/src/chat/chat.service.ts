@@ -38,6 +38,10 @@ export class ChatService {
           && room.hangout.ratings.some((rating) => rating.raterUserId === member.id && rating.ratedUserId === uid && rating.score === 5),
       }));
       return { ...room, type: 'GROUP' as const, members, lastMessage: room.messages[0] ?? null };
+    }).sort((left, right) => {
+      const leftAt = left.lastMessage?.createdAt ?? left.createdAt;
+      const rightAt = right.lastMessage?.createdAt ?? right.createdAt;
+      return rightAt.getTime() - leftAt.getTime();
     });
   }
 

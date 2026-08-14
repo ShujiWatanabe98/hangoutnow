@@ -13,6 +13,7 @@ const WEBSITE_URL = "https://method-more.com";
 const ACTIVITY_PHOTO_URL = `${WEBSITE_URL}/assets/activity-photos-v1.png`;
 const DEMO_PASSWORD = "HangoutNow-Demo-2026!";
 const SESSION_KEY = "hangout-now-session";
+const INTEREST_OPTIONS = ["ワイン", "バー", "居酒屋", "寿司", "焼肉", "スイーツ", "カラオケ", "ダーツ", "ゲーム", "映画", "シーシャ", "英会話", "ごはん", "散歩"] as const;
 
 type User = {
   id: string;
@@ -67,6 +68,8 @@ type Hangout = {
   myJoinRequestId: string | null;
   myAttendanceStatus: "PENDING_CONFIRMATION" | "CONFIRMED" | "CANCELLED" | null;
   host: Host;
+  hearted: boolean;
+  heartCount: number;
 };
 type Message = {
   id: string;
@@ -86,6 +89,7 @@ type ChatMember = {
 };
 type GroupRoom = {
   id: string;
+  createdAt: string;
   type: "GROUP";
   hangoutId: string;
   hangout: { id: string; title: string; status: string; hostUserId: string; host: ChatMember };
@@ -94,6 +98,8 @@ type GroupRoom = {
 };
 type DirectRoom = {
   id: string;
+  createdAt: string;
+  updatedAt: string;
   type: "DIRECT";
   otherUser: ChatMember;
   lastMessage: Message | null;
@@ -137,7 +143,7 @@ type CreateHangoutInput = {
   area: AlphaArea;
 };
 type ProfileActivityItem = { id: string; title: string; status: string; startAt: string; imageUrl: string | null; category: string; publicLocationName: string };
-type ProfileActivity = { hosted: ProfileActivityItem[]; participated: ProfileActivityItem[] };
+type ProfileActivity = { hosted: ProfileActivityItem[]; participated: ProfileActivityItem[]; hearted: ProfileActivityItem[] };
 type ReportReason = "HARASSMENT" | "SPAM" | "DANGEROUS" | "SEXUAL" | "SOLICITATION" | "FRAUD" | "HATE" | "IMPERSONATION" | "OTHER";
 const AREA_COORDINATES: Record<AlphaArea, { latitude: number; longitude: number }> = {
   新宿: { latitude: 35.6909, longitude: 139.7003 },
@@ -168,7 +174,6 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>("home");
   const [hangouts, setHangouts] = useState<Hangout[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [chatTab, setChatTab] = useState<"GROUP" | "DIRECT">("GROUP");
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [ratingRoom, setRatingRoom] = useState<GroupRoom | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -187,7 +192,7 @@ export default function App() {
     longitude: number;
   } | null>(null);
   const [hostStatus, setHostStatus] = useState<HostStatus | null>(null);
-  const [profileActivity, setProfileActivity] = useState<ProfileActivity>({ hosted: [], participated: [] });
+  const [profileActivity, setProfileActivity] = useState<ProfileActivity>({ hosted: [], participated: [], hearted: [] });
   const [selectedArea, setSelectedArea] = useState<AlphaArea>("新宿");
   const [selectedHangout, setSelectedHangout] = useState<Hangout | null>(null);
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
@@ -237,10 +242,22 @@ export default function App() {
     }).catch(() => undefined);
   }, [coordinates, request, session]);
 
+  const toggleHeart = useCallback(async (hangout: Hangout) => {
+    try {
+      const result = await request<{ hearted: boolean; heartCount: number }>(`/hangouts/${hangout.id}/heart`, { method: "POST" });
+      const update = (item: Hangout) => item.id === hangout.id ? { ...item, ...result } : item;
+      setHangouts((current) => current.map(update));
+      setSelectedHangout((current) => current ? update(current) : current);
+    } catch {
+      Alert.alert("ハートを送れませんでした", "通信状態を確認してもう一度お試しください。");
+    }
+  }, [request]);
+
   const loadRooms = useCallback(async () => {
     if (!session) return [] as Room[];
     const [groups, directs] = await Promise.all([request<GroupRoom[]>("/chat-rooms"), request<DirectRoom[]>("/direct-chats")]);
-    const nextRooms: Room[] = [...groups, ...directs];
+    const timestamp = (room: Room) => new Date(room.lastMessage?.createdAt ?? (room.type === "DIRECT" ? room.updatedAt : room.createdAt)).getTime();
+    const nextRooms: Room[] = [...groups, ...directs].sort((left, right) => timestamp(right) - timestamp(left));
     setRooms(nextRooms);
     return nextRooms;
   }, [request, session]);
@@ -424,7 +441,7 @@ export default function App() {
     }
   }
 
-  async function openHangout(hangout: Hangout) {
+  async function openHangout(hangout: Pick<Hangout, "id">) {
     setLoading(true);
     setError("");
     try {
@@ -641,7 +658,6 @@ export default function App() {
         body: JSON.stringify({ userId }),
       });
       await loadRooms();
-      setChatTab("DIRECT");
       await openRoom(room);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "1対1チャットを開始できませんでした");
@@ -877,14 +893,14 @@ export default function App() {
       )}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <View style={styles.content}>
-        {screen === "home" && <HomeScreen user={session.user} hangouts={hangouts} refreshing={refreshing} locationLabel={locationLabel} selectedArea={selectedArea} onArea={chooseArea} onLocation={useCurrentLocation} onRefresh={refreshCurrent} onOpen={openHangout} onCreate={() => setScreen(session.user.verificationStatus === "PHONE_VERIFIED" ? "create" : "phone")} />}
-        {screen === "map" && <MapScreen hangouts={hangouts} locationLabel={locationLabel} onLocation={useCurrentLocation} onOpen={openHangout} />}
+        {screen === "home" && <HomeScreen user={session.user} hangouts={hangouts} refreshing={refreshing} locationLabel={locationLabel} selectedArea={selectedArea} onArea={chooseArea} onLocation={useCurrentLocation} onRefresh={refreshCurrent} onOpen={openHangout} onHeart={toggleHeart} onCreate={() => setScreen(session.user.verificationStatus === "PHONE_VERIFIED" ? "create" : "phone")} />}
+        {screen === "map" && <MapScreen hangouts={hangouts} locationLabel={locationLabel} onBack={() => setScreen("home")} onLocation={useCurrentLocation} onOpen={openHangout} />}
         {screen === "create" && <CreateHangoutScreen area={selectedArea} gender={session.user.gender} onBack={() => setScreen("home")} onSubmit={createHangout} />}
         {screen === "detail" && selectedHangout && <HangoutDetailScreen user={session.user} hangout={selectedHangout} requests={joinRequests} onBack={() => setScreen("home")} onJoin={joinHangout} onStart={startHangout} onFinish={confirmFinishHangout} onDecide={decideJoinRequest} onReport={confirmReportHost} onAttendance={updateAttendance} />}
         {screen === "phone" && <PhoneVerificationScreen onBack={() => setScreen("profile")} onVerify={verifyPhone} />}
-        {screen === "chat" && <ChatScreen user={session.user} rooms={rooms} chatTab={chatTab} selectedRoom={selectedRoom} messages={messages} messageBody={messageBody} sending={sending} refreshing={refreshing} unreadByRoom={unreadByRoom} realtimeOnline={realtimeOnline} onTab={setChatTab} onRefresh={refreshCurrent} onOpen={openRoom} onStartDirect={startDirect} onRate={rateParticipant} onBack={() => setSelectedRoom(null)} onChangeBody={setMessageBody} onSend={sendMessage} />}
+        {screen === "chat" && <ChatScreen user={session.user} rooms={rooms} selectedRoom={selectedRoom} messages={messages} messageBody={messageBody} sending={sending} refreshing={refreshing} unreadByRoom={unreadByRoom} realtimeOnline={realtimeOnline} onRefresh={refreshCurrent} onOpen={openRoom} onStartDirect={startDirect} onRate={rateParticipant} onBack={() => setSelectedRoom(null)} onChangeBody={setMessageBody} onSend={sendMessage} />}
         {screen === "rating" && ratingRoom && <RatingScreen user={session.user} room={ratingRoom} onRate={rateParticipant} onDone={() => { setRatingRoom(null); setScreen("home"); }} />}
-        {screen === "profile" && <ProfileScreen user={session.user} hostStatus={hostStatus} activity={profileActivity} demo={!!demoRole} onPhone={() => setScreen("phone")} onPhoto={chooseProfilePhoto} onSave={updateProfile} onDelete={confirmDeleteAccount} onLogout={logout} />}
+        {screen === "profile" && <ProfileScreen user={session.user} hostStatus={hostStatus} activity={profileActivity} demo={!!demoRole} onChat={() => { setSelectedRoom(null); setScreen("chat"); }} onOpenHangout={(id) => void openHangout({ id })} onPhone={() => setScreen("phone")} onPhoto={chooseProfilePhoto} onSave={updateProfile} onDelete={confirmDeleteAccount} onLogout={logout} />}
       </View>
       {!selectedRoom && ["home", "map", "chat", "profile"].includes(screen) && (
         <View style={styles.nav}>
@@ -1016,7 +1032,7 @@ function Field(props: React.ComponentProps<typeof TextInput> & { label: string }
   );
 }
 
-function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, onArea, onLocation, onRefresh, onOpen, onCreate }: { user: User; hangouts: Hangout[]; refreshing: boolean; locationLabel: string; selectedArea: AlphaArea; onArea: (area: AlphaArea) => void; onLocation: () => void; onRefresh: () => void; onOpen: (hangout: Hangout) => void; onCreate: () => void }) {
+function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, onArea, onLocation, onRefresh, onOpen, onHeart, onCreate }: { user: User; hangouts: Hangout[]; refreshing: boolean; locationLabel: string; selectedArea: AlphaArea; onArea: (area: AlphaArea) => void; onLocation: () => void; onRefresh: () => void; onOpen: (hangout: Hangout) => void; onHeart: (hangout: Hangout) => void; onCreate: () => void }) {
   const stateLabel = (hangout: Hangout) => (hangout.hostUserId === user.id ? "主催中" : hangout.myJoinStatus === "ACCEPTED" ? "承認済み" : hangout.myJoinStatus === "PENDING" ? "申請中" : hangout.status === "FULL" ? "満員" : "募集中");
   return (
     <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
@@ -1046,6 +1062,10 @@ function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, o
       {hangouts.map((hangout) => (
         <Pressable key={hangout.id} style={styles.card} onPress={() => onOpen(hangout)}>
           <Image source={{ uri: ACTIVITY_PHOTO_URL }} style={styles.activityPhoto} resizeMode="cover" />
+          <Pressable style={[styles.heartButton, hangout.hearted && styles.heartButtonOn]} onPress={(event) => { event.stopPropagation(); onHeart(hangout); }} accessibilityRole="button" accessibilityLabel={hangout.hearted ? "ハートを取り消す" : "ハートを送る"}>
+            <Text style={[styles.heartIcon, hangout.hearted && styles.heartIconOn]}>{hangout.hearted ? "♥" : "♡"}</Text>
+            <Text style={[styles.heartCount, hangout.hearted && styles.heartIconOn]}>{hangout.heartCount}</Text>
+          </Pressable>
           <View style={styles.cardTop}>
             <View style={styles.cardCopy}>
               <Text style={styles.cardCategory}>{hangout.category}</Text>
@@ -1074,9 +1094,12 @@ function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, o
   );
 }
 
-function MapScreen({ hangouts, locationLabel, onLocation, onOpen }: { hangouts: Hangout[]; locationLabel: string; onLocation: () => void; onOpen: (hangout: Hangout) => void }) {
+function MapScreen({ hangouts, locationLabel, onBack, onLocation, onOpen }: { hangouts: Hangout[]; locationLabel: string; onBack: () => void; onLocation: () => void; onOpen: (hangout: Hangout) => void }) {
   return (
     <ScrollView contentContainerStyle={styles.mapPage}>
+      <Pressable style={styles.mapBackButton} onPress={onBack} accessibilityRole="button" accessibilityLabel="Hangout一覧に戻る">
+        <Text style={styles.mapBackIcon}>‹</Text>
+      </Pressable>
       <View style={styles.mapHeading}>
         <View>
           <Text style={styles.eyebrow}>{locationLabel}</Text>
@@ -1096,7 +1119,10 @@ function MapScreen({ hangouts, locationLabel, onLocation, onOpen }: { hangouts: 
           </Pressable>
         ))}
       </View>
-      <Text style={styles.mapPrivacy}>承認前は概略エリアのみ表示します。正確な集合場所は承認後に確認できます。</Text>
+      <View style={styles.mapResultHeading}>
+        <Text style={styles.mapResultHeadingTitle}>このマップのHangout</Text>
+        <Text style={styles.mapResultHeadingCount}>{Math.min(hangouts.length, 5)}件</Text>
+      </View>
       {hangouts.slice(0, 5).map((hangout, index) => (
         <Pressable key={hangout.id} style={styles.mapResultCard} onPress={() => onOpen(hangout)}>
           <Text style={styles.mapResultNumber}>{index + 1}</Text>
@@ -1108,6 +1134,7 @@ function MapScreen({ hangouts, locationLabel, onLocation, onOpen }: { hangouts: 
         </Pressable>
       ))}
       {!hangouts.length && <Text style={styles.empty}>現在地周辺のHangoutはありません。</Text>}
+      <Text style={styles.mapPrivacy}>承認前は概略エリアのみ表示します。正確な集合場所は承認後に確認できます。</Text>
     </ScrollView>
   );
 }
@@ -1409,7 +1436,7 @@ function RatingScreen({ user, room, onRate, onDone }: { user: User; room: GroupR
   );
 }
 
-function ChatScreen({ user, rooms, chatTab, selectedRoom, messages, messageBody, sending, refreshing, unreadByRoom, realtimeOnline, onTab, onRefresh, onOpen, onStartDirect, onRate, onBack, onChangeBody, onSend }: { user: User; rooms: Room[]; chatTab: "GROUP" | "DIRECT"; selectedRoom: Room | null; messages: Message[]; messageBody: string; sending: boolean; refreshing: boolean; unreadByRoom: Record<string, number>; realtimeOnline: boolean; onTab: (tab: "GROUP" | "DIRECT") => void; onRefresh: () => void; onOpen: (room: Room) => void; onStartDirect: (userId: string) => void; onRate: (hangoutId: string, userId: string, score: number) => void; onBack: () => void; onChangeBody: (value: string) => void; onSend: () => void }) {
+function ChatScreen({ user, rooms, selectedRoom, messages, messageBody, sending, refreshing, unreadByRoom, realtimeOnline, onRefresh, onOpen, onStartDirect, onRate, onBack, onChangeBody, onSend }: { user: User; rooms: Room[]; selectedRoom: Room | null; messages: Message[]; messageBody: string; sending: boolean; refreshing: boolean; unreadByRoom: Record<string, number>; realtimeOnline: boolean; onRefresh: () => void; onOpen: (room: Room) => void; onStartDirect: (userId: string) => void; onRate: (hangoutId: string, userId: string, score: number) => void; onBack: () => void; onChangeBody: (value: string) => void; onSend: () => void }) {
   const listRef = useRef<FlatList<Message>>(null);
   const time = (value?: string) =>
     value
@@ -1509,7 +1536,7 @@ function ChatScreen({ user, rooms, chatTab, selectedRoom, messages, messageBody,
       </KeyboardAvoidingView>
     );
   }
-  const visibleRooms = rooms.filter((room) => room.type === chatTab);
+  const visibleRooms = rooms;
   const groupMembers = rooms
     .filter((room): room is GroupRoom => room.type === "GROUP")
     .flatMap((room) => room.members)
@@ -1523,17 +1550,12 @@ function ChatScreen({ user, rooms, chatTab, selectedRoom, messages, messageBody,
         </View>
         <Text style={[styles.connectionBadge, realtimeOnline && styles.connectionOn]}>{realtimeOnline ? "リアルタイム" : "再接続中"}</Text>
       </View>
-      <View style={styles.chatTabs}>
-        <Pressable style={[styles.chatTab, chatTab === "GROUP" && styles.chatTabOn]} onPress={() => onTab("GROUP")}>
-          <Text style={[styles.chatTabText, chatTab === "GROUP" && styles.chatTabTextOn]}>グループ</Text>
-        </Pressable>
-        <Pressable style={[styles.chatTab, chatTab === "DIRECT" && styles.chatTabOn]} onPress={() => onTab("DIRECT")}>
-          <Text style={[styles.chatTabText, chatTab === "DIRECT" && styles.chatTabTextOn]}>1対1</Text>
-        </Pressable>
+      <View style={styles.talkListSummary}>
+        <Text style={styles.talkListTitle}>トーク</Text>
+        <Text style={styles.talkListCounts}>1対1 {rooms.filter((room) => room.type === "DIRECT").length}　グループ {rooms.filter((room) => room.type === "GROUP").length}</Text>
       </View>
-      {chatTab === "DIRECT" && (
-        <View style={styles.directPeople}>
-          <Text style={styles.directPeopleTitle}>一度会い、双方が★5を付けると1対1チャットが解放されます</Text>
+      <View style={styles.directPeople}>
+          <Text style={styles.directPeopleTitle}>1対1でチャットできるメンバー</Text>
           {groupMembers.length > 0 && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {groupMembers.map((member) => (
@@ -1543,8 +1565,7 @@ function ChatScreen({ user, rooms, chatTab, selectedRoom, messages, messageBody,
               ))}
             </ScrollView>
           )}
-        </View>
-      )}
+      </View>
       {visibleRooms.map((room) => {
         const unread = unreadByRoom[room.id] || 0;
         const title = room.type === "DIRECT" ? room.otherUser.displayName : room.hangout.title;
@@ -1563,6 +1584,7 @@ function ChatScreen({ user, rooms, chatTab, selectedRoom, messages, messageBody,
                 <Text style={styles.roomTitle} numberOfLines={1}>
                   {title}
                 </Text>
+                <Text style={styles.roomType}>{room.type === "DIRECT" ? "1対1" : "グループ"}</Text>
                 <Text style={styles.roomTime}>{time(room.lastMessage?.createdAt)}</Text>
               </View>
               <View style={styles.roomBottom}>
@@ -1575,12 +1597,12 @@ function ChatScreen({ user, rooms, chatTab, selectedRoom, messages, messageBody,
           </Pressable>
         );
       })}
-      {!visibleRooms.length && <Text style={styles.empty}>{chatTab === "GROUP" ? "参加が承認されるとグループチャットが表示されます。" : "双方の★5評価がそろうと1対1チャットが表示されます。"}</Text>}
+      {!visibleRooms.length && <Text style={styles.empty}>トークはまだありません。</Text>}
     </ScrollView>
   );
 }
 
-function ProfileScreen({ user, hostStatus, activity, demo, onPhone, onPhoto, onSave, onDelete, onLogout }: { user: User; hostStatus: HostStatus | null; activity: ProfileActivity; demo: boolean; onPhone: () => void; onPhoto: () => void; onSave: (input: Pick<User, "displayName" | "gender" | "bio" | "homeArea" | "interests">) => Promise<void>; onDelete: () => void; onLogout: () => void }) {
+function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout, onPhone, onPhoto, onSave, onDelete, onLogout }: { user: User; hostStatus: HostStatus | null; activity: ProfileActivity; demo: boolean; onChat: () => void; onOpenHangout: (id: string) => void; onPhone: () => void; onPhoto: () => void; onSave: (input: Pick<User, "displayName" | "gender" | "bio" | "homeArea" | "interests">) => Promise<void>; onDelete: () => void; onLogout: () => void }) {
   const white = hostStatus?.tier === "WHITE";
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState(user.displayName);
@@ -1588,6 +1610,19 @@ function ProfileScreen({ user, hostStatus, activity, demo, onPhone, onPhoto, onS
   const [bio, setBio] = useState(user.bio ?? "");
   const [interests, setInterests] = useState(user.interests.join("、"));
   const [gender, setGender] = useState(user.gender ?? "UNDISCLOSED");
+  const selectedInterests = interests.split(/[、,]/).map((value) => value.trim()).filter(Boolean);
+  const activeStatuses = new Set(["OPEN", "FULL", "STARTED"]);
+  const activitySections = [
+    ["主催中のHangout", activity.hosted.filter((item) => activeStatuses.has(item.status))],
+    ["主催したHangout", activity.hosted.filter((item) => !activeStatuses.has(item.status))],
+    ["参加するHangout", activity.participated.filter((item) => activeStatuses.has(item.status))],
+    ["参加したHangout", activity.participated.filter((item) => !activeStatuses.has(item.status))],
+    ["ハートしたHangout", activity.hearted],
+  ] as const;
+  const toggleInterest = (interest: string) => {
+    const next = selectedInterests.includes(interest) ? selectedInterests.filter((item) => item !== interest) : [...selectedInterests, interest];
+    setInterests([...new Set(next)].slice(0, 20).join("、"));
+  };
   const save = async () => {
     const name = displayName.trim();
     if (!name) return Alert.alert("表示名を入力してください");
@@ -1610,6 +1645,10 @@ function ProfileScreen({ user, hostStatus, activity, demo, onPhone, onPhoto, onS
         </View>
       )}
       <Text style={styles.profileName}>{user.displayName}</Text>
+      <Pressable style={styles.profileChatButton} onPress={onChat}>
+        <Text style={styles.profileChatButtonIcon}>●</Text>
+        <Text style={styles.profileChatButtonText}>チャット</Text>
+      </Pressable>
       <Pressable style={styles.profileEditButton} onPress={() => setEditing(true)}>
         <Text style={styles.profileEditButtonText}>プロフィールを編集</Text>
       </Pressable>
@@ -1633,17 +1672,18 @@ function ProfileScreen({ user, hostStatus, activity, demo, onPhone, onPhoto, onS
           </Text>
         ))}
       </View>
-      {([['主催したHangout', activity.hosted], ['参加したHangout', activity.participated]] as const).map(([heading, items]) => (
+      {activitySections.map(([heading, items]) => (
         <View key={heading} style={styles.profileActivitySection}>
           <Text style={styles.profileActivityHeading}>{heading}</Text>
           {items.length ? items.map((item) => (
-            <View key={item.id} style={styles.profileActivityCard}>
+            <Pressable key={item.id} style={styles.profileActivityCard} onPress={() => onOpenHangout(item.id)} accessibilityRole="button" accessibilityLabel={`${item.title}を表示`}>
               {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={styles.profileActivityImage} /> : <View style={styles.profileActivityImageFallback}><Text>✨</Text></View>}
               <View style={styles.cardCopy}>
                 <Text style={styles.profileActivityTitle}>{item.title}</Text>
                 <Text style={styles.muted}>{new Date(item.startAt).toLocaleDateString('ja-JP')} ・ {item.status === 'FINISHED' ? '終了' : item.status === 'CANCELLED' ? '中止' : item.status === 'STARTED' ? 'Hangout中' : '募集中'}</Text>
               </View>
-            </View>
+              <Text style={styles.profileActivityChevron}>›</Text>
+            </Pressable>
           )) : <Text style={styles.empty}>まだありません。</Text>}
         </View>
       ))}
@@ -1676,7 +1716,9 @@ function ProfileScreen({ user, hostStatus, activity, demo, onPhone, onPhoto, onS
             <Text style={styles.profileEditorLabel}>電話番号</Text><Pressable style={styles.profileEditorAction} onPress={() => { setEditing(false); onPhone(); }}><Text style={styles.profileEditorActionText}>{user.verificationStatus === "PHONE_VERIFIED" ? "電話番号を変更" : "電話番号を確認"}</Text></Pressable>
             <Text style={styles.profileEditorLabel}>活動エリア</Text><TextInput style={styles.profileEditorInput} value={homeArea} onChangeText={setHomeArea} maxLength={80} placeholder="例：新宿・渋谷" />
             <Text style={styles.profileEditorLabel}>自己紹介</Text><TextInput style={[styles.profileEditorInput, styles.profileEditorBio]} value={bio} onChangeText={setBio} maxLength={500} multiline textAlignVertical="top" placeholder="好きなことや参加したいHangoutを書きましょう" />
-            <Text style={styles.profileEditorLabel}>興味のあること</Text><TextInput style={styles.profileEditorInput} value={interests} onChangeText={setInterests} maxLength={300} placeholder="カフェ、ランニング、ラーメン" /><Text style={styles.profileEditorHint}>「、」またはカンマで区切って20個まで登録できます。</Text>
+            <Text style={styles.profileEditorLabel}>興味のあること</Text>
+            <View style={styles.interestOptionGrid}>{INTEREST_OPTIONS.map((interest) => { const selected = selectedInterests.includes(interest); return <Pressable key={interest} style={[styles.interestOption, selected && styles.interestOptionSelected]} onPress={() => toggleInterest(interest)}><Text style={[styles.interestOptionText, selected && styles.interestOptionTextSelected]}>{interest}</Text></Pressable>; })}</View>
+            <TextInput style={[styles.profileEditorInput, { marginTop: 10 }]} value={interests} onChangeText={setInterests} maxLength={300} placeholder="その他の興味も入力できます" /><Text style={styles.profileEditorHint}>選択または「、」区切りで20個まで登録できます。</Text>
             <Text style={styles.profileEditorLabel}>性別</Text><View style={styles.profileGenderOptions}>{[["UNDISCLOSED", "回答しない"], ["MALE", "男性"], ["FEMALE", "女性"], ["OTHER", "その他"]].map(([value, label]) => <Pressable key={value} style={[styles.profileGenderOption, gender === value && styles.profileGenderOptionSelected]} onPress={() => setGender(value)}><Text style={gender === value ? styles.profileGenderOptionTextSelected : styles.profileGenderOptionText}>{label}</Text></Pressable>)}</View>
           </ScrollView>
         </SafeAreaView>
@@ -1778,6 +1820,8 @@ const styles = StyleSheet.create({
   navLabel: { fontSize: 10, color: "#89908b", fontWeight: "700" },
   navOn: { color: "#176b48" },
   mapPage: { padding: 18, paddingBottom: 40, backgroundColor: "#f7f8f3" },
+  mapBackButton: { width: 44, height: 44, marginBottom: 10, borderWidth: 1, borderColor: "#dce5df", borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: "#fff" },
+  mapBackIcon: { marginTop: -3, color: "#176b48", fontSize: 34, lineHeight: 36, fontWeight: "500" },
   mapHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   mapLocationButton: { minHeight: 44, justifyContent: "center", paddingHorizontal: 15, borderRadius: 14, borderWidth: 1, borderColor: "#d8ded8", backgroundColor: "#fff" },
   mapCanvas: { height: 310, marginTop: 4, borderRadius: 24, overflow: "hidden", backgroundColor: "#dfead9" },
@@ -1789,6 +1833,9 @@ const styles = StyleSheet.create({
   mapPin: { position: "absolute", width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: "#fff", backgroundColor: "#176b48", shadowColor: "#17221d", shadowOpacity: 0.2, shadowRadius: 5 },
   mapPinText: { color: "#fff", fontSize: 12, fontWeight: "900" },
   mapPrivacy: { marginVertical: 13, color: "#59635c", fontSize: 11, lineHeight: 17 },
+  mapResultHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 18, marginBottom: 10 },
+  mapResultHeadingTitle: { color: "#17221d", fontSize: 18, fontWeight: "900" },
+  mapResultHeadingCount: { color: "#176b48", fontSize: 12, fontWeight: "800" },
   mapResultCard: { flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 8, padding: 13, borderRadius: 16, backgroundColor: "#fff" },
   mapResultNumber: { width: 28, height: 28, borderRadius: 14, color: "#fff", backgroundColor: "#176b48", textAlign: "center", textAlignVertical: "center", fontSize: 11, fontWeight: "900" },
   authPage: { padding: 24, paddingBottom: 50, backgroundColor: "#eef5eb" },
@@ -1878,6 +1925,7 @@ const styles = StyleSheet.create({
   profileActivityImage: { width: 58, height: 58, borderRadius: 12 },
   profileActivityImageFallback: { width: 58, height: 58, borderRadius: 12, backgroundColor: "#eaf1e9", alignItems: "center", justifyContent: "center" },
   profileActivityTitle: { fontWeight: "800", color: "#17221d" },
+  profileActivityChevron: { color: "#8a938d", fontSize: 28, fontWeight: "500", marginLeft: 4 },
   authError: { color: "#bd3a28", fontSize: 12, marginTop: 8 },
   primary: {
     backgroundColor: "#176b48",
@@ -1943,6 +1991,11 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     backgroundColor: "#dfe6df",
   },
+  heartButton: { position: "absolute", zIndex: 2, top: 10, left: 10, minWidth: 58, height: 38, paddingHorizontal: 10, borderRadius: 19, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, backgroundColor: "#ffffffee" },
+  heartButtonOn: { backgroundColor: "#fff0f2" },
+  heartIcon: { color: "#5d6861", fontSize: 22, fontWeight: "900" },
+  heartIconOn: { color: "#e34f68" },
+  heartCount: { color: "#49544d", fontSize: 12, fontWeight: "900" },
   cardTop: { flexDirection: "row", gap: 12 },
   cardCategory: {
     fontSize: 11,
@@ -2431,6 +2484,9 @@ const styles = StyleSheet.create({
   profileName: { fontSize: 25, fontWeight: "900", marginTop: 14 },
   profileEditButton: { marginTop: 12, minHeight: 48, justifyContent: "center", paddingHorizontal: 24, borderRadius: 16, backgroundColor: "#176b48", shadowColor: "#176b48", shadowOpacity: 0.18, shadowRadius: 7, elevation: 2 },
   profileEditButtonText: { color: "#fff", fontSize: 13, fontWeight: "900" },
+  profileChatButton: { marginTop: 12, minWidth: 150, minHeight: 48, paddingHorizontal: 22, borderRadius: 24, backgroundColor: "#d9ff68", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, shadowColor: "#176b48", shadowOpacity: 0.16, shadowRadius: 7, elevation: 2 },
+  profileChatButtonIcon: { color: "#176b48", fontSize: 11 },
+  profileChatButtonText: { color: "#17221d", fontSize: 14, fontWeight: "900" },
   profileEditorPage: { flex: 1, backgroundColor: "#f7f8f3" },
   profileEditorHeader: { minHeight: 58, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderColor: "#dfe5df", backgroundColor: "#fff" },
   profileEditorTitle: { fontSize: 16, fontWeight: "900", color: "#17221d" },
@@ -2441,6 +2497,11 @@ const styles = StyleSheet.create({
   profileEditorInput: { minHeight: 48, paddingHorizontal: 13, paddingVertical: 11, borderWidth: 1, borderColor: "#d8dfd9", borderRadius: 13, backgroundColor: "#fff", color: "#17221d" },
   profileEditorBio: { minHeight: 130 },
   profileEditorHint: { marginTop: 6, color: "#6d766f", fontSize: 10, lineHeight: 15 },
+  interestOptionGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  interestOption: { minHeight: 40, justifyContent: "center", paddingHorizontal: 14, borderWidth: 1, borderColor: "#d8dfd9", borderRadius: 999, backgroundColor: "#fff" },
+  interestOptionSelected: { borderColor: "#176b48", backgroundColor: "#d9ff68" },
+  interestOptionText: { color: "#59635c", fontSize: 12, fontWeight: "800" },
+  interestOptionTextSelected: { color: "#17221d" },
   profileEditorAction: { minHeight: 48, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#176b48", borderRadius: 13, backgroundColor: "#fff" },
   profileEditorActionText: { color: "#176b48", fontSize: 13, fontWeight: "900" },
   profileGenderOptions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
@@ -2546,6 +2607,10 @@ const styles = StyleSheet.create({
   scoreText: { fontSize: 10, fontWeight: "900", color: "#b47715" },
   scoreTextOn: { color: "#fff" },
   ratingUnlockHint: { fontSize: 8, color: "#707a73", marginTop: 6 },
+  talkListSummary: { paddingHorizontal: 18, paddingTop: 16, paddingBottom: 8, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  talkListTitle: { color: "#17221d", fontSize: 20, fontWeight: "900" },
+  talkListCounts: { color: "#687169", fontSize: 10, fontWeight: "800" },
+  roomType: { marginLeft: 6, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 8, overflow: "hidden", backgroundColor: "#e9f7ec", color: "#176b48", fontSize: 8, fontWeight: "900" },
   genderChoices: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   genderChoice: {
     paddingHorizontal: 10,

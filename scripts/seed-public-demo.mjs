@@ -69,6 +69,17 @@ const accounts = {
     bio: '会話を楽しめるペースのランニングや、気軽なカフェ会を開いています。',
     profilePhoto: aoiPhoto,
   },
+  rena: {
+    email: process.env.HANGOUTNOW_DEMO_RENA_EMAIL || 'demo-rena@hangoutnow.example',
+    displayName: 'レナ',
+    phone: '+819011110006',
+    birthDate: '1998-11-23',
+    gender: 'FEMALE',
+    homeArea: '新宿',
+    interests: ['ワイン', '寿司', '映画', '英会話'],
+    bio: '新宿と渋谷で気軽に参加できるHangoutを探しています。公開デモ用の架空プロフィールです。',
+    profilePhoto: null,
+  },
 };
 
 async function call(path, options = {}, token, allowedStatuses = []) {
@@ -146,6 +157,7 @@ const guest = await loginOrRegister(accounts.guest);
 const masaya = await loginOrRegister(accounts.masaya);
 const kenta = await loginOrRegister(accounts.kenta);
 const aoi = await loginOrRegister(accounts.aoi);
+const rena = await loginOrRegister(accounts.rena);
 await call('/demo/reset', { method: 'POST', body: '{}' }, host.token);
 const organizers = { host, kenta, aoi };
 const samples = [
@@ -189,6 +201,30 @@ const samples = [
     latitude: 35.6580, longitude: 139.7016, maxParticipants: 5, genderRestriction: 'ANY',
   },
 ];
+
+samples.push(...[
+  ['host','新宿でワインを楽しむ会','WINE','SHINJUKU',35.6910,139.7010,60],
+  ['kenta','渋谷の落ち着いたバーへ','BAR','SHIBUYA',35.6590,139.7020,180],
+  ['aoi','新宿で気軽に居酒屋ごはん','IZAKAYA','SHINJUKU',35.6930,139.7040,30],
+  ['host','寿司を食べながら交流会','SUSHI','SHINJUKU',35.6890,139.6990,180],
+  ['kenta','渋谷で焼肉を囲もう','YAKINIKU','SHIBUYA',35.6570,139.6990,60],
+  ['aoi','話題のスイーツを食べよう','SWEETS','SHIBUYA',35.6600,139.7030,60],
+  ['host','新宿でカラオケ交流会','KARAOKE','SHINJUKU',35.6940,139.7020,180],
+  ['kenta','渋谷でゆるくダーツ','DARTS','SHIBUYA',35.6560,139.7000,30],
+  ['aoi','ボードゲームで遊ぼう','GAME','SHINJUKU',35.6880,139.7050,60],
+  ['host','映画の感想を話すカフェ会','MOVIE','SHINJUKU',35.6870,139.6980,180],
+  ['kenta','渋谷でシーシャを楽しもう','SHISHA','SHIBUYA',35.6550,139.7040,60],
+  ['aoi','初心者向け英会話カフェ','ENGLISH','SHIBUYA',35.6610,139.7000,30],
+  ['host','新宿で夜ごはん仲間募集','DINNER','SHINJUKU',35.6950,139.7060,60],
+  ['kenta','渋谷をのんびり散歩','WALKING','SHIBUYA',35.6540,139.6980,180],
+  ['aoi','朝の新宿まち歩き','WALKING','SHINJUKU',35.6860,139.6970,30],
+].map(([organizer,title,category,serviceArea,latitude,longitude,startInMinutes])=>({
+  organizer,title,category,serviceArea,latitude,longitude,startInMinutes,
+  description:`${title}。初参加歓迎の公開デモ用架空Hangoutです。`,
+  publicLocationName:`${serviceArea==='SHINJUKU'?'新宿':'渋谷'}駅周辺（デモ）`,
+  locationName:`デモ会場 ${serviceArea==='SHINJUKU'?'新宿':'渋谷'}店 東京都${serviceArea==='SHINJUKU'?'新宿区新宿3-2-1':'渋谷区渋谷1-2-3'}`,
+  maxParticipants:6,genderRestriction:'ANY',maxAge:59,
+})));
 
 let hangouts = await call('/hangouts?latitude=35.69&longitude=139.70&radiusKm=20', {}, host.token)
   .then((result) => result.body);
@@ -267,7 +303,7 @@ if (!messages.some((message) => message.body === 'こんにちは！デモチャ
   }, host.token);
 }
 
-for (const account of [host, guest, masaya, kenta, aoi]) {
+for (const account of [host, guest, masaya, kenta, aoi, rena]) {
   const stamps = await call('/stamps', {}, account.token).then((result) => result.body);
   for (const text of ['向かってます', '少し遅れます', '到着']) {
     if (!stamps.some((stamp) => stamp.text === text)) {
@@ -281,6 +317,7 @@ process.stdout.write(`${JSON.stringify({
   demoUrl,
   host: { email: host.email, password, created: host.created },
   guest: { email: guest.email, password, created: guest.created },
+  personas: [host, guest, masaya, kenta, aoi, rena].map((account) => ({ email: account.email, displayName: account.displayName, password, created: account.created })),
   organizers: [host, kenta, aoi].map((account) => ({ id: account.id, displayName: account.displayName, created: account.created })),
   hangouts: seededHangouts.map((item) => ({ id: item.id, title: item.title, category: item.category })),
   primaryHangout: { id: hangout.id, title: hangout.title, joinStatus, genderRestriction: 'ANY', maxAge: 39 },
