@@ -6,12 +6,13 @@ import { PrismaService } from '../src/prisma/prisma.service';
 function setup(requesterIsDemo = true) {
   const host = { id: '019ffb00-0000-7000-8000-000000000001', email: 'demo-host@hangoutnow.example' };
   const guest = { id: '019ffb00-0000-7000-8000-000000000002', email: 'demo-guest@hangoutnow.example' };
+  const masaya = { id: '019ffb00-0000-7000-8000-000000000003', email: 'demo-masaya@hangoutnow.example' };
   const transaction = {
     directChat: { deleteMany: vi.fn() }, hangout: { deleteMany: vi.fn(), create: vi.fn().mockResolvedValue({ id: 'new-hangout' }) },
-    notification: { deleteMany: vi.fn() },
+    notification: { deleteMany: vi.fn() }, joinRequest: { create: vi.fn() }, chatRoom: { create: vi.fn() },
   };
   const database = {
-    user: { findMany: vi.fn().mockResolvedValue([host, guest]) },
+    user: { findMany: vi.fn().mockResolvedValue([host, guest, masaya]) },
     $transaction: vi.fn().mockImplementation((operation: (client: typeof transaction) => Promise<unknown>) => operation(transaction)),
   };
   return { service: new DemoService(database as unknown as PrismaService), transaction, requesterId: requesterIsDemo ? host.id : 'real-user' };
@@ -34,6 +35,7 @@ describe('public demo reset boundary', () => {
     expect(result).toMatchObject({ ok: true, hangoutId: 'new-hangout', status: 'READY' });
     expect(transaction.hangout.deleteMany).toHaveBeenCalledWith({ where: { hostUserId: requesterId } });
     expect(transaction.hangout.create).toHaveBeenCalledOnce();
+    expect(transaction.joinRequest.create).toHaveBeenCalledWith({ data: expect.objectContaining({ userId: '019ffb00-0000-7000-8000-000000000003', status: 'ACCEPTED' }) });
   });
 
   it('rejects a real user even when demo mode is enabled', async () => {

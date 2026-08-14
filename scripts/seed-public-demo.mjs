@@ -5,29 +5,41 @@ const demoUrl = process.env.HANGOUTNOW_DEMO_URL || 'https://hangoutnow-demo.onre
 const password = process.env.HANGOUTNOW_DEMO_PASSWORD || 'HangoutNow-Demo-2026!';
 const hostPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-guest-profile.jpg', import.meta.url)).toString('base64')}`;
 const guestPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-host-profile.jpg', import.meta.url)).toString('base64')}`;
+const masayaPhoto = guestPhoto;
 
 const accounts = {
   host: {
     email: process.env.HANGOUTNOW_DEMO_HOST_EMAIL || 'demo-host@hangoutnow.example',
-    displayName: 'ミサキ（デモ主催者）',
+    displayName: 'マミ（デモ主催者）',
     phone: '+819011110001',
-    birthDate: '1988-04-12',
+    birthDate: '1989-04-12',
     gender: 'FEMALE',
     homeArea: '新宿',
-    interests: ['カフェ', 'ラーメン', 'ランニング'],
-    bio: 'カフェ巡りとランニングが好きです。これは公開デモ用の架空プロフィールです。',
+    interests: ['飲み会', 'グルメ', '旅行'],
+    bio: '仕事帰りに気軽に飲みに行ける仲間を探しています。公開デモ用の架空プロフィールです。',
     profilePhoto: hostPhoto,
   },
   guest: {
     email: process.env.HANGOUTNOW_DEMO_GUEST_EMAIL || 'demo-guest@hangoutnow.example',
-    displayName: 'ユウキ（デモ参加者）',
+    displayName: 'マドカ（Hangoutを探しています）',
     phone: '+819011110002',
-    birthDate: '1993-09-20',
-    gender: 'MALE',
+    birthDate: '1990-09-20',
+    gender: 'FEMALE',
     homeArea: '渋谷',
-    interests: ['カフェ', '街歩き', '写真'],
-    bio: '気軽に参加できるHangoutを探しています。これは公開デモ用の架空プロフィールです。',
+    interests: ['飲み会', 'カフェ', '映画'],
+    bio: '今日参加できる楽しいHangoutを探しています。公開デモ用の架空プロフィールです。',
     profilePhoto: guestPhoto,
+  },
+  masaya: {
+    email: process.env.HANGOUTNOW_DEMO_MASAYA_EMAIL || 'demo-masaya@hangoutnow.example',
+    displayName: 'マサヤ（承認済み参加者）',
+    phone: '+819011110003',
+    birthDate: '2002-06-15',
+    gender: 'MALE',
+    homeArea: '新宿',
+    interests: ['飲み会', 'サッカー', 'ラーメン'],
+    bio: '仕事や趣味の話をしながら楽しく飲みたいです。公開デモ用の架空プロフィールです。',
+    profilePhoto: masayaPhoto,
   },
 };
 
@@ -103,11 +115,13 @@ async function loginOrRegister(account) {
 
 const host = await loginOrRegister(accounts.host);
 const guest = await loginOrRegister(accounts.guest);
+const masaya = await loginOrRegister(accounts.masaya);
+await call('/demo/reset', { method: 'POST', body: '{}' }, host.token);
 const samples = [
   {
-    title: '【デモ手順】新宿カフェ交流会',
-    description: '作成・参加申請・承認・グループチャット・終了・相互★5・1対1チャットまで確認する公開デモ用の架空イベントです。',
-    category: 'CAFE', serviceArea: 'SHINJUKU', startInMinutes: 180, publicLocationName: '新宿駅周辺（デモ）', locationName: 'デモカフェ新宿店 東京都新宿区新宿3-1-1',
+    title: 'マミと新宿で気軽に飲もう',
+    description: '仕事帰りに気軽に乾杯する、公開デモ用の架空の飲み会です。初参加も歓迎します。',
+    category: 'DRINKING', serviceArea: 'SHINJUKU', startInMinutes: 60, publicLocationName: '新宿駅東口周辺（デモ）', locationName: 'デモ居酒屋 新宿店 東京都新宿区新宿3-1-1',
     latitude: 35.6901, longitude: 139.7005, maxParticipants: 4, genderRestriction: 'ANY', maxAge: 39,
   },
   {
@@ -173,26 +187,26 @@ for (const sample of samples) {
 }
 const hangout = seededHangouts[0];
 
-const guestView = await call(`/hangouts/${hangout.id}`, {}, guest.token).then((result) => result.body);
+const guestView = await call(`/hangouts/${hangout.id}`, {}, masaya.token).then((result) => result.body);
 let joinStatus = guestView.myJoinStatus;
 if (!joinStatus) {
   const request = await call(`/hangouts/${hangout.id}/join`, {
     method: 'POST',
     body: JSON.stringify({ message: 'デモ参加者です。参加をお願いします！' }),
-  }, guest.token).then((result) => result.body);
+  }, masaya.token).then((result) => result.body);
   await call(`/join-requests/${request.id}/accept`, { method: 'POST', body: '{}' }, host.token);
   joinStatus = 'ACCEPTED';
 } else if (joinStatus === 'PENDING') {
   const requests = await call(`/hangouts/${hangout.id}/requests`, {}, host.token).then((result) => result.body);
-  const request = requests.find((item) => item.user.id === guest.id && item.status === 'PENDING');
+  const request = requests.find((item) => item.user.id === masaya.id && item.status === 'PENDING');
   if (request) await call(`/join-requests/${request.id}/accept`, { method: 'POST', body: '{}' }, host.token);
   joinStatus = 'ACCEPTED';
 }
 
-const rooms = await call('/chat-rooms', {}, guest.token).then((result) => result.body);
+const rooms = await call('/chat-rooms', {}, masaya.token).then((result) => result.body);
 const room = rooms.find((item) => item.hangoutId === hangout.id);
 if (!room) throw new Error('Demo chat room was not created');
-const messages = await call(`/chat-rooms/${room.id}/messages`, {}, guest.token).then((result) => result.body);
+const messages = await call(`/chat-rooms/${room.id}/messages`, {}, masaya.token).then((result) => result.body);
 if (!messages.some((message) => message.body === 'こんにちは！デモチャットへようこそ。')) {
   await call(`/chat-rooms/${room.id}/messages`, {
     method: 'POST',
@@ -200,7 +214,7 @@ if (!messages.some((message) => message.body === 'こんにちは！デモチャ
   }, host.token);
 }
 
-for (const account of [host, guest]) {
+for (const account of [host, guest, masaya]) {
   const stamps = await call('/stamps', {}, account.token).then((result) => result.body);
   for (const text of ['向かってます', '少し遅れます', '到着']) {
     if (!stamps.some((stamp) => stamp.text === text)) {
