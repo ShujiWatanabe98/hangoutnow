@@ -421,6 +421,19 @@ describe('social journey safety boundaries', () => {
     }
   });
 
+  it('lets the host start a Hangout and keeps accepting mid-session join requests', async () => {
+    const hangoutId = await createHangout();
+    await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/start`).set(auth('guest')).send({}).expect(403);
+    await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/start`).set(auth('host')).send({}).expect(201);
+    expect(db.hangouts[0]?.status).toBe('STARTED');
+
+    const listed = await request(app.getHttpServer()).get('/hangouts').set(auth('guest')).expect(200);
+    expect(listed.body.some((hangout: { id: string; status: string }) => hangout.id === hangoutId && hangout.status === 'STARTED')).toBe(true);
+
+    const joined = await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('guest')).send({ message: '途中から参加したいです' }).expect(201);
+    expect(joined.body.status).toBe('PENDING');
+  });
+
   it('restricts chat to accepted members and revokes access after blocking the host', async () => {
     const hangoutId = await createHangout();
     const joined = await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('guest')).send({}).expect(201);
