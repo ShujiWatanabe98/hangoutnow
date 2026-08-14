@@ -268,7 +268,7 @@ class MemorySocialDb {
   private hangoutView(row: TestHangout, requestingUserId?: string) {
     const requests = this.joinRequests
       .filter((item) => item.hangoutId === row.id && (item.status === 'ACCEPTED' || item.userId === requestingUserId || requestingUserId === undefined))
-      .map((item) => ({ userId: item.userId, status: item.status }));
+      .map((item) => ({ userId: item.userId, status: item.status, user: this.publicUser(item.userId) }));
     return { ...row, host: this.publicUser(row.hostUserId), joinRequests: requests };
   }
 
