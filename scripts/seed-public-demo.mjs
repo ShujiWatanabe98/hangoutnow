@@ -9,6 +9,7 @@ const masayaPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo
 const ramenPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-ramen-mami-v3.jpg', import.meta.url)).toString('base64')}`;
 const runningPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-running-hangout-v2.jpg', import.meta.url)).toString('base64')}`;
 const cafePhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-cafe-hangout.jpg', import.meta.url)).toString('base64')}`;
+const touringPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-touring-hangout-v2.jpg', import.meta.url)).toString('base64')}`;
 
 const accounts = {
   host: {
@@ -143,6 +144,7 @@ const samples = [
   },
   {
     title: '夕方のショートツーリング',
+    imageUrl: touringPhoto,
     description: '安全第一で景色を楽しむ、公開デモ用の架空ツーリング募集です。',
     category: 'MOTORCYCLE', serviceArea: 'SHIBUYA', startInMinutes: 180, publicLocationName: '渋谷駅周辺（デモ）', locationName: '渋谷区立宮下公園 東京都渋谷区神宮前6-20-10',
     latitude: 35.6437, longitude: 139.6816, maxParticipants: 5, genderRestriction: 'ANY', maxAge: 59,
