@@ -1572,16 +1572,13 @@ function ProfileScreen({ user, hostStatus, demo, onPhone, onPhoto, onSave, onDel
           <Text style={styles.avatarText}>☺</Text>
         </View>
       )}
-      <Pressable style={styles.photoButton} onPress={onPhoto}>
-        <Text style={styles.photoButtonText}>写真を変更</Text>
-      </Pressable>
       <Text style={styles.profileName}>{user.displayName}</Text>
       <Pressable style={styles.profileEditButton} onPress={() => setEditing(true)}>
         <Text style={styles.profileEditButtonText}>プロフィールを編集</Text>
       </Pressable>
-      <Pressable disabled={user.verificationStatus === "PHONE_VERIFIED"} onPress={onPhone}>
+      <View>
         <Text style={[styles.verified, user.verificationStatus !== "PHONE_VERIFIED" && styles.unverified]}>{user.verificationStatus === "PHONE_VERIFIED" ? "✓ 電話番号確認済み" : "電話番号を確認する ›"}</Text>
-      </Pressable>
+      </View>
       {hostStatus && (
         <View style={[styles.hostRankCard, white && styles.hostRankWhite]}>
           <Text style={[styles.hostRankCaption, white && styles.hostRankDark]}>主催者ステータス</Text>
@@ -1623,7 +1620,9 @@ function ProfileScreen({ user, hostStatus, demo, onPhone, onPhoto, onSave, onDel
         <SafeAreaView style={styles.profileEditorPage}>
           <View style={styles.profileEditorHeader}><Pressable onPress={() => setEditing(false)}><Text style={styles.profileEditorCancel}>キャンセル</Text></Pressable><Text style={styles.profileEditorTitle}>プロフィールを編集</Text><Pressable onPress={() => void save()}><Text style={styles.profileEditorSave}>保存</Text></Pressable></View>
           <ScrollView contentContainerStyle={styles.profileEditorForm} keyboardShouldPersistTaps="handled">
+            <Text style={styles.profileEditorLabel}>プロフィール写真</Text><Pressable style={styles.profileEditorAction} onPress={onPhoto}><Text style={styles.profileEditorActionText}>写真を変更</Text></Pressable>
             <Text style={styles.profileEditorLabel}>表示名</Text><TextInput style={styles.profileEditorInput} value={displayName} onChangeText={setDisplayName} maxLength={40} />
+            <Text style={styles.profileEditorLabel}>電話番号</Text><Pressable style={styles.profileEditorAction} onPress={() => { setEditing(false); onPhone(); }}><Text style={styles.profileEditorActionText}>{user.verificationStatus === "PHONE_VERIFIED" ? "電話番号を変更" : "電話番号を確認"}</Text></Pressable>
             <Text style={styles.profileEditorLabel}>活動エリア</Text><TextInput style={styles.profileEditorInput} value={homeArea} onChangeText={setHomeArea} maxLength={80} placeholder="例：新宿・渋谷" />
             <Text style={styles.profileEditorLabel}>自己紹介</Text><TextInput style={[styles.profileEditorInput, styles.profileEditorBio]} value={bio} onChangeText={setBio} maxLength={500} multiline textAlignVertical="top" placeholder="好きなことや参加したいHangoutを書きましょう" />
             <Text style={styles.profileEditorLabel}>興味のあること</Text><TextInput style={styles.profileEditorInput} value={interests} onChangeText={setInterests} maxLength={300} placeholder="カフェ、ランニング、ラーメン" /><Text style={styles.profileEditorHint}>「、」またはカンマで区切って20個まで登録できます。</Text>
@@ -2324,6 +2323,8 @@ const styles = StyleSheet.create({
   profileEditorInput: { minHeight: 48, paddingHorizontal: 13, paddingVertical: 11, borderWidth: 1, borderColor: "#d8dfd9", borderRadius: 13, backgroundColor: "#fff", color: "#17221d" },
   profileEditorBio: { minHeight: 130 },
   profileEditorHint: { marginTop: 6, color: "#6d766f", fontSize: 10, lineHeight: 15 },
+  profileEditorAction: { minHeight: 48, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#176b48", borderRadius: 13, backgroundColor: "#fff" },
+  profileEditorActionText: { color: "#176b48", fontSize: 13, fontWeight: "900" },
   profileGenderOptions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   profileGenderOption: { paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: "#d8dfd9", borderRadius: 999, backgroundColor: "#fff" },
   profileGenderOptionSelected: { borderColor: "#176b48", backgroundColor: "#e9f7ec" },
