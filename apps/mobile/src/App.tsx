@@ -106,7 +106,7 @@ type NotificationItem = {
   readAt: string | null;
 };
 type NotificationInbox = { items: NotificationItem[]; unreadCount: number };
-type Screen = "home" | "map" | "create" | "detail" | "phone" | "chat" | "profile";
+type Screen = "home" | "map" | "create" | "detail" | "phone" | "chat" | "rating" | "profile";
 type AlphaArea = "新宿" | "渋谷";
 type ApplicantProfile = {
   id: string;
@@ -170,6 +170,7 @@ export default function App() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [chatTab, setChatTab] = useState<"GROUP" | "DIRECT">("GROUP");
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+  const [ratingRoom, setRatingRoom] = useState<GroupRoom | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageBody, setMessageBody] = useState("");
   const [loading, setLoading] = useState(false);
@@ -237,9 +238,11 @@ export default function App() {
   }, [coordinates, request, session]);
 
   const loadRooms = useCallback(async () => {
-    if (!session) return;
+    if (!session) return [] as Room[];
     const [groups, directs] = await Promise.all([request<GroupRoom[]>("/chat-rooms"), request<DirectRoom[]>("/direct-chats")]);
-    setRooms([...groups, ...directs]);
+    const nextRooms: Room[] = [...groups, ...directs];
+    setRooms(nextRooms);
+    return nextRooms;
   }, [request, session]);
 
   const loadHostStatus = useCallback(async () => {
@@ -663,7 +666,12 @@ export default function App() {
     try {
       await request(`/hangouts/${hangoutId}/finish`, { method: "POST" });
       setSelectedHangout(await request<Hangout>(`/hangouts/${hangoutId}`));
-      await loadRooms();
+      const nextRooms = await loadRooms();
+      const finishedRoom = nextRooms.find((room): room is GroupRoom => room.type === "GROUP" && room.hangout.id === hangoutId);
+      if (finishedRoom) {
+        setRatingRoom(finishedRoom);
+        setScreen("rating");
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Hangoutを終了できませんでした");
     } finally {
@@ -691,7 +699,9 @@ export default function App() {
         method: "POST",
         body: JSON.stringify({ ratedUserId, score }),
       });
-      await loadRooms();
+      const nextRooms = await loadRooms();
+      const refreshedRoom = nextRooms.find((room): room is GroupRoom => room.type === "GROUP" && room.hangout.id === hangoutId);
+      if (refreshedRoom) setRatingRoom(refreshedRoom);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "評価を送信できませんでした");
     } finally {
@@ -873,6 +883,7 @@ export default function App() {
         {screen === "detail" && selectedHangout && <HangoutDetailScreen user={session.user} hangout={selectedHangout} requests={joinRequests} onBack={() => setScreen("home")} onJoin={joinHangout} onStart={startHangout} onFinish={confirmFinishHangout} onDecide={decideJoinRequest} onReport={confirmReportHost} onAttendance={updateAttendance} />}
         {screen === "phone" && <PhoneVerificationScreen onBack={() => setScreen("profile")} onVerify={verifyPhone} />}
         {screen === "chat" && <ChatScreen user={session.user} rooms={rooms} chatTab={chatTab} selectedRoom={selectedRoom} messages={messages} messageBody={messageBody} sending={sending} refreshing={refreshing} unreadByRoom={unreadByRoom} realtimeOnline={realtimeOnline} onTab={setChatTab} onRefresh={refreshCurrent} onOpen={openRoom} onStartDirect={startDirect} onRate={rateParticipant} onBack={() => setSelectedRoom(null)} onChangeBody={setMessageBody} onSend={sendMessage} />}
+        {screen === "rating" && ratingRoom && <RatingScreen user={session.user} room={ratingRoom} onRate={rateParticipant} onDone={() => { setRatingRoom(null); setScreen("home"); }} />}
         {screen === "profile" && <ProfileScreen user={session.user} hostStatus={hostStatus} activity={profileActivity} demo={!!demoRole} onPhone={() => setScreen("phone")} onPhoto={chooseProfilePhoto} onSave={updateProfile} onDelete={confirmDeleteAccount} onLogout={logout} />}
       </View>
       {!selectedRoom && ["home", "map", "chat", "profile"].includes(screen) && (
@@ -892,7 +903,15 @@ export default function App() {
               }}
               style={styles.navItem}
             >
-              <View style={[styles.navMark, screen === value && styles.navMarkOn]} />
+              {value === "map" ? (
+                <View style={styles.mapNavIconWrap}>
+                  <View style={[styles.mapNavPin, screen === value && styles.mapNavPinOn]}>
+                    <View style={styles.mapNavPinCenter} />
+                  </View>
+                </View>
+              ) : (
+                <View style={[styles.navMark, screen === value && styles.navMarkOn]} />
+              )}
               <Text style={[styles.navLabel, screen === value && styles.navOn]}>{label}</Text>
             </Pressable>
           ))}
@@ -1358,6 +1377,38 @@ function PhoneVerificationScreen({ onBack, onVerify }: { onBack: () => void; onV
   );
 }
 
+function RatingScreen({ user, room, onRate, onDone }: { user: User; room: GroupRoom; onRate: (hangoutId: string, userId: string, score: number) => void; onDone: () => void }) {
+  const members = room.members.filter((member) => member.id !== user.id);
+  return (
+    <ScrollView contentContainerStyle={styles.ratingScreen}>
+      <Text style={styles.eyebrow}>Hangoutを終了しました</Text>
+      <Text style={styles.ratingScreenTitle}>参加メンバーを評価</Text>
+      <Text style={styles.ratingScreenDescription}>一緒に過ごしたメンバーを★1〜5で評価してください。評価は後から変更できます。</Text>
+      {members.map((member) => (
+        <View key={member.id} style={styles.ratingScreenCard}>
+          <View style={styles.ratingScreenPerson}>
+            {member.profilePhoto ? <Image source={{ uri: member.profilePhoto }} style={styles.headerAvatar} /> : <View style={styles.headerAvatarFallback}><Text style={styles.headerAvatarText}>{member.displayName.slice(0, 1)}</Text></View>}
+            <View>
+              <Text style={styles.memberRatingName}>{member.displayName}</Text>
+              <Text style={styles.muted}>{member.id === room.hangout.hostUserId ? "主催者として評価" : "参加者として評価"}</Text>
+            </View>
+          </View>
+          <View style={styles.scoreChoices}>
+            {[1, 2, 3, 4, 5].map((score) => (
+              <Pressable key={score} accessibilityRole="button" accessibilityLabel={`${member.displayName}を星${score}で評価`} style={[styles.scoreButton, member.myRatingScore === score && styles.scoreButtonOn]} onPress={() => onRate(room.hangout.id, member.id, score)}>
+                <Text style={[styles.scoreText, member.myRatingScore === score && styles.scoreTextOn]}>{score}★</Text>
+              </Pressable>
+            ))}
+          </View>
+          <Text style={styles.ratingUnlockHint}>{member.myRatingScore ? `評価済み ★${member.myRatingScore}` : "評価を選択してください"}{member.directChatEligible ? " ・ 1対1チャットが利用できます" : ""}</Text>
+        </View>
+      ))}
+      {!members.length && <Text style={styles.empty}>評価する参加メンバーはいません。</Text>}
+      <Pressable style={styles.primary} onPress={onDone}><Text style={styles.primaryText}>評価を完了</Text></Pressable>
+    </ScrollView>
+  );
+}
+
 function ChatScreen({ user, rooms, chatTab, selectedRoom, messages, messageBody, sending, refreshing, unreadByRoom, realtimeOnline, onTab, onRefresh, onOpen, onStartDirect, onRate, onBack, onChangeBody, onSend }: { user: User; rooms: Room[]; chatTab: "GROUP" | "DIRECT"; selectedRoom: Room | null; messages: Message[]; messageBody: string; sending: boolean; refreshing: boolean; unreadByRoom: Record<string, number>; realtimeOnline: boolean; onTab: (tab: "GROUP" | "DIRECT") => void; onRefresh: () => void; onOpen: (room: Room) => void; onStartDirect: (userId: string) => void; onRate: (hangoutId: string, userId: string, score: number) => void; onBack: () => void; onChangeBody: (value: string) => void; onSend: () => void }) {
   const listRef = useRef<FlatList<Message>>(null);
   const time = (value?: string) =>
@@ -1452,7 +1503,7 @@ function ChatScreen({ user, rooms, chatTab, selectedRoom, messages, messageBody,
         <View style={styles.composer}>
           <TextInput style={styles.composerInput} value={messageBody} onChangeText={onChangeBody} placeholder="メッセージ" placeholderTextColor="#8a918c" multiline maxLength={1000} />
           <Pressable disabled={sending || !messageBody.trim()} style={[styles.sendButton, (sending || !messageBody.trim()) && styles.sendDisabled]} onPress={onSend}>
-            <Text style={styles.sendText}>{sending ? "…" : "➤"}</Text>
+            <Text style={styles.sendText}>{sending ? "…" : "↑"}</Text>
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -1687,8 +1738,9 @@ const styles = StyleSheet.create({
   demoHint: { color: "#cad2cc", fontSize: 9, marginTop: 2 },
   switchButton: {
     backgroundColor: "#d9ff68",
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    minHeight: 40,
+    justifyContent: "center",
+    paddingHorizontal: 14,
     borderRadius: 20,
   },
   switchText: { fontSize: 10, fontWeight: "900", color: "#17221d" },
@@ -1701,7 +1753,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
     paddingTop: 12,
   },
-  navItem: { alignItems: "center", minWidth: 80 },
+  navItem: { alignItems: "center", justifyContent: "center", minWidth: 88, minHeight: 48 },
   navMark: {
     width: 5,
     height: 5,
@@ -1710,11 +1762,24 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   navMarkOn: { width: 20, backgroundColor: "#176b48" },
+  mapNavIconWrap: { height: 13, marginBottom: 3, alignItems: "center", justifyContent: "center" },
+  mapNavPin: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderBottomLeftRadius: 2,
+    backgroundColor: "#e05245",
+    transform: [{ rotate: "-45deg" }],
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  mapNavPinOn: { backgroundColor: "#176b48", width: 16, height: 16, borderRadius: 8, borderBottomLeftRadius: 2 },
+  mapNavPinCenter: { width: 5, height: 5, borderRadius: 3, backgroundColor: "#fff" },
   navLabel: { fontSize: 10, color: "#89908b", fontWeight: "700" },
   navOn: { color: "#176b48" },
   mapPage: { padding: 18, paddingBottom: 40, backgroundColor: "#f7f8f3" },
   mapHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  mapLocationButton: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 13, borderWidth: 1, borderColor: "#d8ded8", backgroundColor: "#fff" },
+  mapLocationButton: { minHeight: 44, justifyContent: "center", paddingHorizontal: 15, borderRadius: 14, borderWidth: 1, borderColor: "#d8ded8", backgroundColor: "#fff" },
   mapCanvas: { height: 310, marginTop: 4, borderRadius: 24, overflow: "hidden", backgroundColor: "#dfead9" },
   mapRoad: { position: "absolute", backgroundColor: "#fff", borderColor: "#cbd6ca", borderWidth: 1 },
   mapRoadHorizontal: { top: "43%", left: -20, right: -20, height: 38, transform: [{ rotate: "-8deg" }] },
@@ -1770,8 +1835,10 @@ const styles = StyleSheet.create({
   roleButton: {
     flex: 1,
     backgroundColor: "#fff",
-    padding: 12,
-    borderRadius: 14,
+    minHeight: 68,
+    justifyContent: "center",
+    padding: 14,
+    borderRadius: 16,
   },
   roleGuest: { backgroundColor: "#d9ff68" },
   roleTitle: { fontSize: 12, fontWeight: "900", color: "#17221d" },
@@ -1814,10 +1881,18 @@ const styles = StyleSheet.create({
   authError: { color: "#bd3a28", fontSize: 12, marginTop: 8 },
   primary: {
     backgroundColor: "#176b48",
-    padding: 15,
-    borderRadius: 15,
+    minHeight: 52,
+    justifyContent: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 17,
     marginTop: 15,
     alignItems: "center",
+    shadowColor: "#176b48",
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 3,
   },
   primaryText: { color: "#fff", fontWeight: "900" },
   authSwitch: { textAlign: "center", color: "#59635c", padding: 15 },
@@ -1832,6 +1907,8 @@ const styles = StyleSheet.create({
   },
   locationButton: {
     alignSelf: "flex-start",
+    minHeight: 44,
+    justifyContent: "center",
     borderWidth: 1,
     borderColor: "#d8ded8",
     backgroundColor: "#fff",
@@ -1908,6 +1985,8 @@ const styles = StyleSheet.create({
   empty: { textAlign: "center", color: "#6d766f", padding: 30 },
   areaRow: { flexDirection: "row", gap: 8, marginTop: 13 },
   areaButton: {
+    minHeight: 42,
+    justifyContent: "center",
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 999,
@@ -1919,6 +1998,8 @@ const styles = StyleSheet.create({
   homeActions: { flexDirection: "row", gap: 8, marginTop: 10 },
   createButton: {
     backgroundColor: "#176b48",
+    minHeight: 44,
+    justifyContent: "center",
     paddingHorizontal: 16,
     paddingVertical: 11,
     borderRadius: 13,
@@ -1935,6 +2016,8 @@ const styles = StyleSheet.create({
   },
   choiceRow: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
   choice: {
+    minHeight: 42,
+    justifyContent: "center",
     paddingHorizontal: 13,
     paddingVertical: 10,
     borderRadius: 13,
@@ -2041,18 +2124,24 @@ const styles = StyleSheet.create({
     width: "100%",
     alignItems: "center",
     marginTop: 18,
-    padding: 14,
-    borderRadius: 14,
+    minHeight: 52,
+    justifyContent: "center",
+    paddingHorizontal: 18,
+    borderRadius: 17,
     backgroundColor: "#176b48",
   },
   requestActions: { flexDirection: "row", gap: 6 },
   rejectButton: {
+    minHeight: 44,
+    justifyContent: "center",
     paddingHorizontal: 12,
     paddingVertical: 9,
     borderRadius: 11,
     backgroundColor: "#eef1ed",
   },
   acceptButton: {
+    minHeight: 44,
+    justifyContent: "center",
     paddingHorizontal: 12,
     paddingVertical: 9,
     borderRadius: 11,
@@ -2060,10 +2149,17 @@ const styles = StyleSheet.create({
   },
   finishButtonWide: {
     marginTop: 20,
-    padding: 14,
-    borderRadius: 14,
+    minHeight: 52,
+    justifyContent: "center",
+    paddingHorizontal: 18,
+    borderRadius: 17,
     backgroundColor: "#17221d",
     alignItems: "center",
+    shadowColor: "#17221d",
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 3,
   },
   chatListPage: { flex: 1, backgroundColor: "#f7f8f3" },
   pageEyebrow: {
@@ -2294,15 +2390,25 @@ const styles = StyleSheet.create({
     color: "#17221d",
   },
   sendButton: {
-    width: 42,
-    height: 42,
-    backgroundColor: "#24a35a",
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    backgroundColor: "#176b48",
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#176b48",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.24,
+    shadowRadius: 7,
+    elevation: 4,
   },
-  sendDisabled: { backgroundColor: "#bdc6c0" },
-  sendText: { color: "#fff", fontSize: 18, fontWeight: "900" },
+  sendDisabled: { backgroundColor: "#d7ddd9", shadowOpacity: 0, elevation: 0 },
+  sendText: { color: "#d9ff68", fontSize: 24, lineHeight: 26, fontWeight: "800" },
+  ratingScreen: { padding: 20, paddingBottom: 40, gap: 14 },
+  ratingScreenTitle: { fontSize: 28, lineHeight: 34, fontWeight: "900", color: "#17221d" },
+  ratingScreenDescription: { color: "#687169", fontSize: 14, lineHeight: 22 },
+  ratingScreenCard: { gap: 14, padding: 16, borderRadius: 18, backgroundColor: "#fff", borderWidth: 1, borderColor: "#dfe4df" },
+  ratingScreenPerson: { flexDirection: "row", alignItems: "center", gap: 12 },
   profile: { alignItems: "center", padding: 24 },
   avatar: { width: 92, height: 92, borderRadius: 46, backgroundColor: "#ddd" },
   avatarFallback: {
@@ -2323,7 +2429,7 @@ const styles = StyleSheet.create({
   },
   photoButtonText: { color: "#176b48", fontSize: 11, fontWeight: "900" },
   profileName: { fontSize: 25, fontWeight: "900", marginTop: 14 },
-  profileEditButton: { marginTop: 12, paddingHorizontal: 20, paddingVertical: 11, borderRadius: 14, backgroundColor: "#176b48" },
+  profileEditButton: { marginTop: 12, minHeight: 48, justifyContent: "center", paddingHorizontal: 24, borderRadius: 16, backgroundColor: "#176b48", shadowColor: "#176b48", shadowOpacity: 0.18, shadowRadius: 7, elevation: 2 },
   profileEditButtonText: { color: "#fff", fontSize: 13, fontWeight: "900" },
   profileEditorPage: { flex: 1, backgroundColor: "#f7f8f3" },
   profileEditorHeader: { minHeight: 58, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderColor: "#dfe5df", backgroundColor: "#fff" },
@@ -2400,6 +2506,8 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     marginTop: 24,
+    minHeight: 48,
+    justifyContent: "center",
     borderWidth: 1,
     borderColor: "#cfd5d0",
     borderRadius: 14,
@@ -2407,7 +2515,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   logoutText: { color: "#4f5952", fontWeight: "800" },
-  deleteButton: { marginTop: 15, padding: 10 },
+  deleteButton: { marginTop: 12, minHeight: 44, justifyContent: "center", paddingHorizontal: 18 },
   deleteText: { color: "#b23a2d", fontSize: 12, fontWeight: "800" },
   ratingActions: {
     gap: 7,
@@ -2426,8 +2534,10 @@ const styles = StyleSheet.create({
   scoreButton: {
     flex: 1,
     alignItems: "center",
-    paddingVertical: 7,
-    borderRadius: 10,
+    justifyContent: "center",
+    minHeight: 42,
+    paddingVertical: 9,
+    borderRadius: 12,
     backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "#dce2dc",

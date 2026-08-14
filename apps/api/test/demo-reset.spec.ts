@@ -43,4 +43,19 @@ describe('public demo reset boundary', () => {
     const { service, requesterId } = setup(false);
     await expect(service.reset(requesterId)).rejects.toBeInstanceOf(ForbiddenException);
   });
+
+  it('creates seven finished mutual-five-star history items only for demo accounts', async () => {
+    process.env.DEMO_MODE = 'true';
+    const { service, transaction, requesterId } = setup();
+    const result = await service.seedWeekHistory(requesterId);
+    expect(result).toMatchObject({ ok: true, days: 7, mutualRating: 5 });
+    expect(transaction.hangout.deleteMany).toHaveBeenCalledWith({ where: expect.objectContaining({ title: { startsWith: '[1週間デモ]' } }) });
+    expect(transaction.hangout.create).toHaveBeenCalledTimes(7);
+    for (const call of transaction.hangout.create.mock.calls) {
+      expect(call[0].data).toMatchObject({
+        status: 'FINISHED',
+        ratings: { create: [expect.objectContaining({ score: 5 }), expect.objectContaining({ score: 5 })] },
+      });
+    }
+  });
 });

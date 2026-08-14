@@ -23,6 +23,8 @@ Customer value、Qualified Downloads、Active Users、3H Match、Customer Satisf
 
 `DEV-001` は完了しました。次の開発作業は `DEV-002`、同時承認で定員を超えない原子的な状態遷移です。外部インタビューは人間承認待ちです。
 
+初期100人戦略全体の正式な開発要求は `10_REQUEST_TO_AGENT_DEVELOPMENT.md` に記録しました。agent_developmentはRelease AのDEV-002から開始し、各Releaseの結果をagent_marketingとagent_operationへ返します。
+
 ## Requests and responses
 
 ### Handoff A
@@ -57,6 +59,15 @@ Customer value、Qualified Downloads、Active Users、3H Match、Customer Satisf
 - **Evidence:** `apps/api/test/social-safety.e2e.spec.ts`
 - **Limitation:** Vitestの変換ではNestのbody metatype metadataが利用できないため、DTO不正値と未知フィールドは同じValidationPipeをDTO metatype指定で直接検証した。認証・認可・状態遷移はHTTP経由。
 - **Status:** implemented / measured
+
+### Handoff E — First 100 strategy development request
+
+- **From:** agent_marketing and agent_operation
+- **To:** agent_development
+- **Decision needed:** Cohort 0から100人の段階解放を可能にする実装計画
+- **Requested outcome:** Mobile主導線、安全運用、出欠・評価、匿名計測、共有・アトリビューション
+- **Acceptance criteria:** `10_REQUEST_TO_AGENT_DEVELOPMENT.md`
+- **Status:** accepted for development planning
 
 ## Keep / change / stop
 

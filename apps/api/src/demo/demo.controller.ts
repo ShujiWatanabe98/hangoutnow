@@ -7,4 +7,5 @@ import { DemoService } from './demo.service';
 export class DemoController {
   constructor(@Inject(DemoService) private readonly service: DemoService) {}
   @Post('reset') reset(@Req() request: AuthenticatedRequest) { return this.service.reset(request.userId); }
+  @Post('seed-week-history') seedWeekHistory(@Req() request: AuthenticatedRequest) { return this.service.seedWeekHistory(request.userId); }
 }

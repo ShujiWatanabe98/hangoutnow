@@ -11,6 +11,54 @@ const APPROVED_MEMBER_EMAIL = 'demo-masaya@hangoutnow.example';
 export class DemoService {
   constructor(private readonly db: PrismaService) {}
 
+  async seedWeekHistory(requesterId: string) {
+    if (process.env.DEMO_MODE !== 'true') throw new ForbiddenException('Demo history seed is unavailable');
+    const users = await this.db.user.findMany({ where: { email: { in: [HOST_EMAIL, GUEST_EMAIL] } }, select: { id: true, email: true } });
+    const host = users.find((user) => user.email === HOST_EMAIL);
+    const guest = users.find((user) => user.email === GUEST_EMAIL);
+    if (!host || !guest) throw new NotFoundException('Demo accounts are not ready');
+    if (![host.id, guest.id].includes(requesterId)) throw new ForbiddenException('Only Mami or Madoka can seed demo history');
+
+    const activities = [
+      ['新宿でカフェ巡り', 'CAFE', ServiceArea.SHINJUKU, '新宿駅周辺'],
+      ['代々木公園を朝散歩', 'WALKING', ServiceArea.SHINJUKU, '代々木公園周辺'],
+      ['渋谷で気軽にランチ', 'FOOD', ServiceArea.SHIBUYA, '渋谷駅周辺'],
+      ['仕事帰りに一杯', 'DRINKING', ServiceArea.SHINJUKU, '新宿三丁目周辺'],
+      ['お気に入り映画を語ろう', 'MOVIE', ServiceArea.SHIBUYA, '渋谷駅周辺'],
+      ['ゆっくり5kmランニング', 'RUNNING', ServiceArea.SHINJUKU, '代々木公園周辺'],
+      ['週末のモーニング', 'CAFE', ServiceArea.SHIBUYA, '渋谷駅周辺'],
+    ] as const;
+
+    const ids = await this.db.$transaction(async (transaction: Prisma.TransactionClient) => {
+      await transaction.hangout.deleteMany({ where: { hostUserId: { in: [host.id, guest.id] }, title: { startsWith: '[1週間デモ]' } } });
+      const createdIds: string[] = [];
+      for (const [index, activity] of activities.entries()) {
+        const [title, category, serviceArea, publicLocationName] = activity;
+        const organizer = index % 2 === 0 ? host : guest;
+        const participant = organizer.id === host.id ? guest : host;
+        const hangoutId = uuidv7();
+        const startAt = new Date();
+        startAt.setDate(startAt.getDate() - (7 - index));
+        startAt.setHours(19, 0, 0, 0);
+        await transaction.hangout.create({ data: {
+          id: hangoutId, hostUserId: organizer.id, title: `[1週間デモ] ${title}`,
+          description: 'マミとマドカが参加した架空の過去Hangoutです。', category, serviceArea, startAt,
+          publicLocationName, locationName: `${publicLocationName}のデモ店舗`, maxParticipants: 4,
+          hostMaleCount: 0, hostFemaleCount: 1, status: HangoutStatus.FINISHED,
+          joinRequests: { create: { id: uuidv7(), userId: participant.id, message: '参加しました', status: JoinRequestStatus.ACCEPTED, attendanceStatus: AttendanceStatus.CONFIRMED, attendanceUpdatedAt: startAt } },
+          chatRoom: { create: { id: uuidv7() } },
+          ratings: { create: [
+            { id: uuidv7(), raterUserId: organizer.id, ratedUserId: participant.id, score: 5 },
+            { id: uuidv7(), raterUserId: participant.id, ratedUserId: organizer.id, score: 5 },
+          ] },
+        } });
+        createdIds.push(hangoutId);
+      }
+      return createdIds;
+    });
+    return { ok: true, days: ids.length, hangoutIds: ids, mutualRating: 5 };
+  }
+
   async reset(requesterId: string) {
     if (process.env.DEMO_MODE !== 'true') throw new ForbiddenException('Demo reset is unavailable');
     const users = await this.db.user.findMany({ where: { email: { in: [HOST_EMAIL, GUEST_EMAIL, APPROVED_MEMBER_EMAIL] } }, select: { id: true, email: true } });
