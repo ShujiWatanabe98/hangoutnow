@@ -15,7 +15,7 @@ export class CreateHangoutDto {
   @IsString() @MinLength(1) @MaxLength(100) publicLocationName!: string;
   @IsOptional() @IsLatitude() latitude?: number;
   @IsOptional() @IsLongitude() longitude?: number;
-  @IsInt() @Min(1) @Max(8) maxParticipants!: number;
+  @IsInt() @Min(2) @Max(8) maxParticipants!: number;
   @IsOptional() @IsInt() @Min(0) @Max(8) hostMaleCount?: number;
   @IsOptional() @IsInt() @Min(0) @Max(8) hostFemaleCount?: number;
   @IsOptional() @IsEnum(GenderRestriction) genderRestriction?: GenderRestriction;

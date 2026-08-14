@@ -16,9 +16,10 @@ describe('Shinjuku/Shibuya launch constraints and funnel events', () => {
     await expect(pipe.transform({ ...base, serviceArea: 'IKEBUKURO' }, { type: 'body', metatype: CreateHangoutDto })).rejects.toMatchObject({ status: 400 });
   });
 
-  it('allows a total size from one to eight people', async () => {
+  it('allows a total size from two to eight people', async () => {
     const base = { title: '少人数カフェ', category: 'CAFE', serviceArea: ServiceArea.SHINJUKU, startInMinutes: 30, publicLocationName: '新宿駅周辺', locationName: '新宿の店舗' };
-    await expect(pipe.transform({ ...base, maxParticipants: 1 }, { type: 'body', metatype: CreateHangoutDto })).resolves.toMatchObject({ maxParticipants: 1 });
+    await expect(pipe.transform({ ...base, maxParticipants: 1 }, { type: 'body', metatype: CreateHangoutDto })).rejects.toMatchObject({ status: 400 });
+    await expect(pipe.transform({ ...base, maxParticipants: 2 }, { type: 'body', metatype: CreateHangoutDto })).resolves.toMatchObject({ maxParticipants: 2 });
     await expect(pipe.transform({ ...base, maxParticipants: 8 }, { type: 'body', metatype: CreateHangoutDto })).resolves.toMatchObject({ maxParticipants: 8 });
     await expect(pipe.transform({ ...base, maxParticipants: 9 }, { type: 'body', metatype: CreateHangoutDto })).rejects.toMatchObject({ status: 400 });
   });

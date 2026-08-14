@@ -343,6 +343,14 @@ describe('social journey safety boundaries', () => {
     }).expect(400);
   });
 
+  it('defaults the organizer count to the organizer gender', async () => {
+    const response = await request(app.getHttpServer()).post('/hangouts').set(auth('guest')).send({
+      title: '女性主催のカフェ', category: 'CAFE', serviceArea: 'SHINJUKU', startInMinutes: 30,
+      publicLocationName: '新宿駅周辺', locationName: '新宿のカフェ', maxParticipants: 2,
+    }).expect(201);
+    expect(response.body).toMatchObject({ hostMaleCount: 0, hostFemaleCount: 1, hostParticipantCount: 1, maxParticipants: 2 });
+  });
+
   it('hides the exact venue, address, and coordinates until the host accepts the join request', async () => {
     const hangoutId = await createHangout();
     const before = await request(app.getHttpServer()).get(`/hangouts/${hangoutId}`).set(auth('guest')).expect(200);

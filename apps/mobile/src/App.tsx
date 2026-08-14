@@ -128,6 +128,8 @@ type CreateHangoutInput = {
   publicLocationName: string;
   locationName: string;
   maxParticipants: number;
+  hostMaleCount: number;
+  hostFemaleCount: number;
   area: AlphaArea;
 };
 type ReportReason = "HARASSMENT" | "SPAM" | "DANGEROUS" | "SEXUAL" | "SOLICITATION" | "FRAUD" | "HATE" | "IMPERSONATION" | "OTHER";
@@ -450,6 +452,8 @@ export default function App() {
           latitude: coordinates.latitude,
           longitude: coordinates.longitude,
           maxParticipants: input.maxParticipants,
+          hostMaleCount: input.hostMaleCount,
+          hostFemaleCount: input.hostFemaleCount,
           genderRestriction: "ANY",
         }),
       });
@@ -842,7 +846,7 @@ export default function App() {
       <View style={styles.content}>
         {screen === "home" && <HomeScreen user={session.user} hangouts={hangouts} refreshing={refreshing} locationLabel={locationLabel} selectedArea={selectedArea} onArea={chooseArea} onLocation={useCurrentLocation} onRefresh={refreshCurrent} onOpen={openHangout} onCreate={() => setScreen(session.user.verificationStatus === "PHONE_VERIFIED" ? "create" : "phone")} />}
         {screen === "map" && <MapScreen hangouts={hangouts} locationLabel={locationLabel} onLocation={useCurrentLocation} onOpen={openHangout} />}
-        {screen === "create" && <CreateHangoutScreen area={selectedArea} onBack={() => setScreen("home")} onSubmit={createHangout} />}
+        {screen === "create" && <CreateHangoutScreen area={selectedArea} gender={session.user.gender} onBack={() => setScreen("home")} onSubmit={createHangout} />}
         {screen === "detail" && selectedHangout && <HangoutDetailScreen user={session.user} hangout={selectedHangout} requests={joinRequests} onBack={() => setScreen("home")} onJoin={joinHangout} onFinish={confirmFinishHangout} onDecide={decideJoinRequest} onReport={confirmReportHost} onAttendance={updateAttendance} />}
         {screen === "phone" && <PhoneVerificationScreen onBack={() => setScreen("profile")} onVerify={verifyPhone} />}
         {screen === "chat" && <ChatScreen user={session.user} rooms={rooms} chatTab={chatTab} selectedRoom={selectedRoom} messages={messages} messageBody={messageBody} sending={sending} refreshing={refreshing} unreadByRoom={unreadByRoom} realtimeOnline={realtimeOnline} onTab={setChatTab} onRefresh={refreshCurrent} onOpen={openRoom} onStartDirect={startDirect} onRate={rateParticipant} onBack={() => setSelectedRoom(null)} onChangeBody={setMessageBody} onSend={sendMessage} />}
@@ -1066,7 +1070,9 @@ function MapScreen({ hangouts, locationLabel, onLocation, onOpen }: { hangouts: 
   );
 }
 
-function CreateHangoutScreen({ area, onBack, onSubmit }: { area: AlphaArea; onBack: () => void; onSubmit: (input: CreateHangoutInput) => void }) {
+type CreateField = "title" | "publicLocationName" | "locationName" | "hostParty" | "maxParticipants";
+
+function CreateHangoutScreen({ area, gender, onBack, onSubmit }: { area: AlphaArea; gender: string | null; onBack: () => void; onSubmit: (input: CreateHangoutInput) => void }) {
   const [form, setForm] = useState<CreateHangoutInput>({
     title: "",
     description: "",
@@ -1075,15 +1081,33 @@ function CreateHangoutScreen({ area, onBack, onSubmit }: { area: AlphaArea; onBa
     publicLocationName: `${area}駅周辺`,
     locationName: "店名・住所を入力",
     maxParticipants: 4,
+    hostMaleCount: gender === "MALE" ? 1 : 0,
+    hostFemaleCount: gender === "FEMALE" ? 1 : 0,
     area,
   });
-  const valid = form.title.trim().length > 0 && form.publicLocationName.trim().length > 0 && form.locationName.trim().length > 0;
+  const [errors, setErrors] = useState<Partial<Record<CreateField, string>>>({});
+  const update = <K extends keyof CreateHangoutInput>(key: K, value: CreateHangoutInput[K]) => {
+    setForm((current) => ({ ...current, [key]: value }));
+    setErrors((current) => ({ ...current, [key]: undefined, ...(key === "hostMaleCount" || key === "hostFemaleCount" ? { hostParty: undefined } : {}) }));
+  };
+  const publish = () => {
+    const next: Partial<Record<CreateField, string>> = {};
+    if (!form.title.trim()) next.title = "タイトルを入力してください";
+    if (!form.publicLocationName.trim()) next.publicLocationName = "公開エリアを入力してください";
+    if (!form.locationName.trim() || form.locationName === "店名・住所を入力") next.locationName = "店名・住所を入力してください";
+    if (form.hostMaleCount + form.hostFemaleCount < 1) next.hostParty = "主催者側の人数を設定してください";
+    if (form.maxParticipants < 2) next.maxParticipants = "合計人数は2人以上にしてください";
+    if (form.hostMaleCount + form.hostFemaleCount > form.maxParticipants) next.maxParticipants = "合計人数は主催者側の人数以上にしてください";
+    setErrors(next);
+    if (Object.keys(next).length === 0) onSubmit(form);
+  };
   return (
     <ScrollView contentContainerStyle={styles.formPage}>
       <Pressable onPress={onBack}>
         <Text style={styles.backText}>‹ ホームへ</Text>
       </Pressable>
       <Text style={styles.pageTitle}>Hangoutを募集</Text>
+      {Object.keys(errors).length > 0 && <Text style={styles.validationMessage}>入力内容を確認してください。赤枠の項目を設定すると公開できます。</Text>}
       <Text style={styles.safetyNote}>安全のため集合場所は駅・店舗など公開された場所に限ります。店名・住所・正確な位置は承認された参加者だけに表示されます。</Text>
       <Text style={styles.label}>公開エリア（新宿・渋谷のみ）</Text>
       <View style={styles.areaRow}>
@@ -1104,7 +1128,8 @@ function CreateHangoutScreen({ area, onBack, onSubmit }: { area: AlphaArea; onBa
         ))}
       </View>
       <Text style={styles.label}>タイトル</Text>
-      <TextInput style={styles.input} value={form.title} onChangeText={(title) => setForm((v) => ({ ...v, title }))} placeholder="例：30分後にラーメン" maxLength={80} />
+      <TextInput style={[styles.input, errors.title && styles.invalidInput]} value={form.title} onChangeText={(title) => update("title", title)} placeholder="例：30分後にラーメン" maxLength={80} />
+      {errors.title && <Text style={styles.fieldError}>{errors.title}</Text>}
       <Text style={styles.label}>カテゴリ</Text>
       <View style={styles.choiceRow}>
         {["ラーメン", "ウォーキング", "ランニング"].map((category) => (
@@ -1122,12 +1147,27 @@ function CreateHangoutScreen({ area, onBack, onSubmit }: { area: AlphaArea; onBa
         ))}
       </View>
       <Text style={styles.label}>承認前に表示するエリア</Text>
-      <TextInput style={styles.input} value={form.publicLocationName} onChangeText={(publicLocationName) => setForm((v) => ({ ...v, publicLocationName }))} maxLength={100} />
+      <TextInput style={[styles.input, errors.publicLocationName && styles.invalidInput]} value={form.publicLocationName} onChangeText={(value) => update("publicLocationName", value)} maxLength={100} />
+      {errors.publicLocationName && <Text style={styles.fieldError}>{errors.publicLocationName}</Text>}
       <Text style={styles.label}>承認後に表示する店名・住所</Text>
-      <TextInput style={styles.input} value={form.locationName} onChangeText={(locationName) => setForm((v) => ({ ...v, locationName }))} maxLength={100} />
+      <TextInput style={[styles.input, errors.locationName && styles.invalidInput]} value={form.locationName} onChangeText={(value) => update("locationName", value)} maxLength={100} />
+      {errors.locationName && <Text style={styles.fieldError}>{errors.locationName}</Text>}
+      <Text style={styles.label}>主催者側の人数</Text>
+      <View style={[styles.partyCounts, errors.hostParty && styles.invalidGroup]}>
+        {(["hostMaleCount", "hostFemaleCount"] as const).map((key) => (
+          <View key={key} style={styles.partyCount}>
+            <Text>{key === "hostMaleCount" ? "男性" : "女性"}</Text>
+            <View style={styles.choiceRow}>{[0, 1, 2, 3].map((count) => <Pressable key={count} style={[styles.choice, form[key] === count && styles.choiceOn]} onPress={() => update(key, count)}><Text>{count}人</Text></Pressable>)}</View>
+          </View>
+        ))}
+      </View>
+      {errors.hostParty && <Text style={styles.fieldError}>{errors.hostParty}</Text>}
+      <Text style={styles.label}>合計人数（主催者側を含む）</Text>
+      <View style={[styles.choiceRow, errors.maxParticipants && styles.invalidGroup]}>{[2, 3, 4, 5, 6, 7, 8].map((count) => <Pressable key={count} style={[styles.choice, form.maxParticipants === count && styles.choiceOn]} onPress={() => update("maxParticipants", count)}><Text>{count}人</Text></Pressable>)}</View>
+      {errors.maxParticipants && <Text style={styles.fieldError}>{errors.maxParticipants}</Text>}
       <Text style={styles.label}>説明（任意）</Text>
       <TextInput style={[styles.input, styles.multiline]} value={form.description} onChangeText={(description) => setForm((v) => ({ ...v, description }))} multiline maxLength={500} />
-      <Pressable disabled={!valid} style={[styles.primary, !valid && styles.disabled]} onPress={() => onSubmit(form)}>
+      <Pressable style={styles.primary} onPress={publish}>
         <Text style={styles.primaryText}>Hangoutを公開する</Text>
       </Pressable>
     </ScrollView>
@@ -1723,6 +1763,12 @@ const styles = StyleSheet.create({
     color: "#17221d",
     backgroundColor: "#fff",
   },
+  invalidInput: { borderColor: "#c62828", borderWidth: 2, backgroundColor: "#fff7f7" },
+  invalidGroup: { borderColor: "#c62828", borderWidth: 2, borderRadius: 13, padding: 8, backgroundColor: "#fff7f7" },
+  validationMessage: { color: "#9f221c", backgroundColor: "#fff0ef", borderColor: "#d8493f", borderWidth: 1, borderRadius: 12, padding: 12, marginBottom: 8, fontWeight: "800" },
+  fieldError: { color: "#b3261e", fontSize: 12, marginTop: 5, fontWeight: "700" },
+  partyCounts: { flexDirection: "row", gap: 12 },
+  partyCount: { flex: 1, gap: 7 },
   authError: { color: "#bd3a28", fontSize: 12, marginTop: 8 },
   primary: {
     backgroundColor: "#176b48",
