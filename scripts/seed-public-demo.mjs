@@ -6,6 +6,9 @@ const password = process.env.HANGOUTNOW_DEMO_PASSWORD || 'HangoutNow-Demo-2026!'
 const hostPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-mami-profile.jpg', import.meta.url)).toString('base64')}`;
 const guestPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-madoka-profile.jpg', import.meta.url)).toString('base64')}`;
 const masayaPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-masaya-profile.jpg', import.meta.url)).toString('base64')}`;
+const ramenPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-ramen-hangout.jpg', import.meta.url)).toString('base64')}`;
+const runningPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-running-hangout-v2.jpg', import.meta.url)).toString('base64')}`;
+const cafePhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-cafe-hangout.jpg', import.meta.url)).toString('base64')}`;
 
 const accounts = {
   host: {
@@ -126,12 +129,14 @@ const samples = [
   },
   {
     title: '代々木公園をゆっくりランニング',
+    imageUrl: runningPhoto,
     description: '会話できるペースで約5km走ります。初心者も歓迎する架空の募集です。',
     category: 'RUNNING', serviceArea: 'SHINJUKU', startInMinutes: 60, publicLocationName: '代々木公園周辺（デモ）', locationName: '代々木公園 原宿門 東京都渋谷区代々木神園町2-1',
     latitude: 35.6717, longitude: 139.6949, maxParticipants: 6, genderRestriction: 'FEMALE_ONLY', maxAge: 39,
   },
   {
     title: '新宿で話題のラーメンを食べよう',
+    imageUrl: ramenPhoto,
     description: '気になっていたラーメン店へ一緒に行く、公開デモ用の架空募集です。',
     category: 'FOOD', serviceArea: 'SHINJUKU', startInMinutes: 30, publicLocationName: '新宿駅東口周辺（デモ）', locationName: 'デモラーメン新宿店 東京都新宿区歌舞伎町1-2-3',
     latitude: 35.6920, longitude: 139.7038, maxParticipants: 4, genderRestriction: 'MALE_ONLY', maxAge: 59,
@@ -143,9 +148,10 @@ const samples = [
     latitude: 35.6437, longitude: 139.6816, maxParticipants: 5, genderRestriction: 'ANY', maxAge: 59,
   },
   {
-    title: '渋谷で気軽に街歩き',
-    description: '写真を撮りながらゆっくり散策する、公開デモ用の架空募集です。',
-    category: 'WALKING', serviceArea: 'SHIBUYA', startInMinutes: 60, publicLocationName: '渋谷駅周辺（デモ）', locationName: '渋谷区立宮下公園 南入口 東京都渋谷区渋谷1-26-5',
+    title: '渋谷のカフェでまったりしよう',
+    imageUrl: cafePhoto,
+    description: '落ち着いたカフェでコーヒーを飲みながら、ゆっくり話す公開デモ用の架空募集です。',
+    category: 'CAFE', serviceArea: 'SHIBUYA', startInMinutes: 60, publicLocationName: '渋谷駅周辺（デモ）', locationName: 'デモカフェ渋谷店 東京都渋谷区渋谷1-26-5',
     latitude: 35.6580, longitude: 139.7016, maxParticipants: 5, genderRestriction: 'ANY',
   },
 ];
