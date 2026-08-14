@@ -6,7 +6,6 @@ const password = process.env.HANGOUTNOW_DEMO_PASSWORD || 'HangoutNow-Demo-2026!'
 const hostPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-mami-profile.jpg', import.meta.url)).toString('base64')}`;
 const guestPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-madoka-profile.jpg', import.meta.url)).toString('base64')}`;
 const masayaPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-masaya-profile.jpg', import.meta.url)).toString('base64')}`;
-const drinkingHangoutPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-drinking-hangout.jpg', import.meta.url)).toString('base64')}`;
 
 const accounts = {
   host: {
@@ -121,7 +120,6 @@ await call('/demo/reset', { method: 'POST', body: '{}' }, host.token);
 const samples = [
   {
     title: 'マミと新宿で気軽に飲もう',
-    imageUrl: drinkingHangoutPhoto,
     description: '仕事帰りに気軽に乾杯する、公開デモ用の架空の飲み会です。初参加も歓迎します。',
     category: 'DRINKING', serviceArea: 'SHINJUKU', startInMinutes: 60, publicLocationName: '新宿駅東口周辺（デモ）', locationName: 'デモ居酒屋 新宿店 東京都新宿区新宿3-1-1',
     latitude: 35.6901, longitude: 139.7005, maxParticipants: 4, genderRestriction: 'ANY', maxAge: 39,
@@ -173,7 +171,6 @@ for (const sample of samples) {
       body: JSON.stringify({
         title: sample.title,
         description: sample.description,
-        imageUrl: sample.imageUrl ?? null,
         publicLocationName: sample.publicLocationName,
         locationName: sample.locationName,
         meetingPlaceName,
