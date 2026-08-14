@@ -303,15 +303,6 @@ if (!messages.some((message) => message.body === 'こんにちは！デモチャ
   }, host.token);
 }
 
-for (const account of [host, guest, masaya, kenta, aoi, rena]) {
-  const stamps = await call('/stamps', {}, account.token).then((result) => result.body);
-  for (const text of ['向かってます', '少し遅れます', '到着']) {
-    if (!stamps.some((stamp) => stamp.text === text)) {
-      await call('/stamps', { method: 'POST', body: JSON.stringify({ text }) }, account.token);
-    }
-  }
-}
-
 process.stdout.write(`${JSON.stringify({
   ok: true,
   demoUrl,
@@ -321,12 +312,12 @@ process.stdout.write(`${JSON.stringify({
   organizers: [host, kenta, aoi].map((account) => ({ id: account.id, displayName: account.displayName, created: account.created })),
   hangouts: seededHangouts.map((item) => ({ id: item.id, title: item.title, category: item.category })),
   primaryHangout: { id: hangout.id, title: hangout.title, joinStatus, genderRestriction: 'ANY', maxAge: 39 },
-  chat: { roomId: room.id, ready: true, personalStamps: ['向かってます', '少し遅れます', '到着'] },
+  chat: { roomId: room.id, ready: true },
   walkthrough: [
     '主催者で新しいHangoutを作成',
     '参加者へ役割を切り替えて参加申請',
     '主催者へ戻って申請を承認',
-    '双方で写真付きグループチャットとスタンプを確認',
+    '双方でグループチャットを確認',
     '主催者がHangoutを終了して参加者へ★5',
     '参加者も主催者へ★5を付け、1対1チャットを開始',
   ],
