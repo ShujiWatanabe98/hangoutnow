@@ -898,7 +898,7 @@ export default function App() {
         {screen === "create" && <CreateHangoutScreen area={selectedArea} gender={session.user.gender} onBack={() => setScreen("home")} onSubmit={createHangout} />}
         {screen === "detail" && selectedHangout && <HangoutDetailScreen user={session.user} hangout={selectedHangout} requests={joinRequests} onBack={() => setScreen("home")} onJoin={joinHangout} onStart={startHangout} onFinish={confirmFinishHangout} onDecide={decideJoinRequest} onReport={confirmReportHost} onAttendance={updateAttendance} />}
         {screen === "phone" && <PhoneVerificationScreen onBack={() => setScreen("profile")} onVerify={verifyPhone} />}
-        {screen === "chat" && <ChatScreen user={session.user} rooms={rooms} selectedRoom={selectedRoom} messages={messages} messageBody={messageBody} sending={sending} refreshing={refreshing} unreadByRoom={unreadByRoom} realtimeOnline={realtimeOnline} onRefresh={refreshCurrent} onOpen={openRoom} onStartDirect={startDirect} onRate={rateParticipant} onBack={() => setSelectedRoom(null)} onChangeBody={setMessageBody} onSend={sendMessage} />}
+        {screen === "chat" && <ChatScreen user={session.user} rooms={rooms} selectedRoom={selectedRoom} messages={messages} messageBody={messageBody} sending={sending} refreshing={refreshing} unreadByRoom={unreadByRoom} realtimeOnline={realtimeOnline} onRefresh={refreshCurrent} onOpen={openRoom} onStartDirect={startDirect} onRate={rateParticipant} onBack={() => selectedRoom ? setSelectedRoom(null) : setScreen("home")} onChangeBody={setMessageBody} onSend={sendMessage} />}
         {screen === "rating" && ratingRoom && <RatingScreen user={session.user} room={ratingRoom} onRate={rateParticipant} onDone={() => { setRatingRoom(null); setScreen("home"); }} />}
         {screen === "profile" && <ProfileScreen user={session.user} hostStatus={hostStatus} activity={profileActivity} demo={!!demoRole} onChat={() => { setSelectedRoom(null); setScreen("chat"); }} onOpenHangout={(id) => void openHangout({ id })} onPhone={() => setScreen("phone")} onPhoto={chooseProfilePhoto} onSave={updateProfile} onDelete={confirmDeleteAccount} onLogout={logout} />}
       </View>
@@ -1544,7 +1544,10 @@ function ChatScreen({ user, rooms, selectedRoom, messages, messageBody, sending,
   return (
     <ScrollView style={styles.chatListPage} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
       <View style={styles.chatListHead}>
-        <View>
+        <Pressable accessibilityRole="button" accessibilityLabel="ホームに戻る" onPress={onBack} style={styles.backButton}>
+          <View style={styles.backChevron} />
+        </Pressable>
+        <View style={styles.chatListHeadingCopy}>
           <Text style={styles.pageEyebrow}>会話から次の行動へ</Text>
           <Text style={styles.pageTitle}>チャット</Text>
         </View>
@@ -2233,6 +2236,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
+  chatListHeadingCopy: { flex: 1, marginLeft: 12 },
   connectionBadge: {
     fontSize: 10,
     fontWeight: "800",
