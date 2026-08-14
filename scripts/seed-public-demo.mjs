@@ -6,6 +6,8 @@ const password = process.env.HANGOUTNOW_DEMO_PASSWORD || 'HangoutNow-Demo-2026!'
 const hostPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-mami-profile.jpg', import.meta.url)).toString('base64')}`;
 const guestPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-madoka-profile.jpg', import.meta.url)).toString('base64')}`;
 const masayaPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-masaya-profile.jpg', import.meta.url)).toString('base64')}`;
+const kentaPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-host-profile.jpg', import.meta.url)).toString('base64')}`;
+const aoiPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-guest-profile.jpg', import.meta.url)).toString('base64')}`;
 const ramenPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-ramen-mami-v3.jpg', import.meta.url)).toString('base64')}`;
 const runningPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-running-hangout-v2.jpg', import.meta.url)).toString('base64')}`;
 const cafePhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-cafe-hangout.jpg', import.meta.url)).toString('base64')}`;
@@ -44,6 +46,28 @@ const accounts = {
     interests: ['飲み会', 'サッカー', 'ラーメン'],
     bio: '仕事や趣味の話をしながら楽しく飲みたいです。公開デモ用の架空プロフィールです。',
     profilePhoto: masayaPhoto,
+  },
+  kenta: {
+    email: process.env.HANGOUTNOW_DEMO_KENTA_EMAIL || 'demo-kenta@hangoutnow.example',
+    displayName: 'ケンタ',
+    phone: '+819011110004',
+    birthDate: '1993-02-18',
+    gender: 'MALE',
+    homeArea: '渋谷',
+    interests: ['ツーリング', 'カフェ', '写真'],
+    bio: '景色を楽しむ安全第一のツーリングを企画しています。初参加の方も歓迎です。',
+    profilePhoto: kentaPhoto,
+  },
+  aoi: {
+    email: process.env.HANGOUTNOW_DEMO_AOI_EMAIL || 'demo-aoi@hangoutnow.example',
+    displayName: 'アオイ',
+    phone: '+819011110005',
+    birthDate: '1996-07-08',
+    gender: 'FEMALE',
+    homeArea: '代々木',
+    interests: ['ランニング', 'カフェ', '旅行'],
+    bio: '会話を楽しめるペースのランニングや、気軽なカフェ会を開いています。',
+    profilePhoto: aoiPhoto,
   },
 };
 
@@ -120,15 +144,20 @@ async function loginOrRegister(account) {
 const host = await loginOrRegister(accounts.host);
 const guest = await loginOrRegister(accounts.guest);
 const masaya = await loginOrRegister(accounts.masaya);
+const kenta = await loginOrRegister(accounts.kenta);
+const aoi = await loginOrRegister(accounts.aoi);
 await call('/demo/reset', { method: 'POST', body: '{}' }, host.token);
+const organizers = { host, kenta, aoi };
 const samples = [
   {
+    organizer: 'host',
     title: 'マミと新宿で気軽に飲もう',
     description: '仕事帰りに気軽に乾杯する、公開デモ用の架空の飲み会です。初参加も歓迎します。',
     category: 'DRINKING', serviceArea: 'SHINJUKU', startInMinutes: 60, publicLocationName: '新宿駅東口周辺（デモ）', locationName: 'デモ居酒屋 新宿店 東京都新宿区新宿3-1-1',
     latitude: 35.6901, longitude: 139.7005, maxParticipants: 4, genderRestriction: 'ANY', maxAge: 39,
   },
   {
+    organizer: 'aoi',
     title: '代々木公園をゆっくりランニング',
     imageUrl: runningPhoto,
     description: '会話できるペースで約5km走ります。初心者も歓迎する架空の募集です。',
@@ -136,6 +165,7 @@ const samples = [
     latitude: 35.6717, longitude: 139.6949, maxParticipants: 6, genderRestriction: 'FEMALE_ONLY', maxAge: 39,
   },
   {
+    organizer: 'host',
     title: '新宿で話題のラーメンを食べよう',
     imageUrl: ramenPhoto,
     description: '気になっていたラーメン店へ一緒に行く、公開デモ用の架空募集です。',
@@ -143,6 +173,7 @@ const samples = [
     latitude: 35.6920, longitude: 139.7038, maxParticipants: 4, genderRestriction: 'MALE_ONLY', maxAge: 59,
   },
   {
+    organizer: 'kenta',
     title: '夕方のショートツーリング',
     imageUrl: touringPhoto,
     description: '安全第一で景色を楽しむ、公開デモ用の架空ツーリング募集です。',
@@ -150,6 +181,7 @@ const samples = [
     latitude: 35.6437, longitude: 139.6816, maxParticipants: 5, genderRestriction: 'ANY', maxAge: 59,
   },
   {
+    organizer: 'aoi',
     title: '渋谷のカフェでまったりしよう',
     imageUrl: cafePhoto,
     description: '落ち着いたカフェでコーヒーを飲みながら、ゆっくり話す公開デモ用の架空募集です。',
@@ -162,16 +194,20 @@ let hangouts = await call('/hangouts?latitude=35.69&longitude=139.70&radiusKm=20
   .then((result) => result.body);
 const seededHangouts = [];
 for (const sample of samples) {
+  const organizer = organizers[sample.organizer];
   const addressIndex = sample.locationName.indexOf(' 東京都');
   const meetingPlaceName = addressIndex > 0 ? sample.locationName.slice(0, addressIndex) : sample.locationName;
   const meetingAddress = addressIndex > 0 ? sample.locationName.slice(addressIndex + 1) : sample.locationName;
   const navigationUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${meetingPlaceName} ${meetingAddress}`)}`;
-  const currentSample = { ...sample, meetingPlaceName, meetingAddress, navigationUrl, hostMaleCount: 0, hostFemaleCount: 1 };
-  let item = hangouts.find((candidate) => candidate.hostUserId === host.id && candidate.title === sample.title && ['OPEN', 'FULL'].includes(candidate.status));
+  const hostMaleCount = organizer.gender === 'MALE' ? 1 : 0;
+  const hostFemaleCount = organizer.gender === 'FEMALE' ? 1 : 0;
+  const { organizer: _organizer, ...samplePayload } = sample;
+  const currentSample = { ...samplePayload, meetingPlaceName, meetingAddress, navigationUrl, hostMaleCount, hostFemaleCount };
+  let item = hangouts.find((candidate) => candidate.hostUserId === organizer.id && candidate.title === sample.title && ['OPEN', 'FULL'].includes(candidate.status));
   if (!item) {
     item = await call('/hangouts', {
       method: 'POST', body: JSON.stringify(currentSample),
-    }, host.token).then((result) => result.body);
+    }, organizer.token).then((result) => result.body);
     hangouts.push(item);
   } else {
     item = await call(`/hangouts/${item.id}`, {
@@ -184,12 +220,13 @@ for (const sample of samples) {
         meetingPlaceName,
         meetingAddress,
         navigationUrl,
-        hostMaleCount: 0,
-        hostFemaleCount: 1,
+        imageUrl: sample.imageUrl,
+        hostMaleCount,
+        hostFemaleCount,
         genderRestriction: sample.genderRestriction,
         maxAge: sample.maxAge ?? null,
       }),
-    }, host.token).then((result) => result.body);
+    }, organizer.token).then((result) => result.body);
   }
   seededHangouts.push(item);
 }
@@ -222,7 +259,7 @@ if (!messages.some((message) => message.body === 'こんにちは！デモチャ
   }, host.token);
 }
 
-for (const account of [host, guest, masaya]) {
+for (const account of [host, guest, masaya, kenta, aoi]) {
   const stamps = await call('/stamps', {}, account.token).then((result) => result.body);
   for (const text of ['向かってます', '少し遅れます', '到着']) {
     if (!stamps.some((stamp) => stamp.text === text)) {
@@ -236,6 +273,7 @@ process.stdout.write(`${JSON.stringify({
   demoUrl,
   host: { email: host.email, password, created: host.created },
   guest: { email: guest.email, password, created: guest.created },
+  organizers: [host, kenta, aoi].map((account) => ({ id: account.id, displayName: account.displayName, created: account.created })),
   hangouts: seededHangouts.map((item) => ({ id: item.id, title: item.title, category: item.category })),
   primaryHangout: { id: hangout.id, title: hangout.title, joinStatus, genderRestriction: 'ANY', maxAge: 39 },
   chat: { roomId: room.id, ready: true, personalStamps: ['向かってます', '少し遅れます', '到着'] },
