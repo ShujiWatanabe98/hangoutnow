@@ -21,8 +21,8 @@ const accounts = {
     birthDate: '1989-04-12',
     gender: 'FEMALE',
     homeArea: '新宿',
-    interests: ['飲み会', 'グルメ', '旅行'],
-    bio: '仕事帰りに気軽に飲みに行ける仲間を探しています。公開デモ用の架空プロフィールです。',
+    interests: ['ツーリング', 'バイク', 'グルメ'],
+    bio: '休日はバイクで景色のいい道を走る女性ライダーです。安全第一のツーリングを企画しています。',
     profilePhoto: hostPhoto,
   },
   guest: {
@@ -173,7 +173,7 @@ const samples = [
     latitude: 35.6920, longitude: 139.7038, maxParticipants: 4, genderRestriction: 'MALE_ONLY', maxAge: 59,
   },
   {
-    organizer: 'kenta',
+    organizer: 'host',
     title: '夕方のショートツーリング',
     imageUrl: touringPhoto,
     description: '安全第一で景色を楽しむ、公開デモ用の架空ツーリング募集です。',
@@ -181,7 +181,7 @@ const samples = [
     latitude: 35.6437, longitude: 139.6816, maxParticipants: 5, genderRestriction: 'ANY', maxAge: 59,
   },
   {
-    organizer: 'aoi',
+    organizer: 'kenta',
     title: '渋谷のカフェでまったりしよう',
     imageUrl: cafePhoto,
     description: '落ち着いたカフェでコーヒーを飲みながら、ゆっくり話す公開デモ用の架空募集です。',
@@ -192,6 +192,14 @@ const samples = [
 
 let hangouts = await call('/hangouts?latitude=35.69&longitude=139.70&radiusKm=20', {}, host.token)
   .then((result) => result.body);
+for (const organizer of [kenta, aoi]) {
+  const desiredTitles = new Set(samples.filter((sample) => sample.organizer === (organizer.id === kenta.id ? 'kenta' : 'aoi')).map((sample) => sample.title));
+  const staleHangouts = hangouts.filter((item) => item.hostUserId === organizer.id && ['OPEN', 'FULL'].includes(item.status) && !desiredTitles.has(item.title));
+  for (const stale of staleHangouts) {
+    await call(`/hangouts/${stale.id}`, { method: 'DELETE' }, organizer.token);
+  }
+  hangouts = hangouts.filter((item) => !staleHangouts.some((stale) => stale.id === item.id));
+}
 const seededHangouts = [];
 for (const sample of samples) {
   const organizer = organizers[sample.organizer];
