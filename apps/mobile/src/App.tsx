@@ -662,9 +662,23 @@ export default function App() {
     setError("");
     try {
       await request(`/hangouts/${hangoutId}/finish`, { method: "POST" });
+      setSelectedHangout(await request<Hangout>(`/hangouts/${hangoutId}`));
       await loadRooms();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Hangoutを終了できませんでした");
+    } finally {
+      setLoading(false);
+    }
+  }
+  async function startHangout(hangoutId: string) {
+    setLoading(true);
+    setError("");
+    try {
+      await request(`/hangouts/${hangoutId}/start`, { method: "POST" });
+      setSelectedHangout(await request<Hangout>(`/hangouts/${hangoutId}`));
+      await loadHome();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Hangoutを開始できませんでした");
     } finally {
       setLoading(false);
     }
@@ -856,7 +870,7 @@ export default function App() {
         {screen === "home" && <HomeScreen user={session.user} hangouts={hangouts} refreshing={refreshing} locationLabel={locationLabel} selectedArea={selectedArea} onArea={chooseArea} onLocation={useCurrentLocation} onRefresh={refreshCurrent} onOpen={openHangout} onCreate={() => setScreen(session.user.verificationStatus === "PHONE_VERIFIED" ? "create" : "phone")} />}
         {screen === "map" && <MapScreen hangouts={hangouts} locationLabel={locationLabel} onLocation={useCurrentLocation} onOpen={openHangout} />}
         {screen === "create" && <CreateHangoutScreen area={selectedArea} gender={session.user.gender} onBack={() => setScreen("home")} onSubmit={createHangout} />}
-        {screen === "detail" && selectedHangout && <HangoutDetailScreen user={session.user} hangout={selectedHangout} requests={joinRequests} onBack={() => setScreen("home")} onJoin={joinHangout} onFinish={confirmFinishHangout} onDecide={decideJoinRequest} onReport={confirmReportHost} onAttendance={updateAttendance} />}
+        {screen === "detail" && selectedHangout && <HangoutDetailScreen user={session.user} hangout={selectedHangout} requests={joinRequests} onBack={() => setScreen("home")} onJoin={joinHangout} onStart={startHangout} onFinish={confirmFinishHangout} onDecide={decideJoinRequest} onReport={confirmReportHost} onAttendance={updateAttendance} />}
         {screen === "phone" && <PhoneVerificationScreen onBack={() => setScreen("profile")} onVerify={verifyPhone} />}
         {screen === "chat" && <ChatScreen user={session.user} rooms={rooms} chatTab={chatTab} selectedRoom={selectedRoom} messages={messages} messageBody={messageBody} sending={sending} refreshing={refreshing} unreadByRoom={unreadByRoom} realtimeOnline={realtimeOnline} onTab={setChatTab} onRefresh={refreshCurrent} onOpen={openRoom} onStartDirect={startDirect} onRate={rateParticipant} onBack={() => setSelectedRoom(null)} onChangeBody={setMessageBody} onSend={sendMessage} />}
         {screen === "profile" && <ProfileScreen user={session.user} hostStatus={hostStatus} activity={profileActivity} demo={!!demoRole} onPhone={() => setScreen("phone")} onPhoto={chooseProfilePhoto} onSave={updateProfile} onDelete={confirmDeleteAccount} onLogout={logout} />}
@@ -1183,7 +1197,7 @@ function CreateHangoutScreen({ area, gender, onBack, onSubmit }: { area: AlphaAr
   );
 }
 
-function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onFinish, onDecide, onReport, onAttendance }: { user: User; hangout: Hangout; requests: JoinRequest[]; onBack: () => void; onJoin: (hangout: Hangout) => void; onFinish: (id: string) => void; onDecide: (id: string, accept: boolean) => void; onReport: (hangout: Hangout) => void; onAttendance: (status: "CONFIRMED" | "CANCELLED") => void }) {
+function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onStart, onFinish, onDecide, onReport, onAttendance }: { user: User; hangout: Hangout; requests: JoinRequest[]; onBack: () => void; onJoin: (hangout: Hangout) => void; onStart: (id: string) => void; onFinish: (id: string) => void; onDecide: (id: string, accept: boolean) => void; onReport: (hangout: Hangout) => void; onAttendance: (status: "CONFIRMED" | "CANCELLED") => void }) {
   const isHost = hangout.hostUserId === user.id;
   const [selectedApplicant, setSelectedApplicant] = useState<ApplicantProfile | null>(null);
   return (
@@ -1266,9 +1280,8 @@ function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onFinish
               </View>
             ))}
             {!requests.length && <Text style={styles.empty}>まだ申請はありません。</Text>}
-            <Pressable style={styles.finishButtonWide} onPress={() => onFinish(hangout.id)}>
-              <Text style={styles.primaryText}>Hangoutを終了</Text>
-            </Pressable>
+            {['OPEN', 'FULL'].includes(hangout.status) && <Pressable style={styles.finishButtonWide} onPress={() => onStart(hangout.id)}><Text style={styles.primaryText}>Hangoutを開始</Text></Pressable>}
+            {hangout.status === 'STARTED' && <Pressable style={styles.finishButtonWide} onPress={() => onFinish(hangout.id)}><Text style={styles.primaryText}>Hangoutを終了</Text></Pressable>}
           </>
         )}
       </ScrollView>

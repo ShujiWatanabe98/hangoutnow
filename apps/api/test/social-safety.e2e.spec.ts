@@ -412,19 +412,12 @@ describe('social journey safety boundaries', () => {
     await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('outsider')).send({ message: '参加希望です' }).expect(403);
   });
 
-  it('keeps early finish restricted except for an identified public demo account in demo mode', async () => {
+  it('allows finishing only after the host starts the Hangout', async () => {
     const hangoutId = await createHangout();
     await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/finish`).set(auth('host')).send({}).expect(409);
-    const originalDemoMode = process.env.DEMO_MODE;
-    process.env.DEMO_MODE = 'true';
-    db.users[0]!.email = 'demo-host@hangoutnow.example';
-    try {
-      await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/finish`).set(auth('host')).send({}).expect(201);
-      expect(db.hangouts[0]?.status).toBe('FINISHED');
-    } finally {
-      if (originalDemoMode === undefined) delete process.env.DEMO_MODE;
-      else process.env.DEMO_MODE = originalDemoMode;
-    }
+    await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/start`).set(auth('host')).send({}).expect(201);
+    await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/finish`).set(auth('host')).send({}).expect(201);
+    expect(db.hangouts[0]?.status).toBe('FINISHED');
   });
 
   it('lets the host start a Hangout and keeps accepting mid-session join requests', async () => {
