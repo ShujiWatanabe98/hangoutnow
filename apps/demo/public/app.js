@@ -55,6 +55,28 @@ function eligibilityReason(h){const gender=session?.user?.gender;const age=userA
 
 function persist() { localStorage.setItem('hangout-now-demo', JSON.stringify({ hangouts, joined: [...joined], chats, userLocation })); }
 function navigate(screen) { if (!session) { authScreen(); return; } activeScreen = screen; ({ home, mapScreen:googleMapScreen, chatScreen, profileScreen }[screen])(); }
+function slideInFromRight(element,duration=420){
+  if(!element)return;
+  element.classList.remove('chat-screen-visible');
+  element.style.transform='translateX(100%)';
+  if(typeof element.animate!=='function'){
+    requestAnimationFrame(()=>{element.style.transition=`transform ${duration}ms cubic-bezier(.22,.75,.28,1)`;element.style.transform='translateX(0)'});
+    return;
+  }
+  const animation=element.animate(
+    [{transform:'translateX(100%)'},{transform:'translateX(0)'}],
+    {duration,easing:'cubic-bezier(.22,.75,.28,1)',fill:'forwards'},
+  );
+  animation.onfinish=()=>{element.style.transform='translateX(0)';animation.cancel()};
+}
+function slideOutToRight(element,onFinish,duration=420){
+  if(!element||typeof element.animate!=='function'){onFinish();return}
+  const animation=element.animate(
+    [{transform:'translateX(0)'},{transform:'translateX(100%)'}],
+    {duration,easing:'cubic-bezier(.72,0,.78,.28)',fill:'forwards'},
+  );
+  animation.onfinish=onFinish;
+}
 function connectRealtime(){if(!session)return;if(typeof io==='undefined'){if(!document.querySelector('#socket-client')){const script=document.createElement('script');script.id='socket-client';script.src=`${API_URL}/socket.io/socket.io.js`;script.onload=connectRealtime;document.head.append(script)}return}realtimeSocket?.disconnect();realtimeSocket=io(API_URL,{auth:{token:session.accessToken},reconnection:true,reconnectionAttempts:Infinity,reconnectionDelay:800,reconnectionDelayMax:8000});realtimeSocket.on('connect',()=>{document.body.classList.remove('realtime-offline');loadNotificationCount()});realtimeSocket.on('disconnect',()=>document.body.classList.add('realtime-offline'));realtimeSocket.on('notification',async(item)=>{unreadNotifications+=1;renderBadge();toast(item.title);if(document.visibilityState==='hidden'&&Notification.permission==='granted')new Notification(item.title,{body:item.body});if(activeScreen==='chatScreen'&&['CHAT_MESSAGE','DIRECT_MESSAGE'].includes(item.type))await chatScreen()});realtimeSocket.on('notifications:changed',loadNotificationCount)}
 async function loadNotificationCount(){try{const data=await api('/notifications');unreadNotifications=data.unreadCount;renderBadge();return data}catch{return null}}
 function renderBadge(){const badge=document.querySelector('.notification-badge');if(badge){badge.textContent=unreadNotifications>99?'99+':String(unreadNotifications);badge.classList.toggle('hidden',!unreadNotifications)}}
@@ -268,12 +290,12 @@ async function chatScreen(sourceScreen = null) {
   const chatPhone=document.querySelector('.phone');
   chatPhone.classList.add('chat-phone','chat-screen-enter');
   sourceScreen?.remove();
-  requestAnimationFrame(()=>requestAnimationFrame(()=>chatPhone.classList.add('chat-screen-visible')));
+  slideInFromRight(chatPhone);
   const chatSwitch=document.querySelector('#chat-switch-demo-role');if(chatSwitch)chatSwitch.onclick=()=>{realtimeSocket?.disconnect();session=null;demoRole=null;localStorage.removeItem('hangout-now-session');localStorage.removeItem('hangout-now-demo-role');authScreen('login')};
   document.querySelectorAll('[data-chat-tab]').forEach((tab)=>tab.onclick=()=>{document.querySelectorAll('[data-chat-tab]').forEach(x=>x.classList.toggle('active',x===tab));document.querySelectorAll('[data-chat-list]').forEach(x=>x.classList.toggle('hidden',x.dataset.chatList!==tab.dataset.chatTab))});
   document.querySelectorAll('[data-room-index]').forEach((button)=>button.onclick=()=>{const room=(button.dataset.kind==='direct'?directs:groups)[Number(button.dataset.roomIndex)];openChat(room)});
   document.querySelectorAll('[data-start-direct]').forEach((button)=>button.onclick=async()=>{try{await api('/direct-chats',{method:'POST',body:JSON.stringify({userId:button.dataset.startDirect})});await chatScreen();document.querySelector('[data-chat-tab="direct"]')?.click()}catch(error){toast(error.message)}});
-  document.querySelectorAll('[data-open-host-hangout]').forEach(button=>button.onclick=()=>detail(button.dataset.openHostHangout));document.querySelectorAll('[data-hangout-chat]').forEach(button=>button.onclick=()=>{const workspace=document.querySelector('.chat-workspace');workspace.classList.add('hangout-selected');const row=[...document.querySelectorAll('.chat-row[data-kind="group"]')].find(item=>groups[Number(item.dataset.roomIndex)]?.hangout.id===button.dataset.hangoutChat);row?.click()});const listBack=document.querySelector('.chat-list-back');if(listBack)listBack.onclick=()=>{const workspace=document.querySelector('.chat-workspace');if(workspace.classList.contains('conversation-open'))workspace.classList.remove('conversation-open');else if(workspace.classList.contains('hangout-selected'))workspace.classList.remove('hangout-selected');else{const phone=document.querySelector('.chat-phone');phone.classList.remove('chat-screen-visible');phone.classList.add('chat-screen-closing');setTimeout(()=>navigate('home'),420)}};
+  document.querySelectorAll('[data-open-host-hangout]').forEach(button=>button.onclick=()=>detail(button.dataset.openHostHangout));document.querySelectorAll('[data-hangout-chat]').forEach(button=>button.onclick=()=>{const workspace=document.querySelector('.chat-workspace');workspace.classList.add('hangout-selected');const row=[...document.querySelectorAll('.chat-row[data-kind="group"]')].find(item=>groups[Number(item.dataset.roomIndex)]?.hangout.id===button.dataset.hangoutChat);row?.click()});const listBack=document.querySelector('.chat-list-back');if(listBack)listBack.onclick=()=>{const workspace=document.querySelector('.chat-workspace');if(workspace.classList.contains('conversation-open'))workspace.classList.remove('conversation-open');else if(workspace.classList.contains('hangout-selected'))workspace.classList.remove('hangout-selected');else{const phone=document.querySelector('.chat-phone');slideOutToRight(phone,()=>navigate('home'))}};
   document.querySelectorAll('[data-rate-user]').forEach((button)=>button.onclick=()=>showRatingDialog(button.dataset.hangoutId,button.dataset.rateUser,button.dataset.userName,button.dataset.ratingRole));
 }
 
