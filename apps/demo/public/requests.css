@@ -41,3 +41,4 @@ button:focus-visible{outline:3px solid #d9ff68;outline-offset:3px}
 @media(max-width:699px){.hangout-flow.detail-open:not(.detail-ready) .hangout-detail-panel,.hangout-flow.detail-open:not(.detail-ready) .hangout-flow-list{animation:none!important}}
 .profile-screen .profile-chat-button{display:flex;width:100%;min-height:52px;margin:10px 0 2px;border-radius:15px;font-size:16px}
 .profile-screen .profile>.verified{align-self:center;margin-top:8px}
+.hangout-flow .hangout-flow-list,.hangout-flow .hangout-detail-panel,.hangout-flow .chat-conversation,.chat-phone{animation:none!important}

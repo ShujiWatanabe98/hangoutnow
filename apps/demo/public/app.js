@@ -203,7 +203,7 @@ async function detail(id, sourceScreen = null) {
   const sheet = document.querySelector('.hangout-flow');
   sheet.classList.remove('detail-open');
   sourceScreen?.remove();
-  requestAnimationFrame(()=>requestAnimationFrame(()=>sheet.classList.add('detail-open','detail-ready')));
+  requestAnimationFrame(()=>requestAnimationFrame(()=>sheet.classList.add('detail-open')));
   const ownerButtonLabels={
     '#edit-hangout':'Hangout編集',
     '#cancel-hangout':'Hangout中止',
