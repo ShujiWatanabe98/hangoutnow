@@ -371,6 +371,9 @@ async function profileScreen() {
   screen.querySelector('#profile-chat').onclick=()=>chatScreen(screen);
   screen.querySelectorAll('[data-profile-hangout]').forEach(button=>button.onclick=()=>detail(button.dataset.profileHangout,screen));
   if(hostStatus){const nextLabel={BRONZE:'ブロンズ',SILVER:'シルバー',GOLD:'ゴールド',PLATINUM:'プラチナ',DIAMOND:'ダイアモンド'}[hostStatus.nextTier];screen.querySelector('.profile .verified').insertAdjacentHTML('afterend',`<section class="host-rank-card tier-${hostStatus.tier.toLowerCase()}"><small>主催者ステータス</small><strong>${hostStatus.label}</strong><p>開催完了 ${hostStatus.completedHangouts}回 ・ 累計参加者 ${hostStatus.totalParticipants}人<br>主催評価 ${hostStatus.hostAverageRating??'未評価'}（${hostStatus.hostRatingCount}件）<br>参加評価 ${hostStatus.participantAverageRating??'未評価'}（${hostStatus.participantRatingCount}件）<br>中止率 ${Math.round(hostStatus.cancellationRate*100)}%</p><em>${nextLabel?`次のステータス：${nextLabel}`:'最高ステータスです'}</em></section>`);const stats=screen.querySelectorAll('.stats b');stats[0].textContent=hostStatus.hostAverageRating??'—';stats[1].textContent=hostStatus.participantAverageRating??'—';stats[3].textContent=hostStatus.completedHangouts;screen.querySelectorAll('.stats span')[3].textContent='開催完了'}
+  const profileChatButton=screen.querySelector('#profile-chat');
+  const phoneVerification=screen.querySelector('.profile>.verified');
+  if(profileChatButton&&phoneVerification)profileChatButton.before(phoneVerification);
   screen.querySelector('#edit-profile').onclick=showProfileEditor;
 }
 
