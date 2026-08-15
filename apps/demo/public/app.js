@@ -151,7 +151,7 @@ async function resetPublicDemo(){if(!confirm('共有デモを初期状態へ戻�
 
 async function useCurrentLocation(){if(!navigator.geolocation){toast('現在地を取得できないため、エリアを選択してください');return}navigator.geolocation.getCurrentPosition(async(pos)=>{userLocation={latitude:pos.coords.latitude,longitude:pos.coords.longitude,label:'現在地周辺',source:'gps'};persist();await loadHangouts();home();toast('現在地から近い順に並べました')},()=>toast('位置情報を許可するか、エリアを選択してください'),{enableHighAccuracy:false,timeout:8000,maximumAge:300000})}
 
-async function detail(id) {
+async function detail(id, sourceScreen = null) {
   const h = hangouts.find((item) => item.id === id);
   if (!h) return;
   const requested = joined.has(id) || h.myJoinStatus === 'PENDING' || h.myJoinStatus === 'ACCEPTED';
@@ -168,6 +168,9 @@ async function detail(id) {
   const requestList=mine?`<section class="inline-requests"><div class="inline-requests-head"><div><small>参加申請</small><h3>参加したいメンバー</h3></div><span>${requests.filter(request=>request.status==='PENDING').length}件の判断待ち</span></div>${requests.length?requests.map(request=>`<article class="request-row"><button class="request-person" type="button" data-request-profile="${request.id}" aria-label="${safeText(request.user.displayName)}のプロフィールを見る"><span class="request-avatar"${photoStyle(request.user.profilePhoto)}>${request.user.profilePhoto?'':safeText(request.user.displayName).slice(0,1)}</span><div><b>${safeText(request.user.displayName)}</b><small>${request.user.verification==='PHONE_VERIFIED'?'✓ 電話確認済み':'本人確認前'}</small></div></button><p>${safeText(request.message||'メッセージなし')}</p>${request.status==='PENDING'?`<div class="request-decisions"><button class="reject" data-reject="${request.id}">却下</button><button class="approve" data-accept="${request.id}">承認</button></div>`:`<strong class="request-result">${{ACCEPTED:'承認済み',REJECTED:'却下済み',WAITLISTED:'待機中',CANCELLED:'キャンセル'}[request.status]||safeText(request.status)}</strong>`}</article>`).join(''):'<div class="empty inline-request-empty">参加申請はまだありません。</div>'}</section>`:'';
   document.body.insertAdjacentHTML('beforeend', `<div class="sheet hangout-detail-sheet hangout-flow detail-open"><aside class="hangout-flow-list"><header><b>近くのHangout</b><button id="close-flow">一覧を閉じる</button></header>${hangouts.map(item=>`<button class="flow-list-row ${item.id===id?'active':''}" data-flow-hangout="${item.id}"><span class="map-list-photo activity-photo-${item.photo%4}"></span><span><strong>${safeText(item.title)}</strong><small>${safeText(item.time)} ・ ${safeText(item.place)}</small></span></button>`).join('')}</aside><section class="panel hangout-detail-panel"><header class="hangout-detail-nav"><button id="close" class="brand-back" type="button" aria-label="Hangout一覧に戻る"><span></span></button><b>Hangout</b><span></span></header><main class="hangout-detail-content"><div class="hangout-hero-photo activity-photo-${h.photo%4}"></div><div class="hangout-state">${state}</div><div class="detail-head"><div class="detail-photo ${portraitClass(h.photo)}"${photoStyle(h.hostPhoto)} aria-label="${h.host}のプロフィール写真"></div><div><strong>${h.host}</strong><div class="meta">${h.rating} ${h.verified?'・電話確認済み':'・本人確認前'}</div></div></div><div class="eyebrow detail-time">${h.time} ・ 相性 ${h.match}%</div><h2>${h.title}</h2><p>${h.desc}</p><div class="condition-panel"><small>参加条件</small><strong>${conditionText}</strong></div><div class="info"><b>集合場所</b>　${h.place}${h.distanceKm!==null&&h.distanceKm!==undefined?`（約${h.distanceKm}km）`:''}<br><b>参加人数</b>　${h.current} / ${h.max}人<br><b>主催者</b>　${h.host}　${h.rating}<br>${h.locationPrecision==='EXACT'?'承認済み：店名・住所・正確な位置を表示':'承認前：概略エリアのみ表示'}</div>${navigationButton}${h.distanceKm>10?'<div class="distance-warning">移動距離が長めです。開始時刻に間に合うか確認してください。</div>':''}${hangoutChatButton}${requestList}${mine?`<div class="owner-actions"><button id="edit-hangout">内容を編集</button><button id="cancel-hangout">開催を中止</button>${['OPEN','FULL'].includes(h.status)?'<button id="start-hangout">Hangoutを開始</button>':''}${h.status==='STARTED'?'<button id="finish-hangout">Hangoutを終了</button>':''}</div>`:''}</main><footer class="hangout-detail-action">${mine?'':`<button class="primary" id="join" ${requested ? 'disabled' : ''}>${requested ? ({PENDING:'申請中',ACCEPTED:'承認済み',REJECTED:'拒否'}[h.myJoinStatus]||'参加申請済み') : '参加したい'}</button>`}</footer></section><section class="chat-conversation" id="chat-conversation"><div class="conversation-placeholder"><span class="conversation-photo activity-photo-${h.photo%4}"></span><b>Hangoutからチャットへ</b><small>参加が承認されると、ここで会話を始められます。</small></div></section></div>`);
   const sheet = document.querySelector('.hangout-flow');
+  sheet.classList.remove('detail-open');
+  sourceScreen?.remove();
+  requestAnimationFrame(()=>requestAnimationFrame(()=>sheet.classList.add('detail-open')));
   const ownerButtonLabels={
     '#edit-hangout':'Hangout編集',
     '#cancel-hangout':'Hangout中止',
@@ -251,7 +254,7 @@ function mapScreen() {
   document.querySelectorAll('[data-map-card]').forEach((button)=>button.onclick=()=>detail(button.dataset.mapCard));
 }
 
-async function chatScreen() {
+async function chatScreen(sourceScreen = null) {
   activeScreen = 'chatScreen';
   let groups=[],directs=[];try{[groups,directs]=await Promise.all([api('/chat-rooms'),api('/direct-chats')])}catch(error){toast(error.message)}
   const roomTime=room=>new Date(room.lastMessage?.createdAt||room.updatedAt||room.createdAt||0).getTime();
@@ -264,6 +267,7 @@ async function chatScreen() {
   shell(`<section class="chat-workspace ${demoRole==='host'?'with-hangout-rail':''}">${hangoutRail}<aside class="chat-sidebar"><section class="page-title chat-page-title"><button class="brand-back chat-list-back" type="button" aria-label="Hangout一覧に戻る"><span></span></button><div><div class="eyebrow">新しいメッセージ順</div><h1>チャット</h1></div><span class="realtime-pill">● リアルタイム</span></section>${demoChatHint}${directCandidates}<div class="talk-list-heading"><b>トーク</b><span>1対1 ${directs.length}　グループ ${groups.length}</span></div><div class="chat-lists"><section class="chat-list">${talkRows||'<div class="empty">トークはまだありません。</div>'}</section></div></aside><section class="chat-conversation" id="chat-conversation"><div class="conversation-placeholder"><span class="conversation-photo"></span><b>会話を選んでください</b><small>相手の表情を感じながら、待ち合わせまで自然に話せます。</small></div></section></section>`, false);
   const chatPhone=document.querySelector('.phone');
   chatPhone.classList.add('chat-phone','chat-screen-enter');
+  sourceScreen?.remove();
   requestAnimationFrame(()=>requestAnimationFrame(()=>chatPhone.classList.add('chat-screen-visible')));
   const chatSwitch=document.querySelector('#chat-switch-demo-role');if(chatSwitch)chatSwitch.onclick=()=>{realtimeSocket?.disconnect();session=null;demoRole=null;localStorage.removeItem('hangout-now-session');localStorage.removeItem('hangout-now-demo-role');authScreen('login')};
   document.querySelectorAll('[data-chat-tab]').forEach((tab)=>tab.onclick=()=>{document.querySelectorAll('[data-chat-tab]').forEach(x=>x.classList.toggle('active',x===tab));document.querySelectorAll('[data-chat-list]').forEach(x=>x.classList.toggle('hidden',x.dataset.chatList!==tab.dataset.chatTab))});
@@ -331,8 +335,8 @@ async function profileScreen() {
   const participatingActive=activity.participated.filter(item=>activeStatuses.has(item.status));
   const participatedPast=activity.participated.filter(item=>!activeStatuses.has(item.status));
   screen.querySelector('.tags').insertAdjacentHTML('afterend',`<section class="profile-activity"><h2>主催中のHangout</h2>${activityRows(hostedActive)}<h2>主催したHangout</h2>${activityRows(hostedPast)}<h2>参加するHangout</h2>${activityRows(participatingActive)}<h2>参加したHangout</h2>${activityRows(participatedPast)}<h2>ハートしたHangout</h2>${activityRows(activity.hearted||[])}</section>`);
-  screen.querySelector('#profile-chat').onclick=()=>{screen.remove();chatScreen()};
-  screen.querySelectorAll('[data-profile-hangout]').forEach(button=>button.onclick=()=>{screen.remove();detail(button.dataset.profileHangout)});
+  screen.querySelector('#profile-chat').onclick=()=>chatScreen(screen);
+  screen.querySelectorAll('[data-profile-hangout]').forEach(button=>button.onclick=()=>detail(button.dataset.profileHangout,screen));
   if(hostStatus){const nextLabel={BRONZE:'ブロンズ',SILVER:'シルバー',GOLD:'ゴールド',PLATINUM:'プラチナ',DIAMOND:'ダイアモンド'}[hostStatus.nextTier];screen.querySelector('.profile .verified').insertAdjacentHTML('afterend',`<section class="host-rank-card tier-${hostStatus.tier.toLowerCase()}"><small>主催者ステータス</small><strong>${hostStatus.label}</strong><p>開催完了 ${hostStatus.completedHangouts}回 ・ 累計参加者 ${hostStatus.totalParticipants}人<br>主催評価 ${hostStatus.hostAverageRating??'未評価'}（${hostStatus.hostRatingCount}件）<br>参加評価 ${hostStatus.participantAverageRating??'未評価'}（${hostStatus.participantRatingCount}件）<br>中止率 ${Math.round(hostStatus.cancellationRate*100)}%</p><em>${nextLabel?`次のステータス：${nextLabel}`:'最高ステータスです'}</em></section>`);const stats=screen.querySelectorAll('.stats b');stats[0].textContent=hostStatus.hostAverageRating??'—';stats[1].textContent=hostStatus.participantAverageRating??'—';stats[3].textContent=hostStatus.completedHangouts;screen.querySelectorAll('.stats span')[3].textContent='開催完了'}
   screen.querySelector('#edit-profile').onclick=showProfileEditor;
 }
