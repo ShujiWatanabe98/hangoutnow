@@ -49,3 +49,13 @@ body:has(.chat-phone){padding:0}.chat-phone{width:min(100%,1100px);height:100vh;
 .chat-phone.chat-screen-enter.chat-screen-closing{animation:none;transition-timing-function:cubic-bezier(.72,0,.78,.28)}
 .profile-chat-button{border:1px solid #b9d6c4;background:#edf8f0;color:#176b48}
 .profile-chat-button span{color:inherit}
+.chat-phone.chat-screen-enter{transform:translateX(100%)}
+.chat-phone.chat-screen-enter.chat-screen-visible{transform:translateX(0)}
+@media(max-width:699px){
+  .chat-conversation{transform:translateX(100%)}
+  .chat-workspace.conversation-open .chat-sidebar{transform:translateX(-24%)}
+  .chat-workspace.conversation-open .chat-conversation{transform:translateX(0)}
+  .chat-workspace.with-hangout-rail .chat-conversation{transform:translateX(100%)!important}
+  .chat-workspace.with-hangout-rail.conversation-open .chat-sidebar{transform:translateX(-24%)!important}
+  .chat-workspace.with-hangout-rail.conversation-open .chat-conversation{transform:translateX(0)!important}
+}
