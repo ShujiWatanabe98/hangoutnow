@@ -43,7 +43,7 @@ const hangoutImageObserver=new MutationObserver(()=>{
   input.dataset.previewReady='true';
   const preview=document.createElement('div');preview.className='hangout-image-preview';preview.innerHTML='<span>選択した画像をここに表示</span>';
   input.insertAdjacentElement('afterend',preview);
-  input.addEventListener('change',()=>{const file=input.files[0];if(!file)return;const url=URL.createObjectURL(file);preview.style.backgroundImage=`url('${url}')`;preview.classList.add('has-image');preview.innerHTML='<b>16:9のHangout画像へ変換して保存します</b>'});
+  input.addEventListener('change',()=>{const file=input.files[0];if(!file)return;if(input.dataset.previewUrl)URL.revokeObjectURL(input.dataset.previewUrl);const url=URL.createObjectURL(file);input.dataset.previewUrl=url;preview.style.backgroundImage=`url('${url}')`;preview.classList.add('has-image');preview.innerHTML='<b>16:9のHangout画像へ変換して保存します</b>'});
 });
 hangoutImageObserver.observe(document.body,{childList:true,subtree:true});
 
@@ -257,6 +257,44 @@ function googleMapScreen(){
 }
 
 function showEditHangout(h,detailSheet){document.body.insertAdjacentHTML('beforeend',`<div class="host-menu-screen"><header class="host-menu-header"><button id="close" class="brand-back" type="button" aria-label="Hangout画面に戻る"><span></span></button><div><small>主催者メニュー</small><b>Hangoutを編集</b></div><span></span></header><main class="host-menu-content"><section class="host-menu-form"><label>Hangoutのイメージ写真</label><input id="edit-image" type="file" accept="image/jpeg,image/png,image/webp"><small>現在の写真をいつでも変更できます。</small><label>タイトル</label><input id="edit-title" maxlength="80" value="${safeText(h.title)}"><label>承認前に表示するエリア</label><input id="edit-public-place" maxlength="100" value="${safeText(h.publicLocationName||h.place)}"><label>店名</label><input id="edit-place-name" maxlength="100" value="${safeText(h.meetingPlaceName||h.place)}"><label>住所</label><input id="edit-address" maxlength="200" value="${safeText(h.meetingAddress||h.place)}"><label>参加できる性別</label><select id="edit-gender"><option value="ANY">だれでも</option><option value="MALE_ONLY">男性のみ</option><option value="FEMALE_ONLY">女性のみ</option></select><label>年齢上限</label><select id="edit-max-age"><option value="">制限なし</option><option value="29">20代まで</option><option value="39">30代まで</option><option value="59">50代まで</option></select><label>説明</label><textarea id="edit-description" maxlength="500" rows="7">${safeText(h.desc)}</textarea></section></main><footer class="host-menu-actions"><button class="secondary" id="cancel-edit">キャンセル</button><button class="primary" id="save-hangout">保存</button></footer></div>`);const menu=document.querySelector('.host-menu-screen');const closeMenu=()=>{menu.classList.remove('open');menu.classList.add('closing');setTimeout(()=>menu.remove(),240)};setTimeout(()=>menu.classList.add('open'),0);menu.querySelector('#edit-gender').value=h.genderRestriction||'ANY';menu.querySelector('#edit-max-age').value=h.maxAge||'';menu.querySelector('#close').onclick=closeMenu;menu.querySelector('#cancel-edit').onclick=closeMenu;menu.querySelector('#save-hangout').onclick=async()=>{try{const placeName=menu.querySelector('#edit-place-name').value.trim();const address=menu.querySelector('#edit-address').value.trim();const file=menu.querySelector('#edit-image').files[0];const imageUrl=file?await imageData(file):undefined;const maxAge=menu.querySelector('#edit-max-age').value;await api(`/hangouts/${h.id}`,{method:'PATCH',body:JSON.stringify({title:menu.querySelector('#edit-title').value.trim(),publicLocationName:menu.querySelector('#edit-public-place').value.trim(),locationName:`${placeName} ${address}`,meetingPlaceName:placeName,meetingAddress:address,...(imageUrl?{imageUrl}:{}),description:menu.querySelector('#edit-description').value.trim(),genderRestriction:menu.querySelector('#edit-gender').value,maxAge:maxAge?Number(maxAge):null})});closeMenu();await loadHangouts();setTimeout(()=>{detailSheet.remove();detail(h.id)},240);toast('Hangoutと写真を更新しました')}catch(error){toast(error.message)}}}
+
+function showEditHangoutFixed(h,detailSheet){
+  document.body.insertAdjacentHTML('beforeend',`<div class="host-menu-screen"><header class="host-menu-header"><button id="close" class="brand-back" type="button" aria-label="Hangout画面に戻る"><span></span></button><div><small>主催者メニュー</small><b>Hangoutを編集</b></div><span></span></header><main class="host-menu-content"><section class="host-menu-form"><label>Hangoutのイメージ写真</label><input id="edit-image" type="file" accept="image/jpeg,image/png,image/webp"><small>現在の写真をいつでも変更できます。</small><label>タイトル</label><input id="edit-title" maxlength="80" value="${safeText(h.title)}"><label>承認前に表示するエリア</label><input id="edit-public-place" maxlength="100" value="${safeText(h.publicLocationName||h.place)}"><label>店名</label><input id="edit-place-name" maxlength="100" value="${safeText(h.meetingPlaceName||h.place)}"><label>住所</label><input id="edit-address" maxlength="200" value="${safeText(h.meetingAddress||h.place)}"><label>参加できる性別</label><select id="edit-gender"><option value="ANY">だれでも</option><option value="MALE_ONLY">男性のみ</option><option value="FEMALE_ONLY">女性のみ</option></select><label>年齢上限</label><select id="edit-max-age"><option value="">制限なし</option><option value="29">20代まで</option><option value="39">30代まで</option><option value="59">50代まで</option></select><label>説明</label><textarea id="edit-description" maxlength="500" rows="7">${safeText(h.desc)}</textarea></section></main><footer class="host-menu-actions"><button class="secondary" id="cancel-edit">キャンセル</button><button class="primary" id="save-hangout">保存</button></footer></div>`);
+  const menu=document.querySelector('.host-menu-screen');
+  const closeMenu=(afterClose)=>{
+    const imageInput=menu.querySelector('#edit-image');
+    menu.classList.remove('open');
+    menu.classList.add('closing');
+    setTimeout(()=>{if(imageInput.dataset.previewUrl)URL.revokeObjectURL(imageInput.dataset.previewUrl);menu.remove();if(afterClose)afterClose()},240);
+  };
+  setTimeout(()=>{
+    menu.classList.add('open');
+    const preview=menu.querySelector('.hangout-image-preview');
+    if(preview&&h.imageUrl){preview.style.backgroundImage=`url('${h.imageUrl}')`;preview.classList.add('has-image');preview.innerHTML='<b>現在保存されている画像</b>'}
+  },0);
+  menu.querySelector('#edit-gender').value=h.genderRestriction||'ANY';
+  menu.querySelector('#edit-max-age').value=h.maxAge||'';
+  menu.querySelector('#close').onclick=()=>closeMenu();
+  menu.querySelector('#cancel-edit').onclick=()=>closeMenu();
+  const saveButton=menu.querySelector('#save-hangout');
+  saveButton.onclick=async()=>{
+    if(saveButton.disabled)return;
+    saveButton.disabled=true;
+    saveButton.textContent='保存中…';
+    try{
+      const placeName=menu.querySelector('#edit-place-name').value.trim();
+      const address=menu.querySelector('#edit-address').value.trim();
+      const file=menu.querySelector('#edit-image').files[0];
+      const imageUrl=file?await imageData(file):undefined;
+      const maxAge=menu.querySelector('#edit-max-age').value;
+      await api(`/hangouts/${h.id}`,{method:'PATCH',body:JSON.stringify({title:menu.querySelector('#edit-title').value.trim(),publicLocationName:menu.querySelector('#edit-public-place').value.trim(),locationName:`${placeName} ${address}`.trim(),meetingPlaceName:placeName,meetingAddress:address,...(imageUrl?{imageUrl}:{}),description:menu.querySelector('#edit-description').value.trim(),genderRestriction:menu.querySelector('#edit-gender').value,maxAge:maxAge?Number(maxAge):null})});
+      await loadHangouts();
+      closeMenu(()=>{detailSheet.remove();detail(h.id);toast('Hangoutと写真を更新しました')});
+    }catch(error){saveButton.disabled=false;saveButton.textContent='保存';toast(error.message)}
+  };
+}
+
+showEditHangout=showEditHangoutFixed;
 
 function showCreate() {
   if(!session.user.profilePhoto){toast('募集作成にはプロフィール写真が必要です');navigate('profileScreen');return}
