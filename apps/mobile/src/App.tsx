@@ -422,10 +422,12 @@ export default function App() {
     setLoading(true);
     setError("");
     try {
-      await request(`/hangouts/${hangout.id}/join`, {
+      const joinRequest = await request<{ status: string }>(`/hangouts/${hangout.id}/join`, {
         method: "POST",
         body: JSON.stringify({ message: "スマホアプリから参加を希望します！" }),
       });
+      setSelectedHangout((current) => current?.id === hangout.id ? { ...current, myJoinStatus: joinRequest.status } : current);
+      setHangouts((current) => current.map((item) => item.id === hangout.id ? { ...item, myJoinStatus: joinRequest.status } : item));
       void request("/analytics/events", {
         method: "POST",
         body: JSON.stringify({

@@ -402,6 +402,24 @@ describe('social journey safety boundaries', () => {
     expect(db.notifications.some((item) => item.userId === 'waiter' && item.type === 'WAITLIST_OPEN')).toBe(true);
   });
 
+  it('allows a rejected participant to submit the Hangout request again', async () => {
+    const response = await request(app.getHttpServer()).post('/hangouts').set(auth('host')).send({
+      title: '再申請できるHangout', category: 'CAFE', serviceArea: 'SHINJUKU', startInMinutes: 60,
+      publicLocationName: '新宿駅周辺', locationName: '新宿カフェ', maxParticipants: 4,
+      hostMaleCount: 1, hostFemaleCount: 0, genderRestriction: 'ANY', maxAge: null,
+    }).expect(201);
+    const hangoutId = response.body.id as string;
+    const initial = await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('guest')).send({ message: '最初の申請です' }).expect(201);
+    await request(app.getHttpServer()).post(`/join-requests/${initial.body.id as string}/reject`).set(auth('host')).expect(201);
+
+    const retried = await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('guest')).send({ message: 'もう一度参加したいです' }).expect(201);
+
+    expect(retried.body.id).toBe(initial.body.id);
+    expect(retried.body.status).toBe('PENDING');
+    expect(db.joinRequests.filter((item) => item.hangoutId === hangoutId && item.userId === 'guest')).toHaveLength(1);
+    expect(db.joinRequests.find((item) => item.id === initial.body.id)?.message).toBe('もう一度参加したいです');
+  });
+
   it('enforces gender and age participation conditions on the API', async () => {
     const response = await request(app.getHttpServer()).post('/hangouts').set(auth('host')).send({
       title: '20代女性限定カフェ', category: 'CAFE', serviceArea: 'SHINJUKU', startInMinutes: 60, publicLocationName: '新宿駅周辺', locationName: '新宿カフェ 東京都新宿区新宿3-4-5',
