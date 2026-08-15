@@ -77,9 +77,9 @@ export class ChatService {
   }
 
   async createDirect(uid: string, targetUserId: string) {
-    if (uid === targetUserId) throw new BadRequestException('自分自身とは1対1チャットを開始できません');
+    if (uid === targetUserId) throw new BadRequestException('自分自身とは1対1トークを開始できません');
     await this.assertNotBlocked(uid, targetUserId);
-    if (!(await this.hasMutualFiveStarMeeting(uid, targetUserId))) throw new ForbiddenException('Hangout終了後、お互いに★5を付けた相手とのみ1対1チャットできます');
+    if (!(await this.hasMutualFiveStarMeeting(uid, targetUserId))) throw new ForbiddenException('Hangout終了後、お互いに★5を付けた相手とのみ1対1トークできます');
     const orderedUserIds = [uid, targetUserId].sort();
     const userOneId = orderedUserIds[0]!;
     const userTwoId = orderedUserIds[1]!;

@@ -539,7 +539,7 @@ export default function App() {
   }
   function confirmReportHost(hangout: Hangout) {
     const choose = (reason: ReportReason, label: string) =>
-      Alert.alert("通報してブロック", `${hangout.host.displayName}さんを「${label}」として運営へ通報し、今後お互いの募集とチャットを非表示にします。`, [
+      Alert.alert("通報してブロック", `${hangout.host.displayName}さんを「${label}」として運営へ通報し、今後お互いの募集とトークを非表示にします。`, [
         { text: "キャンセル", style: "cancel" },
         {
           text: "通報してブロック",
@@ -646,23 +646,6 @@ export default function App() {
       setError(cause instanceof Error ? cause.message : "送信できませんでした");
     } finally {
       setSending(false);
-    }
-  }
-
-  async function startDirect(userId: string) {
-    setLoading(true);
-    setError("");
-    try {
-      const room = await request<DirectRoom>("/direct-chats", {
-        method: "POST",
-        body: JSON.stringify({ userId }),
-      });
-      await loadRooms();
-      await openRoom(room);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "1対1チャットを開始できませんでした");
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -822,7 +805,7 @@ export default function App() {
       Alert.alert("デモアカウント", "共有デモアカウントは削除できません。");
       return;
     }
-    Alert.alert("アカウントを削除", "プロフィール、募集、申請、チャットなど関連データが削除されます。この操作は取り消せません。", [
+    Alert.alert("アカウントを削除", "プロフィール、募集、申請、トークなど関連データが削除されます。この操作は取り消せません。", [
       { text: "キャンセル", style: "cancel" },
       {
         text: "完全に削除",
@@ -862,7 +845,7 @@ export default function App() {
         <View style={styles.demoBanner}>
           <View>
             <Text style={styles.demoTitle}>デモ：{demoRole === "host" ? "主催者" : "参加者"}として体験中</Text>
-            <Text style={styles.demoHint}>{demoRole === "host" ? "募集カードから参加申請を管理" : "承認済みチャットを体験"}</Text>
+            <Text style={styles.demoHint}>{demoRole === "host" ? "募集カードから参加申請を管理" : "承認済みトークを体験"}</Text>
           </View>
           <Pressable onPress={logout} style={styles.switchButton}>
             <Text style={styles.switchText}>役割変更</Text>
@@ -898,7 +881,7 @@ export default function App() {
         {screen === "create" && <CreateHangoutScreen area={selectedArea} gender={session.user.gender} onBack={() => setScreen("home")} onSubmit={createHangout} />}
         {screen === "detail" && selectedHangout && <HangoutDetailScreen user={session.user} hangout={selectedHangout} requests={joinRequests} onBack={() => setScreen("home")} onJoin={joinHangout} onStart={startHangout} onFinish={confirmFinishHangout} onDecide={decideJoinRequest} onReport={confirmReportHost} onAttendance={updateAttendance} />}
         {screen === "phone" && <PhoneVerificationScreen onBack={() => setScreen("profile")} onVerify={verifyPhone} />}
-        {screen === "chat" && <ChatScreen user={session.user} rooms={rooms} selectedRoom={selectedRoom} messages={messages} messageBody={messageBody} sending={sending} refreshing={refreshing} unreadByRoom={unreadByRoom} realtimeOnline={realtimeOnline} onRefresh={refreshCurrent} onOpen={openRoom} onStartDirect={startDirect} onRate={rateParticipant} onBack={() => selectedRoom ? setSelectedRoom(null) : setScreen("home")} onChangeBody={setMessageBody} onSend={sendMessage} />}
+        {screen === "chat" && <ChatScreen user={session.user} rooms={rooms} selectedRoom={selectedRoom} messages={messages} messageBody={messageBody} sending={sending} refreshing={refreshing} unreadByRoom={unreadByRoom} realtimeOnline={realtimeOnline} onRefresh={refreshCurrent} onOpen={openRoom} onRate={rateParticipant} onBack={() => selectedRoom ? setSelectedRoom(null) : setScreen("home")} onChangeBody={setMessageBody} onSend={sendMessage} />}
         {screen === "rating" && ratingRoom && <RatingScreen user={session.user} room={ratingRoom} onRate={rateParticipant} onDone={() => { setRatingRoom(null); setScreen("home"); }} />}
         {screen === "profile" && <ProfileScreen user={session.user} hostStatus={hostStatus} activity={profileActivity} demo={!!demoRole} onChat={() => { setSelectedRoom(null); setScreen("chat"); }} onOpenHangout={(id) => void openHangout({ id })} onPhone={() => setScreen("phone")} onPhoto={chooseProfilePhoto} onSave={updateProfile} onDelete={confirmDeleteAccount} onLogout={logout} />}
       </View>
@@ -908,7 +891,7 @@ export default function App() {
             [
               ["home", "ホーム"],
               ["map", "マップ"],
-              ["chat", "チャット"],
+              ["chat", "トーク"],
             ] as const
           ).map(([value, label]) => (
             <Pressable
@@ -967,7 +950,7 @@ function AuthScreen({ loading, error, onLogin, onRegister }: { loading: boolean;
             </Pressable>
             <Pressable disabled={loading} style={[styles.roleButton, styles.roleGuest]} onPress={() => onLogin("demo-guest@hangoutnow.example", DEMO_PASSWORD, "guest")}>
               <Text style={styles.roleTitle}>参加者として見る</Text>
-              <Text style={styles.roleHint}>検索・チャット</Text>
+              <Text style={styles.roleHint}>検索・トーク</Text>
             </Pressable>
           </View>
         </View>
@@ -1427,7 +1410,7 @@ function RatingScreen({ user, room, onRate, onDone }: { user: User; room: GroupR
               </Pressable>
             ))}
           </View>
-          <Text style={styles.ratingUnlockHint}>{member.myRatingScore ? `評価済み ★${member.myRatingScore}` : "評価を選択してください"}{member.directChatEligible ? " ・ 1対1チャットが利用できます" : ""}</Text>
+          <Text style={styles.ratingUnlockHint}>{member.myRatingScore ? `評価済み ★${member.myRatingScore}` : "評価を選択してください"}{member.directChatEligible ? " ・ 1対1トークが利用できます" : ""}</Text>
         </View>
       ))}
       {!members.length && <Text style={styles.empty}>評価する参加メンバーはいません。</Text>}
@@ -1436,7 +1419,7 @@ function RatingScreen({ user, room, onRate, onDone }: { user: User; room: GroupR
   );
 }
 
-function ChatScreen({ user, rooms, selectedRoom, messages, messageBody, sending, refreshing, unreadByRoom, realtimeOnline, onRefresh, onOpen, onStartDirect, onRate, onBack, onChangeBody, onSend }: { user: User; rooms: Room[]; selectedRoom: Room | null; messages: Message[]; messageBody: string; sending: boolean; refreshing: boolean; unreadByRoom: Record<string, number>; realtimeOnline: boolean; onRefresh: () => void; onOpen: (room: Room) => void; onStartDirect: (userId: string) => void; onRate: (hangoutId: string, userId: string, score: number) => void; onBack: () => void; onChangeBody: (value: string) => void; onSend: () => void }) {
+function ChatScreen({ user, rooms, selectedRoom, messages, messageBody, sending, refreshing, unreadByRoom, realtimeOnline, onRefresh, onOpen, onRate, onBack, onChangeBody, onSend }: { user: User; rooms: Room[]; selectedRoom: Room | null; messages: Message[]; messageBody: string; sending: boolean; refreshing: boolean; unreadByRoom: Record<string, number>; realtimeOnline: boolean; onRefresh: () => void; onOpen: (room: Room) => void; onRate: (hangoutId: string, userId: string, score: number) => void; onBack: () => void; onChangeBody: (value: string) => void; onSend: () => void }) {
   const listRef = useRef<FlatList<Message>>(null);
   const time = (value?: string) =>
     value
@@ -1450,7 +1433,7 @@ function ChatScreen({ user, rooms, selectedRoom, messages, messageBody, sending,
     return (
       <KeyboardAvoidingView style={styles.chatPage} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={0}>
         <View style={styles.chatHeader}>
-          <Pressable accessibilityRole="button" accessibilityLabel="チャット一覧に戻る" onPress={onBack} style={styles.backButton}>
+          <Pressable accessibilityRole="button" accessibilityLabel="トーク一覧に戻る" onPress={onBack} style={styles.backButton}>
             <View style={styles.backChevron} />
           </Pressable>
           {headerPerson.profilePhoto ? (
@@ -1487,7 +1470,7 @@ function ChatScreen({ user, rooms, selectedRoom, messages, messageBody, sending,
                       </Pressable>
                     ))}
                   </View>
-                  <Text style={styles.ratingUnlockHint}>{member.directChatEligible ? "1対1チャットを開始できます" : "双方が★5の場合のみ1対1チャットが解放されます"}</Text>
+                  <Text style={styles.ratingUnlockHint}>{member.directChatEligible ? "1対1トークを開始できます" : "双方が★5の場合のみ1対1トークが解放されます"}</Text>
                 </View>
               ))}
           </View>
@@ -1537,10 +1520,6 @@ function ChatScreen({ user, rooms, selectedRoom, messages, messageBody, sending,
     );
   }
   const visibleRooms = rooms;
-  const groupMembers = rooms
-    .filter((room): room is GroupRoom => room.type === "GROUP")
-    .flatMap((room) => room.members)
-    .filter((member, index, all) => member.id !== user.id && member.directChatEligible && all.findIndex((item) => item.id === member.id) === index);
   return (
     <ScrollView style={styles.chatListPage} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
       <View style={styles.chatListHead}>
@@ -1549,25 +1528,13 @@ function ChatScreen({ user, rooms, selectedRoom, messages, messageBody, sending,
         </Pressable>
         <View style={styles.chatListHeadingCopy}>
           <Text style={styles.pageEyebrow}>会話から次の行動へ</Text>
-          <Text style={styles.pageTitle}>チャット</Text>
+          <Text style={styles.pageTitle}>トーク</Text>
         </View>
         <Text style={[styles.connectionBadge, realtimeOnline && styles.connectionOn]}>{realtimeOnline ? "リアルタイム" : "再接続中"}</Text>
       </View>
       <View style={styles.talkListSummary}>
         <Text style={styles.talkListTitle}>トーク</Text>
         <Text style={styles.talkListCounts}>1対1 {rooms.filter((room) => room.type === "DIRECT").length}　グループ {rooms.filter((room) => room.type === "GROUP").length}</Text>
-      </View>
-      <View style={styles.directPeople}>
-          <Text style={styles.directPeopleTitle}>1対1でチャットできるメンバー</Text>
-          {groupMembers.length > 0 && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {groupMembers.map((member) => (
-                <Pressable key={member.id} style={styles.personChip} onPress={() => onStartDirect(member.id)}>
-                  <Text style={styles.personChipText}>{member.displayName}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          )}
       </View>
       {visibleRooms.map((room) => {
         const unread = unreadByRoom[room.id] || 0;
@@ -1592,7 +1559,7 @@ function ChatScreen({ user, rooms, selectedRoom, messages, messageBody, sending,
               </View>
               <View style={styles.roomBottom}>
                 <Text style={styles.roomPreview} numberOfLines={1}>
-                  {room.lastMessage?.body || "チャットを開始しましょう"}
+                  {room.lastMessage?.body || "トークを開始しましょう"}
                 </Text>
                 {unread > 0 && <Text style={styles.unreadBadge}>{unread > 99 ? "99+" : unread}</Text>}
               </View>
@@ -1650,7 +1617,7 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
       <Text style={styles.profileName}>{user.displayName}</Text>
       <Pressable style={styles.profileChatButton} onPress={onChat}>
         <Text style={styles.profileChatButtonIcon}>●</Text>
-        <Text style={styles.profileChatButtonText}>チャット</Text>
+        <Text style={styles.profileChatButtonText}>トーク</Text>
       </Pressable>
       <Pressable style={styles.profileEditButton} onPress={() => setEditing(true)}>
         <Text style={styles.profileEditButtonText}>プロフィールを編集</Text>
