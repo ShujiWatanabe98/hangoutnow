@@ -58,24 +58,17 @@ function navigate(screen) { if (!session) { authScreen(); return; } activeScreen
 function slideInFromRight(element,duration=420){
   if(!element)return;
   element.classList.remove('chat-screen-visible');
+  element.style.transition='none';
   element.style.transform='translateX(100%)';
-  if(typeof element.animate!=='function'){
-    requestAnimationFrame(()=>{element.style.transition=`transform ${duration}ms cubic-bezier(.22,.75,.28,1)`;element.style.transform='translateX(0)'});
-    return;
-  }
-  const animation=element.animate(
-    [{transform:'translateX(100%)'},{transform:'translateX(0)'}],
-    {duration,easing:'cubic-bezier(.22,.75,.28,1)',fill:'forwards'},
-  );
-  animation.onfinish=()=>{element.style.transform='translateX(0)';animation.cancel()};
+  element.getBoundingClientRect();
+  element.style.transition=`transform ${duration}ms cubic-bezier(.22,.75,.28,1)`;
+  requestAnimationFrame(()=>{element.style.transform='translateX(0)'});
 }
 function slideOutToRight(element,onFinish,duration=420){
-  if(!element||typeof element.animate!=='function'){onFinish();return}
-  const animation=element.animate(
-    [{transform:'translateX(0)'},{transform:'translateX(100%)'}],
-    {duration,easing:'cubic-bezier(.72,0,.78,.28)',fill:'forwards'},
-  );
-  animation.onfinish=onFinish;
+  if(!element){onFinish();return}
+  element.style.transition=`transform ${duration}ms cubic-bezier(.72,0,.78,.28)`;
+  element.style.transform='translateX(100%)';
+  setTimeout(onFinish,duration);
 }
 function connectRealtime(){if(!session)return;if(typeof io==='undefined'){if(!document.querySelector('#socket-client')){const script=document.createElement('script');script.id='socket-client';script.src=`${API_URL}/socket.io/socket.io.js`;script.onload=connectRealtime;document.head.append(script)}return}realtimeSocket?.disconnect();realtimeSocket=io(API_URL,{auth:{token:session.accessToken},reconnection:true,reconnectionAttempts:Infinity,reconnectionDelay:800,reconnectionDelayMax:8000});realtimeSocket.on('connect',()=>{document.body.classList.remove('realtime-offline');loadNotificationCount()});realtimeSocket.on('disconnect',()=>document.body.classList.add('realtime-offline'));realtimeSocket.on('notification',async(item)=>{unreadNotifications+=1;renderBadge();toast(item.title);if(document.visibilityState==='hidden'&&Notification.permission==='granted')new Notification(item.title,{body:item.body});if(activeScreen==='chatScreen'&&['CHAT_MESSAGE','DIRECT_MESSAGE'].includes(item.type))await chatScreen()});realtimeSocket.on('notifications:changed',loadNotificationCount)}
 async function loadNotificationCount(){try{const data=await api('/notifications');unreadNotifications=data.unreadCount;renderBadge();return data}catch{return null}}
