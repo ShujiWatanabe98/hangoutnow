@@ -15,7 +15,7 @@ export class AccessTokenGuard implements CanActivate {
     try {
       request.userId = this.auth.verifyAccessToken(token).sub;
       const user = this.db ? await this.db.user.findUnique({ where: { id: request.userId }, select: { accountStatus: true } }) : null;
-      if (user?.accountStatus === 'SUSPENDED' || user?.accountStatus === 'BANNED') throw new ForbiddenException('Account access is restricted');
+      if (user?.accountStatus === 'SUSPENDED' || user?.accountStatus === 'BANNED') throw new ForbiddenException('このアカウントは現在利用できません');
       return true;
     } catch (error) { if (error instanceof ForbiddenException) throw error; throw new UnauthorizedException(); }
   }

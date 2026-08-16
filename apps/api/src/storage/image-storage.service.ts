@@ -8,9 +8,9 @@ export class ImageStorageService {
   async storeProfilePhoto(userId: string, dataUrl: string | null | undefined): Promise<string | null | undefined> {
     if (dataUrl === undefined || dataUrl === null || !dataUrl.startsWith('data:')) return dataUrl;
     const match = /^data:image\/(jpeg|png|webp);base64,(.+)$/.exec(dataUrl);
-    if (!match) throw new BadRequestException('Unsupported image');
+    if (!match) throw new BadRequestException('対応していない画像形式です');
     const body = Buffer.from(match[2]!, 'base64');
-    if (body.length > 1_100_000) throw new BadRequestException('Profile photo is too large');
+    if (body.length > 1_100_000) throw new BadRequestException('プロフィール画像のサイズが大きすぎます');
     const endpoint = process.env.S3_ENDPOINT;
     const region = process.env.S3_REGION;
     const bucket = process.env.S3_BUCKET;
@@ -18,7 +18,7 @@ export class ImageStorageService {
     const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
     const publicBase = process.env.S3_PUBLIC_BASE_URL;
     if (!endpoint || !region || !bucket || !accessKeyId || !secretAccessKey || !publicBase) {
-      if (process.env.NODE_ENV === 'production' && process.env.DEMO_MODE !== 'true') throw new ServiceUnavailableException('Image storage is not configured');
+      if (process.env.NODE_ENV === 'production' && process.env.DEMO_MODE !== 'true') throw new ServiceUnavailableException('画像を現在保存できません');
       return dataUrl;
     }
     const mediaType = match[1]!;
@@ -28,6 +28,6 @@ export class ImageStorageService {
     await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: `image/${mediaType}`, CacheControl: 'public,max-age=31536000,immutable' }));
     return `${publicBase.replace(/\/$/, '')}/${key}`;
   }
-  private async storeImage(prefix:string,dataUrl:string,maxBytes:number):Promise<string>{const match=/^data:image\/(jpeg|png|webp);base64,(.+)$/.exec(dataUrl);if(!match)throw new BadRequestException('Unsupported image');const body=Buffer.from(match[2]!,'base64');if(body.length>maxBytes)throw new BadRequestException('Image is too large');const config=this.config();if(!config){if(process.env.NODE_ENV==='production'&&process.env.DEMO_MODE!=='true')throw new ServiceUnavailableException('Image storage is not configured');return dataUrl}const mediaType=match[1]!;const extension=mediaType==='jpeg'?'jpg':mediaType;const key=`${prefix}/${uuidv7()}.${extension}`;await config.client.send(new PutObjectCommand({Bucket:config.bucket,Key:key,Body:body,ContentType:`image/${mediaType}`,CacheControl:'public,max-age=31536000,immutable'}));return `${config.publicBase.replace(/\/$/,'')}/${key}`}
+  private async storeImage(prefix:string,dataUrl:string,maxBytes:number):Promise<string>{const match=/^data:image\/(jpeg|png|webp);base64,(.+)$/.exec(dataUrl);if(!match)throw new BadRequestException('対応していない画像形式です');const body=Buffer.from(match[2]!,'base64');if(body.length>maxBytes)throw new BadRequestException('画像のサイズが大きすぎます');const config=this.config();if(!config){if(process.env.NODE_ENV==='production'&&process.env.DEMO_MODE!=='true')throw new ServiceUnavailableException('画像を現在保存できません');return dataUrl}const mediaType=match[1]!;const extension=mediaType==='jpeg'?'jpg':mediaType;const key=`${prefix}/${uuidv7()}.${extension}`;await config.client.send(new PutObjectCommand({Bucket:config.bucket,Key:key,Body:body,ContentType:`image/${mediaType}`,CacheControl:'public,max-age=31536000,immutable'}));return `${config.publicBase.replace(/\/$/,'')}/${key}`}
   async deleteProfilePhoto(userId:string,url:string|null):Promise<void>{if(!url||url.startsWith('data:'))return;const config=this.config();if(!config)return;const prefix=`${config.publicBase.replace(/\/$/,'')}/profiles/${userId}/`;if(!url.startsWith(prefix))return;const key=decodeURIComponent(url.slice(config.publicBase.replace(/\/$/,'').length+1));await config.client.send(new DeleteObjectCommand({Bucket:config.bucket,Key:key}))}
 }

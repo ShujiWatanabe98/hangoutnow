@@ -3,20 +3,20 @@ import { Gender } from '@prisma/client';
 import { ArrayMaxSize, IsArray, IsDateString, IsEmail, IsEnum, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 
 export class RegisterDto {
-  @IsEmail() @Transform(({ value }: { value: unknown }) => typeof value === 'string' ? value.trim().toLowerCase() : value)
+  @IsEmail({}, { message: '正しいメールアドレスを入力してください' }) @Transform(({ value }: { value: unknown }) => typeof value === 'string' ? value.trim().toLowerCase() : value)
   email!: string;
-  @IsString() @MinLength(12) @MaxLength(128) password!: string;
-  @IsString() @MinLength(1) @MaxLength(40) displayName!: string;
-  @IsDateString({ strict: true }) birthDate!: string;
+  @IsString({ message: 'パスワードを入力してください' }) @MinLength(12, { message: 'パスワードは12文字以上で入力してください' }) @MaxLength(128, { message: 'パスワードは128文字以内で入力してください' }) password!: string;
+  @IsString({ message: '表示名を入力してください' }) @MinLength(1, { message: '表示名を入力してください' }) @MaxLength(40, { message: '表示名は40文字以内で入力してください' }) displayName!: string;
+  @IsDateString({ strict: true }, { message: '正しい生年月日を入力してください' }) birthDate!: string;
   @IsOptional() @IsEnum(Gender) gender?: Gender;
   @IsOptional() @IsString() @MaxLength(1_500_000) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/) profilePhoto?: string;
   @IsOptional() @IsArray() @ArrayMaxSize(3) @IsString({ each: true }) @MaxLength(1_500_000, { each: true }) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/, { each: true }) profilePhotos?: string[];
 }
 
 export class LoginDto {
-  @IsEmail() @Transform(({ value }: { value: unknown }) => typeof value === 'string' ? value.trim().toLowerCase() : value)
+  @IsEmail({}, { message: '正しいメールアドレスを入力してください' }) @Transform(({ value }: { value: unknown }) => typeof value === 'string' ? value.trim().toLowerCase() : value)
   email!: string;
-  @IsString() password!: string;
+  @IsString({ message: 'パスワードを入力してください' }) password!: string;
 }
 
 export class RefreshDto { @IsString() @MinLength(20) refreshToken!: string; }

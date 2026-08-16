@@ -21,8 +21,8 @@ export class AuthService {
 
   async register(input: RegisterDto): Promise<AuthResponse> {
     const email = input.email.trim().toLowerCase();
-    if (!this.isAdult(input.birthDate)) throw new BadRequestException('You must be at least 18 years old');
-    if (await this.repository.findUserByEmail(email)) throw new ConflictException('Email is already registered');
+    if (!this.isAdult(input.birthDate)) throw new BadRequestException('18歳以上の方のみ登録できます');
+    if (await this.repository.findUserByEmail(email)) throw new ConflictException('このメールアドレスはすでに登録されています');
     let user = await this.repository.createUser({
       email, passwordHash: await hash(input.password, 10), displayName: input.displayName.trim(), birthDate: new Date(`${input.birthDate}T00:00:00.000Z`), gender: input.gender,
     });
@@ -32,34 +32,34 @@ export class AuthService {
 
   async login(input: LoginDto): Promise<AuthResponse> {
     const user = await this.repository.findUserByEmail(input.email.trim().toLowerCase());
-    if (!user || !(await compare(input.password, user.passwordHash))) throw new UnauthorizedException('Invalid credentials');
+    if (!user || !(await compare(input.password, user.passwordHash))) throw new UnauthorizedException('メールアドレスまたはパスワードが正しくありません');
     return { user: this.publicUser(user), ...(await this.issueTokens(user.id)) };
   }
 
   async lineAuthorizeUrl(returnTo: string): Promise<string> {
     const clientId = process.env.LINE_LOGIN_CHANNEL_ID;
-    if (!clientId) throw new ServiceUnavailableException('LINE login is not configured');
-    if (!this.isAllowedLineReturnTo(returnTo)) throw new UnauthorizedException('Invalid LINE login return URL');
+    if (!clientId) throw new ServiceUnavailableException('LINEログインは現在利用できません');
+    if (!this.isAllowedLineReturnTo(returnTo)) throw new UnauthorizedException('LINEログインの戻り先が正しくありません');
     const nonce = randomBytes(24).toString('base64url');
     const state = await this.jwt.signAsync({ kind: 'line_state', returnTo, nonce }, { expiresIn: 10 * 60 });
-    const query = new URLSearchParams({ response_type: 'code', client_id: clientId, redirect_uri: this.lineCallbackUrl(), state, scope: 'openid profile', nonce });
+    const query = new URLSearchParams({ response_type: 'code', client_id: clientId, redirect_uri: this.lineCallbackUrl(), state, scope: 'openid profile', nonce, ui_locales: 'ja' });
     return `https://access.line.me/oauth2/v2.1/authorize?${query.toString()}`;
   }
 
   async lineCallback(code: string, state: string): Promise<string> {
     const clientId = process.env.LINE_LOGIN_CHANNEL_ID;
     const clientSecret = process.env.LINE_LOGIN_CHANNEL_SECRET;
-    if (!clientId || !clientSecret) throw new ServiceUnavailableException('LINE login is not configured');
+    if (!clientId || !clientSecret) throw new ServiceUnavailableException('LINEログインは現在利用できません');
     let statePayload: { kind?: string; returnTo?: string; nonce?: string };
     try { statePayload = this.jwt.verify<{ kind?: string; returnTo?: string; nonce?: string }>(state); }
-    catch { throw new UnauthorizedException('Invalid LINE login state'); }
-    if (statePayload.kind !== 'line_state' || !statePayload.returnTo || !this.isAllowedLineReturnTo(statePayload.returnTo) || !statePayload.nonce) throw new UnauthorizedException('Invalid LINE login state');
+    catch { throw new UnauthorizedException('LINEログイン情報を確認できませんでした'); }
+    if (statePayload.kind !== 'line_state' || !statePayload.returnTo || !this.isAllowedLineReturnTo(statePayload.returnTo) || !statePayload.nonce) throw new UnauthorizedException('LINEログイン情報を確認できませんでした');
     const tokenResponse = await fetch('https://api.line.me/oauth2/v2.1/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: this.lineCallbackUrl(), client_id: clientId, client_secret: clientSecret }) });
     const tokens = await tokenResponse.json() as { id_token?: string; error_description?: string };
-    if (!tokenResponse.ok || !tokens.id_token) throw new UnauthorizedException(tokens.error_description || 'LINE login failed');
+    if (!tokenResponse.ok || !tokens.id_token) throw new UnauthorizedException('LINEログインに失敗しました。もう一度お試しください');
     const verifyResponse = await fetch('https://api.line.me/oauth2/v2.1/verify', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ id_token: tokens.id_token, client_id: clientId }) });
     const profile = await verifyResponse.json() as { sub?: string; name?: string; picture?: string; nonce?: string; error_description?: string };
-    if (!verifyResponse.ok || !profile.sub || profile.nonce !== statePayload.nonce) throw new UnauthorizedException(profile.error_description || 'Invalid LINE identity');
+    if (!verifyResponse.ok || !profile.sub || profile.nonce !== statePayload.nonce) throw new UnauthorizedException('LINEアカウントを確認できませんでした');
     const existing = await this.repository.findOAuthIdentity('LINE', profile.sub);
     const ticket = randomBytes(40).toString('base64url');
     await this.repository.saveOAuthLoginTicket({ id: uuidv7(), tokenHash: this.tokenHash(ticket), provider: 'LINE', subject: profile.sub, displayName: profile.name?.slice(0, 40) || null, profilePhoto: null, userId: existing?.id || null, expiresAt: new Date(Date.now() + 10 * 60_000), usedAt: null });
@@ -68,13 +68,13 @@ export class AuthService {
 
   async redeemLineLogin(input: LineRedeemDto): Promise<AuthResponse | { registrationRequired: true; displayName: string | null }> {
     const row = await this.repository.findOAuthLoginTicket(this.tokenHash(input.ticket));
-    if (!row || row.provider !== 'LINE' || row.usedAt || row.expiresAt <= new Date()) throw new UnauthorizedException('LINE login ticket is invalid');
+    if (!row || row.provider !== 'LINE' || row.usedAt || row.expiresAt <= new Date()) throw new UnauthorizedException('LINEログインの有効期限が切れました。もう一度お試しください');
     let user = row.userId ? await this.repository.findUserById(row.userId) : await this.repository.findOAuthIdentity('LINE', row.subject);
     if (!user) {
       if (!input.birthDate) return { registrationRequired: true, displayName: row.displayName };
-      if (!this.isAdult(input.birthDate)) throw new BadRequestException('You must be at least 18 years old');
+      if (!this.isAdult(input.birthDate)) throw new BadRequestException('18歳以上の方のみ登録できます');
       const displayName = (input.displayName || row.displayName || '').trim();
-      if (!displayName) throw new BadRequestException('Display name is required');
+      if (!displayName) throw new BadRequestException('表示名を入力してください');
       const subjectKey = createHash('sha256').update(row.subject).digest('hex').slice(0, 32);
       user = await this.repository.createUser({ email: `line.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: new Date(`${input.birthDate}T00:00:00.000Z`), gender: input.gender });
       await this.repository.createOAuthIdentity('LINE', row.subject, user.id);
@@ -86,29 +86,29 @@ export class AuthService {
 
   async googleAuthorizeUrl(returnTo: string): Promise<string> {
     const clientId = process.env.GOOGLE_LOGIN_CLIENT_ID;
-    if (!clientId) throw new ServiceUnavailableException('Google login is not configured');
-    if (!this.isAllowedGoogleReturnTo(returnTo)) throw new UnauthorizedException('Invalid Google login return URL');
+    if (!clientId) throw new ServiceUnavailableException('Googleログインは現在利用できません');
+    if (!this.isAllowedGoogleReturnTo(returnTo)) throw new UnauthorizedException('Googleログインの戻り先が正しくありません');
     const nonce = randomBytes(24).toString('base64url');
     const state = await this.jwt.signAsync({ kind: 'google_state', returnTo, nonce }, { expiresIn: 10 * 60 });
-    const query = new URLSearchParams({ client_id: clientId, redirect_uri: this.googleCallbackUrl(), response_type: 'code', scope: 'openid profile email', state, nonce, prompt: 'select_account' });
+    const query = new URLSearchParams({ client_id: clientId, redirect_uri: this.googleCallbackUrl(), response_type: 'code', scope: 'openid profile email', state, nonce, prompt: 'select_account', hl: 'ja' });
     return `https://accounts.google.com/o/oauth2/v2/auth?${query.toString()}`;
   }
 
   async googleCallback(code: string, state: string): Promise<string> {
     const clientId = process.env.GOOGLE_LOGIN_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_LOGIN_CLIENT_SECRET;
-    if (!clientId || !clientSecret) throw new ServiceUnavailableException('Google login is not configured');
+    if (!clientId || !clientSecret) throw new ServiceUnavailableException('Googleログインは現在利用できません');
     let statePayload: { kind?: string; returnTo?: string; nonce?: string };
     try { statePayload = this.jwt.verify<{ kind?: string; returnTo?: string; nonce?: string }>(state); }
-    catch { throw new UnauthorizedException('Invalid Google login state'); }
-    if (statePayload.kind !== 'google_state' || !statePayload.returnTo || !this.isAllowedGoogleReturnTo(statePayload.returnTo) || !statePayload.nonce) throw new UnauthorizedException('Invalid Google login state');
+    catch { throw new UnauthorizedException('Googleログイン情報を確認できませんでした'); }
+    if (statePayload.kind !== 'google_state' || !statePayload.returnTo || !this.isAllowedGoogleReturnTo(statePayload.returnTo) || !statePayload.nonce) throw new UnauthorizedException('Googleログイン情報を確認できませんでした');
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: this.googleCallbackUrl(), client_id: clientId, client_secret: clientSecret }) });
     const tokens = await tokenResponse.json() as { id_token?: string; error_description?: string };
-    if (!tokenResponse.ok || !tokens.id_token) throw new UnauthorizedException(tokens.error_description || 'Google login failed');
+    if (!tokenResponse.ok || !tokens.id_token) throw new UnauthorizedException('Googleログインに失敗しました。もう一度お試しください');
     const verifyResponse = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(tokens.id_token)}`);
     const profile = await verifyResponse.json() as { sub?: string; name?: string; picture?: string; nonce?: string; aud?: string; iss?: string; error_description?: string };
     const trustedIssuer = profile.iss === 'accounts.google.com' || profile.iss === 'https://accounts.google.com';
-    if (!verifyResponse.ok || !profile.sub || profile.aud !== clientId || profile.nonce !== statePayload.nonce || !trustedIssuer) throw new UnauthorizedException(profile.error_description || 'Invalid Google identity');
+    if (!verifyResponse.ok || !profile.sub || profile.aud !== clientId || profile.nonce !== statePayload.nonce || !trustedIssuer) throw new UnauthorizedException('Googleアカウントを確認できませんでした');
     const existing = await this.repository.findOAuthIdentity('GOOGLE', profile.sub);
     const ticket = randomBytes(40).toString('base64url');
     await this.repository.saveOAuthLoginTicket({ id: uuidv7(), tokenHash: this.tokenHash(ticket), provider: 'GOOGLE', subject: profile.sub, displayName: profile.name?.slice(0, 40) || null, profilePhoto: null, userId: existing?.id || null, expiresAt: new Date(Date.now() + 10 * 60_000), usedAt: null });
@@ -117,13 +117,13 @@ export class AuthService {
 
   async redeemGoogleLogin(input: GoogleRedeemDto): Promise<AuthResponse | { registrationRequired: true; displayName: string | null }> {
     const row = await this.repository.findOAuthLoginTicket(this.tokenHash(input.ticket));
-    if (!row || row.provider !== 'GOOGLE' || row.usedAt || row.expiresAt <= new Date()) throw new UnauthorizedException('Google login ticket is invalid');
+    if (!row || row.provider !== 'GOOGLE' || row.usedAt || row.expiresAt <= new Date()) throw new UnauthorizedException('Googleログインの有効期限が切れました。もう一度お試しください');
     let user = row.userId ? await this.repository.findUserById(row.userId) : await this.repository.findOAuthIdentity('GOOGLE', row.subject);
     if (!user) {
       if (!input.birthDate) return { registrationRequired: true, displayName: row.displayName };
-      if (!this.isAdult(input.birthDate)) throw new BadRequestException('You must be at least 18 years old');
+      if (!this.isAdult(input.birthDate)) throw new BadRequestException('18歳以上の方のみ登録できます');
       const displayName = (input.displayName || row.displayName || '').trim();
-      if (!displayName) throw new BadRequestException('Display name is required');
+      if (!displayName) throw new BadRequestException('表示名を入力してください');
       const subjectKey = createHash('sha256').update(row.subject).digest('hex').slice(0, 32);
       user = await this.repository.createUser({ email: `google.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: new Date(`${input.birthDate}T00:00:00.000Z`), gender: input.gender });
       await this.repository.createOAuthIdentity('GOOGLE', row.subject, user.id);
@@ -135,31 +135,31 @@ export class AuthService {
 
   async appleAuthorizeUrl(returnTo: string): Promise<string> {
     const clientId = process.env.APPLE_LOGIN_CLIENT_ID;
-    if (!clientId) throw new ServiceUnavailableException('Apple login is not configured');
-    if (!this.isAllowedAppleReturnTo(returnTo)) throw new UnauthorizedException('Invalid Apple login return URL');
+    if (!clientId) throw new ServiceUnavailableException('Appleログインは現在利用できません');
+    if (!this.isAllowedAppleReturnTo(returnTo)) throw new UnauthorizedException('Appleログインの戻り先が正しくありません');
     const nonce = randomBytes(24).toString('base64url');
     const state = await this.jwt.signAsync({ kind: 'apple_state', returnTo, nonce }, { expiresIn: 10 * 60 });
-    const query = new URLSearchParams({ client_id: clientId, redirect_uri: this.appleCallbackUrl(), response_type: 'code', response_mode: 'form_post', scope: 'name email', state, nonce });
+    const query = new URLSearchParams({ client_id: clientId, redirect_uri: this.appleCallbackUrl(), response_type: 'code', response_mode: 'form_post', scope: 'name email', state, nonce, locale: 'ja_JP' });
     return `https://appleid.apple.com/auth/authorize?${query.toString()}`;
   }
 
   async appleCallback(code: string, state: string, rawUser?: string): Promise<string> {
     const clientId = process.env.APPLE_LOGIN_CLIENT_ID;
-    if (!clientId) throw new ServiceUnavailableException('Apple login is not configured');
+    if (!clientId) throw new ServiceUnavailableException('Appleログインは現在利用できません');
     let statePayload: { kind?: string; returnTo?: string; nonce?: string };
     try { statePayload = this.jwt.verify<{ kind?: string; returnTo?: string; nonce?: string }>(state); }
-    catch { throw new UnauthorizedException('Invalid Apple login state'); }
-    if (statePayload.kind !== 'apple_state' || !statePayload.returnTo || !this.isAllowedAppleReturnTo(statePayload.returnTo) || !statePayload.nonce) throw new UnauthorizedException('Invalid Apple login state');
+    catch { throw new UnauthorizedException('Appleログイン情報を確認できませんでした'); }
+    if (statePayload.kind !== 'apple_state' || !statePayload.returnTo || !this.isAllowedAppleReturnTo(statePayload.returnTo) || !statePayload.nonce) throw new UnauthorizedException('Appleログイン情報を確認できませんでした');
     const clientSecret = await this.appleClientSecret(clientId);
     const tokenResponse = await fetch('https://appleid.apple.com/auth/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: this.appleCallbackUrl(), client_id: clientId, client_secret: clientSecret }) });
     const tokens = await tokenResponse.json() as { id_token?: string; error?: string };
-    if (!tokenResponse.ok || !tokens.id_token) throw new UnauthorizedException(tokens.error || 'Apple login failed');
+    if (!tokenResponse.ok || !tokens.id_token) throw new UnauthorizedException('Appleログインに失敗しました。もう一度お試しください');
     const verified = await jwtVerify(tokens.id_token, createRemoteJWKSet(new URL('https://appleid.apple.com/auth/keys')), { issuer: 'https://appleid.apple.com', audience: clientId });
-    if (typeof verified.payload.sub !== 'string' || verified.payload.nonce !== statePayload.nonce) throw new UnauthorizedException('Invalid Apple identity');
+    if (typeof verified.payload.sub !== 'string' || verified.payload.nonce !== statePayload.nonce) throw new UnauthorizedException('Appleアカウントを確認できませんでした');
     let displayName: string | null = null;
     if (rawUser) {
       try { const parsed = JSON.parse(rawUser) as { name?: { firstName?: string; lastName?: string } }; displayName = [parsed.name?.firstName, parsed.name?.lastName].filter(Boolean).join(' ').slice(0, 40) || null; }
-      catch { throw new BadRequestException('Invalid Apple user profile'); }
+      catch { throw new BadRequestException('Appleのプロフィール情報を確認できませんでした'); }
     }
     const existing = await this.repository.findOAuthIdentity('APPLE', verified.payload.sub);
     const ticket = randomBytes(40).toString('base64url');
@@ -169,13 +169,13 @@ export class AuthService {
 
   async redeemAppleLogin(input: AppleRedeemDto): Promise<AuthResponse | { registrationRequired: true; displayName: string | null }> {
     const row = await this.repository.findOAuthLoginTicket(this.tokenHash(input.ticket));
-    if (!row || row.provider !== 'APPLE' || row.usedAt || row.expiresAt <= new Date()) throw new UnauthorizedException('Apple login ticket is invalid');
+    if (!row || row.provider !== 'APPLE' || row.usedAt || row.expiresAt <= new Date()) throw new UnauthorizedException('Appleログインの有効期限が切れました。もう一度お試しください');
     let user = row.userId ? await this.repository.findUserById(row.userId) : await this.repository.findOAuthIdentity('APPLE', row.subject);
     if (!user) {
       if (!input.birthDate) return { registrationRequired: true, displayName: row.displayName };
-      if (!this.isAdult(input.birthDate)) throw new BadRequestException('You must be at least 18 years old');
+      if (!this.isAdult(input.birthDate)) throw new BadRequestException('18歳以上の方のみ登録できます');
       const displayName = (input.displayName || row.displayName || '').trim();
-      if (!displayName) throw new BadRequestException('Display name is required');
+      if (!displayName) throw new BadRequestException('表示名を入力してください');
       const subjectKey = createHash('sha256').update(row.subject).digest('hex').slice(0, 32);
       user = await this.repository.createUser({ email: `apple.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: new Date(`${input.birthDate}T00:00:00.000Z`), gender: input.gender });
       await this.repository.createOAuthIdentity('APPLE', row.subject, user.id);
@@ -187,33 +187,33 @@ export class AuthService {
 
   async xAuthorizeUrl(returnTo: string): Promise<string> {
     const clientId = process.env.X_LOGIN_CLIENT_ID;
-    if (!clientId) throw new ServiceUnavailableException('X login is not configured');
-    if (!this.isAllowedXReturnTo(returnTo)) throw new UnauthorizedException('Invalid X login return URL');
+    if (!clientId) throw new ServiceUnavailableException('Xログインは現在利用できません');
+    if (!this.isAllowedXReturnTo(returnTo)) throw new UnauthorizedException('Xログインの戻り先が正しくありません');
     const stateKey = randomBytes(32).toString('base64url');
     const verifier = randomBytes(48).toString('base64url');
     await this.repository.saveOAuthLoginTicket({ id: uuidv7(), tokenHash: this.tokenHash(stateKey), provider: 'X_STATE', subject: verifier, displayName: returnTo, profilePhoto: null, userId: null, expiresAt: new Date(Date.now() + 10 * 60_000), usedAt: null });
     const state = await this.jwt.signAsync({ kind: 'x_state', key: stateKey }, { expiresIn: 10 * 60 });
     const challenge = createHash('sha256').update(verifier).digest('base64url');
-    const query = new URLSearchParams({ response_type: 'code', client_id: clientId, redirect_uri: this.xCallbackUrl(), scope: 'users.read', state, code_challenge: challenge, code_challenge_method: 'S256' });
+    const query = new URLSearchParams({ response_type: 'code', client_id: clientId, redirect_uri: this.xCallbackUrl(), scope: 'users.read', state, code_challenge: challenge, code_challenge_method: 'S256', lang: 'ja' });
     return `https://x.com/i/oauth2/authorize?${query.toString()}`;
   }
 
   async xCallback(code: string, state: string): Promise<string> {
     const clientId = process.env.X_LOGIN_CLIENT_ID; const clientSecret = process.env.X_LOGIN_CLIENT_SECRET;
-    if (!clientId || !clientSecret) throw new ServiceUnavailableException('X login is not configured');
+    if (!clientId || !clientSecret) throw new ServiceUnavailableException('Xログインは現在利用できません');
     let statePayload: { kind?: string; key?: string };
     try { statePayload = this.jwt.verify<{ kind?: string; key?: string }>(state); }
-    catch { throw new UnauthorizedException('Invalid X login state'); }
-    if (statePayload.kind !== 'x_state' || !statePayload.key) throw new UnauthorizedException('Invalid X login state');
+    catch { throw new UnauthorizedException('Xログイン情報を確認できませんでした'); }
+    if (statePayload.kind !== 'x_state' || !statePayload.key) throw new UnauthorizedException('Xログイン情報を確認できませんでした');
     const stateRow = await this.repository.findOAuthLoginTicket(this.tokenHash(statePayload.key));
-    if (!stateRow || stateRow.provider !== 'X_STATE' || stateRow.usedAt || stateRow.expiresAt <= new Date() || !stateRow.displayName || !this.isAllowedXReturnTo(stateRow.displayName)) throw new UnauthorizedException('Invalid X login state');
+    if (!stateRow || stateRow.provider !== 'X_STATE' || stateRow.usedAt || stateRow.expiresAt <= new Date() || !stateRow.displayName || !this.isAllowedXReturnTo(stateRow.displayName)) throw new UnauthorizedException('Xログイン情報を確認できませんでした');
     await this.repository.consumeOAuthLoginTicket(stateRow.id);
     const tokenResponse = await fetch('https://api.x.com/2/oauth2/token', { method: 'POST', headers: { authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`, 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: this.xCallbackUrl(), code_verifier: stateRow.subject }) });
     const tokens = await tokenResponse.json() as { access_token?: string; error_description?: string };
-    if (!tokenResponse.ok || !tokens.access_token) throw new UnauthorizedException(tokens.error_description || 'X login failed');
+    if (!tokenResponse.ok || !tokens.access_token) throw new UnauthorizedException('Xログインに失敗しました。もう一度お試しください');
     const profileResponse = await fetch('https://api.x.com/2/users/me?user.fields=name,profile_image_url,username', { headers: { authorization: `Bearer ${tokens.access_token}` } });
     const profileResult = await profileResponse.json() as { data?: { id?: string; name?: string; profile_image_url?: string }; detail?: string };
-    if (!profileResponse.ok || !profileResult.data?.id) throw new UnauthorizedException(profileResult.detail || 'Invalid X identity');
+    if (!profileResponse.ok || !profileResult.data?.id) throw new UnauthorizedException('Xアカウントを確認できませんでした');
     const existing = await this.repository.findOAuthIdentity('X', profileResult.data.id);
     const ticket = randomBytes(40).toString('base64url');
     await this.repository.saveOAuthLoginTicket({ id: uuidv7(), tokenHash: this.tokenHash(ticket), provider: 'X', subject: profileResult.data.id, displayName: profileResult.data.name?.slice(0, 40) || null, profilePhoto: null, userId: existing?.id || null, expiresAt: new Date(Date.now() + 10 * 60_000), usedAt: null });
@@ -222,13 +222,13 @@ export class AuthService {
 
   async redeemXLogin(input: XRedeemDto): Promise<AuthResponse | { registrationRequired: true; displayName: string | null }> {
     const row = await this.repository.findOAuthLoginTicket(this.tokenHash(input.ticket));
-    if (!row || row.provider !== 'X' || row.usedAt || row.expiresAt <= new Date()) throw new UnauthorizedException('X login ticket is invalid');
+    if (!row || row.provider !== 'X' || row.usedAt || row.expiresAt <= new Date()) throw new UnauthorizedException('Xログインの有効期限が切れました。もう一度お試しください');
     let user = row.userId ? await this.repository.findUserById(row.userId) : await this.repository.findOAuthIdentity('X', row.subject);
     if (!user) {
       if (!input.birthDate) return { registrationRequired: true, displayName: row.displayName };
-      if (!this.isAdult(input.birthDate)) throw new BadRequestException('You must be at least 18 years old');
+      if (!this.isAdult(input.birthDate)) throw new BadRequestException('18歳以上の方のみ登録できます');
       const displayName = (input.displayName || row.displayName || '').trim();
-      if (!displayName) throw new BadRequestException('Display name is required');
+      if (!displayName) throw new BadRequestException('表示名を入力してください');
       const subjectKey = createHash('sha256').update(row.subject).digest('hex').slice(0, 32);
       user = await this.repository.createUser({ email: `x.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: new Date(`${input.birthDate}T00:00:00.000Z`), gender: input.gender });
       await this.repository.createOAuthIdentity('X', row.subject, user.id);
@@ -240,7 +240,7 @@ export class AuthService {
 
   async refresh(rawToken: string): Promise<AuthResponse> {
     const stored = await this.repository.findRefreshToken(this.tokenHash(rawToken));
-    if (!stored || stored.revokedAt || stored.expiresAt <= new Date()) throw new UnauthorizedException('Invalid refresh token');
+    if (!stored || stored.revokedAt || stored.expiresAt <= new Date()) throw new UnauthorizedException('ログインの有効期限が切れました。もう一度ログインしてください');
     await this.repository.revokeRefreshToken(stored.id);
     const user = await this.requireUser(stored.userId);
     return { user: this.publicUser(user), ...(await this.issueTokens(user.id)) };
@@ -252,7 +252,7 @@ export class AuthService {
   }
 
   async getProfile(userId: string): Promise<PublicUser> { return this.publicUser(await this.requireUser(userId)); }
-  async deleteAccount(userId:string):Promise<void>{const user=await this.requireUser(userId);if(user.email.endsWith('@hangoutnow.example'))throw new ForbiddenException('Shared demo accounts cannot be deleted');for(const photo of new Set([user.profilePhoto,...user.profilePhotos].filter((value):value is string=>Boolean(value))))await this.images.deleteProfilePhoto(userId,photo);await this.repository.deleteUser(userId)}
+  async deleteAccount(userId:string):Promise<void>{const user=await this.requireUser(userId);if(user.email.endsWith('@hangoutnow.example'))throw new ForbiddenException('共用デモアカウントは削除できません');for(const photo of new Set([user.profilePhoto,...user.profilePhotos].filter((value):value is string=>Boolean(value))))await this.images.deleteProfilePhoto(userId,photo);await this.repository.deleteUser(userId)}
 
   private async applyRegistrationPhotos(user: StoredUser, photos: string[]): Promise<StoredUser> {
     if (!photos.length) return user;
@@ -271,9 +271,9 @@ export class AuthService {
   }
   async requestPhoneVerification(userId: string, input: RequestPhoneVerificationDto, requestIp='unknown') {
     const counts=await this.repository.phoneVerificationCounts(userId,input.phone,requestIp,new Date(Date.now()-24*60*60_000));
-    if(counts.user>=5||counts.phone>=5||counts.ip>=20)throw new BadRequestException('Daily verification limit reached');
+    if(counts.user>=5||counts.phone>=5||counts.ip>=20)throw new BadRequestException('本日の認証コード送信回数が上限に達しました');
     const latest=await this.repository.findPhoneVerification(userId,input.phone);
-    if(latest?.createdAt&&latest.createdAt.getTime()>Date.now()-60_000)throw new BadRequestException('Wait 60 seconds before requesting another code');
+    if(latest?.createdAt&&latest.createdAt.getTime()>Date.now()-60_000)throw new BadRequestException('認証コードを再送する場合は60秒お待ちください');
     const code = randomInt(100000, 1000000).toString();
     if(this.sms.enabled)await this.sms.request(input.phone);
     await this.repository.createPhoneVerification({ id: uuidv7(), userId, phone: input.phone, codeHash: this.sms.enabled?'twilio':this.phoneCodeHash(input.phone, code), expiresAt: new Date(Date.now() + 10 * 60_000), usedAt: null, attempts: 0, requestIp });
@@ -283,11 +283,11 @@ export class AuthService {
   }
   async confirmPhoneVerification(userId: string, input: ConfirmPhoneVerificationDto): Promise<PublicUser> {
     const row = await this.repository.findPhoneVerification(userId, input.phone);
-    if (!row || row.expiresAt <= new Date() || row.attempts >= 5) throw new BadRequestException('Verification code is expired');
+    if (!row || row.expiresAt <= new Date() || row.attempts >= 5) throw new BadRequestException('認証コードの有効期限が切れています');
     const valid=this.sms.enabled?await this.sms.check(input.phone,input.code):(()=>{const expected=Buffer.from(row.codeHash,'hex');const actual=Buffer.from(this.phoneCodeHash(input.phone,input.code),'hex');return expected.length===actual.length&&timingSafeEqual(expected,actual)})();
-    if (!valid) { await this.repository.failPhoneVerification(row.id); throw new BadRequestException('Verification code is invalid'); }
+    if (!valid) { await this.repository.failPhoneVerification(row.id); throw new BadRequestException('認証コードが正しくありません'); }
     try { return this.publicUser(await this.repository.verifyPhone(userId, input.phone, row.id)); }
-    catch { throw new ConflictException('Phone number is already registered'); }
+    catch { throw new ConflictException('この電話番号はすでに登録されています'); }
   }
   verifyAccessToken(token: string): { sub: string } { return this.jwt.verify<{ sub: string }>(token); }
 
@@ -326,7 +326,7 @@ export class AuthService {
   private isAllowedAppleReturnTo(value: string): boolean { return value === 'hangoutnow://auth/apple' || this.isAllowedLineReturnTo(value); }
   private async appleClientSecret(clientId: string): Promise<string> {
     const teamId = process.env.APPLE_TEAM_ID; const keyId = process.env.APPLE_KEY_ID; const privateKey = process.env.APPLE_PRIVATE_KEY;
-    if (!teamId || !keyId || !privateKey) throw new ServiceUnavailableException('Apple login is not configured');
+    if (!teamId || !keyId || !privateKey) throw new ServiceUnavailableException('Appleログインは現在利用できません');
     const key = await importPKCS8(privateKey.replace(/\\n/g, '\n'), 'ES256');
     return new SignJWT({}).setProtectedHeader({ alg: 'ES256', kid: keyId }).setIssuer(teamId).setSubject(clientId).setAudience('https://appleid.apple.com').setIssuedAt().setExpirationTime('5m').sign(key);
   }

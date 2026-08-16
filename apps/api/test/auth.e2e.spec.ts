@@ -63,7 +63,8 @@ describe('authentication and profile', () => {
     vi.stubGlobal('fetch',vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({id_token:'line-id-token'}),{status:200})).mockResolvedValueOnce(new Response(JSON.stringify({sub:'line-user-1',name:'LINE User',picture:'https://example.com/photo.jpg',nonce:'line-nonce'}),{status:200})));
     app=await createApp();
     const auth=app.get(AuthService);const jwt=app.get(JwtService);const webReturnTo='https://method-more.com/app.html';
-    await expect(auth.lineAuthorizeUrl('https://evil.example/demo.html')).rejects.toThrow('Invalid LINE login return URL');
+    await expect(auth.lineAuthorizeUrl('https://evil.example/demo.html')).rejects.toThrow('LINEログインの戻り先が正しくありません');
+    expect(new URL(await auth.lineAuthorizeUrl(webReturnTo)).searchParams.get('ui_locales')).toBe('ja');
     const state=await jwt.signAsync({kind:'line_state',returnTo:webReturnTo,nonce:'line-nonce'},{expiresIn:600});
     const redirect=await auth.lineCallback('authorization-code',state);expect(redirect.startsWith(`${webReturnTo}?ticket=`)).toBe(true);const ticket=new URL(redirect).searchParams.get('ticket');expect(ticket).toBeTruthy();
     const needsProfile=await request(app.getHttpServer()).post('/auth/line/redeem').send({ticket}).expect(200);expect(needsProfile.body.registrationRequired).toBe(true);
@@ -75,13 +76,13 @@ describe('authentication and profile', () => {
     process.env.X_LOGIN_CLIENT_ID='x-client-id';process.env.X_LOGIN_CLIENT_SECRET='x-client-secret';
     vi.stubGlobal('fetch',vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({access_token:'x-access-token'}),{status:200})).mockResolvedValueOnce(new Response(JSON.stringify({data:{id:'x-user-1',name:'X User',username:'xuser',profile_image_url:'https://example.com/x.jpg'}}),{status:200})));
     app=await createApp();const auth=app.get(AuthService);const webReturnTo='https://method-more.com/app.html';
-    await expect(auth.xAuthorizeUrl('https://evil.example/app.html')).rejects.toThrow('Invalid X login return URL');
-    const authorizeUrl=await auth.xAuthorizeUrl(webReturnTo);const state=new URL(authorizeUrl).searchParams.get('state');expect(state).toBeTruthy();expect(new URL(authorizeUrl).searchParams.get('code_challenge_method')).toBe('S256');
+    await expect(auth.xAuthorizeUrl('https://evil.example/app.html')).rejects.toThrow('Xログインの戻り先が正しくありません');
+    const authorizeUrl=await auth.xAuthorizeUrl(webReturnTo);const state=new URL(authorizeUrl).searchParams.get('state');expect(state).toBeTruthy();expect(new URL(authorizeUrl).searchParams.get('code_challenge_method')).toBe('S256');expect(new URL(authorizeUrl).searchParams.get('lang')).toBe('ja');
     const redirect=await auth.xCallback('x-authorization-code',state!);expect(redirect.startsWith(`${webReturnTo}?provider=x&ticket=`)).toBe(true);const ticket=new URL(redirect).searchParams.get('ticket');expect(ticket).toBeTruthy();
     const needsProfile=await request(app.getHttpServer()).post('/auth/x/redeem').send({ticket}).expect(200);expect(needsProfile.body.registrationRequired).toBe(true);
     const registered=await request(app.getHttpServer()).post('/auth/x/redeem').send({ticket,birthDate:'1990-01-01',displayName:'X User',gender:'UNDISCLOSED'}).expect(200);expect(registered.body.user.displayName).toBe('X User');
     await request(app.getHttpServer()).post('/auth/x/redeem').send({ticket,birthDate:'1990-01-01'}).expect(401);
-    await expect(auth.xCallback('x-authorization-code',state!)).rejects.toThrow('Invalid X login state');
+    await expect(auth.xCallback('x-authorization-code',state!)).rejects.toThrow('Xログイン情報を確認できませんでした');
   },15_000);
 
   it('registers with a verified Apple identity and rejects ticket reuse', async()=>{
@@ -92,7 +93,8 @@ describe('authentication and profile', () => {
     vi.stubGlobal('fetch',vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({id_token:idToken}),{status:200,headers:{'content-type':'application/json'}})).mockResolvedValueOnce(new Response(JSON.stringify({keys:[publicJwk]}),{status:200,headers:{'content-type':'application/json','cache-control':'max-age=60'}})));
     app=await createApp();
     const auth=app.get(AuthService);const jwt=app.get(JwtService);const webReturnTo='https://method-more.com/app.html';
-    await expect(auth.appleAuthorizeUrl('https://evil.example/app.html')).rejects.toThrow('Invalid Apple login return URL');
+    await expect(auth.appleAuthorizeUrl('https://evil.example/app.html')).rejects.toThrow('Appleログインの戻り先が正しくありません');
+    expect(new URL(await auth.appleAuthorizeUrl(webReturnTo)).searchParams.get('locale')).toBe('ja_JP');
     const state=await jwt.signAsync({kind:'apple_state',returnTo:webReturnTo,nonce:'apple-nonce'},{expiresIn:600});
     const redirect=await auth.appleCallback('apple-authorization-code',state,JSON.stringify({name:{firstName:'Apple',lastName:'User'}}));expect(redirect.startsWith(`${webReturnTo}?provider=apple&ticket=`)).toBe(true);const ticket=new URL(redirect).searchParams.get('ticket');expect(ticket).toBeTruthy();
     const needsProfile=await request(app.getHttpServer()).post('/auth/apple/redeem').send({ticket}).expect(200);expect(needsProfile.body.registrationRequired).toBe(true);
@@ -105,7 +107,8 @@ describe('authentication and profile', () => {
     vi.stubGlobal('fetch',vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({id_token:'google-id-token'}),{status:200})).mockResolvedValueOnce(new Response(JSON.stringify({sub:'google-user-1',name:'Google User',picture:'https://example.com/google.jpg',nonce:'google-nonce',aud:'google-client-id',iss:'https://accounts.google.com'}),{status:200})));
     app=await createApp();
     const auth=app.get(AuthService);const jwt=app.get(JwtService);const webReturnTo='https://method-more.com/app.html';
-    await expect(auth.googleAuthorizeUrl('https://evil.example/app.html')).rejects.toThrow('Invalid Google login return URL');
+    await expect(auth.googleAuthorizeUrl('https://evil.example/app.html')).rejects.toThrow('Googleログインの戻り先が正しくありません');
+    expect(new URL(await auth.googleAuthorizeUrl(webReturnTo)).searchParams.get('hl')).toBe('ja');
     const state=await jwt.signAsync({kind:'google_state',returnTo:webReturnTo,nonce:'google-nonce'},{expiresIn:600});
     const redirect=await auth.googleCallback('authorization-code',state);expect(redirect.startsWith(`${webReturnTo}?provider=google&ticket=`)).toBe(true);const ticket=new URL(redirect).searchParams.get('ticket');expect(ticket).toBeTruthy();
     const needsProfile=await request(app.getHttpServer()).post('/auth/google/redeem').send({ticket}).expect(200);expect(needsProfile.body.registrationRequired).toBe(true);

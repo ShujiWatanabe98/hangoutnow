@@ -843,6 +843,13 @@ export default function App() {
     }
   }
   function confirmCancelHangout(hangoutId: string) {
+    if (selectedHangout?.status === "FINISHED") {
+      Alert.alert("Hangout削除", "このHangoutを削除しますか？Hangoutのトークもすべて削除されます。", [
+        { text: "戻る", style: "cancel" },
+        { text: "Hangout削除", style: "destructive", onPress: () => void cancelHangout(hangoutId) },
+      ]);
+      return;
+    }
     Alert.alert("Hangout中止", "このHangoutを中止しますか？参加者にも中止が通知されます。", [
       { text: "戻る", style: "cancel" },
       { text: "Hangout中止", style: "destructive", onPress: () => void cancelHangout(hangoutId) },
@@ -1618,7 +1625,10 @@ function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onChat, 
             <Text style={styles.reportText}>この募集の主催者を通報・ブロック</Text>
           </Pressable>
         )}
-        {isHost && (
+        {isHost && hangout.status === "FINISHED" && (
+          <Pressable style={styles.cancelHangoutButton} onPress={() => onCancel(hangout.id)}><Text style={styles.cancelHangoutButtonText}>Hangout削除</Text></Pressable>
+        )}
+        {isHost && hangout.status !== "FINISHED" && (
           <>
             <Pressable style={styles.editHangoutButton} onPress={() => setEditing(true)}><Text style={styles.editHangoutButtonText}>Hangout編集</Text></Pressable>
             <Pressable style={styles.cancelHangoutButton} onPress={() => onCancel(hangout.id)}><Text style={styles.cancelHangoutButtonText}>Hangout中止</Text></Pressable>
