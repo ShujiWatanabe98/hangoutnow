@@ -2,10 +2,17 @@
   "expo": {
     "name": "Hangout Now",
     "slug": "hangout-now",
-    "version": "0.1.0",
+    "version": "1.0.0",
+    "description": "やりたいことから、近くの仲間とつながるアクティビティマッチングアプリ",
+    "icon": "./assets/icon.png",
     "scheme": "hangoutnow",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#f5f3eb"
+    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.hangoutnow.app",
@@ -14,7 +21,16 @@
       }
     },
     "android": {
-      "package": "com.hangoutnow.app"
+      "package": "com.hangoutnow.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#163f31"
+      },
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
+      "softwareKeyboardLayoutMode": "resize",
+      "userInterfaceStyle": "light"
     },
     "extra": {
       "apiUrl": "https://hangoutnow-api.onrender.com",
