@@ -3,12 +3,16 @@ import { createHash, randomBytes } from 'node:crypto';
 import { v7 as uuidv7 } from 'uuid';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubscribeNewsletterDto } from './newsletter.dto';
+import { NewsletterEmailService } from './newsletter-email.service';
 
 const hashToken = (token: string): string => createHash('sha256').update(token).digest('hex');
 
 @Injectable()
 export class NewsletterService {
-  constructor(@Inject(PrismaService) private readonly db: PrismaService) {}
+  constructor(
+    @Inject(PrismaService) private readonly db: PrismaService,
+    @Inject(NewsletterEmailService) private readonly email: NewsletterEmailService,
+  ) {}
 
   async subscribe(input: SubscribeNewsletterDto) {
     if (!input.consent) throw new BadRequestException('Consent is required');
@@ -29,7 +33,8 @@ export class NewsletterService {
         data: { id: uuidv7(), email, consentAt: now, source: input.source, unsubscribeTokenHash },
       });
     }
-    return { registered: true, alreadyRegistered: false, unsubscribeToken: token };
+    const confirmationEmailSent = await this.email.sendWelcome(email, token);
+    return { registered: true, alreadyRegistered: false, unsubscribeToken: token, confirmationEmailSent };
   }
 
   async unsubscribe(token: string) {

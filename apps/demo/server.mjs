@@ -4,7 +4,7 @@ import { extname, join, normalize } from 'node:path';
 
 const port = Number(process.env.DEMO_PORT ?? 4173);
 const root = join(import.meta.dirname, 'public');
-const proxyApiUrl = process.env.DEMO_PROXY_API_URL?.replace(/\/$/, '');
+const proxyApiUrl = (process.env.DEMO_PROXY_API_URL || process.env.API_URL)?.replace(/\/$/, '');
 const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.xml': 'application/xml; charset=utf-8', '.txt': 'text/plain; charset=utf-8' };
 
 createServer(async (request, response) => {
@@ -40,7 +40,7 @@ createServer(async (request, response) => {
   try {
     const fileBody = await readFile(file);
     const body = extname(file) === '.html' && requestedPath !== '/demo.html'
-      ? Buffer.from(fileBody.toString('utf8').replace('<head>', '<head><link rel="stylesheet" href="/cookie-consent.css?v=20260816-1"><script src="/analytics.js?v=20260816-1" defer></script>'))
+      ? Buffer.from(fileBody.toString('utf8').replace('<head>', '<head><link rel="stylesheet" href="/cookie-consent.css?v=20260816-2"><link rel="stylesheet" href="/share.css?v=20260816-1"><script src="/analytics.js?v=20260816-2" defer></script><script src="/share.js?v=20260816-1" defer></script>'))
       : fileBody;
     const isVersionedAsset = requestedPath.startsWith('/assets/') || ['.css', '.js', '.svg', '.png', '.jpg', '.jpeg', '.webp'].includes(extname(file));
     response.writeHead(200, {

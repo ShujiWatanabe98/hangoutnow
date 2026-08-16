@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Hangout Now お知らせ</title>
+    <link>https://method-more.com/news.html</link>
+    <description>Hangout Nowの開発状況、安全への取り組み、公開テスト情報</description>
+    <language>ja</language>
+    <lastBuildDate>Sun, 16 Aug 2026 14:00:00 +0900</lastBuildDate>
+    <atom:link href="https://method-more.com/feed.xml" rel="self" type="application/rss+xml"/>
+    <item><title>公開テストに向けて、安全と使いやすさを改善しています</title><link>https://method-more.com/news-public-test.html</link><guid isPermaLink="true">https://method-more.com/news-public-test.html</guid><pubDate>Sun, 16 Aug 2026 09:00:00 +0900</pubDate><description>参加申請、トーク、位置情報保護、安全機能について、公開テストに向けた改善内容を紹介します。</description></item>
+  </channel>
+</rss>
