@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="description" content="Hangout Nowは、人ではなくアクティビティからつながる、近くの仲間探しアプリです。">
+  <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
+  <meta name="googlebot" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
   <meta name="theme-color" content="#163f31">
   <link rel="canonical" href="https://method-more.com/">
   <meta property="og:type" content="website">
@@ -11,16 +13,63 @@
   <meta property="og:title" content="Hangout Now｜やりたいことから、つながろう。">
   <meta property="og:description" content="人ではなくアクティビティからつながる、近くの仲間探しアプリ。">
   <meta property="og:url" content="https://method-more.com/">
+  <meta property="og:locale" content="ja_JP">
+  <meta property="og:image" content="https://method-more.com/assets/demo-drinking-hangout-v2.jpg">
+  <meta property="og:image:alt" content="Hangout Nowでアクティビティを楽しむ仲間たち">
   <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Hangout Now｜やりたいことから、つながろう。">
+  <meta name="twitter:description" content="人ではなくアクティビティからつながる、近くの仲間探しアプリ。">
+  <meta name="twitter:image" content="https://method-more.com/assets/demo-drinking-hangout-v2.jpg">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <title>Hangout Now｜やりたいことから、つながろう。</title>
   <link rel="stylesheet" href="landing.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://method-more.com/#website",
+        "url": "https://method-more.com/",
+        "name": "Hangout Now",
+        "inLanguage": "ja-JP",
+        "description": "人ではなくアクティビティからつながる、近くの仲間探しアプリ"
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://method-more.com/#organization",
+        "name": "methodmore",
+        "url": "https://method-more.com/",
+        "email": "info@method-more.com"
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://method-more.com/#application",
+        "name": "Hangout Now",
+        "url": "https://method-more.com/",
+        "applicationCategory": "SocialNetworkingApplication",
+        "operatingSystem": "iOS, Android, Web",
+        "inLanguage": "ja-JP",
+        "description": "近くで募集中のアクティビティを見つけ、参加申請、承認、トークを経て安全に合流できるソーシャルアプリです。",
+        "isAccessibleForFree": true,
+        "publisher": { "@id": "https://method-more.com/#organization" },
+        "featureList": [
+          "近くのアクティビティを探す",
+          "Hangoutへの参加申請と承認",
+          "参加者限定のトーク",
+          "承認後に集合場所の詳細を共有",
+          "参加者同士の評価"
+        ]
+      }
+    ]
+  }
+  </script>
 </head>
 <body>
   <header class="site-header">
     <a class="logo" href="/" aria-label="Hangout Now ホーム">Hangout <i>Now</i></a>
     <nav aria-label="メインナビゲーション">
-      <a href="#how">使い方</a><a href="#safety">安心・安全</a><a class="nav-cta" href="/demo.html">デモを見る</a>
+      <a href="/about.html">サービス概要</a><a href="/how-it-works.html">使い方</a><a href="/safety.html">安心・安全</a><a href="/faq.html">よくある質問</a><a class="nav-cta" href="/demo.html">デモを見る</a>
     </nav>
   </header>
 
@@ -32,7 +81,7 @@
         <p class="hero-lead">「今からランニング」「今夜ラーメン」——気分と時間が合う近くの仲間を、アクティビティから見つけるソーシャルアプリ。</p>
         <div class="hero-actions">
           <a class="button primary" href="/demo.html">無料デモを体験</a>
-          <a class="button text-button" href="#how">Hangout Nowとは <span>↓</span></a>
+          <a class="button text-button" href="/about.html">Hangout Nowとは <span>→</span></a>
         </div>
         <p class="availability"><span></span> 現在、公開テストに向けて準備中です</p>
       </div>
@@ -87,7 +136,7 @@
 
   <footer>
     <div><a class="logo" href="/">Hangout <i>Now</i></a><p>やりたいことから、つながろう。</p></div>
-    <nav aria-label="フッターナビゲーション"><a href="mailto:info@method-more.com">お問い合わせ</a><a href="/privacy.html">プライバシー</a><a href="/terms.html">利用規約</a><a href="/community-guidelines.html">ガイドライン</a><a href="/delete-account.html">アカウント削除</a></nav>
+    <nav aria-label="フッターナビゲーション"><a href="/about.html">サービス概要</a><a href="/how-it-works.html">使い方</a><a href="/safety.html">安心・安全</a><a href="/faq.html">よくある質問</a><a href="mailto:info@method-more.com">お問い合わせ</a><a href="/privacy.html">プライバシー</a><a href="/terms.html">利用規約</a><a href="/community-guidelines.html">ガイドライン</a><a href="/delete-account.html">アカウント削除</a></nav>
     <p class="copyright">© 2026 methodmore. All rights reserved.</p>
   </footer>
 </body>

@@ -39,7 +39,11 @@ createServer(async (request, response) => {
   if (!file.startsWith(root)) { response.writeHead(403).end(); return; }
   try {
     const body = await readFile(file);
-    response.writeHead(200, { 'content-type': types[extname(file)] ?? 'application/octet-stream', 'cache-control': 'no-store' });
+    response.writeHead(200, {
+      'content-type': types[extname(file)] ?? 'application/octet-stream',
+      'cache-control': 'no-store',
+      ...(requestedPath === '/demo.html' ? { 'x-robots-tag': 'noindex, nofollow, noarchive' } : {}),
+    });
     response.end(body);
   } catch { if (!response.headersSent) response.writeHead(404); response.end('Not found'); }
 }).listen(port, '0.0.0.0', () => console.log(`Hangout Now demo listening on ${port}`));
