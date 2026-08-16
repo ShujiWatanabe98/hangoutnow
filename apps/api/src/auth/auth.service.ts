@@ -3,8 +3,9 @@ import { JwtService } from '@nestjs/jwt';
 import { compare, hash } from 'bcryptjs';
 import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 import { v7 as uuidv7 } from 'uuid';
+import { createRemoteJWKSet, importPKCS8, jwtVerify, SignJWT } from 'jose';
 import { AuthRepository, PublicUser, StoredUser } from './auth.types';
-import { ConfirmPhoneVerificationDto, GoogleRedeemDto, LineRedeemDto, LoginDto, RegisterDto, RequestPhoneVerificationDto, UpdateProfileDto } from './auth.dto';
+import { AppleRedeemDto, ConfirmPhoneVerificationDto, GoogleRedeemDto, LineRedeemDto, LoginDto, RegisterDto, RequestPhoneVerificationDto, UpdateProfileDto, XRedeemDto } from './auth.dto';
 import { SmsVerificationProvider } from './sms-verification.provider';
 import { ImageStorageService } from '../storage/image-storage.service';
 
@@ -22,9 +23,10 @@ export class AuthService {
     const email = input.email.trim().toLowerCase();
     if (!this.isAdult(input.birthDate)) throw new BadRequestException('You must be at least 18 years old');
     if (await this.repository.findUserByEmail(email)) throw new ConflictException('Email is already registered');
-    const user = await this.repository.createUser({
+    let user = await this.repository.createUser({
       email, passwordHash: await hash(input.password, 10), displayName: input.displayName.trim(), birthDate: new Date(`${input.birthDate}T00:00:00.000Z`), gender: input.gender,
     });
+    user = await this.applyRegistrationPhoto(user, input.profilePhoto);
     return { user: this.publicUser(user), ...(await this.issueTokens(user.id)) };
   }
 
@@ -60,7 +62,7 @@ export class AuthService {
     if (!verifyResponse.ok || !profile.sub || profile.nonce !== statePayload.nonce) throw new UnauthorizedException(profile.error_description || 'Invalid LINE identity');
     const existing = await this.repository.findOAuthIdentity('LINE', profile.sub);
     const ticket = randomBytes(40).toString('base64url');
-    await this.repository.saveOAuthLoginTicket({ id: uuidv7(), tokenHash: this.tokenHash(ticket), provider: 'LINE', subject: profile.sub, displayName: profile.name?.slice(0, 40) || null, profilePhoto: profile.picture || null, userId: existing?.id || null, expiresAt: new Date(Date.now() + 10 * 60_000), usedAt: null });
+    await this.repository.saveOAuthLoginTicket({ id: uuidv7(), tokenHash: this.tokenHash(ticket), provider: 'LINE', subject: profile.sub, displayName: profile.name?.slice(0, 40) || null, profilePhoto: null, userId: existing?.id || null, expiresAt: new Date(Date.now() + 10 * 60_000), usedAt: null });
     return `${statePayload.returnTo}${statePayload.returnTo.includes('?') ? '&' : '?'}ticket=${encodeURIComponent(ticket)}`;
   }
 
@@ -76,7 +78,7 @@ export class AuthService {
       const subjectKey = createHash('sha256').update(row.subject).digest('hex').slice(0, 32);
       user = await this.repository.createUser({ email: `line.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: new Date(`${input.birthDate}T00:00:00.000Z`), gender: input.gender });
       await this.repository.createOAuthIdentity('LINE', row.subject, user.id);
-      if (row.profilePhoto) user = await this.repository.updateProfile(user.id, { profilePhoto: row.profilePhoto });
+      user = await this.applyRegistrationPhoto(user, input.profilePhoto);
     }
     await this.repository.consumeOAuthLoginTicket(row.id);
     return { user: this.publicUser(user), ...(await this.issueTokens(user.id)) };
@@ -109,7 +111,7 @@ export class AuthService {
     if (!verifyResponse.ok || !profile.sub || profile.aud !== clientId || profile.nonce !== statePayload.nonce || !trustedIssuer) throw new UnauthorizedException(profile.error_description || 'Invalid Google identity');
     const existing = await this.repository.findOAuthIdentity('GOOGLE', profile.sub);
     const ticket = randomBytes(40).toString('base64url');
-    await this.repository.saveOAuthLoginTicket({ id: uuidv7(), tokenHash: this.tokenHash(ticket), provider: 'GOOGLE', subject: profile.sub, displayName: profile.name?.slice(0, 40) || null, profilePhoto: profile.picture || null, userId: existing?.id || null, expiresAt: new Date(Date.now() + 10 * 60_000), usedAt: null });
+    await this.repository.saveOAuthLoginTicket({ id: uuidv7(), tokenHash: this.tokenHash(ticket), provider: 'GOOGLE', subject: profile.sub, displayName: profile.name?.slice(0, 40) || null, profilePhoto: null, userId: existing?.id || null, expiresAt: new Date(Date.now() + 10 * 60_000), usedAt: null });
     return `${statePayload.returnTo}${statePayload.returnTo.includes('?') ? '&' : '?'}provider=google&ticket=${encodeURIComponent(ticket)}`;
   }
 
@@ -125,7 +127,112 @@ export class AuthService {
       const subjectKey = createHash('sha256').update(row.subject).digest('hex').slice(0, 32);
       user = await this.repository.createUser({ email: `google.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: new Date(`${input.birthDate}T00:00:00.000Z`), gender: input.gender });
       await this.repository.createOAuthIdentity('GOOGLE', row.subject, user.id);
-      if (row.profilePhoto) user = await this.repository.updateProfile(user.id, { profilePhoto: row.profilePhoto });
+      user = await this.applyRegistrationPhoto(user, input.profilePhoto);
+    }
+    await this.repository.consumeOAuthLoginTicket(row.id);
+    return { user: this.publicUser(user), ...(await this.issueTokens(user.id)) };
+  }
+
+  async appleAuthorizeUrl(returnTo: string): Promise<string> {
+    const clientId = process.env.APPLE_LOGIN_CLIENT_ID;
+    if (!clientId) throw new ServiceUnavailableException('Apple login is not configured');
+    if (!this.isAllowedAppleReturnTo(returnTo)) throw new UnauthorizedException('Invalid Apple login return URL');
+    const nonce = randomBytes(24).toString('base64url');
+    const state = await this.jwt.signAsync({ kind: 'apple_state', returnTo, nonce }, { expiresIn: 10 * 60 });
+    const query = new URLSearchParams({ client_id: clientId, redirect_uri: this.appleCallbackUrl(), response_type: 'code', response_mode: 'form_post', scope: 'name email', state, nonce });
+    return `https://appleid.apple.com/auth/authorize?${query.toString()}`;
+  }
+
+  async appleCallback(code: string, state: string, rawUser?: string): Promise<string> {
+    const clientId = process.env.APPLE_LOGIN_CLIENT_ID;
+    if (!clientId) throw new ServiceUnavailableException('Apple login is not configured');
+    let statePayload: { kind?: string; returnTo?: string; nonce?: string };
+    try { statePayload = this.jwt.verify<{ kind?: string; returnTo?: string; nonce?: string }>(state); }
+    catch { throw new UnauthorizedException('Invalid Apple login state'); }
+    if (statePayload.kind !== 'apple_state' || !statePayload.returnTo || !this.isAllowedAppleReturnTo(statePayload.returnTo) || !statePayload.nonce) throw new UnauthorizedException('Invalid Apple login state');
+    const clientSecret = await this.appleClientSecret(clientId);
+    const tokenResponse = await fetch('https://appleid.apple.com/auth/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: this.appleCallbackUrl(), client_id: clientId, client_secret: clientSecret }) });
+    const tokens = await tokenResponse.json() as { id_token?: string; error?: string };
+    if (!tokenResponse.ok || !tokens.id_token) throw new UnauthorizedException(tokens.error || 'Apple login failed');
+    const verified = await jwtVerify(tokens.id_token, createRemoteJWKSet(new URL('https://appleid.apple.com/auth/keys')), { issuer: 'https://appleid.apple.com', audience: clientId });
+    if (typeof verified.payload.sub !== 'string' || verified.payload.nonce !== statePayload.nonce) throw new UnauthorizedException('Invalid Apple identity');
+    let displayName: string | null = null;
+    if (rawUser) {
+      try { const parsed = JSON.parse(rawUser) as { name?: { firstName?: string; lastName?: string } }; displayName = [parsed.name?.firstName, parsed.name?.lastName].filter(Boolean).join(' ').slice(0, 40) || null; }
+      catch { throw new BadRequestException('Invalid Apple user profile'); }
+    }
+    const existing = await this.repository.findOAuthIdentity('APPLE', verified.payload.sub);
+    const ticket = randomBytes(40).toString('base64url');
+    await this.repository.saveOAuthLoginTicket({ id: uuidv7(), tokenHash: this.tokenHash(ticket), provider: 'APPLE', subject: verified.payload.sub, displayName, profilePhoto: null, userId: existing?.id || null, expiresAt: new Date(Date.now() + 10 * 60_000), usedAt: null });
+    return `${statePayload.returnTo}${statePayload.returnTo.includes('?') ? '&' : '?'}provider=apple&ticket=${encodeURIComponent(ticket)}`;
+  }
+
+  async redeemAppleLogin(input: AppleRedeemDto): Promise<AuthResponse | { registrationRequired: true; displayName: string | null }> {
+    const row = await this.repository.findOAuthLoginTicket(this.tokenHash(input.ticket));
+    if (!row || row.provider !== 'APPLE' || row.usedAt || row.expiresAt <= new Date()) throw new UnauthorizedException('Apple login ticket is invalid');
+    let user = row.userId ? await this.repository.findUserById(row.userId) : await this.repository.findOAuthIdentity('APPLE', row.subject);
+    if (!user) {
+      if (!input.birthDate) return { registrationRequired: true, displayName: row.displayName };
+      if (!this.isAdult(input.birthDate)) throw new BadRequestException('You must be at least 18 years old');
+      const displayName = (input.displayName || row.displayName || '').trim();
+      if (!displayName) throw new BadRequestException('Display name is required');
+      const subjectKey = createHash('sha256').update(row.subject).digest('hex').slice(0, 32);
+      user = await this.repository.createUser({ email: `apple.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: new Date(`${input.birthDate}T00:00:00.000Z`), gender: input.gender });
+      await this.repository.createOAuthIdentity('APPLE', row.subject, user.id);
+      user = await this.applyRegistrationPhoto(user, input.profilePhoto);
+    }
+    await this.repository.consumeOAuthLoginTicket(row.id);
+    return { user: this.publicUser(user), ...(await this.issueTokens(user.id)) };
+  }
+
+  async xAuthorizeUrl(returnTo: string): Promise<string> {
+    const clientId = process.env.X_LOGIN_CLIENT_ID;
+    if (!clientId) throw new ServiceUnavailableException('X login is not configured');
+    if (!this.isAllowedXReturnTo(returnTo)) throw new UnauthorizedException('Invalid X login return URL');
+    const stateKey = randomBytes(32).toString('base64url');
+    const verifier = randomBytes(48).toString('base64url');
+    await this.repository.saveOAuthLoginTicket({ id: uuidv7(), tokenHash: this.tokenHash(stateKey), provider: 'X_STATE', subject: verifier, displayName: returnTo, profilePhoto: null, userId: null, expiresAt: new Date(Date.now() + 10 * 60_000), usedAt: null });
+    const state = await this.jwt.signAsync({ kind: 'x_state', key: stateKey }, { expiresIn: 10 * 60 });
+    const challenge = createHash('sha256').update(verifier).digest('base64url');
+    const query = new URLSearchParams({ response_type: 'code', client_id: clientId, redirect_uri: this.xCallbackUrl(), scope: 'users.read', state, code_challenge: challenge, code_challenge_method: 'S256' });
+    return `https://x.com/i/oauth2/authorize?${query.toString()}`;
+  }
+
+  async xCallback(code: string, state: string): Promise<string> {
+    const clientId = process.env.X_LOGIN_CLIENT_ID; const clientSecret = process.env.X_LOGIN_CLIENT_SECRET;
+    if (!clientId || !clientSecret) throw new ServiceUnavailableException('X login is not configured');
+    let statePayload: { kind?: string; key?: string };
+    try { statePayload = this.jwt.verify<{ kind?: string; key?: string }>(state); }
+    catch { throw new UnauthorizedException('Invalid X login state'); }
+    if (statePayload.kind !== 'x_state' || !statePayload.key) throw new UnauthorizedException('Invalid X login state');
+    const stateRow = await this.repository.findOAuthLoginTicket(this.tokenHash(statePayload.key));
+    if (!stateRow || stateRow.provider !== 'X_STATE' || stateRow.usedAt || stateRow.expiresAt <= new Date() || !stateRow.displayName || !this.isAllowedXReturnTo(stateRow.displayName)) throw new UnauthorizedException('Invalid X login state');
+    await this.repository.consumeOAuthLoginTicket(stateRow.id);
+    const tokenResponse = await fetch('https://api.x.com/2/oauth2/token', { method: 'POST', headers: { authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`, 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: this.xCallbackUrl(), code_verifier: stateRow.subject }) });
+    const tokens = await tokenResponse.json() as { access_token?: string; error_description?: string };
+    if (!tokenResponse.ok || !tokens.access_token) throw new UnauthorizedException(tokens.error_description || 'X login failed');
+    const profileResponse = await fetch('https://api.x.com/2/users/me?user.fields=name,profile_image_url,username', { headers: { authorization: `Bearer ${tokens.access_token}` } });
+    const profileResult = await profileResponse.json() as { data?: { id?: string; name?: string; profile_image_url?: string }; detail?: string };
+    if (!profileResponse.ok || !profileResult.data?.id) throw new UnauthorizedException(profileResult.detail || 'Invalid X identity');
+    const existing = await this.repository.findOAuthIdentity('X', profileResult.data.id);
+    const ticket = randomBytes(40).toString('base64url');
+    await this.repository.saveOAuthLoginTicket({ id: uuidv7(), tokenHash: this.tokenHash(ticket), provider: 'X', subject: profileResult.data.id, displayName: profileResult.data.name?.slice(0, 40) || null, profilePhoto: null, userId: existing?.id || null, expiresAt: new Date(Date.now() + 10 * 60_000), usedAt: null });
+    return `${stateRow.displayName}${stateRow.displayName.includes('?') ? '&' : '?'}provider=x&ticket=${encodeURIComponent(ticket)}`;
+  }
+
+  async redeemXLogin(input: XRedeemDto): Promise<AuthResponse | { registrationRequired: true; displayName: string | null }> {
+    const row = await this.repository.findOAuthLoginTicket(this.tokenHash(input.ticket));
+    if (!row || row.provider !== 'X' || row.usedAt || row.expiresAt <= new Date()) throw new UnauthorizedException('X login ticket is invalid');
+    let user = row.userId ? await this.repository.findUserById(row.userId) : await this.repository.findOAuthIdentity('X', row.subject);
+    if (!user) {
+      if (!input.birthDate) return { registrationRequired: true, displayName: row.displayName };
+      if (!this.isAdult(input.birthDate)) throw new BadRequestException('You must be at least 18 years old');
+      const displayName = (input.displayName || row.displayName || '').trim();
+      if (!displayName) throw new BadRequestException('Display name is required');
+      const subjectKey = createHash('sha256').update(row.subject).digest('hex').slice(0, 32);
+      user = await this.repository.createUser({ email: `x.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: new Date(`${input.birthDate}T00:00:00.000Z`), gender: input.gender });
+      await this.repository.createOAuthIdentity('X', row.subject, user.id);
+      user = await this.applyRegistrationPhoto(user, input.profilePhoto);
     }
     await this.repository.consumeOAuthLoginTicket(row.id);
     return { user: this.publicUser(user), ...(await this.issueTokens(user.id)) };
@@ -146,6 +253,12 @@ export class AuthService {
 
   async getProfile(userId: string): Promise<PublicUser> { return this.publicUser(await this.requireUser(userId)); }
   async deleteAccount(userId:string):Promise<void>{const user=await this.requireUser(userId);if(user.email.endsWith('@hangoutnow.example'))throw new ForbiddenException('Shared demo accounts cannot be deleted');await this.images.deleteProfilePhoto(userId,user.profilePhoto);await this.repository.deleteUser(userId)}
+
+  private async applyRegistrationPhoto(user: StoredUser, profilePhoto?: string): Promise<StoredUser> {
+    if (!profilePhoto) return user;
+    const storedPhoto = await this.images.storeProfilePhoto(user.id, profilePhoto);
+    return this.repository.updateProfile(user.id, { profilePhoto: storedPhoto ?? null });
+  }
   async updateProfile(userId: string, input: UpdateProfileDto): Promise<PublicUser> {
     const normalized = input.interests ? [...new Set(input.interests.map((value) => value.trim()).filter(Boolean))] : undefined;
     const profilePhoto=await this.images.storeProfilePhoto(userId,input.profilePhoto);
@@ -204,6 +317,16 @@ export class AuthService {
   private lineCallbackUrl(): string { return process.env.LINE_LOGIN_CALLBACK_URL || 'https://hangoutnow-api.onrender.com/auth/line/callback'; }
   private googleCallbackUrl(): string { return process.env.GOOGLE_LOGIN_CALLBACK_URL || 'https://hangoutnow-api.onrender.com/auth/google/callback'; }
   private isAllowedGoogleReturnTo(value: string): boolean { return value === 'hangoutnow://auth/google' || this.isAllowedLineReturnTo(value); }
+  private appleCallbackUrl(): string { return process.env.APPLE_LOGIN_CALLBACK_URL || 'https://hangoutnow-api.onrender.com/auth/apple/callback'; }
+  private isAllowedAppleReturnTo(value: string): boolean { return value === 'hangoutnow://auth/apple' || this.isAllowedLineReturnTo(value); }
+  private async appleClientSecret(clientId: string): Promise<string> {
+    const teamId = process.env.APPLE_TEAM_ID; const keyId = process.env.APPLE_KEY_ID; const privateKey = process.env.APPLE_PRIVATE_KEY;
+    if (!teamId || !keyId || !privateKey) throw new ServiceUnavailableException('Apple login is not configured');
+    const key = await importPKCS8(privateKey.replace(/\\n/g, '\n'), 'ES256');
+    return new SignJWT({}).setProtectedHeader({ alg: 'ES256', kid: keyId }).setIssuer(teamId).setSubject(clientId).setAudience('https://appleid.apple.com').setIssuedAt().setExpirationTime('5m').sign(key);
+  }
+  private xCallbackUrl(): string { return process.env.X_LOGIN_CALLBACK_URL || 'https://hangoutnow-api.onrender.com/auth/x/callback'; }
+  private isAllowedXReturnTo(value: string): boolean { return value === 'hangoutnow://auth/x' || this.isAllowedLineReturnTo(value); }
   private isAllowedLineReturnTo(value: string): boolean {
     return new Set([
       'hangoutnow://auth/line',

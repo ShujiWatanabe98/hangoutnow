@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, HttpCode, Inject, Patch, Post, Query, Re
 import { Throttle } from '@nestjs/throttler';
 import { AccessTokenGuard, AuthenticatedRequest } from './access-token.guard';
 import { AuthService } from './auth.service';
-import { ConfirmPhoneVerificationDto, GoogleRedeemDto, GoogleStartDto, LineRedeemDto, LineStartDto, LoginDto, RefreshDto, RegisterDto, RequestPhoneVerificationDto, UpdateProfileDto } from './auth.dto';
+import { AppleCallbackDto, AppleRedeemDto, AppleStartDto, ConfirmPhoneVerificationDto, GoogleRedeemDto, GoogleStartDto, LineRedeemDto, LineStartDto, LoginDto, RefreshDto, RegisterDto, RequestPhoneVerificationDto, UpdateProfileDto, XRedeemDto, XStartDto } from './auth.dto';
 import { HostStatusService } from '../host-status/host-status.service';
 
 @Controller('auth')
@@ -18,6 +18,12 @@ export class AuthController {
   @Get('google/start') @Redirect() async googleStart(@Query() input: GoogleStartDto) { return { url: await this.auth.googleAuthorizeUrl(input.returnTo), statusCode: 302 }; }
   @Get('google/callback') @Redirect() async googleCallback(@Query('code') code: string, @Query('state') state: string) { return { url: await this.auth.googleCallback(code, state), statusCode: 302 }; }
   @Post('google/redeem') @HttpCode(200) redeemGoogle(@Body() input: GoogleRedeemDto) { return this.auth.redeemGoogleLogin(input); }
+  @Get('apple/start') @Redirect() async appleStart(@Query() input: AppleStartDto) { return { url: await this.auth.appleAuthorizeUrl(input.returnTo), statusCode: 302 }; }
+  @Post('apple/callback') @Redirect() async appleCallback(@Body() input: AppleCallbackDto) { return { url: await this.auth.appleCallback(input.code, input.state, input.user), statusCode: 303 }; }
+  @Post('apple/redeem') @HttpCode(200) redeemApple(@Body() input: AppleRedeemDto) { return this.auth.redeemAppleLogin(input); }
+  @Get('x/start') @Redirect() async xStart(@Query() input: XStartDto) { return { url: await this.auth.xAuthorizeUrl(input.returnTo), statusCode: 302 }; }
+  @Get('x/callback') @Redirect() async xCallback(@Query('code') code: string, @Query('state') state: string) { return { url: await this.auth.xCallback(code, state), statusCode: 302 }; }
+  @Post('x/redeem') @HttpCode(200) redeemX(@Body() input: XRedeemDto) { return this.auth.redeemXLogin(input); }
 }
 
 @Controller('users')

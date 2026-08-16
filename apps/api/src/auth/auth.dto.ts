@@ -9,6 +9,7 @@ export class RegisterDto {
   @IsString() @MinLength(1) @MaxLength(40) displayName!: string;
   @IsDateString({ strict: true }) birthDate!: string;
   @IsOptional() @IsEnum(Gender) gender?: Gender;
+  @IsOptional() @IsString() @MaxLength(1_500_000) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/) profilePhoto?: string;
 }
 
 export class LoginDto {
@@ -43,6 +44,7 @@ export class LineRedeemDto {
   @IsOptional() @IsString() @MinLength(1) @MaxLength(40) displayName?: string;
   @IsOptional() @IsDateString({ strict: true }) birthDate?: string;
   @IsOptional() @IsEnum(Gender) gender?: Gender;
+  @IsOptional() @IsString() @MaxLength(1_500_000) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/) profilePhoto?: string;
 }
 
 export class GoogleStartDto {
@@ -54,4 +56,35 @@ export class GoogleRedeemDto {
   @IsOptional() @IsString() @MinLength(1) @MaxLength(40) displayName?: string;
   @IsOptional() @IsDateString({ strict: true }) birthDate?: string;
   @IsOptional() @IsEnum(Gender) gender?: Gender;
+  @IsOptional() @IsString() @MaxLength(1_500_000) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/) profilePhoto?: string;
+}
+
+export class AppleStartDto {
+  @IsString() @Matches(/^(hangoutnow:\/\/auth\/apple|https:\/\/(www\.)?method-more\.com\/(demo|app)\.html|https:\/\/hangoutnow-demo\.onrender\.com\/(demo|app)\.html|http:\/\/(localhost|127\.0\.0\.1):4173\/(demo|app)\.html)$/) returnTo!: string;
+}
+
+export class AppleCallbackDto {
+  @IsString() @MinLength(10) code!: string;
+  @IsString() @MinLength(20) state!: string;
+  @IsOptional() @IsString() @MaxLength(2000) user?: string;
+}
+
+export class AppleRedeemDto {
+  @IsString() @MinLength(20) ticket!: string;
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(40) displayName?: string;
+  @IsOptional() @IsDateString({ strict: true }) birthDate?: string;
+  @IsOptional() @IsEnum(Gender) gender?: Gender;
+  @IsOptional() @IsString() @MaxLength(1_500_000) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/) profilePhoto?: string;
+}
+
+export class XStartDto {
+  @IsString() @Matches(/^(hangoutnow:\/\/auth\/x|https:\/\/(www\.)?method-more\.com\/(demo|app)\.html|https:\/\/hangoutnow-demo\.onrender\.com\/(demo|app)\.html|http:\/\/(localhost|127\.0\.0\.1):4173\/(demo|app)\.html)$/) returnTo!: string;
+}
+
+export class XRedeemDto {
+  @IsString() @MinLength(20) ticket!: string;
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(40) displayName?: string;
+  @IsOptional() @IsDateString({ strict: true }) birthDate?: string;
+  @IsOptional() @IsEnum(Gender) gender?: Gender;
+  @IsOptional() @IsString() @MaxLength(1_500_000) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/) profilePhoto?: string;
 }

@@ -34,6 +34,22 @@ services:
         sync: false
       - key: GOOGLE_LOGIN_CALLBACK_URL
         value: https://hangoutnow-api.onrender.com/auth/google/callback
+      - key: APPLE_LOGIN_CLIENT_ID
+        sync: false
+      - key: APPLE_TEAM_ID
+        sync: false
+      - key: APPLE_KEY_ID
+        sync: false
+      - key: APPLE_PRIVATE_KEY
+        sync: false
+      - key: APPLE_LOGIN_CALLBACK_URL
+        value: https://hangoutnow-api.onrender.com/auth/apple/callback
+      - key: X_LOGIN_CLIENT_ID
+        sync: false
+      - key: X_LOGIN_CLIENT_SECRET
+        sync: false
+      - key: X_LOGIN_CALLBACK_URL
+        value: https://hangoutnow-api.onrender.com/auth/x/callback
       - key: CORS_ORIGINS
         value: https://method-more.com,https://www.method-more.com,https://hangoutnow-demo.onrender.com
       - key: S3_ENDPOINT

@@ -2,6 +2,7 @@ import { ValidationPipe } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';
 import { JwtModule, JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
+import { exportJWK, exportPKCS8, generateKeyPair, SignJWT } from 'jose';
 import request from 'supertest';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AccessTokenGuard } from '../src/auth/access-token.guard';
@@ -55,7 +56,7 @@ describe('authentication and profile', () => {
     instance.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
     await instance.init(); return instance;
   }
-  afterEach(async () => { await app?.close(); app = undefined; vi.unstubAllGlobals(); delete process.env.LINE_LOGIN_CHANNEL_ID; delete process.env.LINE_LOGIN_CHANNEL_SECRET; delete process.env.GOOGLE_LOGIN_CLIENT_ID; delete process.env.GOOGLE_LOGIN_CLIENT_SECRET; });
+  afterEach(async () => { await app?.close(); app = undefined; vi.unstubAllGlobals(); delete process.env.LINE_LOGIN_CHANNEL_ID; delete process.env.LINE_LOGIN_CHANNEL_SECRET; delete process.env.GOOGLE_LOGIN_CLIENT_ID; delete process.env.GOOGLE_LOGIN_CLIENT_SECRET; delete process.env.APPLE_LOGIN_CLIENT_ID; delete process.env.APPLE_TEAM_ID; delete process.env.APPLE_KEY_ID; delete process.env.APPLE_PRIVATE_KEY; delete process.env.X_LOGIN_CLIENT_ID; delete process.env.X_LOGIN_CLIENT_SECRET; });
 
   it('registers with a verified LINE identity and rejects ticket reuse', async()=>{
     process.env.LINE_LOGIN_CHANNEL_ID='2011130010';process.env.LINE_LOGIN_CHANNEL_SECRET='test-secret';
@@ -66,8 +67,37 @@ describe('authentication and profile', () => {
     const state=await jwt.signAsync({kind:'line_state',returnTo:webReturnTo,nonce:'line-nonce'},{expiresIn:600});
     const redirect=await auth.lineCallback('authorization-code',state);expect(redirect.startsWith(`${webReturnTo}?ticket=`)).toBe(true);const ticket=new URL(redirect).searchParams.get('ticket');expect(ticket).toBeTruthy();
     const needsProfile=await request(app.getHttpServer()).post('/auth/line/redeem').send({ticket}).expect(200);expect(needsProfile.body.registrationRequired).toBe(true);
-    const registered=await request(app.getHttpServer()).post('/auth/line/redeem').send({ticket,birthDate:'1990-01-01',displayName:'LINE User',gender:'UNDISCLOSED'}).expect(200);expect(registered.body.user.displayName).toBe('LINE User');
+    const registered=await request(app.getHttpServer()).post('/auth/line/redeem').send({ticket,birthDate:'1990-01-01',displayName:'LINE User',gender:'UNDISCLOSED'}).expect(200);expect(registered.body.user.displayName).toBe('LINE User');expect(registered.body.user.profilePhoto).toBeNull();
     await request(app.getHttpServer()).post('/auth/line/redeem').send({ticket,birthDate:'1990-01-01'}).expect(401);
+  },15_000);
+
+  it('registers with a verified X identity and rejects ticket reuse', async()=>{
+    process.env.X_LOGIN_CLIENT_ID='x-client-id';process.env.X_LOGIN_CLIENT_SECRET='x-client-secret';
+    vi.stubGlobal('fetch',vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({access_token:'x-access-token'}),{status:200})).mockResolvedValueOnce(new Response(JSON.stringify({data:{id:'x-user-1',name:'X User',username:'xuser',profile_image_url:'https://example.com/x.jpg'}}),{status:200})));
+    app=await createApp();const auth=app.get(AuthService);const webReturnTo='https://method-more.com/app.html';
+    await expect(auth.xAuthorizeUrl('https://evil.example/app.html')).rejects.toThrow('Invalid X login return URL');
+    const authorizeUrl=await auth.xAuthorizeUrl(webReturnTo);const state=new URL(authorizeUrl).searchParams.get('state');expect(state).toBeTruthy();expect(new URL(authorizeUrl).searchParams.get('code_challenge_method')).toBe('S256');
+    const redirect=await auth.xCallback('x-authorization-code',state!);expect(redirect.startsWith(`${webReturnTo}?provider=x&ticket=`)).toBe(true);const ticket=new URL(redirect).searchParams.get('ticket');expect(ticket).toBeTruthy();
+    const needsProfile=await request(app.getHttpServer()).post('/auth/x/redeem').send({ticket}).expect(200);expect(needsProfile.body.registrationRequired).toBe(true);
+    const registered=await request(app.getHttpServer()).post('/auth/x/redeem').send({ticket,birthDate:'1990-01-01',displayName:'X User',gender:'UNDISCLOSED'}).expect(200);expect(registered.body.user.displayName).toBe('X User');
+    await request(app.getHttpServer()).post('/auth/x/redeem').send({ticket,birthDate:'1990-01-01'}).expect(401);
+    await expect(auth.xCallback('x-authorization-code',state!)).rejects.toThrow('Invalid X login state');
+  },15_000);
+
+  it('registers with a verified Apple identity and rejects ticket reuse', async()=>{
+    const {privateKey,publicKey}=await generateKeyPair('ES256',{extractable:true});
+    const publicJwk=await exportJWK(publicKey);publicJwk.kid='apple-key-id';publicJwk.alg='ES256';publicJwk.use='sig';
+    process.env.APPLE_LOGIN_CLIENT_ID='com.methodmore.hangoutnow.web';process.env.APPLE_TEAM_ID='APPLETEAM1';process.env.APPLE_KEY_ID='apple-key-id';process.env.APPLE_PRIVATE_KEY=await exportPKCS8(privateKey);
+    const idToken=await new SignJWT({nonce:'apple-nonce'}).setProtectedHeader({alg:'ES256',kid:'apple-key-id'}).setIssuer('https://appleid.apple.com').setAudience(process.env.APPLE_LOGIN_CLIENT_ID).setSubject('apple-user-1').setIssuedAt().setExpirationTime('5m').sign(privateKey);
+    vi.stubGlobal('fetch',vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({id_token:idToken}),{status:200,headers:{'content-type':'application/json'}})).mockResolvedValueOnce(new Response(JSON.stringify({keys:[publicJwk]}),{status:200,headers:{'content-type':'application/json','cache-control':'max-age=60'}})));
+    app=await createApp();
+    const auth=app.get(AuthService);const jwt=app.get(JwtService);const webReturnTo='https://method-more.com/app.html';
+    await expect(auth.appleAuthorizeUrl('https://evil.example/app.html')).rejects.toThrow('Invalid Apple login return URL');
+    const state=await jwt.signAsync({kind:'apple_state',returnTo:webReturnTo,nonce:'apple-nonce'},{expiresIn:600});
+    const redirect=await auth.appleCallback('apple-authorization-code',state,JSON.stringify({name:{firstName:'Apple',lastName:'User'}}));expect(redirect.startsWith(`${webReturnTo}?provider=apple&ticket=`)).toBe(true);const ticket=new URL(redirect).searchParams.get('ticket');expect(ticket).toBeTruthy();
+    const needsProfile=await request(app.getHttpServer()).post('/auth/apple/redeem').send({ticket}).expect(200);expect(needsProfile.body.registrationRequired).toBe(true);
+    const registered=await request(app.getHttpServer()).post('/auth/apple/redeem').send({ticket,birthDate:'1990-01-01',displayName:'Apple User',gender:'UNDISCLOSED'}).expect(200);expect(registered.body.user.displayName).toBe('Apple User');
+    await request(app.getHttpServer()).post('/auth/apple/redeem').send({ticket,birthDate:'1990-01-01'}).expect(401);
   },15_000);
 
   it('registers with a verified Google identity and rejects ticket reuse', async()=>{
@@ -79,7 +109,7 @@ describe('authentication and profile', () => {
     const state=await jwt.signAsync({kind:'google_state',returnTo:webReturnTo,nonce:'google-nonce'},{expiresIn:600});
     const redirect=await auth.googleCallback('authorization-code',state);expect(redirect.startsWith(`${webReturnTo}?provider=google&ticket=`)).toBe(true);const ticket=new URL(redirect).searchParams.get('ticket');expect(ticket).toBeTruthy();
     const needsProfile=await request(app.getHttpServer()).post('/auth/google/redeem').send({ticket}).expect(200);expect(needsProfile.body.registrationRequired).toBe(true);
-    const registered=await request(app.getHttpServer()).post('/auth/google/redeem').send({ticket,birthDate:'1990-01-01',displayName:'Google User',gender:'UNDISCLOSED'}).expect(200);expect(registered.body.user.displayName).toBe('Google User');
+    const registered=await request(app.getHttpServer()).post('/auth/google/redeem').send({ticket,birthDate:'1990-01-01',displayName:'Google User',gender:'UNDISCLOSED'}).expect(200);expect(registered.body.user.displayName).toBe('Google User');expect(registered.body.user.profilePhoto).toBeNull();
     await request(app.getHttpServer()).post('/auth/google/redeem').send({ticket,birthDate:'1990-01-01'}).expect(401);
   },15_000);
 
@@ -88,6 +118,10 @@ describe('authentication and profile', () => {
     const registered = await request(app.getHttpServer()).post('/auth/register').send({ email: 'USER@example.com', password: 'a-secure-password', displayName: 'Shuji', birthDate: '1990-01-01' }).expect(201);
     expect(registered.body.user.email).toBe('user@example.com');
     expect(registered.body.user.passwordHash).toBeUndefined();
+    expect(registered.body.user.profilePhoto).toBeNull();
+    const selectedPhoto='data:image/png;base64,iVBORw0KGgo=';
+    const registeredWithPhoto=await request(app.getHttpServer()).post('/auth/register').send({ email: 'selected-photo@example.com', password: 'a-secure-password', displayName: 'Photo User', birthDate: '1990-01-01', profilePhoto:selectedPhoto }).expect(201);
+    expect(registeredWithPhoto.body.user.profilePhoto).toBe(selectedPhoto);
     const profile = await request(app.getHttpServer()).patch('/users/me').set('Authorization', `Bearer ${registered.body.accessToken as string}`).send({ bio: '今から走ろう', interests: ['ランニング', 'ランニング', 'AI'] }).expect(200);
     expect(profile.body.interests).toEqual(['ランニング', 'AI']);
   }, 15_000);
