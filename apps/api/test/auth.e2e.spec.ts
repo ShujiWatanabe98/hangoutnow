@@ -61,8 +61,10 @@ describe('authentication and profile', () => {
     process.env.LINE_LOGIN_CHANNEL_ID='2011130010';process.env.LINE_LOGIN_CHANNEL_SECRET='test-secret';
     vi.stubGlobal('fetch',vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({id_token:'line-id-token'}),{status:200})).mockResolvedValueOnce(new Response(JSON.stringify({sub:'line-user-1',name:'LINE User',picture:'https://example.com/photo.jpg',nonce:'line-nonce'}),{status:200})));
     app=await createApp();
-    const auth=app.get(AuthService);const jwt=app.get(JwtService);const state=await jwt.signAsync({kind:'line_state',returnTo:'hangoutnow://auth/line',nonce:'line-nonce'},{expiresIn:600});
-    const redirect=await auth.lineCallback('authorization-code',state);const ticket=new URL(redirect).searchParams.get('ticket');expect(ticket).toBeTruthy();
+    const auth=app.get(AuthService);const jwt=app.get(JwtService);const webReturnTo='https://method-more.com/demo.html';
+    await expect(auth.lineAuthorizeUrl('https://evil.example/demo.html')).rejects.toThrow('Invalid LINE login return URL');
+    const state=await jwt.signAsync({kind:'line_state',returnTo:webReturnTo,nonce:'line-nonce'},{expiresIn:600});
+    const redirect=await auth.lineCallback('authorization-code',state);expect(redirect.startsWith(`${webReturnTo}?ticket=`)).toBe(true);const ticket=new URL(redirect).searchParams.get('ticket');expect(ticket).toBeTruthy();
     const needsProfile=await request(app.getHttpServer()).post('/auth/line/redeem').send({ticket}).expect(200);expect(needsProfile.body.registrationRequired).toBe(true);
     const registered=await request(app.getHttpServer()).post('/auth/line/redeem').send({ticket,birthDate:'1990-01-01',displayName:'LINE User',gender:'UNDISCLOSED'}).expect(200);expect(registered.body.user.displayName).toBe('LINE User');
     await request(app.getHttpServer()).post('/auth/line/redeem').send({ticket,birthDate:'1990-01-01'}).expect(401);

@@ -37,6 +37,7 @@ export class AuthService {
   async lineAuthorizeUrl(returnTo: string): Promise<string> {
     const clientId = process.env.LINE_LOGIN_CHANNEL_ID;
     if (!clientId) throw new ServiceUnavailableException('LINE login is not configured');
+    if (!this.isAllowedLineReturnTo(returnTo)) throw new UnauthorizedException('Invalid LINE login return URL');
     const nonce = randomBytes(24).toString('base64url');
     const state = await this.jwt.signAsync({ kind: 'line_state', returnTo, nonce }, { expiresIn: 10 * 60 });
     const query = new URLSearchParams({ response_type: 'code', client_id: clientId, redirect_uri: this.lineCallbackUrl(), state, scope: 'openid profile', nonce });
@@ -50,7 +51,7 @@ export class AuthService {
     let statePayload: { kind?: string; returnTo?: string; nonce?: string };
     try { statePayload = this.jwt.verify<{ kind?: string; returnTo?: string; nonce?: string }>(state); }
     catch { throw new UnauthorizedException('Invalid LINE login state'); }
-    if (statePayload.kind !== 'line_state' || statePayload.returnTo !== 'hangoutnow://auth/line' || !statePayload.nonce) throw new UnauthorizedException('Invalid LINE login state');
+    if (statePayload.kind !== 'line_state' || !statePayload.returnTo || !this.isAllowedLineReturnTo(statePayload.returnTo) || !statePayload.nonce) throw new UnauthorizedException('Invalid LINE login state');
     const tokenResponse = await fetch('https://api.line.me/oauth2/v2.1/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: this.lineCallbackUrl(), client_id: clientId, client_secret: clientSecret }) });
     const tokens = await tokenResponse.json() as { id_token?: string; error_description?: string };
     if (!tokenResponse.ok || !tokens.id_token) throw new UnauthorizedException(tokens.error_description || 'LINE login failed');
@@ -60,7 +61,7 @@ export class AuthService {
     const existing = await this.repository.findOAuthIdentity('LINE', profile.sub);
     const ticket = randomBytes(40).toString('base64url');
     await this.repository.saveOAuthLoginTicket({ id: uuidv7(), tokenHash: this.tokenHash(ticket), provider: 'LINE', subject: profile.sub, displayName: profile.name?.slice(0, 40) || null, profilePhoto: profile.picture || null, userId: existing?.id || null, expiresAt: new Date(Date.now() + 10 * 60_000), usedAt: null });
-    return `${statePayload.returnTo}?ticket=${encodeURIComponent(ticket)}`;
+    return `${statePayload.returnTo}${statePayload.returnTo.includes('?') ? '&' : '?'}ticket=${encodeURIComponent(ticket)}`;
   }
 
   async redeemLineLogin(input: LineRedeemDto): Promise<AuthResponse | { registrationRequired: true; displayName: string | null }> {
@@ -152,4 +153,14 @@ export class AuthService {
   }
   private phoneCodeHash(phone: string, code: string): string { return createHash('sha256').update(`${phone}:${code}:${process.env.PHONE_CODE_SECRET || 'local-demo-secret'}`).digest('hex'); }
   private lineCallbackUrl(): string { return process.env.LINE_LOGIN_CALLBACK_URL || 'https://hangoutnow-api.onrender.com/auth/line/callback'; }
+  private isAllowedLineReturnTo(value: string): boolean {
+    return new Set([
+      'hangoutnow://auth/line',
+      'https://method-more.com/demo.html',
+      'https://www.method-more.com/demo.html',
+      'https://hangoutnow-demo.onrender.com/demo.html',
+      'http://localhost:4173/demo.html',
+      'http://127.0.0.1:4173/demo.html',
+    ]).has(value);
+  }
 }

@@ -30,6 +30,7 @@ type User = {
   id: string;
   email: string;
   displayName: string;
+  birthDate?: string;
   gender: string | null;
   bio: string | null;
   homeArea: string | null;
@@ -72,8 +73,14 @@ type Hangout = {
   category: string;
   startAt: string;
   locationName: string;
+  publicLocationName?: string;
+  meetingPlaceName?: string | null;
+  meetingAddress?: string | null;
+  navigationUrl?: string | null;
   participantCount: number;
   maxParticipants: number;
+  hostMaleCount?: number;
+  hostFemaleCount?: number;
   genderRestriction: "ANY" | "MALE_ONLY" | "FEMALE_ONLY";
   maxAge: number | null;
   myJoinStatus: string | null;
@@ -150,9 +157,14 @@ type CreateHangoutInput = {
   startInMinutes: 30 | 60 | 180;
   publicLocationName: string;
   locationName: string;
+  meetingPlaceName: string;
+  meetingAddress: string;
+  navigationUrl: string;
   maxParticipants: number;
   hostMaleCount: number;
   hostFemaleCount: number;
+  genderRestriction: "ANY" | "MALE_ONLY" | "FEMALE_ONLY";
+  maxAge: number | null;
   area: AlphaArea;
 };
 type ProfileActivityItem = { id: string; title: string; status: string; startAt: string; imageUrl: string | null; category: string; publicLocationName: string };
@@ -174,11 +186,27 @@ function messageText(body: string) {
   return body.startsWith("__STAMP__") ? "過去のスタンプ" : body;
 }
 function stateLabel(hangout: Hangout) {
-  return hangout.myJoinStatus === "ACCEPTED" ? "承認済み" : hangout.myJoinStatus === "PENDING" ? "申請中" : hangout.status === "FULL" ? "満員" : "募集中";
+  if (hangout.status === "STARTED") return "Hangout中";
+  if (hangout.status === "FINISHED") return "終了";
+  if (hangout.status === "CANCELLED") return "中止";
+  return hangout.myJoinStatus === "ACCEPTED" ? "承認済み" : hangout.myJoinStatus === "PENDING" ? "申請中" : hangout.myJoinStatus === "WAITLISTED" ? "待機中" : hangout.status === "FULL" ? "満員" : "募集中";
 }
 
 function hangoutImageUrl(hangout: Pick<Hangout, "imageUrl" | "category">) {
   return hangout.imageUrl || DEFAULT_HANGOUT_IMAGES[hangout.category] || ACTIVITY_PHOTO_URL;
+}
+
+function eligibilityReason(user: User, hangout: Hangout) {
+  if (hangout.genderRestriction === "MALE_ONLY" && user.gender !== "MALE") return "男性のみ参加できます";
+  if (hangout.genderRestriction === "FEMALE_ONLY" && user.gender !== "FEMALE") return "女性のみ参加できます";
+  if (hangout.maxAge && user.birthDate) {
+    const born = new Date(user.birthDate);
+    const now = new Date();
+    let age = now.getFullYear() - born.getFullYear();
+    if (now.getMonth() < born.getMonth() || (now.getMonth() === born.getMonth() && now.getDate() < born.getDate())) age -= 1;
+    if (age > hangout.maxAge) return `年齢条件（${hangout.maxAge}歳以下）の対象外です`;
+  }
+  return "";
 }
 
 async function readJson(response: Response): Promise<unknown> {
@@ -461,13 +489,13 @@ export default function App() {
     }
   }
 
-  async function joinHangout(hangout: Hangout) {
+  async function joinHangout(hangout: Hangout, message: string) {
     setLoading(true);
     setError("");
     try {
       const joinRequest = await request<{ status: string }>(`/hangouts/${hangout.id}/join`, {
         method: "POST",
-        body: JSON.stringify({ message: "スマホアプリから参加を希望します！" }),
+        body: JSON.stringify({ message }),
       });
       setSelectedHangout((current) => current?.id === hangout.id ? { ...current, myJoinStatus: joinRequest.status } : current);
       setHangouts((current) => current.map((item) => item.id === hangout.id ? { ...item, myJoinStatus: joinRequest.status } : item));
@@ -524,12 +552,16 @@ export default function App() {
           startInMinutes: input.startInMinutes,
           publicLocationName: input.publicLocationName.trim(),
           locationName: input.locationName.trim(),
+          meetingPlaceName: input.meetingPlaceName.trim(),
+          meetingAddress: input.meetingAddress.trim(),
+          navigationUrl: input.navigationUrl.trim() || undefined,
           latitude: coordinates.latitude,
           longitude: coordinates.longitude,
           maxParticipants: input.maxParticipants,
           hostMaleCount: input.hostMaleCount,
           hostFemaleCount: input.hostFemaleCount,
-          genderRestriction: "ANY",
+          genderRestriction: input.genderRestriction,
+          maxAge: input.maxAge,
         }),
       });
       void request("/analytics/events", {
@@ -548,6 +580,36 @@ export default function App() {
       setScreen("detail");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "募集を作成できませんでした");
+    } finally {
+      setLoading(false);
+    }
+  }
+  async function updateHangout(hangoutId: string, input: Partial<CreateHangoutInput>) {
+    setLoading(true);
+    setError("");
+    try {
+      await request(`/hangouts/${hangoutId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          ...(input.title !== undefined ? { title: input.title.trim() } : {}),
+          ...(input.description !== undefined ? { description: input.description.trim() } : {}),
+          ...(input.imageUrl !== undefined ? { imageUrl: input.imageUrl } : {}),
+          ...(input.publicLocationName !== undefined ? { publicLocationName: input.publicLocationName.trim() } : {}),
+          ...(input.locationName !== undefined ? { locationName: input.locationName.trim() } : {}),
+          ...(input.meetingPlaceName !== undefined ? { meetingPlaceName: input.meetingPlaceName.trim() } : {}),
+          ...(input.meetingAddress !== undefined ? { meetingAddress: input.meetingAddress.trim() } : {}),
+          ...(input.navigationUrl !== undefined ? { navigationUrl: input.navigationUrl.trim() || null } : {}),
+          ...(input.genderRestriction !== undefined ? { genderRestriction: input.genderRestriction } : {}),
+          ...(input.maxAge !== undefined ? { maxAge: input.maxAge } : {}),
+        }),
+      });
+      const updated = await request<Hangout>(`/hangouts/${hangoutId}`);
+      setSelectedHangout(updated);
+      await loadHome();
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "Hangoutを更新できませんでした";
+      setError(message);
+      throw new Error(message);
     } finally {
       setLoading(false);
     }
@@ -609,7 +671,7 @@ export default function App() {
     setLoading(true);
     setError("");
     try {
-      await request("/reports", {
+      await request("/safety/reports", {
         method: "POST",
         body: JSON.stringify({
           targetUserId: hangout.hostUserId,
@@ -749,6 +811,26 @@ export default function App() {
       await loadHome();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Hangoutを開始できませんでした");
+    } finally {
+      setLoading(false);
+    }
+  }
+  function confirmCancelHangout(hangoutId: string) {
+    Alert.alert("Hangout中止", "このHangoutを中止しますか？参加者にも中止が通知されます。", [
+      { text: "戻る", style: "cancel" },
+      { text: "Hangout中止", style: "destructive", onPress: () => void cancelHangout(hangoutId) },
+    ]);
+  }
+  async function cancelHangout(hangoutId: string) {
+    setLoading(true);
+    setError("");
+    try {
+      await request(`/hangouts/${hangoutId}`, { method: "DELETE" });
+      setSelectedHangout(null);
+      await loadHome();
+      setScreen("home");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Hangoutを中止できませんでした");
     } finally {
       setLoading(false);
     }
@@ -942,7 +1024,7 @@ export default function App() {
         {screen === "home" && <HomeScreen user={session.user} hangouts={hangouts} refreshing={refreshing} locationLabel={locationLabel} selectedArea={selectedArea} onArea={chooseArea} onLocation={useCurrentLocation} onRefresh={refreshCurrent} onOpen={openHangout} onHeart={toggleHeart} onCreate={() => setScreen(session.user.verificationStatus === "PHONE_VERIFIED" ? "create" : "phone")} />}
         {screen === "map" && <MapScreen hangouts={hangouts} locationLabel={locationLabel} onBack={() => setScreen("home")} onLocation={useCurrentLocation} onOpen={openHangout} />}
         {screen === "create" && <CreateHangoutScreen area={selectedArea} gender={session.user.gender} onBack={() => setScreen("home")} onSubmit={createHangout} />}
-        {screen === "detail" && selectedHangout && <HangoutDetailScreen user={session.user} hangout={selectedHangout} requests={joinRequests} onBack={() => setScreen("home")} onJoin={joinHangout} onChat={openHangoutChat} onStart={startHangout} onFinish={confirmFinishHangout} onDecide={decideJoinRequest} onReport={confirmReportHost} onAttendance={updateAttendance} />}
+        {screen === "detail" && selectedHangout && <HangoutDetailScreen user={session.user} hangout={selectedHangout} requests={joinRequests} onBack={() => setScreen("home")} onJoin={joinHangout} onChat={openHangoutChat} onStart={startHangout} onFinish={confirmFinishHangout} onCancel={confirmCancelHangout} onEdit={updateHangout} onDecide={decideJoinRequest} onReport={confirmReportHost} onAttendance={updateAttendance} />}
         {screen === "phone" && <PhoneVerificationScreen onBack={() => setScreen("profile")} onVerify={verifyPhone} />}
         {screen === "chat" && <ChatScreen user={session.user} rooms={rooms} selectedRoom={selectedRoom} messages={messages} messageBody={messageBody} sending={sending} refreshing={refreshing} unreadByRoom={unreadByRoom} realtimeOnline={realtimeOnline} onRefresh={refreshCurrent} onOpen={openRoom} onRate={rateParticipant} onBack={() => selectedRoom ? setSelectedRoom(null) : setScreen("home")} onChangeBody={setMessageBody} onSend={sendMessage} />}
         {screen === "rating" && ratingRoom && <RatingScreen user={session.user} room={ratingRoom} onRate={rateParticipant} onDone={() => { setRatingRoom(null); setScreen("home"); }} />}
@@ -1096,7 +1178,7 @@ function Field(props: React.ComponentProps<typeof TextInput> & { label: string }
 }
 
 function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, onArea, onLocation, onRefresh, onOpen, onHeart, onCreate }: { user: User; hangouts: Hangout[]; refreshing: boolean; locationLabel: string; selectedArea: AlphaArea; onArea: (area: AlphaArea) => void; onLocation: () => void; onRefresh: () => void; onOpen: (hangout: Hangout) => void; onHeart: (hangout: Hangout) => void; onCreate: () => void }) {
-  const stateLabel = (hangout: Hangout) => (hangout.hostUserId === user.id ? "主催中" : hangout.myJoinStatus === "ACCEPTED" ? "承認済み" : hangout.myJoinStatus === "PENDING" ? "申請中" : hangout.status === "FULL" ? "満員" : "募集中");
+  const homeStateLabel = (hangout: Hangout) => hangout.hostUserId === user.id && ["OPEN", "FULL"].includes(hangout.status) ? "主催中" : stateLabel(hangout);
   return (
     <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
       <View style={styles.hero}>
@@ -1114,7 +1196,7 @@ function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, o
             <Text style={styles.locationText}>現在地から近い順</Text>
           </Pressable>
           <Pressable style={styles.createButton} onPress={onCreate}>
-            <Text style={styles.primaryText}>＋ 募集する</Text>
+            <Text style={styles.primaryText}>Hangoutを作る</Text>
           </Pressable>
         </View>
       </View>
@@ -1138,7 +1220,7 @@ function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, o
                 参加 {hangout.participantCount} / {hangout.maxParticipants}人
               </Text>
             </View>
-            <Text style={styles.status}>{stateLabel(hangout)}</Text>
+            <Text style={styles.status}>{homeStateLabel(hangout)}</Text>
           </View>
           <View style={styles.cardBottom}>
             <View>
@@ -1202,7 +1284,7 @@ function MapScreen({ hangouts, locationLabel, onBack, onLocation, onOpen }: { ha
   );
 }
 
-type CreateField = "title" | "publicLocationName" | "locationName" | "hostParty" | "maxParticipants";
+type CreateField = "title" | "publicLocationName" | "meetingPlaceName" | "meetingAddress" | "hostParty" | "maxParticipants";
 
 function CreateHangoutScreen({ area, gender, onBack, onSubmit }: { area: AlphaArea; gender: string | null; onBack: () => void; onSubmit: (input: CreateHangoutInput) => void }) {
   const [form, setForm] = useState<CreateHangoutInput>({
@@ -1211,10 +1293,15 @@ function CreateHangoutScreen({ area, gender, onBack, onSubmit }: { area: AlphaAr
     category: "ラーメン",
     startInMinutes: 30,
     publicLocationName: `${area}駅周辺`,
-    locationName: "店名・住所を入力",
+    locationName: "",
+    meetingPlaceName: "",
+    meetingAddress: "",
+    navigationUrl: "",
     maxParticipants: 4,
     hostMaleCount: gender === "MALE" ? 1 : 0,
     hostFemaleCount: gender === "FEMALE" ? 1 : 0,
+    genderRestriction: "ANY",
+    maxAge: null,
     area,
   });
   const [errors, setErrors] = useState<Partial<Record<CreateField, string>>>({});
@@ -1245,19 +1332,20 @@ function CreateHangoutScreen({ area, gender, onBack, onSubmit }: { area: AlphaAr
     const next: Partial<Record<CreateField, string>> = {};
     if (!form.title.trim()) next.title = "タイトルを入力してください";
     if (!form.publicLocationName.trim()) next.publicLocationName = "公開エリアを入力してください";
-    if (!form.locationName.trim() || form.locationName === "店名・住所を入力") next.locationName = "店名・住所を入力してください";
+    if (!form.meetingPlaceName.trim()) next.meetingPlaceName = "集合場所の店名を入力してください";
+    if (!form.meetingAddress.trim()) next.meetingAddress = "集合場所の住所を入力してください";
     if (form.hostMaleCount + form.hostFemaleCount < 1) next.hostParty = "主催者側の人数を設定してください";
     if (form.maxParticipants < 2) next.maxParticipants = "合計人数は2人以上にしてください";
     if (form.hostMaleCount + form.hostFemaleCount > form.maxParticipants) next.maxParticipants = "合計人数は主催者側の人数以上にしてください";
     setErrors(next);
-    if (Object.keys(next).length === 0) onSubmit(form);
+    if (Object.keys(next).length === 0) onSubmit({ ...form, locationName: `${form.meetingPlaceName.trim()} ${form.meetingAddress.trim()}`.trim() });
   };
   return (
     <ScrollView contentContainerStyle={styles.formPage}>
       <Pressable onPress={onBack}>
         <Text style={styles.backText}>‹ ホームへ</Text>
       </Pressable>
-      <Text style={styles.pageTitle}>Hangoutを募集</Text>
+      <Text style={styles.pageTitle}>Hangoutを作る</Text>
       {Object.keys(errors).length > 0 && <Text style={styles.validationMessage}>入力内容を確認してください。赤枠の項目を設定すると公開できます。</Text>}
       <Text style={styles.safetyNote}>安全のため集合場所は駅・店舗など公開された場所に限ります。店名・住所・正確な位置は承認された参加者だけに表示されます。</Text>
       <Text style={styles.label}>Hangoutのイメージ写真</Text>
@@ -1265,6 +1353,20 @@ function CreateHangoutScreen({ area, gender, onBack, onSubmit }: { area: AlphaAr
         <Text style={styles.imagePickerButtonText}>{form.imageUrl ? "写真を変更" : "スマホの写真から追加"}</Text>
       </Pressable>
       {form.imageUrl ? <Image source={{ uri: form.imageUrl }} style={styles.createImagePreview} resizeMode="cover" /> : null}
+      <Text style={styles.label}>Hangout Nowの画像を使う</Text>
+      <View style={styles.providedImageGrid}>
+        {([
+          ["カフェ", DEFAULT_HANGOUT_IMAGES.CAFE],
+          ["ラーメン", DEFAULT_HANGOUT_IMAGES.FOOD],
+          ["ランニング", DEFAULT_HANGOUT_IMAGES.RUNNING],
+          ["飲み会", DEFAULT_HANGOUT_IMAGES.DRINKING],
+        ] as const).map(([label, uri]) => (
+          <Pressable key={label} style={[styles.providedImageChoice, form.imageUrl === uri && styles.providedImageChoiceOn]} onPress={() => update("imageUrl", uri)}>
+            <Image source={{ uri }} style={styles.providedImagePhoto} />
+            <Text style={styles.providedImageLabel}>{label}</Text>
+          </Pressable>
+        ))}
+      </View>
       <Text style={styles.label}>公開エリア（新宿・渋谷のみ）</Text>
       <View style={styles.areaRow}>
         {(["新宿", "渋谷"] as const).map((item) => (
@@ -1305,9 +1407,18 @@ function CreateHangoutScreen({ area, gender, onBack, onSubmit }: { area: AlphaAr
       <Text style={styles.label}>承認前に表示するエリア</Text>
       <TextInput style={[styles.input, errors.publicLocationName && styles.invalidInput]} value={form.publicLocationName} onChangeText={(value) => update("publicLocationName", value)} maxLength={100} />
       {errors.publicLocationName && <Text style={styles.fieldError}>{errors.publicLocationName}</Text>}
-      <Text style={styles.label}>承認後に表示する店名・住所</Text>
-      <TextInput style={[styles.input, errors.locationName && styles.invalidInput]} value={form.locationName} onChangeText={(value) => update("locationName", value)} maxLength={100} />
-      {errors.locationName && <Text style={styles.fieldError}>{errors.locationName}</Text>}
+      <View style={styles.privatePlaceBox}>
+        <Text style={styles.privatePlaceTitle}>承認後に表示する集合場所</Text>
+        <Text style={styles.privacyText}>店名・住所・ナビ情報は承認したメンバーだけに表示します。</Text>
+        <Text style={styles.label}>店名</Text>
+        <TextInput style={[styles.input, errors.meetingPlaceName && styles.invalidInput]} value={form.meetingPlaceName} onChangeText={(value) => update("meetingPlaceName", value)} maxLength={100} />
+        {errors.meetingPlaceName && <Text style={styles.fieldError}>{errors.meetingPlaceName}</Text>}
+        <Text style={styles.label}>住所</Text>
+        <TextInput style={[styles.input, errors.meetingAddress && styles.invalidInput]} value={form.meetingAddress} onChangeText={(value) => update("meetingAddress", value)} maxLength={200} />
+        {errors.meetingAddress && <Text style={styles.fieldError}>{errors.meetingAddress}</Text>}
+        <Text style={styles.label}>ナビアプリの共有URL（任意）</Text>
+        <TextInput style={styles.input} value={form.navigationUrl} onChangeText={(value) => update("navigationUrl", value)} autoCapitalize="none" keyboardType="url" maxLength={500} />
+      </View>
       <Text style={styles.label}>主催者側の人数</Text>
       <View style={[styles.partyCounts, errors.hostParty && styles.invalidGroup]}>
         {(["hostMaleCount", "hostFemaleCount"] as const).map((key) => (
@@ -1321,6 +1432,18 @@ function CreateHangoutScreen({ area, gender, onBack, onSubmit }: { area: AlphaAr
       <Text style={styles.label}>合計人数（主催者側を含む）</Text>
       <View style={[styles.choiceRow, errors.maxParticipants && styles.invalidGroup]}>{[2, 3, 4, 5, 6, 7, 8].map((count) => <Pressable key={count} style={[styles.choice, form.maxParticipants === count && styles.choiceOn]} onPress={() => update("maxParticipants", count)}><Text>{count}人</Text></Pressable>)}</View>
       {errors.maxParticipants && <Text style={styles.fieldError}>{errors.maxParticipants}</Text>}
+      <Text style={styles.label}>参加できる性別</Text>
+      <View style={styles.choiceRow}>
+        {([['ANY', 'だれでも'], ['MALE_ONLY', '男性のみ'], ['FEMALE_ONLY', '女性のみ']] as const).map(([value, label]) => (
+          <Pressable key={value} style={[styles.choice, form.genderRestriction === value && styles.choiceOn]} onPress={() => update("genderRestriction", value)}><Text>{label}</Text></Pressable>
+        ))}
+      </View>
+      <Text style={styles.label}>年齢上限</Text>
+      <View style={styles.choiceRow}>
+        {([[null, '制限なし'], [29, '20代まで'], [39, '30代まで'], [59, '50代まで']] as const).map(([value, label]) => (
+          <Pressable key={label} style={[styles.choice, form.maxAge === value && styles.choiceOn]} onPress={() => update("maxAge", value)}><Text>{label}</Text></Pressable>
+        ))}
+      </View>
       <Text style={styles.label}>説明（任意）</Text>
       <TextInput style={[styles.input, styles.multiline]} value={form.description} onChangeText={(description) => setForm((v) => ({ ...v, description }))} multiline maxLength={500} />
       <Pressable style={styles.primary} onPress={publish}>
@@ -1330,9 +1453,12 @@ function CreateHangoutScreen({ area, gender, onBack, onSubmit }: { area: AlphaAr
   );
 }
 
-function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onChat, onStart, onFinish, onDecide, onReport, onAttendance }: { user: User; hangout: Hangout; requests: JoinRequest[]; onBack: () => void; onJoin: (hangout: Hangout) => void; onChat: (id: string) => void; onStart: (id: string) => void; onFinish: (id: string) => void; onDecide: (id: string, accept: boolean) => void; onReport: (hangout: Hangout) => void; onAttendance: (status: "CONFIRMED" | "CANCELLED") => void }) {
+function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onChat, onStart, onFinish, onCancel, onEdit, onDecide, onReport, onAttendance }: { user: User; hangout: Hangout; requests: JoinRequest[]; onBack: () => void; onJoin: (hangout: Hangout, message: string) => Promise<void>; onChat: (id: string) => void; onStart: (id: string) => void; onFinish: (id: string) => void; onCancel: (id: string) => void; onEdit: (hangoutId: string, input: Partial<CreateHangoutInput>) => Promise<void>; onDecide: (id: string, accept: boolean) => void; onReport: (hangout: Hangout) => void; onAttendance: (status: "CONFIRMED" | "CANCELLED") => void }) {
   const isHost = hangout.hostUserId === user.id;
+  const ineligibleReason = eligibilityReason(user, hangout);
   const [selectedApplicant, setSelectedApplicant] = useState<ApplicantProfile | null>(null);
+  const [joining, setJoining] = useState(false);
+  const [editing, setEditing] = useState(false);
   return (
     <>
       <ScrollView contentContainerStyle={styles.formPage}>
@@ -1352,6 +1478,10 @@ function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onChat, 
           <Text>{hangout.locationName}</Text>
           <Text style={styles.privacyText}>{hangout.myJoinStatus === "ACCEPTED" || isHost ? "承認済みのため詳細を表示しています。" : "参加承認までは、おおまかな場所だけが表示されます。"}</Text>
           {hangout.description && <Text style={styles.description}>{hangout.description}</Text>}
+          <Text style={styles.detailCondition}>{hangout.genderRestriction === "MALE_ONLY" ? "男性のみ" : hangout.genderRestriction === "FEMALE_ONLY" ? "女性のみ" : "性別条件なし"}{hangout.maxAge ? ` ・ ${hangout.maxAge}歳以下` : " ・ 年齢制限なし"}</Text>
+          {(isHost || hangout.myJoinStatus === "ACCEPTED") && hangout.navigationUrl ? (
+            <Pressable style={styles.mapLocationButton} onPress={() => void Linking.openURL(hangout.navigationUrl!)}><Text style={styles.locationText}>地図アプリでナビ開始</Text></Pressable>
+          ) : null}
         </View>
         {(isHost || hangout.myJoinStatus === "ACCEPTED") && (
           <Pressable style={styles.talkButtonWide} onPress={() => onChat(hangout.id)}>
@@ -1379,8 +1509,8 @@ function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onChat, 
           </View>
         )}
         {!isHost && !hangout.myJoinStatus && hangout.status === "OPEN" && (
-          <Pressable style={styles.primary} onPress={() => onJoin(hangout)}>
-            <Text style={styles.primaryText}>参加を申請する</Text>
+          <Pressable disabled={!!ineligibleReason} style={[styles.primary, !!ineligibleReason && styles.disabledButton]} onPress={() => setJoining(true)}>
+            <Text style={styles.primaryText}>{ineligibleReason || "参加したい"}</Text>
           </Pressable>
         )}
         {!isHost && (
@@ -1390,6 +1520,8 @@ function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onChat, 
         )}
         {isHost && (
           <>
+            <Pressable style={styles.editHangoutButton} onPress={() => setEditing(true)}><Text style={styles.editHangoutButtonText}>Hangout編集</Text></Pressable>
+            <Pressable style={styles.cancelHangoutButton} onPress={() => onCancel(hangout.id)}><Text style={styles.cancelHangoutButtonText}>Hangout中止</Text></Pressable>
             <Text style={styles.sectionTitle}>参加申請</Text>
             {requests.map((item) => (
               <View key={item.id} style={styles.requestCard}>
@@ -1418,13 +1550,85 @@ function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onChat, 
               </View>
             ))}
             {!requests.length && <Text style={styles.empty}>まだ申請はありません。</Text>}
-            {['OPEN', 'FULL'].includes(hangout.status) && <Pressable style={styles.finishButtonWide} onPress={() => onStart(hangout.id)}><Text style={styles.primaryText}>Hangoutを開始</Text></Pressable>}
-            {hangout.status === 'STARTED' && <Pressable style={styles.finishButtonWide} onPress={() => onFinish(hangout.id)}><Text style={styles.primaryText}>Hangoutを終了</Text></Pressable>}
+            {['OPEN', 'FULL'].includes(hangout.status) && <Pressable style={styles.finishButtonWide} onPress={() => onStart(hangout.id)}><Text style={styles.primaryText}>Hangout開始</Text></Pressable>}
+            {hangout.status === 'STARTED' && <Pressable style={styles.finishButtonWide} onPress={() => onFinish(hangout.id)}><Text style={styles.primaryText}>Hangout終了</Text></Pressable>}
           </>
         )}
       </ScrollView>
       <ApplicantProfileModal profile={selectedApplicant} onClose={() => setSelectedApplicant(null)} />
+      <JoinRequestModal visible={joining} hangout={hangout} onClose={() => setJoining(false)} onSubmit={async (message) => { await onJoin(hangout, message); setJoining(false); }} />
+      <EditHangoutModal visible={editing} hangout={hangout} onClose={() => setEditing(false)} onSave={async (input) => { await onEdit(hangout.id, input); setEditing(false); }} />
     </>
+  );
+}
+
+function JoinRequestModal({ visible, hangout, onClose, onSubmit }: { visible: boolean; hangout: Hangout; onClose: () => void; onSubmit: (message: string) => Promise<void> }) {
+  const [message, setMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <SafeAreaView style={styles.modalPage}>
+        <ScrollView contentContainerStyle={styles.formPage}>
+          <Pressable onPress={onClose}><Text style={styles.backText}>‹ Hangoutに戻る</Text></Pressable>
+          <Text style={styles.eyebrow}>参加申請</Text>
+          <Text style={styles.pageTitle}>ひとこと添えて申請</Text>
+          <Text style={styles.safetyNote}>{hangout.host.displayName}さんが参加可否を判断します。参加したい理由や当日の雰囲気が伝わるメッセージを書いてください。</Text>
+          <Text style={styles.label}>主催者へのメッセージ</Text>
+          <TextInput style={[styles.input, styles.multiline]} value={message} onChangeText={setMessage} multiline maxLength={200} placeholder="例：カフェ巡りが好きです。初参加ですが、よろしくお願いします！" />
+          <Text style={styles.characterCount}>{message.trim().length} / 200文字</Text>
+          <Pressable disabled={!message.trim() || submitting} style={[styles.primary, (!message.trim() || submitting) && styles.disabledButton]} onPress={() => { setSubmitting(true); void onSubmit(message.trim()).finally(() => setSubmitting(false)); }}>
+            <Text style={styles.primaryText}>{submitting ? "申請中…" : "この内容で参加申請する"}</Text>
+          </Pressable>
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
+function EditHangoutModal({ visible, hangout, onClose, onSave }: { visible: boolean; hangout: Hangout; onClose: () => void; onSave: (input: Partial<CreateHangoutInput>) => Promise<void> }) {
+  const [title, setTitle] = useState(hangout.title);
+  const [description, setDescription] = useState(hangout.description ?? "");
+  const [publicLocationName, setPublicLocationName] = useState(hangout.publicLocationName ?? "");
+  const [meetingPlaceName, setMeetingPlaceName] = useState(hangout.meetingPlaceName ?? "");
+  const [meetingAddress, setMeetingAddress] = useState(hangout.meetingAddress ?? "");
+  const [navigationUrl, setNavigationUrl] = useState(hangout.navigationUrl ?? "");
+  const [genderRestriction, setGenderRestriction] = useState<"ANY" | "MALE_ONLY" | "FEMALE_ONLY">(hangout.genderRestriction);
+  const [maxAge, setMaxAge] = useState<number | null>(hangout.maxAge);
+  const [imageUrl, setImageUrl] = useState(hangout.imageUrl ?? undefined);
+  const chooseImage = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) return Alert.alert("写真へのアクセスが必要です");
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [16, 9], quality: 0.72, base64: true });
+    const asset = result.canceled ? null : result.assets[0];
+    if (!asset?.base64) return;
+    const type = asset.mimeType === "image/png" ? "png" : asset.mimeType === "image/webp" ? "webp" : "jpeg";
+    setImageUrl(`data:image/${type};base64,${asset.base64}`);
+  };
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <SafeAreaView style={styles.modalPage}>
+        <ScrollView contentContainerStyle={styles.formPage}>
+          <Pressable onPress={onClose}><Text style={styles.backText}>‹ Hangout画面に戻る</Text></Pressable>
+          <Text style={styles.pageTitle}>Hangoutを編集</Text>
+          <Text style={styles.label}>Hangoutのイメージ写真</Text>
+          <Pressable style={styles.imagePickerButton} onPress={() => void chooseImage()}><Text style={styles.imagePickerButtonText}>写真を変更</Text></Pressable>
+          {imageUrl ? <Image source={{ uri: imageUrl }} style={styles.createImagePreview} /> : null}
+          <Field label="タイトル" value={title} onChangeText={setTitle} maxLength={80} />
+          <Field label="承認前に表示するエリア" value={publicLocationName} onChangeText={setPublicLocationName} maxLength={100} />
+          <Field label="店名" value={meetingPlaceName} onChangeText={setMeetingPlaceName} maxLength={100} />
+          <Field label="住所" value={meetingAddress} onChangeText={setMeetingAddress} maxLength={200} />
+          <Field label="ナビアプリの共有URL（任意）" value={navigationUrl} onChangeText={setNavigationUrl} autoCapitalize="none" keyboardType="url" maxLength={500} />
+          <Text style={styles.label}>参加できる性別</Text>
+          <View style={styles.choiceRow}>{([['ANY','だれでも'],['MALE_ONLY','男性のみ'],['FEMALE_ONLY','女性のみ']] as const).map(([value,label]) => <Pressable key={value} style={[styles.choice, genderRestriction === value && styles.choiceOn]} onPress={() => setGenderRestriction(value)}><Text>{label}</Text></Pressable>)}</View>
+          <Text style={styles.label}>年齢上限</Text>
+          <View style={styles.choiceRow}>{([[null,'制限なし'],[29,'20代まで'],[39,'30代まで'],[59,'50代まで']] as const).map(([value,label]) => <Pressable key={label} style={[styles.choice, maxAge === value && styles.choiceOn]} onPress={() => setMaxAge(value)}><Text>{label}</Text></Pressable>)}</View>
+          <Text style={styles.label}>説明</Text>
+          <TextInput style={[styles.input, styles.multiline]} value={description} onChangeText={setDescription} multiline maxLength={500} />
+          <Pressable style={styles.primary} onPress={() => void onSave({ title, description, imageUrl, publicLocationName, locationName: `${meetingPlaceName} ${meetingAddress}`.trim(), meetingPlaceName, meetingAddress, navigationUrl, genderRestriction, maxAge })}><Text style={styles.primaryText}>保存</Text></Pressable>
+          <Pressable style={styles.secondary} onPress={onClose}><Text>キャンセル</Text></Pressable>
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
   );
 }
 
@@ -2727,4 +2931,20 @@ const styles = StyleSheet.create({
   },
   genderChoiceOn: { backgroundColor: "#d9ff68" },
   genderChoiceText: { fontSize: 11, fontWeight: "800" },
+  modalPage: { flex: 1, backgroundColor: "#f4f1e8" },
+  providedImageGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  providedImageChoice: { width: "47%", overflow: "hidden", borderWidth: 2, borderColor: "transparent", borderRadius: 16, backgroundColor: "#fff" },
+  providedImageChoiceOn: { borderColor: "#176b48" },
+  providedImagePhoto: { width: "100%", height: 88 },
+  providedImageLabel: { padding: 9, color: "#344039", fontWeight: "900" },
+  privatePlaceBox: { gap: 7, padding: 14, borderRadius: 18, backgroundColor: "#eaf4e8", borderWidth: 1, borderColor: "#c9ddcc" },
+  privatePlaceTitle: { color: "#176b48", fontSize: 16, fontWeight: "900" },
+  detailCondition: { marginTop: 12, color: "#176b48", fontWeight: "800" },
+  editHangoutButton: { minHeight: 50, alignItems: "center", justifyContent: "center", marginBottom: 14, borderRadius: 16, backgroundColor: "#fff1c9", borderWidth: 1, borderColor: "#e4c97b" },
+  editHangoutButtonText: { color: "#765611", fontSize: 16, fontWeight: "900" },
+  cancelHangoutButton: { minHeight: 50, alignItems: "center", justifyContent: "center", marginBottom: 14, borderRadius: 16, backgroundColor: "#ffe2dc", borderWidth: 1, borderColor: "#efb4a8" },
+  cancelHangoutButtonText: { color: "#a13e31", fontSize: 16, fontWeight: "900" },
+  characterCount: { textAlign: "right", color: "#687169", fontSize: 12 },
+  disabledButton: { opacity: 0.45 },
+  secondary: { minHeight: 50, alignItems: "center", justifyContent: "center", borderRadius: 16, backgroundColor: "#e7ede7", marginTop: 10 },
 });

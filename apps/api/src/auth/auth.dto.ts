@@ -35,7 +35,7 @@ export class ConfirmPhoneVerificationDto {
 }
 
 export class LineStartDto {
-  @IsString() @Matches(/^hangoutnow:\/\/auth\/line$/) returnTo!: string;
+  @IsString() @Matches(/^(hangoutnow:\/\/auth\/line|https:\/\/(www\.)?method-more\.com\/demo\.html|https:\/\/hangoutnow-demo\.onrender\.com\/demo\.html|http:\/\/(localhost|127\.0\.0\.1):4173\/demo\.html)$/) returnTo!: string;
 }
 
 export class LineRedeemDto {
