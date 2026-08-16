@@ -2,7 +2,7 @@ import { ValidationPipe } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../src/auth/auth.service';
 import { AccessTokenGuard } from '../src/auth/access-token.guard';
 import { ChatController } from '../src/chat/chat.controller';
@@ -430,6 +430,16 @@ describe('social journey safety boundaries', () => {
     expect(retried.body.status).toBe('PENDING');
     expect(db.joinRequests.filter((item) => item.hangoutId === hangoutId && item.userId === 'guest')).toHaveLength(1);
     expect(db.joinRequests.find((item) => item.id === initial.body.id)?.message).toBe('もう一度参加したいです');
+  });
+
+  it('keeps a saved join request successful when notification delivery fails', async () => {
+    const hangoutId = await createHangout();
+    vi.spyOn(app.get(NotificationService), 'notify').mockRejectedValueOnce(new Error('notification unavailable'));
+
+    const joined = await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('guest')).send({ message: '参加したいです' }).expect(201);
+
+    expect(joined.body.status).toBe('PENDING');
+    expect(db.joinRequests.some((item) => item.id === joined.body.id && item.status === 'PENDING')).toBe(true);
   });
 
   it('enforces gender and age participation conditions on the API', async () => {

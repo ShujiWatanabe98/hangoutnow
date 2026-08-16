@@ -254,6 +254,18 @@ function showJoinRequestDialogReliable(h,detailSheet){
   const status=dialog.querySelector('.join-request-status');
   const detailJoinButton=detailSheet.querySelector('#join');
   let submitting=false;
+  const applyStatus=(value)=>{
+    const nextStatus=['PENDING','WAITLISTED','ACCEPTED'].includes(value)?value:'PENDING';
+    h.myJoinStatus=nextStatus;
+    const listedHangout=hangouts.find(item=>item.id===h.id);
+    if(listedHangout)listedHangout.myJoinStatus=nextStatus;
+    joined.add(h.id);
+    persist();
+    if(detailJoinButton){detailJoinButton.disabled=true;detailJoinButton.textContent={PENDING:'申請中',WAITLISTED:'待機中',ACCEPTED:'承認済み'}[nextStatus]}
+    const detailState=detailSheet.querySelector('.hangout-state');
+    if(detailState&&h.status!=='STARTED')detailState.textContent={PENDING:'申請中',WAITLISTED:'待機中',ACCEPTED:'承認済み'}[nextStatus];
+    return nextStatus;
+  };
   const closeDialog=()=>{if(submitting)return;dialog.classList.remove('open');dialog.classList.add('closing');setTimeout(()=>dialog.remove(),240)};
   const sync=()=>{const length=input.value.trim().length;dialog.querySelector('#join-message-count').textContent=String(length);send.dataset.incomplete=String(length<1);if(length)status.textContent=''};
   input.addEventListener('input',sync);
@@ -272,15 +284,22 @@ function showJoinRequestDialogReliable(h,detailSheet){
     status.textContent='参加申請を送信しています。';
     try{
       const request=await api(`/hangouts/${h.id}/join`,{method:'POST',body:JSON.stringify({message})});
-      h.myJoinStatus=request.status;
-      joined.add(h.id);
-      persist();
-      status.textContent=request.status==='WAITLISTED'?'待機リストに登録しました。':'参加申請を送信しました。';
-      if(detailJoinButton){detailJoinButton.disabled=true;detailJoinButton.textContent=request.status==='WAITLISTED'?'待機中':'申請中'}
+      const nextStatus=applyStatus(request?.status);
+      status.textContent=nextStatus==='WAITLISTED'?'待機リストに登録しました。':'参加申請を送信しました。';
       try{await loadHangouts()}catch(error){console.warn('Hangout refresh failed after successful join request')}
+      applyStatus(nextStatus);
       dialog.remove();
-      toast(request.status==='WAITLISTED'?'待機リストに登録しました':'ひとこと付きで参加申請を送りました');
+      toast(nextStatus==='WAITLISTED'?'待機リストに登録しました':'ひとこと付きで参加申請を送りました');
     }catch(error){
+      try{
+        const current=await api(`/hangouts/${h.id}`);
+        if(['PENDING','WAITLISTED','ACCEPTED'].includes(current.myJoinStatus)){
+          const reconciledStatus=applyStatus(current.myJoinStatus);
+          dialog.remove();
+          toast(reconciledStatus==='WAITLISTED'?'待機リストに登録しました':'参加申請を受け付けました');
+          return;
+        }
+      }catch{/* Preserve the original submission error below. */}
       submitting=false;
       send.disabled=false;
       send.removeAttribute('aria-busy');
