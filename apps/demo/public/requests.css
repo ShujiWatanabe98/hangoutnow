@@ -10,7 +10,7 @@
 .fab{bottom:20px}@media(min-width:700px){.fab{bottom:40px}}
 
 /* Unified button system: 44px touch targets, clear hierarchy, and consistent motion. */
-button{font-family:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .16s ease,box-shadow .16s ease,background-color .16s ease,border-color .16s ease,opacity .16s ease}
+button{font-family:inherit;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:transform .16s ease,box-shadow .16s ease,background-color .16s ease,border-color .16s ease,opacity .16s ease}button.button-pressed:not(:disabled){transform:scale(.98);opacity:.88}button[aria-busy="true"]{cursor:wait}.join-request-status{min-height:24px;padding:6px 2px;color:#176b48;font-size:12px;font-weight:800}.join-request-status:not(:empty){margin-top:8px}.join-request-form #send-join-request[data-incomplete="true"]{background:#92a39a}
 button:not(:disabled):active{transform:scale(.97)}button:disabled{cursor:not-allowed;opacity:.48}
 button:focus-visible{outline:3px solid #d9ff68;outline-offset:3px}
 .primary{min-height:52px;border-radius:17px;background:linear-gradient(145deg,#208158,#125a3d);box-shadow:0 8px 20px #176b4830;letter-spacing:.02em}

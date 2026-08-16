@@ -47,6 +47,14 @@ const hangoutImageObserver=new MutationObserver(()=>{
 });
 hangoutImageObserver.observe(document.body,{childList:true,subtree:true});
 
+const buttonReliabilityObserver=new MutationObserver(()=>{
+  document.querySelectorAll('button:not([type])').forEach(button=>{if(!button.closest('form'))button.type='button'});
+});
+buttonReliabilityObserver.observe(document.body,{childList:true,subtree:true});
+document.addEventListener('pointerdown',event=>{const button=event.target.closest('button');if(button&&!button.disabled)button.classList.add('button-pressed')},{passive:true});
+document.addEventListener('pointerup',event=>event.target.closest('button')?.classList.remove('button-pressed'),{passive:true});
+document.addEventListener('pointercancel',event=>event.target.closest('button')?.classList.remove('button-pressed'),{passive:true});
+
 function portraitClass(photo) { return `host-${photo}`; }
 function photoStyle(url) { return url ? ` style="background-image:url('${url}')"` : ''; }
 function hangoutPhotoClass(h) { return h.imageUrl ? 'custom-hangout-photo' : `activity-photo-${h.photo%4}`; }
@@ -99,11 +107,14 @@ async function api(path, options = {}) {
   if (!response.ok) throw new Error(Array.isArray(data?.message) ? data.message[0] : data?.message || 'APIへ接続できませんでした');
   return data;
 }
+function hangoutView(h, index = 0) {
+  return { id:h.id, hostUserId:h.hostUserId, status:h.status, startAt:h.startAt, icon:{FOOD:'🍜',RUNNING:'🏃',CAFE:'☕',MOTORCYCLE:'🏍️',WALKING:'🚶'}[h.category]||'✨', title:h.title, time:timeLabel(h.startAt), place:h.locationName, imageUrl:h.imageUrl, meetingPlaceName:h.meetingPlaceName, meetingAddress:h.meetingAddress, navigationUrl:h.navigationUrl, latitude:h.latitude,longitude:h.longitude,publicLatitude:h.publicLatitude,publicLongitude:h.publicLongitude,locationPrecision:h.locationPrecision,distanceKm:h.distanceKm,current:h.participantCount, max:h.maxParticipants, hostMaleCount:h.hostMaleCount, hostFemaleCount:h.hostFemaleCount, hostParticipantCount:h.hostParticipantCount, acceptedParticipants:h.acceptedParticipants||[], genderRestriction:h.genderRestriction, maxAge:h.maxAge, host:h.host.displayName, hostPhoto:h.host.profilePhoto, hostStatus:h.host.hostStatus, verified:h.host.verification==='PHONE_VERIFIED', rating:h.host.hostStatus?.hostAverageRating?`主催評価 ★ ${h.host.hostStatus.hostAverageRating}`:'主催評価なし', match:Math.max(70,94-index*5), photo:index%4, desc:h.description||'', hot:timeLabel(h.startAt)==='30分後', myJoinStatus:h.myJoinStatus, hearted:h.hearted, heartCount:h.heartCount||0 };
+}
 async function loadHangouts() {
   if (!session) return;
   const query=userLocation?`?latitude=${userLocation.latitude}&longitude=${userLocation.longitude}&radiusKm=50`:'';
   const rows = await api(`/hangouts${query}`);
-  hangouts.splice(0, hangouts.length, ...rows.map((h, i) => ({ id:h.id, hostUserId:h.hostUserId, status:h.status, startAt:h.startAt, icon:{FOOD:'🍜',RUNNING:'🏃',CAFE:'☕',MOTORCYCLE:'🏍️',WALKING:'🚶'}[h.category]||'✨', title:h.title, time:timeLabel(h.startAt), place:h.locationName, imageUrl:h.imageUrl, meetingPlaceName:h.meetingPlaceName, meetingAddress:h.meetingAddress, navigationUrl:h.navigationUrl, latitude:h.latitude,longitude:h.longitude,publicLatitude:h.publicLatitude,publicLongitude:h.publicLongitude,locationPrecision:h.locationPrecision,distanceKm:h.distanceKm,current:h.participantCount, max:h.maxParticipants, hostMaleCount:h.hostMaleCount, hostFemaleCount:h.hostFemaleCount, hostParticipantCount:h.hostParticipantCount, acceptedParticipants:h.acceptedParticipants||[], genderRestriction:h.genderRestriction, maxAge:h.maxAge, host:h.host.displayName, hostPhoto:h.host.profilePhoto, hostStatus:h.host.hostStatus, verified:h.host.verification==='PHONE_VERIFIED', rating:h.host.hostStatus?.hostAverageRating?`主催評価 ★ ${h.host.hostStatus.hostAverageRating}`:'主催評価なし', match:Math.max(70,94-i*5), photo:i%4, desc:h.description||'', hot:timeLabel(h.startAt)==='30分後', myJoinStatus:h.myJoinStatus, hearted:h.hearted, heartCount:h.heartCount||0 })));
+  hangouts.splice(0, hangouts.length, ...rows.map(hangoutView));
 }
 function timeLabel(startAt){const minutes=Math.max(0,Math.round((new Date(startAt)-Date.now())/60000));return minutes<=45?'30分後':minutes<=90?'1時間後':'3時間後'}
 
@@ -184,9 +195,16 @@ async function resetPublicDemo(){if(!confirm('共有デモを初期状態へ戻�
 
 async function useCurrentLocation(){if(!navigator.geolocation){toast('現在地を取得できないため、エリアを選択してください');return}navigator.geolocation.getCurrentPosition(async(pos)=>{userLocation={latitude:pos.coords.latitude,longitude:pos.coords.longitude,label:'現在地周辺',source:'gps'};persist();await loadHangouts();home();toast('現在地から近い順に並べました')},()=>toast('位置情報を許可するか、エリアを選択してください'),{enableHighAccuracy:false,timeout:8000,maximumAge:300000})}
 
-async function detail(id, sourceScreen = null) {
-  const h = hangouts.find((item) => item.id === id);
-  if (!h) return;
+async function detail(id, sourceScreen = null, options = {}) {
+  let h = hangouts.find((item) => item.id === id);
+  if (!h) {
+    try {
+      h = hangoutView(await api(`/hangouts/${id}`), hangouts.length);
+    } catch (error) {
+      toast(error.message);
+      return;
+    }
+  }
   const requested = ['PENDING','ACCEPTED','WAITLISTED'].includes(h.myJoinStatus);
   const mine=h.hostUserId===session.user.id||h.host===session.user.displayName;
   let requests=[];
@@ -201,14 +219,15 @@ async function detail(id, sourceScreen = null) {
   const requestList=mine?`<section class="inline-requests"><div class="inline-requests-head"><div><small>参加申請</small><h3>参加したいメンバー</h3></div><span>${requests.filter(request=>request.status==='PENDING').length}件の判断待ち</span></div>${requests.length?requests.map(request=>`<article class="request-row"><button class="request-person" type="button" data-request-profile="${request.id}" aria-label="${safeText(request.user.displayName)}のプロフィールを見る"><span class="request-avatar"${photoStyle(request.user.profilePhoto)}>${request.user.profilePhoto?'':safeText(request.user.displayName).slice(0,1)}</span><div><b>${safeText(request.user.displayName)}</b><small>${request.user.verification==='PHONE_VERIFIED'?'✓ 電話確認済み':'本人確認前'}</small></div></button><p>${safeText(request.message||'メッセージなし')}</p>${request.status==='PENDING'?`<div class="request-decisions"><button class="reject" data-reject="${request.id}">却下</button><button class="approve" data-accept="${request.id}">承認</button></div>`:`<strong class="request-result">${{ACCEPTED:'承認済み',REJECTED:'却下済み',WAITLISTED:'待機中',CANCELLED:'キャンセル'}[request.status]||safeText(request.status)}</strong>`}</article>`).join(''):'<div class="empty inline-request-empty">参加申請はまだありません。</div>'}</section>`:'';
   document.body.insertAdjacentHTML('beforeend', `<div class="sheet hangout-detail-sheet hangout-flow detail-open"><aside class="hangout-flow-list"><header><b>近くのHangout</b><button id="close-flow">一覧を閉じる</button></header>${hangouts.map(item=>`<button class="flow-list-row ${item.id===id?'active':''}" data-flow-hangout="${item.id}"><span class="map-list-photo activity-photo-${item.photo%4}"></span><span><strong>${safeText(item.title)}</strong><small>${safeText(item.time)} ・ ${safeText(item.place)}</small></span></button>`).join('')}</aside><section class="panel hangout-detail-panel"><header class="hangout-detail-nav"><button id="close" class="brand-back" type="button" aria-label="Hangout一覧に戻る"><span></span></button><b>Hangout</b><span></span></header><main class="hangout-detail-content"><div class="hangout-hero-photo activity-photo-${h.photo%4}"></div><div class="hangout-state">${state}</div><div class="detail-head"><div class="detail-photo ${portraitClass(h.photo)}"${photoStyle(h.hostPhoto)} aria-label="${h.host}のプロフィール写真"></div><div><strong>${h.host}</strong><div class="meta">${h.rating} ${h.verified?'・電話確認済み':'・本人確認前'}</div></div></div><div class="eyebrow detail-time">${h.time} ・ 相性 ${h.match}%</div><h2>${h.title}</h2><p>${h.desc}</p><div class="condition-panel"><small>参加条件</small><strong>${conditionText}</strong></div><div class="info"><b>集合場所</b>　${h.place}${h.distanceKm!==null&&h.distanceKm!==undefined?`（約${h.distanceKm}km）`:''}<br><b>参加人数</b>　${h.current} / ${h.max}人<br><b>主催者</b>　${h.host}　${h.rating}<br>${h.locationPrecision==='EXACT'?'承認済み：店名・住所・正確な位置を表示':'承認前：概略エリアのみ表示'}</div>${navigationButton}${h.distanceKm>10?'<div class="distance-warning">移動距離が長めです。開始時刻に間に合うか確認してください。</div>':''}${hangoutChatButton}${requestList}${mine?`<div class="owner-actions"><button id="edit-hangout">内容を編集</button><button id="cancel-hangout">開催を中止</button>${['OPEN','FULL'].includes(h.status)?'<button id="start-hangout">Hangoutを開始</button>':''}${h.status==='STARTED'?'<button id="finish-hangout">Hangoutを終了</button>':''}</div>`:''}</main><footer class="hangout-detail-action">${mine?'':`<button class="primary" id="join" ${requested ? 'disabled' : ''}>${requested ? ({PENDING:'申請中',WAITLISTED:'待機中',ACCEPTED:'承認済み',REJECTED:'拒否'}[h.myJoinStatus]||'参加申請済み') : '参加したい'}</button>`}</footer></section><section class="chat-conversation" id="chat-conversation"><div class="conversation-placeholder"><span class="conversation-photo activity-photo-${h.photo%4}"></span><b>Hangoutからトークへ</b><small>参加が承認されると、ここで会話を始められます。</small></div></section></div>`);
   const sheet = [...document.querySelectorAll('.hangout-flow')].at(-1);
-  sheet.classList.remove('detail-open');
+  const animate=options.animate!==false;
+  if(animate)sheet.classList.remove('detail-open');
   sourceScreen?.remove();
-  requestAnimationFrame(()=>requestAnimationFrame(()=>sheet.classList.add('detail-open')));
+  if(animate)requestAnimationFrame(()=>requestAnimationFrame(()=>sheet.classList.add('detail-open')));
   const ownerButtonLabels={
     '#edit-hangout':'Hangout編集',
     '#cancel-hangout':'Hangout中止',
     '#start-hangout':'Hangout開始',
-    '#finish-hangout':'Hagntout終了',
+    '#finish-hangout':'Hangout終了',
   };
   Object.entries(ownerButtonLabels).forEach(([selector,label])=>{const button=sheet.querySelector(selector);if(button)button.textContent=label});
   sheet.querySelector('#close').setAttribute('aria-label','ホームに戻る');
@@ -219,14 +238,65 @@ async function detail(id, sourceScreen = null) {
   const navigation=sheet.querySelector('#open-navigation');if(navigation)navigation.onclick=()=>window.open(h.navigationUrl||`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(h.latitude!==undefined&&h.longitude!==undefined?`${h.latitude},${h.longitude}`:h.place)}`,'_blank','noopener');
   sheet.querySelectorAll('[data-approved-profile]').forEach(button=>button.onclick=()=>{const member=(h.acceptedParticipants||[])[Number(button.dataset.approvedProfile)];if(member)showApplicantProfile(member,'参加メンバープロフィール')});
   if(!mine){sheet.querySelector('.hangout-detail-content').insertAdjacentHTML('beforeend','<button class="danger-link" id="report">通報・ブロック</button>');sheet.querySelector('#report').onclick=()=>{sheet.remove();safetyDialog(h)}}
-  if(mine){sheet.querySelectorAll('[data-request-profile]').forEach(button=>button.onclick=()=>{const request=requests.find(item=>item.id===button.dataset.requestProfile);if(request)showApplicantProfile(request.user)});sheet.querySelectorAll('[data-accept]').forEach(button=>button.onclick=()=>decideInlineRequest(id,button.dataset.accept,true,sheet));sheet.querySelectorAll('[data-reject]').forEach(button=>button.onclick=()=>decideInlineRequest(id,button.dataset.reject,false,sheet));sheet.querySelector('#edit-hangout').onclick=()=>showEditHangout(h,sheet);sheet.querySelector('#cancel-hangout').onclick=async()=>{if(!confirm('このHangoutを中止しますか？参加者にも表示されなくなります。'))return;try{await api(`/hangouts/${id}`,{method:'DELETE'});sheet.remove();await loadHangouts();home();toast('Hangoutを中止しました')}catch(error){toast(error.message)}};const start=sheet.querySelector('#start-hangout');if(start)start.onclick=async()=>{try{await api(`/hangouts/${id}/start`,{method:'POST'});sheet.remove();await loadHangouts();await detail(id);toast('Hangoutを開始しました。途中参加の申請を受け付けています')}catch(error){toast(error.message)}};const finish=sheet.querySelector('#finish-hangout');if(finish)finish.onclick=()=>{sheet.remove();showFinishConfirmation(id)};return}
+  if(mine){sheet.querySelectorAll('[data-request-profile]').forEach(button=>button.onclick=()=>{const request=requests.find(item=>item.id===button.dataset.requestProfile);if(request)showApplicantProfile(request.user)});sheet.querySelectorAll('[data-accept]').forEach(button=>button.onclick=()=>decideInlineRequest(id,button.dataset.accept,true,sheet));sheet.querySelectorAll('[data-reject]').forEach(button=>button.onclick=()=>decideInlineRequest(id,button.dataset.reject,false,sheet));sheet.querySelector('#edit-hangout').onclick=()=>showEditHangout(h,sheet);sheet.querySelector('#cancel-hangout').onclick=async()=>{if(!confirm('このHangoutを中止しますか？参加者にも表示されなくなります。'))return;try{await api(`/hangouts/${id}`,{method:'DELETE'});sheet.remove();await loadHangouts();home();toast('Hangoutを中止しました')}catch(error){toast(error.message)}};const start=sheet.querySelector('#start-hangout');if(start)start.onclick=async()=>{if(start.disabled)return;start.disabled=true;start.textContent='開始中…';try{await api(`/hangouts/${id}/start`,{method:'POST'});h.status='STARTED';await loadHangouts();sheet.querySelector('.hangout-state').textContent='Hangout中';start.id='finish-hangout';start.textContent='Hangout終了';start.disabled=false;start.onclick=()=>showFinishConfirmation(id);toast('Hangoutを開始しました。途中参加の申請を受け付けています')}catch(error){start.disabled=false;start.textContent='Hangout開始';toast(error.message)}};const finish=sheet.querySelector('#finish-hangout');if(finish)finish.onclick=()=>showFinishConfirmation(id);return}
   const joinButton=sheet.querySelector('#join');const reason=eligibilityReason(h);if(reason&&!requested){joinButton.disabled=true;joinButton.textContent='参加条件の対象外';joinButton.insertAdjacentHTML('beforebegin',`<small class="eligibility-note">${safeText(reason)}</small>`)}
   joinButton.onclick=()=>{if(reason||requested)return;showJoinRequestDialog(h,sheet)};
 }
 
 function showJoinRequestDialog(h,detailSheet){document.querySelector('.join-request-screen')?.remove();document.body.insertAdjacentHTML('beforeend',`<div class="profile-screen join-request-screen"><header class="host-menu-header"><button class="brand-back" type="button" aria-label="Hangoutに戻る"><span></span></button><div><small>参加申請</small><b>参加したい</b></div><span></span></header><main class="profile-screen-content"><section class="host-menu-form join-request-form"><div class="eyebrow">主催者が参加可否を判断します</div><h2>ひとこと添えて申請</h2><p>参加したい理由や当日の雰囲気が伝わるメッセージを書いてください。</p><label>主催者へのメッセージ</label><textarea id="join-message" rows="5" maxlength="200" placeholder="例：カフェ巡りが好きです。初参加ですが、よろしくお願いします！"></textarea><small><span id="join-message-count">0</span> / 200文字</small><button class="primary" id="send-join-request" disabled>この内容で参加申請する</button></section></main></div>`);const dialog=document.querySelector('.join-request-screen');const closeDialog=()=>{dialog.classList.remove('open');dialog.classList.add('closing');setTimeout(()=>dialog.remove(),240)};setTimeout(()=>dialog.classList.add('open'),0);dialog.querySelector('.brand-back').onclick=closeDialog;const input=dialog.querySelector('#join-message');const send=dialog.querySelector('#send-join-request');input.oninput=()=>{const length=input.value.trim().length;dialog.querySelector('#join-message-count').textContent=String(length);send.disabled=length<1};send.onclick=async()=>{const message=input.value.trim();if(!message||send.disabled)return;send.disabled=true;send.textContent='申請中…';try{const request=await api(`/hangouts/${h.id}/join`,{method:'POST',body:JSON.stringify({message})});h.myJoinStatus=request.status;joined.add(h.id);persist();await loadHangouts();dialog.remove();detailSheet.remove();home();toast(request.status==='WAITLISTED'?'待機リストに登録しました':'ひとこと付きで参加申請を送りました')}catch(error){send.disabled=false;send.textContent='この内容で参加申請する';toast(error.message)}}}
 
-async function decideInlineRequest(hangoutId,requestId,accept,sheet){try{await api(`/join-requests/${requestId}/${accept?'accept':'reject'}`,{method:'POST'});sheet.remove();await loadHangouts();await detail(hangoutId);toast(accept?'参加申請を承認しました':'参加申請を却下しました')}catch(error){toast(error.message)}}
+function showJoinRequestDialogReliable(h,detailSheet){
+  document.querySelector('.join-request-screen')?.remove();
+  document.body.insertAdjacentHTML('beforeend',`<div class="profile-screen join-request-screen"><header class="host-menu-header"><button class="brand-back" type="button" aria-label="Hangoutに戻る"><span></span></button><div><small>参加申請</small><b>参加したい</b></div><span></span></header><main class="profile-screen-content"><section class="host-menu-form join-request-form"><div class="eyebrow">主催者が参加可否を判断します</div><h2>ひとこと添えて申請</h2><p>参加したい理由や当日の雰囲気が伝わるメッセージを書いてください。</p><label for="join-message">主催者へのメッセージ</label><textarea id="join-message" rows="5" maxlength="200" placeholder="例：カフェ巡りが好きです。初参加ですが、よろしくお願いします！"></textarea><small><span id="join-message-count">0</span> / 200文字</small><div class="join-request-status" role="status" aria-live="polite"></div><button class="primary" id="send-join-request" type="button" data-incomplete="true">この内容で参加申請する</button></section></main></div>`);
+  const dialog=[...document.querySelectorAll('.join-request-screen')].at(-1);
+  const input=dialog.querySelector('#join-message');
+  const send=dialog.querySelector('#send-join-request');
+  const status=dialog.querySelector('.join-request-status');
+  const detailJoinButton=detailSheet.querySelector('#join');
+  let submitting=false;
+  const closeDialog=()=>{if(submitting)return;dialog.classList.remove('open');dialog.classList.add('closing');setTimeout(()=>dialog.remove(),240)};
+  const sync=()=>{const length=input.value.trim().length;dialog.querySelector('#join-message-count').textContent=String(length);send.dataset.incomplete=String(length<1);if(length)status.textContent=''};
+  input.addEventListener('input',sync);
+  input.addEventListener('compositionend',sync);
+  dialog.querySelector('.brand-back').onclick=closeDialog;
+  send.onclick=async()=>{
+    const message=input.value.trim();
+    if(submitting)return;
+    if(!message){status.textContent='メッセージを入力してください。';input.focus();return}
+    submitting=true;
+    input.blur();
+    send.disabled=true;
+    send.setAttribute('aria-busy','true');
+    send.textContent='申請中…';
+    if(detailJoinButton){detailJoinButton.disabled=true;detailJoinButton.textContent='申請中…'}
+    status.textContent='参加申請を送信しています。';
+    try{
+      const request=await api(`/hangouts/${h.id}/join`,{method:'POST',body:JSON.stringify({message})});
+      h.myJoinStatus=request.status;
+      joined.add(h.id);
+      persist();
+      status.textContent=request.status==='WAITLISTED'?'待機リストに登録しました。':'参加申請を送信しました。';
+      if(detailJoinButton){detailJoinButton.disabled=true;detailJoinButton.textContent=request.status==='WAITLISTED'?'待機中':'申請中'}
+      try{await loadHangouts()}catch(error){console.warn('Hangout refresh failed after successful join request')}
+      dialog.remove();
+      toast(request.status==='WAITLISTED'?'待機リストに登録しました':'ひとこと付きで参加申請を送りました');
+    }catch(error){
+      submitting=false;
+      send.disabled=false;
+      send.removeAttribute('aria-busy');
+      send.textContent='この内容で参加申請する';
+      if(detailJoinButton){detailJoinButton.disabled=false;detailJoinButton.textContent='参加したい'}
+      status.textContent=error.message;
+      toast(error.message);
+    }
+  };
+  sync();
+  setTimeout(()=>dialog.classList.add('open'),0);
+}
+
+showJoinRequestDialog=showJoinRequestDialogReliable;
+
+async function decideInlineRequest(hangoutId,requestId,accept,sheet){const actionButton=sheet.querySelector(`[data-${accept?'accept':'reject'}="${requestId}"]`);if(actionButton?.disabled)return;if(actionButton){actionButton.disabled=true;actionButton.textContent=accept?'承認中…':'却下中…'}try{await api(`/join-requests/${requestId}/${accept?'accept':'reject'}`,{method:'POST'});await loadHangouts();await detail(hangoutId,null,{animate:false});sheet.remove();toast(accept?'参加申請を承認しました':'参加申請を却下しました')}catch(error){if(actionButton){actionButton.disabled=false;actionButton.textContent=accept?'承認':'却下'}toast(error.message)}}
 
 function showApplicantProfile(user,title='申請者プロフィール'){
   const interests=(user.interests||[]).map(interest=>`<span>${safeText(interest)}</span>`).join('')||'<span>未登録</span>';
@@ -289,7 +359,7 @@ function showEditHangoutFixed(h,detailSheet){
       const maxAge=menu.querySelector('#edit-max-age').value;
       await api(`/hangouts/${h.id}`,{method:'PATCH',body:JSON.stringify({title:menu.querySelector('#edit-title').value.trim(),publicLocationName:menu.querySelector('#edit-public-place').value.trim(),locationName:`${placeName} ${address}`.trim(),meetingPlaceName:placeName,meetingAddress:address,...(imageUrl?{imageUrl}:{}),description:menu.querySelector('#edit-description').value.trim(),genderRestriction:menu.querySelector('#edit-gender').value,maxAge:maxAge?Number(maxAge):null})});
       await loadHangouts();
-      await detail(h.id);
+      await detail(h.id,null,{animate:false});
       closeMenu(()=>{detailSheet.remove();toast('Hangoutと写真を更新しました')});
     }catch(error){saveButton.disabled=false;saveButton.textContent='保存';toast(error.message)}
   };
@@ -363,13 +433,54 @@ async function openChat(room) {
   conversation.innerHTML=`<header class="chat-conversation-head"><button class="chat-back brand-back" type="button" aria-label="トーク一覧に戻る"><span></span></button><span class="conversation-avatar"${photoStyle(photo)}>${photo?'':safeText(title).slice(0,1)}</span><div><h2>${safeText(title)}</h2><small>${kind==='direct'?'1対1':room.hangout.status==='FINISHED'?'終了・評価待ち':'グループ ・ '+room.members.length+'人'}　<span>● オンライン</span></small></div></header><div class="messages">${messages.map((m)=>{const mine=m.senderUserId===session.user.id;return `<div class="message-line ${mine?'mine':''}">${mine?'':`<span class="message-avatar"${photoStyle(m.sender.profilePhoto)}>${m.sender.profilePhoto?'':safeText(m.sender.displayName).slice(0,1)}</span>`}<div class="bubble-wrap"><small>${safeText(m.sender.displayName)}</small><div class="bubble">${messageContent(m.body)}</div><time>${new Date(m.createdAt).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})}</time></div>${mine?`<span class="message-avatar"${photoStyle(m.sender.profilePhoto||session.user.profilePhoto)}>${m.sender.profilePhoto||session.user.profilePhoto?'':safeText(m.sender.displayName).slice(0,1)}</span>`:''}</div>`}).join('')||'<div class="empty">最初のメッセージを送ってみましょう。</div>'}</div><div class="conversation-actions">${kind==='group'?'<div class="quick"><button>向かっています</button><button>少し遅れます</button><button>到着しました</button></div>':''}<div class="composer"><input placeholder="メッセージを入力" maxlength="1000"><button class="chat-send-button" aria-label="メッセージを送信"><span>↑</span></button></div></div>`;
   if(workspace.classList.contains('hangout-flow'))transitionHangoutConversation(workspace,true);else workspace.classList.add('conversation-open');conversation.querySelector('.messages').scrollTop=conversation.querySelector('.messages').scrollHeight;
   conversation.querySelector('.chat-back').onclick=()=>{if(workspace.classList.contains('hangout-flow'))transitionHangoutConversation(workspace,false);else workspace.classList.remove('conversation-open')};
-  const send=async(text)=>{if(!text.trim())return;try{await api(`${base}/${room.id}/messages`,{method:'POST',body:JSON.stringify({body:text.trim()})});openChat(room)}catch(error){toast(error.message)}};
+  let sendingMessage=false;
+  const send=async(text)=>{
+    const body=text.trim();
+    if(!body||sendingMessage)return;
+    const input=conversation.querySelector('.composer input');
+    const sendButton=conversation.querySelector('.composer button');
+    sendingMessage=true;
+    sendButton.disabled=true;
+    try{
+      const message=await api(`${base}/${room.id}/messages`,{method:'POST',body:JSON.stringify({body})});
+      const messagesElement=conversation.querySelector('.messages');
+      messagesElement.querySelector('.empty')?.remove();
+      messagesElement.insertAdjacentHTML('beforeend',`<div class="message-line mine"><div class="bubble-wrap"><small>${safeText(message.sender.displayName)}</small><div class="bubble">${messageContent(message.body)}</div><time>${new Date(message.createdAt).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})}</time></div><span class="message-avatar"${photoStyle(message.sender.profilePhoto||session.user.profilePhoto)}>${message.sender.profilePhoto||session.user.profilePhoto?'':safeText(message.sender.displayName).slice(0,1)}</span></div>`);
+      input.value='';
+      messagesElement.scrollTop=messagesElement.scrollHeight;
+    }catch(error){toast(error.message)}finally{sendingMessage=false;sendButton.disabled=false}
+  };
   conversation.querySelectorAll('.quick button').forEach((button)=>button.onclick=()=>send(button.textContent));
   conversation.querySelector('.composer button').onclick=()=>send(conversation.querySelector('.composer input').value);
   conversation.querySelector('.composer input').onkeydown=(event)=>{if(event.key==='Enter'&&!event.isComposing)send(event.currentTarget.value)};
 }
 
 async function showHangoutRatingScreen(hangoutId){try{const groups=await api('/chat-rooms');const room=groups.find(item=>item.hangout.id===hangoutId);const members=(room?.members||[]).filter(member=>member.id!==session.user.id);document.body.insertAdjacentHTML('beforeend',`<div class="sheet rating-sheet hangout-rating-sheet"><section class="panel"><div class="handle"></div><div class="eyebrow">Hangoutを終了しました</div><h2>参加メンバーを評価</h2><p>一緒に過ごしたメンバーを★1〜5で評価してください。評価は後から変更できます。</p><div class="hangout-rating-members">${members.map(member=>`<article class="hangout-rating-member"><b>${safeText(member.displayName)}</b><small>${member.id===room.hangout.hostUserId?'主催者として評価':'参加者として評価'}</small><div class="rating-stars compact">${[1,2,3,4,5].map(score=>`<button data-member-rating="${member.id}" data-score="${score}" class="${member.myRatingScore===score?'selected':''}" aria-label="${safeText(member.displayName)}を星${score}で評価">${score}★</button>`).join('')}</div><em>${member.myRatingScore?`評価済み ★${member.myRatingScore}`:'評価を選択してください'}</em></article>`).join('')||'<div class="empty">評価する参加メンバーはいません。</div>'}</div><button class="primary" data-finish-ratings>評価を完了</button></section></div>`);const sheet=document.querySelector('.hangout-rating-sheet');sheet.querySelector('[data-finish-ratings]').onclick=()=>{sheet.remove();home()};sheet.querySelectorAll('[data-member-rating]').forEach(button=>button.onclick=async()=>{try{await api(`/hangouts/${hangoutId}/ratings`,{method:'POST',body:JSON.stringify({ratedUserId:button.dataset.memberRating,score:Number(button.dataset.score)})});sheet.remove();toast(`評価 ★${button.dataset.score}を保存しました`);await showHangoutRatingScreen(hangoutId)}catch(error){toast(error.message)}})}catch(error){toast(error.message);home()}}
+
+async function showHangoutRatingScreenStable(hangoutId){
+  try{
+    const groups=await api('/chat-rooms');
+    const room=groups.find(item=>item.hangout.id===hangoutId);
+    const members=(room?.members||[]).filter(member=>member.id!==session.user.id);
+    document.body.insertAdjacentHTML('beforeend',`<div class="sheet rating-sheet hangout-rating-sheet"><section class="panel"><div class="handle"></div><div class="eyebrow">Hangoutを終了しました</div><h2>参加メンバーを評価</h2><p>一緒に過ごしたメンバーを★1〜5で評価してください。評価は後から変更できます。</p><div class="hangout-rating-members">${members.map(member=>`<article class="hangout-rating-member"><b>${safeText(member.displayName)}</b><small>${member.id===room.hangout.hostUserId?'主催者として評価':'参加者として評価'}</small><div class="rating-stars compact">${[1,2,3,4,5].map(score=>`<button data-member-rating="${member.id}" data-score="${score}" class="${member.myRatingScore===score?'selected':''}" aria-label="${safeText(member.displayName)}を星${score}で評価">${score}★</button>`).join('')}</div><em>${member.myRatingScore?`評価済み ★${member.myRatingScore}`:'評価を選択してください'}</em></article>`).join('')||'<div class="empty">評価する参加メンバーはいません。</div>'}</div><button class="primary" data-finish-ratings>評価を完了</button></section></div>`);
+    const sheet=[...document.querySelectorAll('.hangout-rating-sheet')].at(-1);
+    sheet.querySelector('[data-finish-ratings]').onclick=()=>{sheet.remove();home()};
+    sheet.querySelectorAll('[data-member-rating]').forEach(button=>button.onclick=async()=>{
+      const memberCard=button.closest('.hangout-rating-member');
+      const ratingButtons=[...memberCard.querySelectorAll('[data-member-rating]')];
+      if(ratingButtons.some(item=>item.disabled))return;
+      ratingButtons.forEach(item=>item.disabled=true);
+      try{
+        await api(`/hangouts/${hangoutId}/ratings`,{method:'POST',body:JSON.stringify({ratedUserId:button.dataset.memberRating,score:Number(button.dataset.score)})});
+        ratingButtons.forEach(item=>item.classList.toggle('selected',item===button));
+        memberCard.querySelector('em').textContent=`評価済み ★${button.dataset.score}`;
+        toast(`評価 ★${button.dataset.score}を保存しました`);
+      }catch(error){toast(error.message)}finally{ratingButtons.forEach(item=>item.disabled=false)}
+    });
+  }catch(error){toast(error.message)}
+}
+
+showHangoutRatingScreen=showHangoutRatingScreenStable;
 function showFinishConfirmation(hangoutId){document.body.insertAdjacentHTML('beforeend',`<div class="sheet finish-sheet"><section class="panel"><div class="handle"></div><div class="eyebrow">Hangoutを終了</div><h2>楽しい時間を過ごせましたか？</h2><p>終了すると参加者を★1〜5で評価できます。双方が★5の場合だけ1対1トークが解放されます。</p><button class="primary" id="confirm-finish">終了して評価へ進む</button><button class="secondary" id="close">まだ終了しない</button></section></div>`);const sheet=document.querySelector('.finish-sheet');sheet.querySelector('#close').onclick=()=>sheet.remove();sheet.querySelector('#confirm-finish').onclick=async()=>{try{await api(`/hangouts/${hangoutId}/finish`,{method:'POST'});sheet.remove();await loadHangouts();toast('Hangoutを終了しました');await showHangoutRatingScreen(hangoutId)}catch(error){toast(error.message)}}}
 
 function showProfilePhoto(profilePhoto,displayName,extraClass=''){
@@ -407,7 +518,7 @@ async function profileScreen() {
   const participatedPast=activity.participated.filter(item=>!activeStatuses.has(item.status));
   screen.querySelector('.tags').insertAdjacentHTML('afterend',`<section class="profile-activity"><h2>主催中のHangout</h2>${activityRows(hostedActive)}<h2>主催したHangout</h2>${activityRows(hostedPast)}<h2>参加するHangout</h2>${activityRows(participatingActive)}<h2>参加したHangout</h2>${activityRows(participatedPast)}<h2>ハートしたHangout</h2>${activityRows(activity.hearted||[])}</section>`);
   screen.querySelector('#profile-chat').onclick=()=>chatScreen(screen);
-  screen.querySelectorAll('[data-profile-hangout]').forEach(button=>button.onclick=()=>detail(button.dataset.profileHangout,screen));
+  screen.querySelectorAll('[data-profile-hangout]').forEach(button=>button.onclick=async()=>{if(button.disabled)return;button.disabled=true;try{await detail(button.dataset.profileHangout,screen)}finally{if(button.isConnected)button.disabled=false}});
   if(hostStatus){const nextLabel={BRONZE:'ブロンズ',SILVER:'シルバー',GOLD:'ゴールド',PLATINUM:'プラチナ',DIAMOND:'ダイアモンド'}[hostStatus.nextTier];screen.querySelector('.profile .verified').insertAdjacentHTML('afterend',`<section class="host-rank-card tier-${hostStatus.tier.toLowerCase()}"><small>主催者ステータス</small><strong>${hostStatus.label}</strong><p>開催完了 ${hostStatus.completedHangouts}回 ・ 累計参加者 ${hostStatus.totalParticipants}人<br>主催評価 ${hostStatus.hostAverageRating??'未評価'}（${hostStatus.hostRatingCount}件）<br>参加評価 ${hostStatus.participantAverageRating??'未評価'}（${hostStatus.participantRatingCount}件）<br>中止率 ${Math.round(hostStatus.cancellationRate*100)}%</p><em>${nextLabel?`次のステータス：${nextLabel}`:'最高ステータスです'}</em></section>`);const stats=screen.querySelectorAll('.stats b');stats[0].textContent=hostStatus.hostAverageRating??'—';stats[1].textContent=hostStatus.participantAverageRating??'—';stats[3].textContent=hostStatus.completedHangouts;screen.querySelectorAll('.stats span')[3].textContent='開催完了'}
   const profileChatButton=screen.querySelector('#profile-chat');
   const phoneVerification=screen.querySelector('.profile>.verified');
