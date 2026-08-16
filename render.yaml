@@ -22,6 +22,12 @@ services:
         generateValue: true
       - key: PHONE_CODE_SECRET
         generateValue: true
+      - key: LINE_LOGIN_CHANNEL_ID
+        value: "2011130010"
+      - key: LINE_LOGIN_CHANNEL_SECRET
+        sync: false
+      - key: LINE_LOGIN_CALLBACK_URL
+        value: https://hangoutnow-api.onrender.com/auth/line/callback
       - key: CORS_ORIGINS
         value: https://method-more.com,https://www.method-more.com,https://hangoutnow-demo.onrender.com
       - key: S3_ENDPOINT

@@ -56,8 +56,41 @@ model User {
   notifications Notification[]
   pushTokens PushToken[]
   hangoutHearts HangoutHeart[]
+  oauthIdentities OAuthIdentity[]
+  oauthLoginTickets OAuthLoginTicket[]
 
   @@map("users")
+}
+
+model OAuthIdentity {
+  id        String   @id @db.Uuid
+  provider  String
+  subject   String
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, subject])
+  @@index([userId])
+  @@map("oauth_identities")
+}
+
+model OAuthLoginTicket {
+  id           String    @id @db.Uuid
+  tokenHash    String    @unique @map("token_hash")
+  provider     String
+  subject      String
+  displayName  String?   @map("display_name")
+  profilePhoto String?   @map("profile_photo") @db.Text
+  userId       String?   @map("user_id") @db.Uuid
+  expiresAt    DateTime  @map("expires_at")
+  usedAt       DateTime? @map("used_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  user         User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([provider, subject])
+  @@index([expiresAt])
+  @@map("oauth_login_tickets")
 }
 
 model PushToken {

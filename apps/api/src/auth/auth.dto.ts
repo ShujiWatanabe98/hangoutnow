@@ -33,3 +33,14 @@ export class ConfirmPhoneVerificationDto {
   @IsString() @Matches(/^\+[1-9]\d{7,14}$/) phone!: string;
   @IsString() @Matches(/^\d{6}$/) code!: string;
 }
+
+export class LineStartDto {
+  @IsString() @Matches(/^hangoutnow:\/\/auth\/line$/) returnTo!: string;
+}
+
+export class LineRedeemDto {
+  @IsString() @MinLength(20) ticket!: string;
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(40) displayName?: string;
+  @IsOptional() @IsDateString({ strict: true }) birthDate?: string;
+  @IsOptional() @IsEnum(Gender) gender?: Gender;
+}

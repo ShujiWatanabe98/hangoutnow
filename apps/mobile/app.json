@@ -8,11 +8,6 @@
     "scheme": "hangoutnow",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#f5f3eb"
-    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.hangoutnow.app",
@@ -39,6 +34,14 @@
       }
     },
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#f5f3eb"
+        }
+      ],
       "expo-notifications",
       "expo-secure-store",
       [

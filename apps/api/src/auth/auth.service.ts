@@ -1,10 +1,10 @@
-import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { compare, hash } from 'bcryptjs';
 import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 import { v7 as uuidv7 } from 'uuid';
 import { AuthRepository, PublicUser, StoredUser } from './auth.types';
-import { ConfirmPhoneVerificationDto, LoginDto, RegisterDto, RequestPhoneVerificationDto, UpdateProfileDto } from './auth.dto';
+import { ConfirmPhoneVerificationDto, LineRedeemDto, LoginDto, RegisterDto, RequestPhoneVerificationDto, UpdateProfileDto } from './auth.dto';
 import { SmsVerificationProvider } from './sms-verification.provider';
 import { ImageStorageService } from '../storage/image-storage.service';
 
@@ -31,6 +31,53 @@ export class AuthService {
   async login(input: LoginDto): Promise<AuthResponse> {
     const user = await this.repository.findUserByEmail(input.email.trim().toLowerCase());
     if (!user || !(await compare(input.password, user.passwordHash))) throw new UnauthorizedException('Invalid credentials');
+    return { user: this.publicUser(user), ...(await this.issueTokens(user.id)) };
+  }
+
+  async lineAuthorizeUrl(returnTo: string): Promise<string> {
+    const clientId = process.env.LINE_LOGIN_CHANNEL_ID;
+    if (!clientId) throw new ServiceUnavailableException('LINE login is not configured');
+    const nonce = randomBytes(24).toString('base64url');
+    const state = await this.jwt.signAsync({ kind: 'line_state', returnTo, nonce }, { expiresIn: 10 * 60 });
+    const query = new URLSearchParams({ response_type: 'code', client_id: clientId, redirect_uri: this.lineCallbackUrl(), state, scope: 'openid profile', nonce });
+    return `https://access.line.me/oauth2/v2.1/authorize?${query.toString()}`;
+  }
+
+  async lineCallback(code: string, state: string): Promise<string> {
+    const clientId = process.env.LINE_LOGIN_CHANNEL_ID;
+    const clientSecret = process.env.LINE_LOGIN_CHANNEL_SECRET;
+    if (!clientId || !clientSecret) throw new ServiceUnavailableException('LINE login is not configured');
+    let statePayload: { kind?: string; returnTo?: string; nonce?: string };
+    try { statePayload = this.jwt.verify<{ kind?: string; returnTo?: string; nonce?: string }>(state); }
+    catch { throw new UnauthorizedException('Invalid LINE login state'); }
+    if (statePayload.kind !== 'line_state' || statePayload.returnTo !== 'hangoutnow://auth/line' || !statePayload.nonce) throw new UnauthorizedException('Invalid LINE login state');
+    const tokenResponse = await fetch('https://api.line.me/oauth2/v2.1/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: this.lineCallbackUrl(), client_id: clientId, client_secret: clientSecret }) });
+    const tokens = await tokenResponse.json() as { id_token?: string; error_description?: string };
+    if (!tokenResponse.ok || !tokens.id_token) throw new UnauthorizedException(tokens.error_description || 'LINE login failed');
+    const verifyResponse = await fetch('https://api.line.me/oauth2/v2.1/verify', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ id_token: tokens.id_token, client_id: clientId }) });
+    const profile = await verifyResponse.json() as { sub?: string; name?: string; picture?: string; nonce?: string; error_description?: string };
+    if (!verifyResponse.ok || !profile.sub || profile.nonce !== statePayload.nonce) throw new UnauthorizedException(profile.error_description || 'Invalid LINE identity');
+    const existing = await this.repository.findOAuthIdentity('LINE', profile.sub);
+    const ticket = randomBytes(40).toString('base64url');
+    await this.repository.saveOAuthLoginTicket({ id: uuidv7(), tokenHash: this.tokenHash(ticket), provider: 'LINE', subject: profile.sub, displayName: profile.name?.slice(0, 40) || null, profilePhoto: profile.picture || null, userId: existing?.id || null, expiresAt: new Date(Date.now() + 10 * 60_000), usedAt: null });
+    return `${statePayload.returnTo}?ticket=${encodeURIComponent(ticket)}`;
+  }
+
+  async redeemLineLogin(input: LineRedeemDto): Promise<AuthResponse | { registrationRequired: true; displayName: string | null }> {
+    const row = await this.repository.findOAuthLoginTicket(this.tokenHash(input.ticket));
+    if (!row || row.provider !== 'LINE' || row.usedAt || row.expiresAt <= new Date()) throw new UnauthorizedException('LINE login ticket is invalid');
+    let user = row.userId ? await this.repository.findUserById(row.userId) : await this.repository.findOAuthIdentity('LINE', row.subject);
+    if (!user) {
+      if (!input.birthDate) return { registrationRequired: true, displayName: row.displayName };
+      if (!this.isAdult(input.birthDate)) throw new BadRequestException('You must be at least 18 years old');
+      const displayName = (input.displayName || row.displayName || '').trim();
+      if (!displayName) throw new BadRequestException('Display name is required');
+      const subjectKey = createHash('sha256').update(row.subject).digest('hex').slice(0, 32);
+      user = await this.repository.createUser({ email: `line.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: new Date(`${input.birthDate}T00:00:00.000Z`), gender: input.gender });
+      await this.repository.createOAuthIdentity('LINE', row.subject, user.id);
+      if (row.profilePhoto) user = await this.repository.updateProfile(user.id, { profilePhoto: row.profilePhoto });
+    }
+    await this.repository.consumeOAuthLoginTicket(row.id);
     return { user: this.publicUser(user), ...(await this.issueTokens(user.id)) };
   }
 
@@ -104,4 +151,5 @@ export class AuthService {
     };
   }
   private phoneCodeHash(phone: string, code: string): string { return createHash('sha256').update(`${phone}:${code}:${process.env.PHONE_CODE_SECRET || 'local-demo-secret'}`).digest('hex'); }
+  private lineCallbackUrl(): string { return process.env.LINE_LOGIN_CALLBACK_URL || 'https://hangoutnow-api.onrender.com/auth/line/callback'; }
 }

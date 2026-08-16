@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { v7 as uuidv7 } from 'uuid';
 import { PrismaService } from '../prisma/prisma.service';
-import { AuthRepository, StoredPhoneVerification, StoredRefreshToken, StoredUser } from './auth.types';
+import { AuthRepository, StoredOAuthLoginTicket, StoredPhoneVerification, StoredRefreshToken, StoredUser } from './auth.types';
 
 const includeInterests = { interests: { include: { interest: true } } } as const;
 
@@ -62,4 +62,12 @@ export class PrismaAuthRepository extends AuthRepository {
   }
   async phoneVerificationCounts(userId:string,phone:string,requestIp:string,since:Date){const[user,phoneCount,ip]=await Promise.all([this.prisma.phoneVerification.count({where:{userId,createdAt:{gte:since}}}),this.prisma.phoneVerification.count({where:{phone,createdAt:{gte:since}}}),this.prisma.phoneVerification.count({where:{requestIp,createdAt:{gte:since}}})]);return{user,phone:phoneCount,ip}}
   async deleteUser(userId:string):Promise<void>{await this.prisma.user.delete({where:{id:userId}})}
+  async findOAuthIdentity(provider:string,subject:string):Promise<StoredUser|null>{
+    const identity=await this.prisma.oAuthIdentity.findUnique({where:{provider_subject:{provider,subject}},include:{user:{include:includeInterests}}});
+    return identity?this.mapUser(identity.user):null;
+  }
+  async createOAuthIdentity(provider:string,subject:string,userId:string):Promise<void>{await this.prisma.oAuthIdentity.create({data:{id:uuidv7(),provider,subject,userId}})}
+  async saveOAuthLoginTicket(input:StoredOAuthLoginTicket):Promise<void>{await this.prisma.oAuthLoginTicket.create({data:input})}
+  async findOAuthLoginTicket(tokenHash:string):Promise<StoredOAuthLoginTicket|null>{return this.prisma.oAuthLoginTicket.findUnique({where:{tokenHash}})}
+  async consumeOAuthLoginTicket(id:string):Promise<void>{await this.prisma.oAuthLoginTicket.update({where:{id},data:{usedAt:new Date()}})}
 }

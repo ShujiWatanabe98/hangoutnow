@@ -5,14 +5,25 @@ import * as Location from "expo-location";
 import * as SecureStore from "expo-secure-store";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
+import * as WebBrowser from "expo-web-browser";
 import Constants from "expo-constants";
 import { ActivityIndicator, Alert, FlatList, Image, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 const API_URL = "https://hangoutnow-api.onrender.com";
 const WEBSITE_URL = "https://method-more.com";
 const ACTIVITY_PHOTO_URL = `${WEBSITE_URL}/assets/activity-photos-v1.png`;
+const DEFAULT_HANGOUT_IMAGES: Record<string, string> = {
+  CAFE: `${WEBSITE_URL}/assets/demo-cafe-hangout.jpg`,
+  FOOD: `${WEBSITE_URL}/assets/demo-ramen-mami-v3.jpg`,
+  RUNNING: `${WEBSITE_URL}/assets/demo-running-hangout-v2.jpg`,
+  WALKING: `${WEBSITE_URL}/assets/hangout-sanpo.jpg`,
+  MOTORCYCLE: `${WEBSITE_URL}/assets/demo-touring-hangout-v2.jpg`,
+  DRINKING: `${WEBSITE_URL}/assets/demo-drinking-hangout-v2.jpg`,
+};
 const DEMO_PASSWORD = "HangoutNow-Demo-2026!";
 const SESSION_KEY = "hangout-now-session";
+const LINE_REDIRECT_URI = "hangoutnow://auth/line";
+WebBrowser.maybeCompleteAuthSession();
 const INTEREST_OPTIONS = ["ワイン", "バー", "居酒屋", "寿司", "焼肉", "スイーツ", "カラオケ", "ダーツ", "ゲーム", "映画", "シーシャ", "英会話", "ごはん", "散歩"] as const;
 
 type User = {
@@ -57,6 +68,7 @@ type Hangout = {
   status: string;
   title: string;
   description: string | null;
+  imageUrl: string | null;
   category: string;
   startAt: string;
   locationName: string;
@@ -133,6 +145,7 @@ type JoinRequest = {
 type CreateHangoutInput = {
   title: string;
   description: string;
+  imageUrl?: string;
   category: string;
   startInMinutes: 30 | 60 | 180;
   publicLocationName: string;
@@ -162,6 +175,10 @@ function messageText(body: string) {
 }
 function stateLabel(hangout: Hangout) {
   return hangout.myJoinStatus === "ACCEPTED" ? "承認済み" : hangout.myJoinStatus === "PENDING" ? "申請中" : hangout.status === "FULL" ? "満員" : "募集中";
+}
+
+function hangoutImageUrl(hangout: Pick<Hangout, "imageUrl" | "category">) {
+  return hangout.imageUrl || DEFAULT_HANGOUT_IMAGES[hangout.category] || ACTIVITY_PHOTO_URL;
 }
 
 async function readJson(response: Response): Promise<unknown> {
@@ -387,7 +404,7 @@ export default function App() {
       if (!response.ok) throw new Error("message" in data && data.message ? data.message : "ログインできませんでした");
       setSession(data as Session);
       setDemoRole(role);
-      setScreen(role === "guest" ? "chat" : "home");
+      setScreen("home");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "ログインできませんでした");
     } finally {
@@ -413,6 +430,32 @@ export default function App() {
       setScreen("profile");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "登録できませんでした");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function authenticateWithLine(input?: { displayName: string; birthDate: string; gender: string }) {
+    setLoading(true);
+    setError("");
+    try {
+      const startUrl = `${API_URL}/auth/line/start?returnTo=${encodeURIComponent(LINE_REDIRECT_URI)}`;
+      const result = await WebBrowser.openAuthSessionAsync(startUrl, LINE_REDIRECT_URI);
+      if (result.type !== "success" || !result.url) throw new Error("LINEログインがキャンセルされました");
+      const ticket = new URL(result.url).searchParams.get("ticket");
+      if (!ticket) throw new Error("LINEログインの確認情報を取得できませんでした");
+      const response = await fetch(`${API_URL}/auth/line/redeem`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ticket, ...input }) });
+      const data = await readJson(response) as Session | { registrationRequired?: boolean; message?: string | string[] };
+      if ("registrationRequired" in data && data.registrationRequired) throw new Error("初回のみ「アカウント作成」に切り替え、生年月日を入力してLINE登録してください");
+      if (!response.ok || !("accessToken" in data)) {
+        const message = "message" in data ? data.message : null;
+        throw new Error(Array.isArray(message) ? message[0] : message || "LINEログインに失敗しました");
+      }
+      setSession(data);
+      setDemoRole(null);
+      setScreen("home");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "LINEログインに失敗しました");
     } finally {
       setLoading(false);
     }
@@ -475,6 +518,7 @@ export default function App() {
         body: JSON.stringify({
           title: input.title.trim(),
           description: input.description.trim() || undefined,
+          imageUrl: input.imageUrl,
           category: input.category,
           serviceArea: input.area === "新宿" ? "SHINJUKU" : "SHIBUYA",
           startInMinutes: input.startInMinutes,
@@ -629,6 +673,23 @@ export default function App() {
       await Promise.all(unread.map((item) => request(`/notifications/${item.id}/read`, { method: "POST" })));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "メッセージを取得できませんでした");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function openHangoutChat(hangoutId: string) {
+    setLoading(true);
+    setError("");
+    try {
+      const nextRooms = await loadRooms();
+      const room = nextRooms.find((item): item is GroupRoom => item.type === "GROUP" && item.hangout.id === hangoutId);
+      if (!room) {
+        Alert.alert("トークを開始できません", "参加が承認されると、このHangoutのトークを利用できます。");
+        return;
+      }
+      setScreen("chat");
+      await openRoom(room);
     } finally {
       setLoading(false);
     }
@@ -838,7 +899,7 @@ export default function App() {
     );
 
   if (!session) {
-    return <AuthScreen loading={loading} error={error} onLogin={authenticate} onRegister={register} />;
+    return <AuthScreen loading={loading} error={error} onLogin={authenticate} onRegister={register} onLine={authenticateWithLine} />;
   }
 
   return (
@@ -881,7 +942,7 @@ export default function App() {
         {screen === "home" && <HomeScreen user={session.user} hangouts={hangouts} refreshing={refreshing} locationLabel={locationLabel} selectedArea={selectedArea} onArea={chooseArea} onLocation={useCurrentLocation} onRefresh={refreshCurrent} onOpen={openHangout} onHeart={toggleHeart} onCreate={() => setScreen(session.user.verificationStatus === "PHONE_VERIFIED" ? "create" : "phone")} />}
         {screen === "map" && <MapScreen hangouts={hangouts} locationLabel={locationLabel} onBack={() => setScreen("home")} onLocation={useCurrentLocation} onOpen={openHangout} />}
         {screen === "create" && <CreateHangoutScreen area={selectedArea} gender={session.user.gender} onBack={() => setScreen("home")} onSubmit={createHangout} />}
-        {screen === "detail" && selectedHangout && <HangoutDetailScreen user={session.user} hangout={selectedHangout} requests={joinRequests} onBack={() => setScreen("home")} onJoin={joinHangout} onStart={startHangout} onFinish={confirmFinishHangout} onDecide={decideJoinRequest} onReport={confirmReportHost} onAttendance={updateAttendance} />}
+        {screen === "detail" && selectedHangout && <HangoutDetailScreen user={session.user} hangout={selectedHangout} requests={joinRequests} onBack={() => setScreen("home")} onJoin={joinHangout} onChat={openHangoutChat} onStart={startHangout} onFinish={confirmFinishHangout} onDecide={decideJoinRequest} onReport={confirmReportHost} onAttendance={updateAttendance} />}
         {screen === "phone" && <PhoneVerificationScreen onBack={() => setScreen("profile")} onVerify={verifyPhone} />}
         {screen === "chat" && <ChatScreen user={session.user} rooms={rooms} selectedRoom={selectedRoom} messages={messages} messageBody={messageBody} sending={sending} refreshing={refreshing} unreadByRoom={unreadByRoom} realtimeOnline={realtimeOnline} onRefresh={refreshCurrent} onOpen={openRoom} onRate={rateParticipant} onBack={() => selectedRoom ? setSelectedRoom(null) : setScreen("home")} onChangeBody={setMessageBody} onSend={sendMessage} />}
         {screen === "rating" && ratingRoom && <RatingScreen user={session.user} room={ratingRoom} onRate={rateParticipant} onDone={() => { setRatingRoom(null); setScreen("home"); }} />}
@@ -927,13 +988,14 @@ export default function App() {
   );
 }
 
-function AuthScreen({ loading, error, onLogin, onRegister }: { loading: boolean; error: string; onLogin: (email: string, password: string, role?: "host" | "guest" | null) => Promise<void>; onRegister: (input: { email: string; password: string; displayName: string; birthDate: string; gender: string }) => Promise<void> }) {
+function AuthScreen({ loading, error, onLogin, onRegister, onLine }: { loading: boolean; error: string; onLogin: (email: string, password: string, role?: "host" | "guest" | null) => Promise<void>; onRegister: (input: { email: string; password: string; displayName: string; birthDate: string; gender: string }) => Promise<void>; onLine: (input?: { displayName: string; birthDate: string; gender: string }) => Promise<void> }) {
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [birthDate, setBirthDate] = useState("1990-01-01");
   const [gender, setGender] = useState("UNDISCLOSED");
+  const [providerNote, setProviderNote] = useState("");
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.authPage} keyboardShouldPersistTaps="handled">
@@ -998,6 +1060,22 @@ function AuthScreen({ loading, error, onLogin, onRegister }: { loading: boolean;
           >
             <Text style={styles.primaryText}>{loading ? "接続中…" : mode === "login" ? "ログイン" : "無料で登録"}</Text>
           </Pressable>
+          <View style={styles.authDividerRow}>
+            <View style={styles.authDividerLine} />
+            <Text style={styles.authDividerText}>または</Text>
+            <View style={styles.authDividerLine} />
+          </View>
+          {(["Google", "Apple", "LINE", "電話番号"] as const).map((provider) => (
+            <Pressable
+              key={provider}
+              style={styles.providerButton}
+              onPress={() => provider === "LINE" ? void onLine(mode === "register" ? { displayName, birthDate, gender } : undefined) : setProviderNote(`${provider}認証は公開テスト開始時に利用できます。`)}
+            >
+              <Text style={styles.providerMark}>{provider === "Google" ? "G" : provider === "Apple" ? "●" : provider === "LINE" ? "L" : "☎"}</Text>
+              <Text style={styles.providerButtonText}>{provider}{mode === "register" ? "でアカウント作成" : "でログイン"}</Text>
+            </Pressable>
+          ))}
+          <Text style={styles.providerNote}>{providerNote}</Text>
           <Pressable onPress={() => setMode(mode === "login" ? "register" : "login")}>
             <Text style={styles.authSwitch}>{mode === "login" ? "新しくアカウントを作る" : "アカウントをお持ちの方はログイン"}</Text>
           </Pressable>
@@ -1046,7 +1124,7 @@ function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, o
       </View>
       {hangouts.map((hangout) => (
         <Pressable key={hangout.id} style={styles.card} onPress={() => onOpen(hangout)}>
-          <Image source={{ uri: ACTIVITY_PHOTO_URL }} style={styles.activityPhoto} resizeMode="cover" />
+          <Image source={{ uri: hangoutImageUrl(hangout) }} style={styles.activityPhoto} resizeMode="cover" />
           <Pressable style={[styles.heartButton, hangout.hearted && styles.heartButtonOn]} onPress={(event) => { event.stopPropagation(); onHeart(hangout); }} accessibilityRole="button" accessibilityLabel={hangout.hearted ? "ハートを取り消す" : "ハートを送る"}>
             <Text style={[styles.heartIcon, hangout.hearted && styles.heartIconOn]}>{hangout.hearted ? "♥" : "♡"}</Text>
             <Text style={[styles.heartCount, hangout.hearted && styles.heartIconOn]}>{hangout.heartCount}</Text>
@@ -1144,6 +1222,25 @@ function CreateHangoutScreen({ area, gender, onBack, onSubmit }: { area: AlphaAr
     setForm((current) => ({ ...current, [key]: value }));
     setErrors((current) => ({ ...current, [key]: undefined, ...(key === "hostMaleCount" || key === "hostFemaleCount" ? { hostParty: undefined } : {}) }));
   };
+  const chooseHangoutImage = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("写真へのアクセスが必要です", "Hangoutの画像を選ぶため、写真ライブラリへのアクセスを許可してください。");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.72,
+      base64: true,
+    });
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    if (!asset?.base64) return;
+    const mediaType = asset.mimeType === "image/png" ? "png" : asset.mimeType === "image/webp" ? "webp" : "jpeg";
+    update("imageUrl", `data:image/${mediaType};base64,${asset.base64}`);
+  };
   const publish = () => {
     const next: Partial<Record<CreateField, string>> = {};
     if (!form.title.trim()) next.title = "タイトルを入力してください";
@@ -1163,6 +1260,11 @@ function CreateHangoutScreen({ area, gender, onBack, onSubmit }: { area: AlphaAr
       <Text style={styles.pageTitle}>Hangoutを募集</Text>
       {Object.keys(errors).length > 0 && <Text style={styles.validationMessage}>入力内容を確認してください。赤枠の項目を設定すると公開できます。</Text>}
       <Text style={styles.safetyNote}>安全のため集合場所は駅・店舗など公開された場所に限ります。店名・住所・正確な位置は承認された参加者だけに表示されます。</Text>
+      <Text style={styles.label}>Hangoutのイメージ写真</Text>
+      <Pressable style={styles.imagePickerButton} onPress={() => void chooseHangoutImage()}>
+        <Text style={styles.imagePickerButtonText}>{form.imageUrl ? "写真を変更" : "スマホの写真から追加"}</Text>
+      </Pressable>
+      {form.imageUrl ? <Image source={{ uri: form.imageUrl }} style={styles.createImagePreview} resizeMode="cover" /> : null}
       <Text style={styles.label}>公開エリア（新宿・渋谷のみ）</Text>
       <View style={styles.areaRow}>
         {(["新宿", "渋谷"] as const).map((item) => (
@@ -1228,7 +1330,7 @@ function CreateHangoutScreen({ area, gender, onBack, onSubmit }: { area: AlphaAr
   );
 }
 
-function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onStart, onFinish, onDecide, onReport, onAttendance }: { user: User; hangout: Hangout; requests: JoinRequest[]; onBack: () => void; onJoin: (hangout: Hangout) => void; onStart: (id: string) => void; onFinish: (id: string) => void; onDecide: (id: string, accept: boolean) => void; onReport: (hangout: Hangout) => void; onAttendance: (status: "CONFIRMED" | "CANCELLED") => void }) {
+function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onChat, onStart, onFinish, onDecide, onReport, onAttendance }: { user: User; hangout: Hangout; requests: JoinRequest[]; onBack: () => void; onJoin: (hangout: Hangout) => void; onChat: (id: string) => void; onStart: (id: string) => void; onFinish: (id: string) => void; onDecide: (id: string, accept: boolean) => void; onReport: (hangout: Hangout) => void; onAttendance: (status: "CONFIRMED" | "CANCELLED") => void }) {
   const isHost = hangout.hostUserId === user.id;
   const [selectedApplicant, setSelectedApplicant] = useState<ApplicantProfile | null>(null);
   return (
@@ -1237,7 +1339,7 @@ function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onStart,
         <Pressable onPress={onBack}>
           <Text style={styles.backText}>‹ 一覧へ</Text>
         </Pressable>
-        <Image source={{ uri: ACTIVITY_PHOTO_URL }} style={styles.detailPhoto} resizeMode="cover" />
+        <Image source={{ uri: hangoutImageUrl(hangout) }} style={styles.detailPhoto} resizeMode="cover" />
         <Text style={styles.eyebrow}>
           {hangout.category} ・ {stateLabel(hangout)}
         </Text>
@@ -1251,6 +1353,11 @@ function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onStart,
           <Text style={styles.privacyText}>{hangout.myJoinStatus === "ACCEPTED" || isHost ? "承認済みのため詳細を表示しています。" : "参加承認までは、おおまかな場所だけが表示されます。"}</Text>
           {hangout.description && <Text style={styles.description}>{hangout.description}</Text>}
         </View>
+        {(isHost || hangout.myJoinStatus === "ACCEPTED") && (
+          <Pressable style={styles.talkButtonWide} onPress={() => onChat(hangout.id)}>
+            <Text style={styles.talkButtonWideText}>トーク</Text>
+          </Pressable>
+        )}
         {!isHost && hangout.myJoinStatus === "ACCEPTED" && (
           <View style={styles.detailPanel}>
             <Text style={styles.hostName}>{hangout.myAttendanceStatus === "CONFIRMED" ? "参加予定として回答済み" : "開始前の出欠確認"}</Text>
@@ -1915,6 +2022,13 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   primaryText: { color: "#fff", fontWeight: "900" },
+  authDividerRow: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 20, marginBottom: 14 },
+  authDividerLine: { flex: 1, height: 1, backgroundColor: "#dce2dc" },
+  authDividerText: { color: "#7a837d", fontSize: 12, fontWeight: "800" },
+  providerButton: { minHeight: 48, marginBottom: 9, borderWidth: 1, borderColor: "#d8ded9", borderRadius: 14, backgroundColor: "#f8faf8", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9 },
+  providerMark: { width: 24, textAlign: "center", color: "#176b48", fontSize: 16, fontWeight: "900" },
+  providerButtonText: { color: "#17221d", fontSize: 13, fontWeight: "900" },
+  providerNote: { minHeight: 30, paddingTop: 7, color: "#59645d", fontSize: 11, textAlign: "center" },
   authSwitch: { textAlign: "center", color: "#59635c", padding: 15 },
   hero: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 },
   eyebrow: { color: "#176b48", fontSize: 12, fontWeight: "900" },
@@ -2039,6 +2153,17 @@ const styles = StyleSheet.create({
     color: "#344039",
     lineHeight: 19,
   },
+  imagePickerButton: {
+    minHeight: 48,
+    marginTop: 8,
+    marginBottom: 10,
+    borderRadius: 14,
+    backgroundColor: "#e4f2e8",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  imagePickerButtonText: { color: "#176b48", fontSize: 15, fontWeight: "900" },
+  createImagePreview: { width: "100%", aspectRatio: 16 / 9, borderRadius: 18, marginBottom: 8, backgroundColor: "#dfe6df" },
   choiceRow: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
   choice: {
     minHeight: 42,
@@ -2172,6 +2297,15 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     backgroundColor: "#176b48",
   },
+  talkButtonWide: {
+    minHeight: 52,
+    marginBottom: 18,
+    borderRadius: 17,
+    backgroundColor: "#176b48",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  talkButtonWideText: { color: "#fff", fontSize: 17, fontWeight: "900" },
   finishButtonWide: {
     marginTop: 20,
     minHeight: 52,

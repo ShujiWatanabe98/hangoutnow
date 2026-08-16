@@ -1,8 +1,8 @@
-import { Body, Controller, Delete, Get, HttpCode, Inject, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Inject, Patch, Post, Query, Redirect, Req, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AccessTokenGuard, AuthenticatedRequest } from './access-token.guard';
 import { AuthService } from './auth.service';
-import { ConfirmPhoneVerificationDto, LoginDto, RefreshDto, RegisterDto, RequestPhoneVerificationDto, UpdateProfileDto } from './auth.dto';
+import { ConfirmPhoneVerificationDto, LineRedeemDto, LineStartDto, LoginDto, RefreshDto, RegisterDto, RequestPhoneVerificationDto, UpdateProfileDto } from './auth.dto';
 import { HostStatusService } from '../host-status/host-status.service';
 
 @Controller('auth')
@@ -12,6 +12,9 @@ export class AuthController {
   @Post('login') @Throttle({ default: { limit: 5, ttl: 60_000 } }) @HttpCode(200) login(@Body() input: LoginDto) { return this.auth.login(input); }
   @Post('refresh') @HttpCode(200) refresh(@Body() input: RefreshDto) { return this.auth.refresh(input.refreshToken); }
   @Post('logout') @HttpCode(204) async logout(@Body() input: RefreshDto): Promise<void> { await this.auth.logout(input.refreshToken); }
+  @Get('line/start') @Redirect() async lineStart(@Query() input: LineStartDto) { return { url: await this.auth.lineAuthorizeUrl(input.returnTo), statusCode: 302 }; }
+  @Get('line/callback') @Redirect() async lineCallback(@Query('code') code: string, @Query('state') state: string) { return { url: await this.auth.lineCallback(code, state), statusCode: 302 }; }
+  @Post('line/redeem') @HttpCode(200) redeemLine(@Body() input: LineRedeemDto) { return this.auth.redeemLineLogin(input); }
 }
 
 @Controller('users')

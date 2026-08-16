@@ -1,14 +1,14 @@
 import { ValidationPipe } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule, JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AccessTokenGuard } from '../src/auth/access-token.guard';
 import { AuthController, UsersController } from '../src/auth/auth.controller';
 import { HostStatusService } from '../src/host-status/host-status.service';
 import { AuthService } from '../src/auth/auth.service';
-import { AuthRepository, StoredPhoneVerification, StoredRefreshToken, StoredUser } from '../src/auth/auth.types';
+import { AuthRepository, StoredOAuthLoginTicket, StoredPhoneVerification, StoredRefreshToken, StoredUser } from '../src/auth/auth.types';
 import { SmsVerificationProvider } from '../src/auth/sms-verification.provider';
 import { ImageStorageService } from '../src/storage/image-storage.service';
 
@@ -16,6 +16,8 @@ class MemoryAuthRepository extends AuthRepository {
   private users: StoredUser[] = [];
   private tokens: StoredRefreshToken[] = [];
   private phoneCodes: StoredPhoneVerification[] = [];
+  private oauthTickets: StoredOAuthLoginTicket[] = [];
+  private oauthIdentities: Array<{provider:string;subject:string;userId:string}> = [];
   async findUserByEmail(email: string) { return this.users.find((user) => user.email === email) ?? null; }
   async findUserById(id: string) { return this.users.find((user) => user.id === id) ?? null; }
   async createUser(input: { email: string; passwordHash: string; displayName: string; birthDate: Date; gender?: string }) {
@@ -34,6 +36,11 @@ class MemoryAuthRepository extends AuthRepository {
   async verifyPhone(userId: string, phone: string, verificationId: string) { const user=await this.findUserById(userId); if(!user)throw new Error(); const row=this.phoneCodes.find((item)=>item.id===verificationId); if(row)row.usedAt=new Date(); user.phoneNumber=phone;user.verificationStatus='PHONE_VERIFIED';return user; }
   async phoneVerificationCounts(userId:string,phone:string,requestIp:string,since:Date){const rows=this.phoneCodes.filter(x=>(x.createdAt??new Date())>=since);return{user:rows.filter(x=>x.userId===userId).length,phone:rows.filter(x=>x.phone===phone).length,ip:rows.filter(x=>x.requestIp===requestIp).length}}
   async deleteUser(userId:string){this.users=this.users.filter((user)=>user.id!==userId);this.tokens=this.tokens.filter((token)=>token.userId!==userId);this.phoneCodes=this.phoneCodes.filter((row)=>row.userId!==userId)}
+  async findOAuthIdentity(provider:string,subject:string){const identity=this.oauthIdentities.find((item)=>item.provider===provider&&item.subject===subject);return identity?this.findUserById(identity.userId):null}
+  async createOAuthIdentity(provider:string,subject:string,userId:string){this.oauthIdentities.push({provider,subject,userId})}
+  async saveOAuthLoginTicket(input:StoredOAuthLoginTicket){this.oauthTickets.push(input)}
+  async findOAuthLoginTicket(tokenHash:string){return this.oauthTickets.find((item)=>item.tokenHash===tokenHash)??null}
+  async consumeOAuthLoginTicket(id:string){const item=this.oauthTickets.find((row)=>row.id===id);if(item)item.usedAt=new Date()}
 }
 
 describe('authentication and profile', () => {
@@ -48,7 +55,18 @@ describe('authentication and profile', () => {
     instance.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
     await instance.init(); return instance;
   }
-  afterEach(async () => { await app?.close(); app = undefined; });
+  afterEach(async () => { await app?.close(); app = undefined; vi.unstubAllGlobals(); delete process.env.LINE_LOGIN_CHANNEL_ID; delete process.env.LINE_LOGIN_CHANNEL_SECRET; });
+
+  it('registers with a verified LINE identity and rejects ticket reuse', async()=>{
+    process.env.LINE_LOGIN_CHANNEL_ID='2011130010';process.env.LINE_LOGIN_CHANNEL_SECRET='test-secret';
+    vi.stubGlobal('fetch',vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({id_token:'line-id-token'}),{status:200})).mockResolvedValueOnce(new Response(JSON.stringify({sub:'line-user-1',name:'LINE User',picture:'https://example.com/photo.jpg',nonce:'line-nonce'}),{status:200})));
+    app=await createApp();
+    const auth=app.get(AuthService);const jwt=app.get(JwtService);const state=await jwt.signAsync({kind:'line_state',returnTo:'hangoutnow://auth/line',nonce:'line-nonce'},{expiresIn:600});
+    const redirect=await auth.lineCallback('authorization-code',state);const ticket=new URL(redirect).searchParams.get('ticket');expect(ticket).toBeTruthy();
+    const needsProfile=await request(app.getHttpServer()).post('/auth/line/redeem').send({ticket}).expect(200);expect(needsProfile.body.registrationRequired).toBe(true);
+    const registered=await request(app.getHttpServer()).post('/auth/line/redeem').send({ticket,birthDate:'1990-01-01',displayName:'LINE User',gender:'UNDISCLOSED'}).expect(200);expect(registered.body.user.displayName).toBe('LINE User');
+    await request(app.getHttpServer()).post('/auth/line/redeem').send({ticket,birthDate:'1990-01-01'}).expect(401);
+  },15_000);
 
   it('registers an adult and allows authenticated profile updates', async () => {
     app = await createApp();

@@ -15,6 +15,7 @@ export interface PublicUser {
 export interface StoredUser extends PublicUser { passwordHash: string; }
 export interface StoredRefreshToken { id: string; userId: string; tokenHash: string; expiresAt: Date; revokedAt: Date | null; }
 export interface StoredPhoneVerification { id: string; userId: string; phone: string; codeHash: string; expiresAt: Date; usedAt: Date | null; attempts: number; requestIp?: string | null; createdAt?: Date; }
+export interface StoredOAuthLoginTicket { id: string; tokenHash: string; provider: string; subject: string; displayName: string | null; profilePhoto: string | null; userId: string | null; expiresAt: Date; usedAt: Date | null; }
 
 export abstract class AuthRepository {
   abstract findUserByEmail(email: string): Promise<StoredUser | null>;
@@ -30,4 +31,9 @@ export abstract class AuthRepository {
   abstract verifyPhone(userId: string, phone: string, verificationId: string): Promise<StoredUser>;
   abstract phoneVerificationCounts(userId: string, phone: string, requestIp: string, since: Date): Promise<{user: number; phone: number; ip: number}>;
   abstract deleteUser(userId: string): Promise<void>;
+  abstract findOAuthIdentity(provider: string, subject: string): Promise<StoredUser | null>;
+  abstract createOAuthIdentity(provider: string, subject: string, userId: string): Promise<void>;
+  abstract saveOAuthLoginTicket(input: StoredOAuthLoginTicket): Promise<void>;
+  abstract findOAuthLoginTicket(tokenHash: string): Promise<StoredOAuthLoginTicket | null>;
+  abstract consumeOAuthLoginTicket(id: string): Promise<void>;
 }
