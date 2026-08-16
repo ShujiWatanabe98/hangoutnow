@@ -74,6 +74,7 @@ interface TestJoinRequest {
 interface TestBlock { id: string; blockerId: string; blockedId: string; createdAt: Date }
 interface TestRoom { id: string; hangoutId: string; createdAt: Date }
 interface TestMessage { id: string; roomId: string; senderUserId: string; body: string; createdAt: Date }
+interface TestRating { id: string; hangoutId: string; raterUserId: string; ratedUserId: string; score: number }
 interface TestNotification { id: string; userId: string; type: string; title: string; body: string; link?: string; eventKey?: string; readAt: Date | null; createdAt: Date }
 interface TestReport { id: string; reporterId: string; targetUserId: string; hangoutId?: string; reason: string; details?: string; status: 'OPEN'; createdAt: Date }
 
@@ -92,6 +93,7 @@ class MemorySocialDb {
   readonly blocks: TestBlock[] = [];
   readonly rooms: TestRoom[] = [];
   readonly messages: TestMessage[] = [];
+  readonly ratings: TestRating[] = [];
   readonly notifications: TestNotification[] = [];
   readonly reports: TestReport[] = [];
 
@@ -218,6 +220,16 @@ class MemorySocialDb {
     findMany: async (query: { where: { roomId: string } }) => this.messages
       .filter((item) => item.roomId === query.where.roomId)
       .map((item) => ({ ...item, sender: this.publicUser(item.senderUserId) })),
+  };
+
+  readonly hangoutRating = {
+    upsert: async (query: { where: { hangoutId_raterUserId_ratedUserId: { hangoutId: string; raterUserId: string; ratedUserId: string } }; create: TestRating; update: { score: number } }) => {
+      const key = query.where.hangoutId_raterUserId_ratedUserId;
+      const existing = this.ratings.find((item) => item.hangoutId === key.hangoutId && item.raterUserId === key.raterUserId && item.ratedUserId === key.ratedUserId);
+      if (existing) { existing.score = query.update.score; return existing; }
+      this.ratings.push(query.create);
+      return query.create;
+    },
   };
 
   readonly notification = {
@@ -432,10 +444,23 @@ describe('social journey safety boundaries', () => {
 
   it('allows finishing only after the host starts the Hangout', async () => {
     const hangoutId = await createHangout();
+    const joined = await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('guest')).send({ message: '参加します' }).expect(201);
+    await request(app.getHttpServer()).post(`/join-requests/${joined.body.id as string}/accept`).set(auth('host')).expect(201);
     await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/finish`).set(auth('host')).send({}).expect(409);
     await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/start`).set(auth('host')).send({}).expect(201);
+    const roomId = db.rooms.find((room) => room.hangoutId === hangoutId)?.id;
+    expect(roomId).toBeTruthy();
+    expect(db.messages.filter((message) => message.roomId === roomId).map((message) => message.body)).toEqual(['Hangout開始']);
     await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/finish`).set(auth('host')).send({}).expect(201);
     expect(db.hangouts[0]?.status).toBe('FINISHED');
+    expect(db.messages.filter((message) => message.roomId === roomId).map((message) => message.body)).toEqual(['Hangout開始', 'Hangout終了']);
+    expect(db.notifications.filter((notification) => notification.userId === 'guest' && notification.type === 'CHAT_MESSAGE').map((notification) => notification.body)).toEqual(['Hangout開始', 'Hangout終了']);
+    await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/ratings`).set(auth('host')).send({ ratedUserId: 'guest', score: 4 }).expect(201);
+    await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/ratings`).set(auth('guest')).send({ ratedUserId: 'host', score: 5 }).expect(201);
+    expect(db.ratings).toEqual([
+      expect.objectContaining({ raterUserId: 'host', ratedUserId: 'guest', score: 4 }),
+      expect.objectContaining({ raterUserId: 'guest', ratedUserId: 'host', score: 5 }),
+    ]);
   });
 
   it('lets the host start a Hangout and keeps accepting mid-session join requests', async () => {
