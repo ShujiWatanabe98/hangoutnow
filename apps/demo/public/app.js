@@ -130,21 +130,23 @@ function authScreen(mode = 'login') {
   let gender='UNDISCLOSED';
   document.querySelectorAll('[data-auth-gender]').forEach((button)=>button.onclick=()=>{gender=button.dataset.authGender;document.querySelectorAll('[data-auth-gender]').forEach(item=>item.classList.toggle('chosen',item===button))});
   document.querySelectorAll('[data-demo-role]').forEach((button)=>button.onclick=()=>demoLogin(button.dataset.demoRole,button));
-  document.querySelectorAll('[data-auth-provider]').forEach((button)=>button.onclick=()=>{const provider=button.dataset.authProvider;if(provider!=='LINE'){document.querySelector('#provider-auth-note').textContent=`${provider}認証は公開テスト開始時に利用できます。`;return}const input=register?{displayName:document.querySelector('#display-name').value.trim(),birthDate:document.querySelector('#birth-date').value,gender}:null;if(register&&(!input.displayName||!input.birthDate)){document.querySelector('#provider-auth-note').textContent='表示名と生年月日を入力してからLINE登録してください。';return}sessionStorage.setItem('hangout-now-line-input',JSON.stringify(input));const returnTo=`${location.origin}${location.pathname}`;location.assign(`${API_URL}/auth/line/start?returnTo=${encodeURIComponent(returnTo)}`)});
+  document.querySelectorAll('[data-auth-provider]').forEach((button)=>button.onclick=()=>{const provider=button.dataset.authProvider;if(!['Google','LINE'].includes(provider)){document.querySelector('#provider-auth-note').textContent=`${provider}認証は公開テスト開始時に利用できます。`;return}const input=register?{displayName:document.querySelector('#display-name').value.trim(),birthDate:document.querySelector('#birth-date').value,gender}:null;if(register&&(!input.displayName||!input.birthDate)){document.querySelector('#provider-auth-note').textContent=`表示名と生年月日を入力してから${provider}登録してください。`;return}const providerKey=provider.toLowerCase();sessionStorage.setItem('hangout-now-oauth-input',JSON.stringify(input));const returnTo=`${location.origin}${location.pathname}`;location.assign(`${API_URL}/auth/${providerKey}/start?returnTo=${encodeURIComponent(returnTo)}`)});
   document.querySelector('#switch-auth').onclick = () => authScreen(register ? 'login' : 'register');
   document.querySelector('#auth-form').onsubmit = async (event) => { event.preventDefault(); const button=event.submitter; button.disabled=true; button.textContent='接続中…'; const body={email:document.querySelector('#email').value.trim(),password:document.querySelector('#password').value}; if(register)Object.assign(body,{displayName:document.querySelector('#display-name').value.trim(),birthDate:document.querySelector('#birth-date').value,gender}); try{session=await api(register?'/auth/register':'/auth/login',{method:'POST',body:JSON.stringify(body)});demoRole=null;localStorage.removeItem(DEMO_ROLE_STORAGE_KEY);saveSession();connectRealtime();await Promise.all([loadNotificationCount(),loadHangouts()]);if(register)await profileScreen();else navigate('home')}catch(error){document.querySelector('#auth-error').textContent=error.message;button.disabled=false;button.textContent=register?'無料で登録':'ログイン'} };
-  void redeemLineTicket();
+  void redeemOAuthTicket();
 }
 
-async function redeemLineTicket(){
+async function redeemOAuthTicket(){
   const ticket=new URL(location.href).searchParams.get('ticket');
   if(!ticket)return;
+  const provider=new URL(location.href).searchParams.get('provider')==='google'?'google':'line';
+  const providerLabel=provider==='google'?'Google':'LINE';
   const note=document.querySelector('#provider-auth-note');
-  if(note)note.textContent='LINE認証を確認しています…';
-  const stored=sessionStorage.getItem('hangout-now-line-input');
+  if(note)note.textContent=`${providerLabel}認証を確認しています…`;
+  const stored=sessionStorage.getItem('hangout-now-oauth-input')||sessionStorage.getItem('hangout-now-line-input');
   let input=null;try{input=stored?JSON.parse(stored):null}catch{input=null}
   history.replaceState({},'',location.pathname);
-  try{const result=await api('/auth/line/redeem',{method:'POST',body:JSON.stringify({ticket,...(input||{})})});if(result.registrationRequired){if(note)note.textContent='初回のみ「アカウント作成」に切り替え、表示名と生年月日を入力してLINE登録してください。';return}session=result;demoRole=null;sessionStorage.removeItem('hangout-now-line-input');localStorage.removeItem(DEMO_ROLE_STORAGE_KEY);saveSession();connectRealtime();await Promise.all([loadNotificationCount(),loadHangouts()]);navigate('home')}catch(error){if(note)note.textContent=error.message}
+  try{const result=await api(`/auth/${provider}/redeem`,{method:'POST',body:JSON.stringify({ticket,...(input||{})})});if(result.registrationRequired){if(note)note.textContent=`初回のみ「アカウント作成」に切り替え、表示名と生年月日を入力して${providerLabel}登録してください。`;return}session=result;demoRole=null;sessionStorage.removeItem('hangout-now-oauth-input');sessionStorage.removeItem('hangout-now-line-input');localStorage.removeItem(DEMO_ROLE_STORAGE_KEY);saveSession();connectRealtime();await Promise.all([loadNotificationCount(),loadHangouts()]);navigate('home')}catch(error){if(note)note.textContent=error.message}
 }
 
 async function demoLogin(role, button) {

@@ -44,3 +44,14 @@ export class LineRedeemDto {
   @IsOptional() @IsDateString({ strict: true }) birthDate?: string;
   @IsOptional() @IsEnum(Gender) gender?: Gender;
 }
+
+export class GoogleStartDto {
+  @IsString() @Matches(/^(hangoutnow:\/\/auth\/google|https:\/\/(www\.)?method-more\.com\/(demo|app)\.html|https:\/\/hangoutnow-demo\.onrender\.com\/(demo|app)\.html|http:\/\/(localhost|127\.0\.0\.1):4173\/(demo|app)\.html)$/) returnTo!: string;
+}
+
+export class GoogleRedeemDto {
+  @IsString() @MinLength(20) ticket!: string;
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(40) displayName?: string;
+  @IsOptional() @IsDateString({ strict: true }) birthDate?: string;
+  @IsOptional() @IsEnum(Gender) gender?: Gender;
+}

@@ -55,7 +55,7 @@ describe('authentication and profile', () => {
     instance.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
     await instance.init(); return instance;
   }
-  afterEach(async () => { await app?.close(); app = undefined; vi.unstubAllGlobals(); delete process.env.LINE_LOGIN_CHANNEL_ID; delete process.env.LINE_LOGIN_CHANNEL_SECRET; });
+  afterEach(async () => { await app?.close(); app = undefined; vi.unstubAllGlobals(); delete process.env.LINE_LOGIN_CHANNEL_ID; delete process.env.LINE_LOGIN_CHANNEL_SECRET; delete process.env.GOOGLE_LOGIN_CLIENT_ID; delete process.env.GOOGLE_LOGIN_CLIENT_SECRET; });
 
   it('registers with a verified LINE identity and rejects ticket reuse', async()=>{
     process.env.LINE_LOGIN_CHANNEL_ID='2011130010';process.env.LINE_LOGIN_CHANNEL_SECRET='test-secret';
@@ -68,6 +68,19 @@ describe('authentication and profile', () => {
     const needsProfile=await request(app.getHttpServer()).post('/auth/line/redeem').send({ticket}).expect(200);expect(needsProfile.body.registrationRequired).toBe(true);
     const registered=await request(app.getHttpServer()).post('/auth/line/redeem').send({ticket,birthDate:'1990-01-01',displayName:'LINE User',gender:'UNDISCLOSED'}).expect(200);expect(registered.body.user.displayName).toBe('LINE User');
     await request(app.getHttpServer()).post('/auth/line/redeem').send({ticket,birthDate:'1990-01-01'}).expect(401);
+  },15_000);
+
+  it('registers with a verified Google identity and rejects ticket reuse', async()=>{
+    process.env.GOOGLE_LOGIN_CLIENT_ID='google-client-id';process.env.GOOGLE_LOGIN_CLIENT_SECRET='google-client-secret';
+    vi.stubGlobal('fetch',vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({id_token:'google-id-token'}),{status:200})).mockResolvedValueOnce(new Response(JSON.stringify({sub:'google-user-1',name:'Google User',picture:'https://example.com/google.jpg',nonce:'google-nonce',aud:'google-client-id',iss:'https://accounts.google.com'}),{status:200})));
+    app=await createApp();
+    const auth=app.get(AuthService);const jwt=app.get(JwtService);const webReturnTo='https://method-more.com/app.html';
+    await expect(auth.googleAuthorizeUrl('https://evil.example/app.html')).rejects.toThrow('Invalid Google login return URL');
+    const state=await jwt.signAsync({kind:'google_state',returnTo:webReturnTo,nonce:'google-nonce'},{expiresIn:600});
+    const redirect=await auth.googleCallback('authorization-code',state);expect(redirect.startsWith(`${webReturnTo}?provider=google&ticket=`)).toBe(true);const ticket=new URL(redirect).searchParams.get('ticket');expect(ticket).toBeTruthy();
+    const needsProfile=await request(app.getHttpServer()).post('/auth/google/redeem').send({ticket}).expect(200);expect(needsProfile.body.registrationRequired).toBe(true);
+    const registered=await request(app.getHttpServer()).post('/auth/google/redeem').send({ticket,birthDate:'1990-01-01',displayName:'Google User',gender:'UNDISCLOSED'}).expect(200);expect(registered.body.user.displayName).toBe('Google User');
+    await request(app.getHttpServer()).post('/auth/google/redeem').send({ticket,birthDate:'1990-01-01'}).expect(401);
   },15_000);
 
   it('registers an adult and allows authenticated profile updates', async () => {

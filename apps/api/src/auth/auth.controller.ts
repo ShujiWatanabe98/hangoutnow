@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, HttpCode, Inject, Patch, Post, Query, Re
 import { Throttle } from '@nestjs/throttler';
 import { AccessTokenGuard, AuthenticatedRequest } from './access-token.guard';
 import { AuthService } from './auth.service';
-import { ConfirmPhoneVerificationDto, LineRedeemDto, LineStartDto, LoginDto, RefreshDto, RegisterDto, RequestPhoneVerificationDto, UpdateProfileDto } from './auth.dto';
+import { ConfirmPhoneVerificationDto, GoogleRedeemDto, GoogleStartDto, LineRedeemDto, LineStartDto, LoginDto, RefreshDto, RegisterDto, RequestPhoneVerificationDto, UpdateProfileDto } from './auth.dto';
 import { HostStatusService } from '../host-status/host-status.service';
 
 @Controller('auth')
@@ -15,6 +15,9 @@ export class AuthController {
   @Get('line/start') @Redirect() async lineStart(@Query() input: LineStartDto) { return { url: await this.auth.lineAuthorizeUrl(input.returnTo), statusCode: 302 }; }
   @Get('line/callback') @Redirect() async lineCallback(@Query('code') code: string, @Query('state') state: string) { return { url: await this.auth.lineCallback(code, state), statusCode: 302 }; }
   @Post('line/redeem') @HttpCode(200) redeemLine(@Body() input: LineRedeemDto) { return this.auth.redeemLineLogin(input); }
+  @Get('google/start') @Redirect() async googleStart(@Query() input: GoogleStartDto) { return { url: await this.auth.googleAuthorizeUrl(input.returnTo), statusCode: 302 }; }
+  @Get('google/callback') @Redirect() async googleCallback(@Query('code') code: string, @Query('state') state: string) { return { url: await this.auth.googleCallback(code, state), statusCode: 302 }; }
+  @Post('google/redeem') @HttpCode(200) redeemGoogle(@Body() input: GoogleRedeemDto) { return this.auth.redeemGoogleLogin(input); }
 }
 
 @Controller('users')

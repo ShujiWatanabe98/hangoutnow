@@ -28,6 +28,12 @@ services:
         sync: false
       - key: LINE_LOGIN_CALLBACK_URL
         value: https://hangoutnow-api.onrender.com/auth/line/callback
+      - key: GOOGLE_LOGIN_CLIENT_ID
+        sync: false
+      - key: GOOGLE_LOGIN_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_LOGIN_CALLBACK_URL
+        value: https://hangoutnow-api.onrender.com/auth/google/callback
       - key: CORS_ORIGINS
         value: https://method-more.com,https://www.method-more.com,https://hangoutnow-demo.onrender.com
       - key: S3_ENDPOINT

@@ -4,7 +4,7 @@ import { compare, hash } from 'bcryptjs';
 import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 import { v7 as uuidv7 } from 'uuid';
 import { AuthRepository, PublicUser, StoredUser } from './auth.types';
-import { ConfirmPhoneVerificationDto, LineRedeemDto, LoginDto, RegisterDto, RequestPhoneVerificationDto, UpdateProfileDto } from './auth.dto';
+import { ConfirmPhoneVerificationDto, GoogleRedeemDto, LineRedeemDto, LoginDto, RegisterDto, RequestPhoneVerificationDto, UpdateProfileDto } from './auth.dto';
 import { SmsVerificationProvider } from './sms-verification.provider';
 import { ImageStorageService } from '../storage/image-storage.service';
 
@@ -82,6 +82,55 @@ export class AuthService {
     return { user: this.publicUser(user), ...(await this.issueTokens(user.id)) };
   }
 
+  async googleAuthorizeUrl(returnTo: string): Promise<string> {
+    const clientId = process.env.GOOGLE_LOGIN_CLIENT_ID;
+    if (!clientId) throw new ServiceUnavailableException('Google login is not configured');
+    if (!this.isAllowedGoogleReturnTo(returnTo)) throw new UnauthorizedException('Invalid Google login return URL');
+    const nonce = randomBytes(24).toString('base64url');
+    const state = await this.jwt.signAsync({ kind: 'google_state', returnTo, nonce }, { expiresIn: 10 * 60 });
+    const query = new URLSearchParams({ client_id: clientId, redirect_uri: this.googleCallbackUrl(), response_type: 'code', scope: 'openid profile email', state, nonce, prompt: 'select_account' });
+    return `https://accounts.google.com/o/oauth2/v2/auth?${query.toString()}`;
+  }
+
+  async googleCallback(code: string, state: string): Promise<string> {
+    const clientId = process.env.GOOGLE_LOGIN_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_LOGIN_CLIENT_SECRET;
+    if (!clientId || !clientSecret) throw new ServiceUnavailableException('Google login is not configured');
+    let statePayload: { kind?: string; returnTo?: string; nonce?: string };
+    try { statePayload = this.jwt.verify<{ kind?: string; returnTo?: string; nonce?: string }>(state); }
+    catch { throw new UnauthorizedException('Invalid Google login state'); }
+    if (statePayload.kind !== 'google_state' || !statePayload.returnTo || !this.isAllowedGoogleReturnTo(statePayload.returnTo) || !statePayload.nonce) throw new UnauthorizedException('Invalid Google login state');
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: this.googleCallbackUrl(), client_id: clientId, client_secret: clientSecret }) });
+    const tokens = await tokenResponse.json() as { id_token?: string; error_description?: string };
+    if (!tokenResponse.ok || !tokens.id_token) throw new UnauthorizedException(tokens.error_description || 'Google login failed');
+    const verifyResponse = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(tokens.id_token)}`);
+    const profile = await verifyResponse.json() as { sub?: string; name?: string; picture?: string; nonce?: string; aud?: string; iss?: string; error_description?: string };
+    const trustedIssuer = profile.iss === 'accounts.google.com' || profile.iss === 'https://accounts.google.com';
+    if (!verifyResponse.ok || !profile.sub || profile.aud !== clientId || profile.nonce !== statePayload.nonce || !trustedIssuer) throw new UnauthorizedException(profile.error_description || 'Invalid Google identity');
+    const existing = await this.repository.findOAuthIdentity('GOOGLE', profile.sub);
+    const ticket = randomBytes(40).toString('base64url');
+    await this.repository.saveOAuthLoginTicket({ id: uuidv7(), tokenHash: this.tokenHash(ticket), provider: 'GOOGLE', subject: profile.sub, displayName: profile.name?.slice(0, 40) || null, profilePhoto: profile.picture || null, userId: existing?.id || null, expiresAt: new Date(Date.now() + 10 * 60_000), usedAt: null });
+    return `${statePayload.returnTo}${statePayload.returnTo.includes('?') ? '&' : '?'}provider=google&ticket=${encodeURIComponent(ticket)}`;
+  }
+
+  async redeemGoogleLogin(input: GoogleRedeemDto): Promise<AuthResponse | { registrationRequired: true; displayName: string | null }> {
+    const row = await this.repository.findOAuthLoginTicket(this.tokenHash(input.ticket));
+    if (!row || row.provider !== 'GOOGLE' || row.usedAt || row.expiresAt <= new Date()) throw new UnauthorizedException('Google login ticket is invalid');
+    let user = row.userId ? await this.repository.findUserById(row.userId) : await this.repository.findOAuthIdentity('GOOGLE', row.subject);
+    if (!user) {
+      if (!input.birthDate) return { registrationRequired: true, displayName: row.displayName };
+      if (!this.isAdult(input.birthDate)) throw new BadRequestException('You must be at least 18 years old');
+      const displayName = (input.displayName || row.displayName || '').trim();
+      if (!displayName) throw new BadRequestException('Display name is required');
+      const subjectKey = createHash('sha256').update(row.subject).digest('hex').slice(0, 32);
+      user = await this.repository.createUser({ email: `google.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: new Date(`${input.birthDate}T00:00:00.000Z`), gender: input.gender });
+      await this.repository.createOAuthIdentity('GOOGLE', row.subject, user.id);
+      if (row.profilePhoto) user = await this.repository.updateProfile(user.id, { profilePhoto: row.profilePhoto });
+    }
+    await this.repository.consumeOAuthLoginTicket(row.id);
+    return { user: this.publicUser(user), ...(await this.issueTokens(user.id)) };
+  }
+
   async refresh(rawToken: string): Promise<AuthResponse> {
     const stored = await this.repository.findRefreshToken(this.tokenHash(rawToken));
     if (!stored || stored.revokedAt || stored.expiresAt <= new Date()) throw new UnauthorizedException('Invalid refresh token');
@@ -153,6 +202,8 @@ export class AuthService {
   }
   private phoneCodeHash(phone: string, code: string): string { return createHash('sha256').update(`${phone}:${code}:${process.env.PHONE_CODE_SECRET || 'local-demo-secret'}`).digest('hex'); }
   private lineCallbackUrl(): string { return process.env.LINE_LOGIN_CALLBACK_URL || 'https://hangoutnow-api.onrender.com/auth/line/callback'; }
+  private googleCallbackUrl(): string { return process.env.GOOGLE_LOGIN_CALLBACK_URL || 'https://hangoutnow-api.onrender.com/auth/google/callback'; }
+  private isAllowedGoogleReturnTo(value: string): boolean { return value === 'hangoutnow://auth/google' || this.isAllowedLineReturnTo(value); }
   private isAllowedLineReturnTo(value: string): boolean {
     return new Set([
       'hangoutnow://auth/line',
