@@ -129,9 +129,12 @@ type NotificationItem = {
   type: string;
   link: string | null;
   readAt: string | null;
+  title: string;
+  body: string;
+  createdAt: string;
 };
-type NotificationInbox = { items: NotificationItem[]; unreadCount: number };
-type Screen = "home" | "map" | "create" | "detail" | "phone" | "chat" | "rating" | "profile";
+type NotificationInbox = { items: NotificationItem[]; unreadCount: number; enabled: boolean };
+type Screen = "home" | "map" | "create" | "detail" | "phone" | "chat" | "rating" | "profile" | "notifications";
 type AlphaArea = "新宿" | "渋谷";
 type ApplicantProfile = {
   id: string;
@@ -241,6 +244,7 @@ export default function App() {
   const [selectedArea, setSelectedArea] = useState<AlphaArea>("新宿");
   const [selectedHangout, setSelectedHangout] = useState<Hangout | null>(null);
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
+  const [notificationInbox, setNotificationInbox] = useState<NotificationInbox>({ items: [], unreadCount: 0, enabled: true });
 
   const request = useCallback(
     async <T,>(path: string, options: RequestInit = {}): Promise<T> => {
@@ -314,6 +318,11 @@ export default function App() {
     setProfileActivity(activity);
   }, [request, session]);
 
+  const loadNotifications = useCallback(async () => {
+    if (!session) return;
+    setNotificationInbox(await request<NotificationInbox>("/notifications"));
+  }, [request, session]);
+
   const refreshCurrent = useCallback(async () => {
     setRefreshing(true);
     setError("");
@@ -321,17 +330,22 @@ export default function App() {
       if (screen === "home") await loadHome();
       if (screen === "chat") await loadRooms();
       if (screen === "profile") await loadHostStatus();
+      if (screen === "notifications") await loadNotifications();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "更新に失敗しました");
     } finally {
       setRefreshing(false);
     }
-  }, [loadHome, loadHostStatus, loadRooms, screen]);
+  }, [loadHome, loadHostStatus, loadNotifications, loadRooms, screen]);
 
   useEffect(() => {
     if (!session) return;
     void refreshCurrent();
   }, [screen, session?.user.id]);
+
+  useEffect(() => {
+    if (session) void loadNotifications();
+  }, [loadNotifications, session?.user.id]);
 
   useEffect(() => {
     if (session && screen === "home" && coordinates) void loadHome();
@@ -398,6 +412,7 @@ export default function App() {
     socket.on("connect", () => setRealtimeOnline(true));
     socket.on("disconnect", () => setRealtimeOnline(false));
     socket.on("notification", (item: { id?: string; type?: string; link?: string }) => {
+      void loadNotifications();
       if (!["CHAT_MESSAGE", "DIRECT_MESSAGE"].includes(item.type || "")) return;
       const prefix = item.link?.startsWith("group-chat:") ? "group-chat:" : item.link?.startsWith("direct-chat:") ? "direct-chat:" : null;
       if (!prefix) return;
@@ -417,7 +432,7 @@ export default function App() {
     return () => {
       socket.disconnect();
     };
-  }, [loadRooms, request, selectedRoom?.id, session?.accessToken]);
+  }, [loadNotifications, loadRooms, request, selectedRoom?.id, session?.accessToken]);
 
   async function authenticate(email: string, password: string, role: "host" | "guest" | null = null) {
     setLoading(true);
@@ -853,6 +868,59 @@ export default function App() {
     }
   }
 
+  async function setNotificationEnabled(enabled: boolean) {
+    try {
+      await request("/notifications/settings", { method: "PATCH", body: JSON.stringify({ enabled }) });
+      setNotificationInbox((current) => ({ ...current, enabled }));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "通知設定を更新できませんでした");
+    }
+  }
+
+  async function readNotification(id: string) {
+    try {
+      await request(`/notifications/${id}/read`, { method: "POST" });
+      await loadNotifications();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "通知を既読にできませんでした");
+    }
+  }
+
+  async function readAllNotifications() {
+    try {
+      await request("/notifications/read-all", { method: "POST" });
+      await loadNotifications();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "通知を既読にできませんでした");
+    }
+  }
+
+  function confirmResetDemo() {
+    Alert.alert("共有デモを最初から", "デモ用の募集・申請・トーク・評価を初期状態へ戻します。実ユーザーのデータには影響しません。", [
+      { text: "キャンセル", style: "cancel" },
+      { text: "最初から", style: "destructive", onPress: () => void resetDemo() },
+    ]);
+  }
+
+  async function resetDemo() {
+    setLoading(true);
+    setError("");
+    try {
+      await request("/demo/reset", { method: "POST" });
+      setSelectedHangout(null);
+      setSelectedRoom(null);
+      setMessages([]);
+      setUnreadByRoom({});
+      await Promise.all([loadHome(), loadRooms(), loadNotifications()]);
+      setScreen("home");
+      Alert.alert("デモを初期状態に戻しました");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "デモを初期状態に戻せませんでした");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function logout() {
     if (Platform.OS !== "web")
       void SecureStore.getItemAsync("hangout-now-push-token").then(async (token) => {
@@ -989,12 +1057,13 @@ export default function App() {
       {demoRole && !(screen === "chat" && selectedRoom) && (
         <View style={styles.demoBanner}>
           <View>
-            <Text style={styles.demoTitle}>デモ：{demoRole === "host" ? "主催者" : "参加者"}として体験中</Text>
-            <Text style={styles.demoHint}>{demoRole === "host" ? "募集カードから参加申請を管理" : "承認済みトークを体験"}</Text>
+            <Text style={styles.demoTitle}>デモ：{demoRole === "host" ? "マミ（主催者）" : "マドカ（参加者）"}として体験中</Text>
+            <Text style={styles.demoHint}>{demoRole === "host" ? "作成・承認・終了・★1〜5評価を操作" : "参加申請・トーク・★1〜5評価を操作"}</Text>
           </View>
-          <Pressable onPress={logout} style={styles.switchButton}>
-            <Text style={styles.switchText}>役割変更</Text>
-          </Pressable>
+          <View style={styles.demoBannerActions}>
+            <Pressable onPress={confirmResetDemo} style={styles.resetDemoButton}><Text style={styles.switchText}>最初から</Text></Pressable>
+            <Pressable onPress={logout} style={styles.switchButton}><Text style={styles.switchText}>役割切替</Text></Pressable>
+          </View>
         </View>
       )}
       {screen !== "chat" && (
@@ -1002,26 +1071,21 @@ export default function App() {
           <Text style={styles.brand}>
             Hangout <Text style={styles.brandAccent}>Now</Text>
           </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="自分のプロフィールを表示"
-            style={styles.headerProfileButton}
-            onPress={() => setScreen("profile")}
-          >
-            <Text style={styles.userName} numberOfLines={1}>{session.user.displayName}</Text>
-            {session.user.profilePhoto ? (
-              <Image source={{ uri: session.user.profilePhoto }} style={styles.headerProfilePhoto} />
-            ) : (
-              <View style={styles.headerProfileFallback}>
-                <Text style={styles.headerProfileInitial}>{session.user.displayName.slice(0, 1)}</Text>
-              </View>
-            )}
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable accessibilityRole="button" accessibilityLabel="通知" style={styles.notificationButton} onPress={() => setScreen("notifications")}>
+              <Text style={styles.notificationBell}>●</Text>
+              {notificationInbox.unreadCount > 0 && <Text style={styles.notificationBadge}>{notificationInbox.unreadCount > 99 ? "99+" : notificationInbox.unreadCount}</Text>}
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="自分のプロフィールを表示" style={styles.headerProfileButton} onPress={() => setScreen("profile")}>
+              <Text style={styles.userName} numberOfLines={1}>{session.user.displayName}</Text>
+              {session.user.profilePhoto ? <Image source={{ uri: session.user.profilePhoto }} style={styles.headerProfilePhoto} /> : <View style={styles.headerProfileFallback}><Text style={styles.headerProfileInitial}>{session.user.displayName.slice(0, 1)}</Text></View>}
+            </Pressable>
+          </View>
         </View>
       )}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <View style={styles.content}>
-        {screen === "home" && <HomeScreen user={session.user} hangouts={hangouts} refreshing={refreshing} locationLabel={locationLabel} selectedArea={selectedArea} onArea={chooseArea} onLocation={useCurrentLocation} onRefresh={refreshCurrent} onOpen={openHangout} onHeart={toggleHeart} onCreate={() => setScreen(session.user.verificationStatus === "PHONE_VERIFIED" ? "create" : "phone")} />}
+        {screen === "home" && <HomeScreen user={session.user} hangouts={hangouts} refreshing={refreshing} locationLabel={locationLabel} selectedArea={selectedArea} demoRole={demoRole} onArea={chooseArea} onLocation={useCurrentLocation} onRefresh={refreshCurrent} onOpen={openHangout} onHeart={toggleHeart} onCreate={() => setScreen(session.user.verificationStatus === "PHONE_VERIFIED" ? "create" : "phone")} />}
         {screen === "map" && <MapScreen hangouts={hangouts} locationLabel={locationLabel} onBack={() => setScreen("home")} onLocation={useCurrentLocation} onOpen={openHangout} />}
         {screen === "create" && <CreateHangoutScreen area={selectedArea} gender={session.user.gender} onBack={() => setScreen("home")} onSubmit={createHangout} />}
         {screen === "detail" && selectedHangout && <HangoutDetailScreen user={session.user} hangout={selectedHangout} requests={joinRequests} onBack={() => setScreen("home")} onJoin={joinHangout} onChat={openHangoutChat} onStart={startHangout} onFinish={confirmFinishHangout} onCancel={confirmCancelHangout} onEdit={updateHangout} onDecide={decideJoinRequest} onReport={confirmReportHost} onAttendance={updateAttendance} />}
@@ -1029,6 +1093,7 @@ export default function App() {
         {screen === "chat" && <ChatScreen user={session.user} rooms={rooms} selectedRoom={selectedRoom} messages={messages} messageBody={messageBody} sending={sending} refreshing={refreshing} unreadByRoom={unreadByRoom} realtimeOnline={realtimeOnline} onRefresh={refreshCurrent} onOpen={openRoom} onRate={rateParticipant} onBack={() => selectedRoom ? setSelectedRoom(null) : setScreen("home")} onChangeBody={setMessageBody} onSend={sendMessage} />}
         {screen === "rating" && ratingRoom && <RatingScreen user={session.user} room={ratingRoom} onRate={rateParticipant} onDone={() => { setRatingRoom(null); setScreen("home"); }} />}
         {screen === "profile" && <ProfileScreen user={session.user} hostStatus={hostStatus} activity={profileActivity} demo={!!demoRole} onChat={() => { setSelectedRoom(null); setScreen("chat"); }} onOpenHangout={(id) => void openHangout({ id })} onPhone={() => setScreen("phone")} onPhoto={chooseProfilePhoto} onSave={updateProfile} onDelete={confirmDeleteAccount} onLogout={logout} />}
+        {screen === "notifications" && <NotificationScreen inbox={notificationInbox} refreshing={refreshing} onBack={() => setScreen("home")} onRefresh={refreshCurrent} onEnabled={setNotificationEnabled} onRead={readNotification} onReadAll={readAllNotifications} />}
       </View>
       {!selectedRoom && ["home", "map", "chat", "profile"].includes(screen) && (
         <View style={styles.nav}>
@@ -1177,10 +1242,17 @@ function Field(props: React.ComponentProps<typeof TextInput> & { label: string }
   );
 }
 
-function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, onArea, onLocation, onRefresh, onOpen, onHeart, onCreate }: { user: User; hangouts: Hangout[]; refreshing: boolean; locationLabel: string; selectedArea: AlphaArea; onArea: (area: AlphaArea) => void; onLocation: () => void; onRefresh: () => void; onOpen: (hangout: Hangout) => void; onHeart: (hangout: Hangout) => void; onCreate: () => void }) {
+function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, demoRole, onArea, onLocation, onRefresh, onOpen, onHeart, onCreate }: { user: User; hangouts: Hangout[]; refreshing: boolean; locationLabel: string; selectedArea: AlphaArea; demoRole: "host" | "guest" | null; onArea: (area: AlphaArea) => void; onLocation: () => void; onRefresh: () => void; onOpen: (hangout: Hangout) => void; onHeart: (hangout: Hangout) => void; onCreate: () => void }) {
+  const [filter, setFilter] = useState<"おすすめ" | "30分後" | "1時間後" | "3時間後">("おすすめ");
   const homeStateLabel = (hangout: Hangout) => hangout.hostUserId === user.id && ["OPEN", "FULL"].includes(hangout.status) ? "主催中" : stateLabel(hangout);
+  const timeLabel = (startAt: string) => {
+    const minutes = Math.max(0, Math.round((new Date(startAt).getTime() - Date.now()) / 60000));
+    return minutes <= 45 ? "30分後" : minutes <= 90 ? "1時間後" : "3時間後";
+  };
+  const visibleHangouts = filter === "おすすめ" ? hangouts : hangouts.filter((hangout) => timeLabel(hangout.startAt) === filter);
   return (
     <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+      {demoRole && <View style={styles.demoJourney}><Text style={styles.demoJourneyTitle}>デモ：マミの飲み企画</Text><Text style={styles.demoJourneyText}>1. 主催者は30代女性のマミ{`\n`}2. 20代男性のマサヤは承認済み{`\n`}3. 30代女性のマドカはHangoutを検索中{`\n`}4. マドカが途中参加を申請{`\n`}5. 承認後はグループトークで会話</Text><Text style={styles.demoJourneyHint}>「マミと新宿で気軽に飲もう」を開いて試せます。</Text></View>}
       <View style={styles.hero}>
         <Text style={styles.eyebrow}>{locationLabel === "エリア未設定" ? user.homeArea || locationLabel : locationLabel}</Text>
         <Text style={styles.heroTitle}>今から{`\n`}何する？</Text>
@@ -1200,11 +1272,14 @@ function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, o
           </Pressable>
         </View>
       </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+        {(["おすすめ", "30分後", "1時間後", "3時間後"] as const).map((value) => <Pressable key={value} style={[styles.filterPill, filter === value && styles.filterPillOn]} onPress={() => setFilter(value)}><Text style={[styles.filterPillText, filter === value && styles.filterPillTextOn]}>{value}</Text></Pressable>)}
+      </ScrollView>
       <View style={styles.sectionHead}>
-        <Text style={styles.sectionTitle}>{selectedArea}のHangout</Text>
-        <Text style={styles.muted}>{hangouts.length}件</Text>
+        <Text style={styles.sectionTitle}>近くのHangout</Text>
+        <Text style={styles.muted}>{visibleHangouts.length}件・距離順</Text>
       </View>
-      {hangouts.map((hangout) => (
+      {visibleHangouts.map((hangout) => (
         <Pressable key={hangout.id} style={styles.card} onPress={() => onOpen(hangout)}>
           <Image source={{ uri: hangoutImageUrl(hangout) }} style={styles.activityPhoto} resizeMode="cover" />
           <Pressable style={[styles.heartButton, hangout.hearted && styles.heartButtonOn]} onPress={(event) => { event.stopPropagation(); onHeart(hangout); }} accessibilityRole="button" accessibilityLabel={hangout.hearted ? "ハートを取り消す" : "ハートを送る"}>
@@ -1234,7 +1309,7 @@ function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, o
           </View>
         </Pressable>
       ))}
-      {!hangouts.length && <Text style={styles.empty}>現在募集中のHangoutはありません。</Text>}
+      {!visibleHangouts.length && <Text style={styles.empty}>この時間の募集はまだありません。{`\n`}エリアを変更して探してみてください。</Text>}
     </ScrollView>
   );
 }
@@ -1885,6 +1960,29 @@ function ChatScreen({ user, rooms, selectedRoom, messages, messageBody, sending,
   );
 }
 
+function NotificationScreen({ inbox, refreshing, onBack, onRefresh, onEnabled, onRead, onReadAll }: { inbox: NotificationInbox; refreshing: boolean; onBack: () => void; onRefresh: () => void; onEnabled: (enabled: boolean) => void; onRead: (id: string) => void; onReadAll: () => void }) {
+  return (
+    <ScrollView contentContainerStyle={styles.notificationPage} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+      <View style={styles.notificationHead}>
+        <Pressable accessibilityRole="button" accessibilityLabel="ホームに戻る" onPress={onBack} style={styles.backButton}><View style={styles.backChevron} /></Pressable>
+        <View><Text style={styles.eyebrow}>リアルタイム更新</Text><Text style={styles.pageTitle}>通知</Text></View>
+      </View>
+      <View style={styles.notificationSettings}>
+        <View style={styles.notificationSettingCopy}><Text style={styles.notificationSettingTitle}>アプリ内通知を受け取る</Text><Text style={styles.muted}>申請・承認・トーク・Hangoutの更新をお知らせします。</Text></View>
+        <Pressable accessibilityRole="switch" accessibilityState={{ checked: inbox.enabled }} style={[styles.notificationToggle, inbox.enabled && styles.notificationToggleOn]} onPress={() => onEnabled(!inbox.enabled)}><View style={[styles.notificationToggleKnob, inbox.enabled && styles.notificationToggleKnobOn]} /></Pressable>
+      </View>
+      <Pressable style={styles.readAllButton} onPress={onReadAll}><Text style={styles.readAllButtonText}>すべて既読</Text></Pressable>
+      {inbox.items.map((item) => (
+        <Pressable key={item.id} style={[styles.notificationItem, !item.readAt && styles.notificationItemUnread]} onPress={() => onRead(item.id)}>
+          <View style={[styles.notificationDot, item.readAt && styles.notificationDotRead]} />
+          <View style={styles.notificationItemCopy}><Text style={styles.notificationItemTitle}>{item.title}</Text><Text style={styles.notificationItemBody}>{item.body}</Text><Text style={styles.notificationItemTime}>{new Date(item.createdAt).toLocaleString("ja-JP")}</Text></View>
+        </Pressable>
+      ))}
+      {!inbox.items.length && <Text style={styles.empty}>通知はまだありません。</Text>}
+    </ScrollView>
+  );
+}
+
 function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout, onPhone, onPhoto, onSave, onDelete, onLogout }: { user: User; hostStatus: HostStatus | null; activity: ProfileActivity; demo: boolean; onChat: () => void; onOpenHangout: (id: string) => void; onPhone: () => void; onPhoto: () => void; onSave: (input: Pick<User, "displayName" | "gender" | "bio" | "homeArea" | "interests">) => Promise<void>; onDelete: () => void; onLogout: () => void }) {
   const white = hostStatus?.tier === "WHITE";
   const [editing, setEditing] = useState(false);
@@ -2030,6 +2128,10 @@ const styles = StyleSheet.create({
   },
   brand: { fontSize: 21, fontWeight: "900", color: "#17221d" },
   brandAccent: { color: "#176b48" },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  notificationButton: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: "#fff", borderWidth: 1, borderColor: "#e1e6df" },
+  notificationBell: { width: 15, height: 15, borderRadius: 8, overflow: "hidden", backgroundColor: "#176b48", color: "#176b48" },
+  notificationBadge: { position: "absolute", top: -3, right: -3, minWidth: 20, height: 20, borderRadius: 10, overflow: "hidden", paddingHorizontal: 4, textAlign: "center", lineHeight: 20, backgroundColor: "#e05245", color: "#fff", fontSize: 9, fontWeight: "900" },
   userName: { fontSize: 12, color: "#6d766f", maxWidth: 170 },
   headerProfileButton: { flexDirection: "row", alignItems: "center", gap: 9, paddingLeft: 8, paddingVertical: 2 },
   headerProfilePhoto: { width: 38, height: 38, borderRadius: 19, backgroundColor: "#dfe6df" },
@@ -2061,6 +2163,8 @@ const styles = StyleSheet.create({
   },
   demoTitle: { color: "#fff", fontSize: 11, fontWeight: "900" },
   demoHint: { color: "#cad2cc", fontSize: 9, marginTop: 2 },
+  demoBannerActions: { flexDirection: "row", gap: 6 },
+  resetDemoButton: { backgroundColor: "#fff", minHeight: 40, justifyContent: "center", paddingHorizontal: 11, borderRadius: 20 },
   switchButton: {
     backgroundColor: "#d9ff68",
     minHeight: 40,
@@ -2947,4 +3051,32 @@ const styles = StyleSheet.create({
   characterCount: { textAlign: "right", color: "#687169", fontSize: 12 },
   disabledButton: { opacity: 0.45 },
   secondary: { minHeight: 50, alignItems: "center", justifyContent: "center", borderRadius: 16, backgroundColor: "#e7ede7", marginTop: 10 },
+  demoJourney: { marginHorizontal: 16, marginTop: 4, marginBottom: 12, padding: 16, borderRadius: 20, backgroundColor: "#17221d" },
+  demoJourneyTitle: { color: "#d9ff68", fontSize: 15, fontWeight: "900", marginBottom: 8 },
+  demoJourneyText: { color: "#fff", fontSize: 12, lineHeight: 20 },
+  demoJourneyHint: { color: "#cad2cc", fontSize: 10, marginTop: 8 },
+  filterRow: { gap: 8, paddingHorizontal: 16, paddingBottom: 13 },
+  filterPill: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, backgroundColor: "#e8ece6" },
+  filterPillOn: { backgroundColor: "#176b48" },
+  filterPillText: { color: "#59635c", fontSize: 12, fontWeight: "800" },
+  filterPillTextOn: { color: "#fff" },
+  notificationPage: { padding: 18, paddingBottom: 80, gap: 12 },
+  notificationHead: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 4 },
+  notificationSettings: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, padding: 16, borderRadius: 18, backgroundColor: "#fff" },
+  notificationSettingCopy: { flex: 1, gap: 3 },
+  notificationSettingTitle: { color: "#17221d", fontSize: 14, fontWeight: "900" },
+  notificationToggle: { width: 48, height: 28, borderRadius: 14, padding: 3, backgroundColor: "#ccd3cd" },
+  notificationToggleOn: { backgroundColor: "#176b48" },
+  notificationToggleKnob: { width: 22, height: 22, borderRadius: 11, backgroundColor: "#fff" },
+  notificationToggleKnobOn: { transform: [{ translateX: 20 }] },
+  readAllButton: { alignSelf: "flex-end", paddingHorizontal: 14, paddingVertical: 9, borderRadius: 16, backgroundColor: "#e8f3e8" },
+  readAllButtonText: { color: "#176b48", fontSize: 11, fontWeight: "900" },
+  notificationItem: { flexDirection: "row", gap: 11, padding: 15, borderRadius: 17, backgroundColor: "#fff", borderWidth: 1, borderColor: "#e5e9e4" },
+  notificationItemUnread: { backgroundColor: "#f3fbe2", borderColor: "#cce58a" },
+  notificationDot: { width: 9, height: 9, borderRadius: 5, marginTop: 5, backgroundColor: "#e05245" },
+  notificationDotRead: { backgroundColor: "#c7cec8" },
+  notificationItemCopy: { flex: 1, gap: 4 },
+  notificationItemTitle: { color: "#17221d", fontSize: 13, fontWeight: "900" },
+  notificationItemBody: { color: "#4f5a52", fontSize: 12, lineHeight: 18 },
+  notificationItemTime: { color: "#8a928c", fontSize: 9 },
 });

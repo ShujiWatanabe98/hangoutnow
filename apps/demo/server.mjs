@@ -39,14 +39,15 @@ createServer(async (request, response) => {
   if (!file.startsWith(root)) { response.writeHead(403).end(); return; }
   try {
     const fileBody = await readFile(file);
-    const body = extname(file) === '.html' && requestedPath !== '/demo.html'
+    const isApplicationPage = requestedPath === '/demo.html' || requestedPath === '/app.html';
+    const body = extname(file) === '.html' && !isApplicationPage
       ? Buffer.from(fileBody.toString('utf8').replace('<head>', '<head><link rel="stylesheet" href="/cookie-consent.css?v=20260816-2"><link rel="stylesheet" href="/share.css?v=20260816-1"><script src="/analytics.js?v=20260816-2" defer></script><script src="/share.js?v=20260816-1" defer></script>'))
       : fileBody;
     const isVersionedAsset = requestedPath.startsWith('/assets/') || ['.css', '.js', '.svg', '.png', '.jpg', '.jpeg', '.webp'].includes(extname(file));
     response.writeHead(200, {
       'content-type': types[extname(file)] ?? 'application/octet-stream',
       'cache-control': isVersionedAsset ? 'public, max-age=86400, stale-while-revalidate=604800' : 'no-cache',
-      ...(requestedPath === '/demo.html' ? { 'x-robots-tag': 'noindex, nofollow, noarchive' } : {}),
+      ...(isApplicationPage ? { 'x-robots-tag': 'noindex, nofollow, noarchive' } : {}),
     });
     response.end(body);
   } catch { if (!response.headersSent) response.writeHead(404); response.end('Not found'); }

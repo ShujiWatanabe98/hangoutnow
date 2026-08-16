@@ -161,6 +161,11 @@ export class AuthService {
       'https://hangoutnow-demo.onrender.com/demo.html',
       'http://localhost:4173/demo.html',
       'http://127.0.0.1:4173/demo.html',
+      'https://method-more.com/app.html',
+      'https://www.method-more.com/app.html',
+      'https://hangoutnow-demo.onrender.com/app.html',
+      'http://localhost:4173/app.html',
+      'http://127.0.0.1:4173/app.html',
     ]).has(value);
   }
 }

@@ -5,6 +5,9 @@ const defaults = [
   { id: 4, icon: '🏍️', title: '夕方のショートツーリング', time: '3時間後', place: '世田谷・7.8km', current: 2, max: 4, host: 'Ryo', rating: '★ 5.0', match: 79, photo: 3, desc: '安全第一でゆっくり走ります。初心者歓迎。' },
 ];
 
+const IS_PRODUCTION = globalThis.HANGOUT_NOW_CONFIG?.production === true;
+const SESSION_STORAGE_KEY = IS_PRODUCTION ? 'hangout-now-production-session' : 'hangout-now-session';
+const DEMO_ROLE_STORAGE_KEY = 'hangout-now-demo-role';
 const saved = JSON.parse(localStorage.getItem('hangout-now-demo') || 'null');
 const hangouts = saved?.hangouts || defaults;
 const app = document.querySelector('#app');
@@ -15,13 +18,13 @@ const chats = saved?.chats || {};
 const API_URL = globalThis.HANGOUT_NOW_CONFIG?.apiUrl || 'http://localhost:3000';
 const DEMO_ACCOUNTS = globalThis.HANGOUT_NOW_CONFIG?.demoAccounts || null;
 const INTEREST_OPTIONS=['ワイン','バー','居酒屋','寿司','焼肉','スイーツ','カラオケ','ダーツ','ゲーム','映画','シーシャ','英会話','ごはん','散歩'];
-let session = JSON.parse(localStorage.getItem('hangout-now-session') || 'null');
-let demoRole = localStorage.getItem('hangout-now-demo-role');
+let session = JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY) || 'null');
+let demoRole = IS_PRODUCTION ? null : localStorage.getItem(DEMO_ROLE_STORAGE_KEY);
 const areas={新宿:{latitude:35.6901,longitude:139.7005},渋谷:{latitude:35.6580,longitude:139.7016}};
 let userLocation=saved?.userLocation||null;
 let unreadNotifications=0;
 let realtimeSocket=null;
-if (new URLSearchParams(location.search).has('resetAuth')) { localStorage.removeItem('hangout-now-session'); session = null; }
+if (new URLSearchParams(location.search).has('resetAuth')) { localStorage.removeItem(SESSION_STORAGE_KEY); session = null; }
 
 const profileInterestObserver=new MutationObserver(()=>{
   const input=document.querySelector('.profile-editor-sheet #edit-interests');
@@ -102,7 +105,7 @@ function renderBadge(){const badge=document.querySelector('.notification-badge')
 
 async function api(path, options = {}) {
   const response = await fetch(`${API_URL}${path}`, { ...options, headers: { 'content-type': 'application/json', ...(session?.accessToken ? { authorization: `Bearer ${session.accessToken}` } : {}), ...options.headers } });
-  if(response.status===401&&session?.refreshToken&&!options._retried){const refreshed=await fetch(`${API_URL}/auth/refresh`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({refreshToken:session.refreshToken})});if(refreshed.ok){session=await refreshed.json();saveSession();connectRealtime();return api(path,{...options,_retried:true})}localStorage.removeItem('hangout-now-session');session=null;authScreen();throw new Error('セッションの有効期限が切れました')}
+  if(response.status===401&&session?.refreshToken&&!options._retried){const refreshed=await fetch(`${API_URL}/auth/refresh`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({refreshToken:session.refreshToken})});if(refreshed.ok){session=await refreshed.json();saveSession();connectRealtime();return api(path,{...options,_retried:true})}localStorage.removeItem(SESSION_STORAGE_KEY);session=null;authScreen();throw new Error('セッションの有効期限が切れました')}
   const data = response.status === 204 ? null : await response.json().catch(() => null);
   if (!response.ok) throw new Error(Array.isArray(data?.message) ? data.message[0] : data?.message || 'APIへ接続できませんでした');
   return data;
@@ -129,7 +132,7 @@ function authScreen(mode = 'login') {
   document.querySelectorAll('[data-demo-role]').forEach((button)=>button.onclick=()=>demoLogin(button.dataset.demoRole,button));
   document.querySelectorAll('[data-auth-provider]').forEach((button)=>button.onclick=()=>{const provider=button.dataset.authProvider;if(provider!=='LINE'){document.querySelector('#provider-auth-note').textContent=`${provider}認証は公開テスト開始時に利用できます。`;return}const input=register?{displayName:document.querySelector('#display-name').value.trim(),birthDate:document.querySelector('#birth-date').value,gender}:null;if(register&&(!input.displayName||!input.birthDate)){document.querySelector('#provider-auth-note').textContent='表示名と生年月日を入力してからLINE登録してください。';return}sessionStorage.setItem('hangout-now-line-input',JSON.stringify(input));const returnTo=`${location.origin}${location.pathname}`;location.assign(`${API_URL}/auth/line/start?returnTo=${encodeURIComponent(returnTo)}`)});
   document.querySelector('#switch-auth').onclick = () => authScreen(register ? 'login' : 'register');
-  document.querySelector('#auth-form').onsubmit = async (event) => { event.preventDefault(); const button=event.submitter; button.disabled=true; button.textContent='接続中…'; const body={email:document.querySelector('#email').value.trim(),password:document.querySelector('#password').value}; if(register)Object.assign(body,{displayName:document.querySelector('#display-name').value.trim(),birthDate:document.querySelector('#birth-date').value,gender}); try{session=await api(register?'/auth/register':'/auth/login',{method:'POST',body:JSON.stringify(body)});demoRole=null;localStorage.removeItem('hangout-now-demo-role');localStorage.setItem('hangout-now-session',JSON.stringify(session));connectRealtime();await Promise.all([loadNotificationCount(),loadHangouts()]);if(register)await profileScreen();else navigate('home')}catch(error){document.querySelector('#auth-error').textContent=error.message;button.disabled=false;button.textContent=register?'無料で登録':'ログイン'} };
+  document.querySelector('#auth-form').onsubmit = async (event) => { event.preventDefault(); const button=event.submitter; button.disabled=true; button.textContent='接続中…'; const body={email:document.querySelector('#email').value.trim(),password:document.querySelector('#password').value}; if(register)Object.assign(body,{displayName:document.querySelector('#display-name').value.trim(),birthDate:document.querySelector('#birth-date').value,gender}); try{session=await api(register?'/auth/register':'/auth/login',{method:'POST',body:JSON.stringify(body)});demoRole=null;localStorage.removeItem(DEMO_ROLE_STORAGE_KEY);saveSession();connectRealtime();await Promise.all([loadNotificationCount(),loadHangouts()]);if(register)await profileScreen();else navigate('home')}catch(error){document.querySelector('#auth-error').textContent=error.message;button.disabled=false;button.textContent=register?'無料で登録':'ログイン'} };
   void redeemLineTicket();
 }
 
@@ -141,7 +144,7 @@ async function redeemLineTicket(){
   const stored=sessionStorage.getItem('hangout-now-line-input');
   let input=null;try{input=stored?JSON.parse(stored):null}catch{input=null}
   history.replaceState({},'',location.pathname);
-  try{const result=await api('/auth/line/redeem',{method:'POST',body:JSON.stringify({ticket,...(input||{})})});if(result.registrationRequired){if(note)note.textContent='初回のみ「アカウント作成」に切り替え、表示名と生年月日を入力してLINE登録してください。';return}session=result;demoRole=null;sessionStorage.removeItem('hangout-now-line-input');localStorage.removeItem('hangout-now-demo-role');localStorage.setItem('hangout-now-session',JSON.stringify(session));connectRealtime();await Promise.all([loadNotificationCount(),loadHangouts()]);navigate('home')}catch(error){if(note)note.textContent=error.message}
+  try{const result=await api('/auth/line/redeem',{method:'POST',body:JSON.stringify({ticket,...(input||{})})});if(result.registrationRequired){if(note)note.textContent='初回のみ「アカウント作成」に切り替え、表示名と生年月日を入力してLINE登録してください。';return}session=result;demoRole=null;sessionStorage.removeItem('hangout-now-line-input');localStorage.removeItem(DEMO_ROLE_STORAGE_KEY);saveSession();connectRealtime();await Promise.all([loadNotificationCount(),loadHangouts()]);navigate('home')}catch(error){if(note)note.textContent=error.message}
 }
 
 async function demoLogin(role, button) {
@@ -154,8 +157,8 @@ async function demoLogin(role, button) {
     session = null;
     session = await api('/auth/login',{method:'POST',body:JSON.stringify(account)});
     demoRole = role;
-    localStorage.setItem('hangout-now-demo-role',role);
-    localStorage.setItem('hangout-now-session',JSON.stringify(session));
+    localStorage.setItem(DEMO_ROLE_STORAGE_KEY,role);
+    saveSession();
     connectRealtime();
     await Promise.all([loadNotificationCount(),loadHangouts()]);
     navigate('home');
@@ -170,7 +173,7 @@ function profileSetup(firstRegistration) {
   if (!firstRegistration) { navigate('home'); return; }
   app.innerHTML = `<main class="phone auth-page"><div class="auth-brand">Hangout <i>Now</i></div><section class="auth-card setup"><div class="avatar profile-photo"></div><div class="eyebrow">あと少しです</div><h1>プロフィール設定</h1><label>プロフィール写真（募集作成に必要）</label><input id="setup-photo" type="file" accept="image/jpeg,image/png,image/webp"><label>自己紹介</label><textarea id="setup-bio" rows="3">気軽にカフェやランニングへ行ける仲間を探しています。</textarea><label>よく行くエリア</label><input id="setup-area" value="新宿・渋谷"><label>興味のあること</label><div class="interest-picker">${INTEREST_OPTIONS.map(item=>`<button>${item}</button>`).join('')}</div><div id="setup-error" class="auth-error"></div><button class="primary" id="save-profile">プロフィールを保存</button></section></main>`;
   document.querySelectorAll('.interest-picker button').forEach((button)=>button.onclick=()=>button.classList.toggle('chosen'));
-  document.querySelector('#save-profile').onclick=async()=>{try{const interests=[...document.querySelectorAll('.interest-picker .chosen')].map((button)=>button.textContent);const file=document.querySelector('#setup-photo').files[0];const profilePhoto=file?await imageData(file):undefined;session.user=await api('/users/me',{method:'PATCH',body:JSON.stringify({bio:document.querySelector('#setup-bio').value,homeArea:document.querySelector('#setup-area').value,interests,profilePhoto})});localStorage.setItem('hangout-now-session',JSON.stringify(session));navigate('home')}catch(error){document.querySelector('#setup-error').textContent=error.message}};
+  document.querySelector('#save-profile').onclick=async()=>{try{const interests=[...document.querySelectorAll('.interest-picker .chosen')].map((button)=>button.textContent);const file=document.querySelector('#setup-photo').files[0];const profilePhoto=file?await imageData(file):undefined;session.user=await api('/users/me',{method:'PATCH',body:JSON.stringify({bio:document.querySelector('#setup-bio').value,homeArea:document.querySelector('#setup-area').value,interests,profilePhoto})});saveSession();navigate('home')}catch(error){document.querySelector('#setup-error').textContent=error.message}};
 }
 
 function shell(content, showFab = true) {
@@ -178,7 +181,7 @@ function shell(content, showFab = true) {
   const demoBanner=demoRole?`<div class="demo-banner"><span><b>デモ：${demoRole==='host'?'マミ（主催者）':'マドカ（参加者）'}として体験中</b><small>${demoGuide}</small></span><div><button id="reset-demo">最初から</button><button id="switch-demo-role">役割切替</button></div></div>`:'';
   app.innerHTML = `<main class="phone">${demoBanner}<header class="top"><div class="brand">Hangout <i>Now</i></div><div class="header-actions"><button class="notification-button" aria-label="通知"><span class="notification-mark"></span><span class="notification-badge ${unreadNotifications?'':'hidden'}">${unreadNotifications}</span></button><button class="profile-menu-button" aria-label="自分のプロフィールを表示"><span class="avatar"${photoStyle(session.user.profilePhoto)}>${session.user.profilePhoto?'':safeText(session.user.displayName).slice(0,1)}</span></button></div></header>${content}${showFab ? '<button class="fab" aria-label="Hangoutを作る">＋</button>' : ''}</main>`;
   const switchDemoRole=app.querySelector('#switch-demo-role');
-  if(switchDemoRole)switchDemoRole.onclick=()=>{realtimeSocket?.disconnect();session=null;demoRole=null;localStorage.removeItem('hangout-now-session');localStorage.removeItem('hangout-now-demo-role');authScreen('login')};
+  if(switchDemoRole)switchDemoRole.onclick=()=>{realtimeSocket?.disconnect();session=null;demoRole=null;localStorage.removeItem(SESSION_STORAGE_KEY);localStorage.removeItem(DEMO_ROLE_STORAGE_KEY);authScreen('login')};
   const resetDemo=app.querySelector('#reset-demo');if(resetDemo)resetDemo.onclick=resetPublicDemo;
   const fab = app.querySelector('.fab');
   if (fab) fab.onclick = showCreate;
@@ -446,7 +449,7 @@ async function chatScreen(sourceScreen = null) {
   chatPhone.classList.add('chat-phone','chat-screen-enter');
   sourceScreen?.remove();
   slideInFromRight(chatPhone);
-  const chatSwitch=document.querySelector('#chat-switch-demo-role');if(chatSwitch)chatSwitch.onclick=()=>{realtimeSocket?.disconnect();session=null;demoRole=null;localStorage.removeItem('hangout-now-session');localStorage.removeItem('hangout-now-demo-role');authScreen('login')};
+  const chatSwitch=document.querySelector('#chat-switch-demo-role');if(chatSwitch)chatSwitch.onclick=()=>{realtimeSocket?.disconnect();session=null;demoRole=null;localStorage.removeItem(SESSION_STORAGE_KEY);localStorage.removeItem(DEMO_ROLE_STORAGE_KEY);authScreen('login')};
   document.querySelectorAll('[data-chat-tab]').forEach((tab)=>tab.onclick=()=>{document.querySelectorAll('[data-chat-tab]').forEach(x=>x.classList.toggle('active',x===tab));document.querySelectorAll('[data-chat-list]').forEach(x=>x.classList.toggle('hidden',x.dataset.chatList!==tab.dataset.chatTab))});
   document.querySelectorAll('[data-room-index]').forEach((button)=>button.onclick=()=>{const room=(button.dataset.kind==='direct'?directs:groups)[Number(button.dataset.roomIndex)];openChat(room)});
   document.querySelectorAll('[data-start-direct]').forEach((button)=>button.onclick=async()=>{try{await api('/direct-chats',{method:'POST',body:JSON.stringify({userId:button.dataset.startDirect})});await chatScreen();document.querySelector('[data-chat-tab="direct"]')?.click()}catch(error){toast(error.message)}});
@@ -581,7 +584,7 @@ function showCreate() {
   const validationMessage=screen.querySelector('#create-validation-message');const clearValidation=()=>{screen.querySelectorAll('.field-invalid').forEach(item=>item.classList.remove('field-invalid'));validationMessage.classList.add('hidden');validationMessage.innerHTML=''};screen.querySelectorAll('input,select,textarea').forEach(field=>field.addEventListener('input',clearValidation));screen.querySelector('#publish').onclick=async()=>{clearValidation();const titleField=screen.querySelector('#title');const publicPlaceField=screen.querySelector('#public-place');const placeNameField=screen.querySelector('#meeting-place-name');const addressField=screen.querySelector('#meeting-address');const title=titleField.value.trim();const publicPlace=publicPlaceField.value.trim();const placeName=placeNameField.value.trim();const address=addressField.value.trim();const male=Number(maleSelect.value);const female=Number(femaleSelect.value);const capacity=Number(capacitySelect.value);const errors=[];const invalid=(field,message)=>{field.classList.add('field-invalid');errors.push(message)};if(!title)invalid(titleField,'「何する？」を入力してください');if(!publicPlace)invalid(publicPlaceField,'承認前に表示するエリアを入力してください');if(!placeName)invalid(placeNameField,'集合場所の店名を入力してください');if(!address)invalid(addressField,'集合場所の住所を入力してください');if(male+female<1)invalid(screen.querySelector('.host-party-grid'),'主催者側の人数を設定してください');if(capacity<2)invalid(capacitySelect,'合計人数は2人以上にしてください');if(male+female>capacity)invalid(capacitySelect,'合計人数は主催者側の人数以上にしてください');if(errors.length){validationMessage.innerHTML=`<b>入力内容を確認してください</b><ul>${errors.map(message=>`<li>${message}</li>`).join('')}</ul>`;validationMessage.classList.remove('hidden');screen.querySelector('.field-invalid')?.scrollIntoView({behavior:'smooth',block:'center'});screen.querySelector('.field-invalid input,.field-invalid select,.field-invalid textarea,.field-invalid')?.focus();return}const serviceArea=screen.querySelector('#service-area').value;const meeting=serviceArea==='SHINJUKU'?areas.新宿:areas.渋谷;const navigationUrl=screen.querySelector('#navigation-url').value.trim()||`https://www.google.com/maps/search/?api=1&query=${mapQuery()}`;try{const maxAge=screen.querySelector('#max-age').value;const file=screen.querySelector('#hangout-image').files[0];const imageUrl=file?await imageData(file):undefined;await api('/hangouts',{method:'POST',body:JSON.stringify({title,description:screen.querySelector('#desc').value.trim()||'一緒に楽しい時間を過ごしましょう！',...(imageUrl?{imageUrl}:{}),category:'CAFE',serviceArea,startInMinutes:Number(screen.querySelector('[data-time].chosen').dataset.time),publicLocationName:publicPlace,locationName:`${placeName} ${address}`,meetingPlaceName:placeName,meetingAddress:address,navigationUrl,latitude:meeting.latitude,longitude:meeting.longitude,maxParticipants:capacity,hostMaleCount:male,hostFemaleCount:female,genderRestriction:screen.querySelector('#gender-restriction').value,...(maxAge?{maxAge:Number(maxAge)}:{})})});await loadHangouts();close();home();toast('Hangoutを公開し、一覧へ追加しました')}catch(error){toast(error.message)}};
 }
 
-function saveSession(){localStorage.setItem('hangout-now-session',JSON.stringify(session))}
+function saveSession(){localStorage.setItem(SESSION_STORAGE_KEY,JSON.stringify(session))}
 function imageData(file){
   const hangoutImage=document.querySelector('#hangout-image')?.files[0]===file||document.querySelector('#edit-image')?.files[0]===file;
   const sizeLimit=hangoutImage?25:8;

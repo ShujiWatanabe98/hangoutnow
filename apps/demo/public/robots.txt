@@ -1,21 +1,26 @@
 User-agent: *
 Allow: /
 Disallow: /demo.html
+Disallow: /app.html
 
 User-agent: GPTBot
 Allow: /
 Disallow: /demo.html
+Disallow: /app.html
 
 User-agent: ChatGPT-User
 Allow: /
 Disallow: /demo.html
+Disallow: /app.html
 
 User-agent: ClaudeBot
 Allow: /
 Disallow: /demo.html
+Disallow: /app.html
 
 User-agent: PerplexityBot
 Allow: /
 Disallow: /demo.html
+Disallow: /app.html
 
 Sitemap: https://method-more.com/sitemap.xml
