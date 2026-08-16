@@ -28,7 +28,8 @@
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" sizes="180x180">
   <link rel="alternate" type="application/rss+xml" title="Hangout Now お知らせ" href="/feed.xml">
   <title>Hangout Now｜やりたいことから、つながろう。</title>
-  <link rel="stylesheet" href="landing.css">
+  <link rel="stylesheet" href="landing.css?v=20260817-50">
+  <link rel="stylesheet" href="mobile-apps.css?v=20260817-50">
   <link rel="stylesheet" href="guides.css">
   <script type="application/ld+json">
   {
@@ -152,15 +153,23 @@
       <form id="newsletter-form"><label for="newsletter-email">メールアドレス</label><div class="newsletter-fields"><input id="newsletter-email" name="email" type="email" autocomplete="email" maxlength="254" required placeholder="you@example.com"><button type="submit">更新通知に登録</button></div><label class="newsletter-consent"><input name="consent" type="checkbox" required> <span><a href="/privacy.html">プライバシーポリシー</a>を確認し、更新通知の受信に同意します。</span></label><p id="newsletter-status" class="newsletter-status" role="status" aria-live="polite"></p></form>
     </section>
 
-    <section class="app-release" aria-labelledby="app-release-title">
-      <div class="app-release-copy">
-        <p class="section-label">MOBILE APPS</p>
-        <h2 id="app-release-title">スマートフォンアプリも、<br>準備ができしだい公開。</h2>
-        <p>Android版・Apple版を準備しています。公開まで、もうしばらくお待ちください。</p>
-      </div>
-      <div class="app-release-badges" aria-label="スマートフォンアプリの公開予定">
-        <img src="/assets/android-coming-soon.svg" width="320" height="104" alt="Android版 準備ができしだい公開">
-        <img src="/assets/apple-coming-soon.svg" width="320" height="104" alt="Apple版 準備ができしだい公開">
+    <section class="app-release" id="mobile-apps" aria-labelledby="app-release-title">
+      <div class="app-release-inner">
+        <div class="app-release-copy">
+          <p class="section-label">MOBILE APPS</p>
+          <h2 id="app-release-title">スマートフォンアプリも、<br>準備ができしだい公開。</h2>
+          <p>Android版・Apple版を準備しています。公開まで、もうしばらくお待ちください。</p>
+        </div>
+        <div class="app-release-badges" aria-label="スマートフォンアプリの公開予定">
+          <div class="store-badge-card">
+            <img src="https://play.google.com/intl/en_us/badges/static/images/badges/ja_badge_web_generic.png" width="250" height="74" loading="lazy" alt="Google Playで手に入れよう">
+            <span>Android版・準備中</span>
+          </div>
+          <div class="store-badge-card">
+            <img src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/ja-jp?size=250x83" width="250" height="83" loading="lazy" alt="App Storeからダウンロード">
+            <span>Apple版・準備中</span>
+          </div>
+        </div>
       </div>
     </section>
 

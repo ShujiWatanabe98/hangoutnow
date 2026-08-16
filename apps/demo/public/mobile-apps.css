@@ -1,0 +1,110 @@
+.app-release {
+  display: block;
+  padding: 100px 24px;
+}
+
+.app-release-inner {
+  width: min(100%, 1040px);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(420px, .9fr);
+  align-items: center;
+  gap: 72px;
+}
+
+.app-release-copy {
+  max-width: 540px;
+}
+
+.app-release h2 {
+  font-size: clamp(32px, 3.3vw, 44px);
+  letter-spacing: -1.5px;
+}
+
+.app-release-copy > p:last-child {
+  max-width: 520px;
+  margin: 0;
+}
+
+.app-release-badges {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  justify-content: stretch;
+  gap: 16px;
+}
+
+.store-badge-card {
+  min-width: 0;
+  min-height: 150px;
+  padding: 22px 16px 18px;
+  border: 1px solid #dfe5df;
+  border-radius: 20px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  box-shadow: 0 12px 30px #17231d0d;
+}
+
+.app-release-badges .store-badge-card img {
+  display: block;
+  width: 100%;
+  max-width: 250px;
+  height: 74px;
+  object-fit: contain;
+  filter: none;
+}
+
+.store-badge-card span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .app-release-inner {
+    grid-template-columns: 1fr;
+    gap: 36px;
+  }
+
+  .app-release-copy,
+  .app-release-badges {
+    max-width: 680px;
+  }
+}
+
+@media (max-width: 580px) {
+  .app-release {
+    padding: 72px 20px;
+  }
+
+  .app-release-inner {
+    gap: 28px;
+  }
+
+  .app-release h2 {
+    font-size: 34px;
+    letter-spacing: -1.5px;
+  }
+
+  .app-release-badges {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .store-badge-card {
+    min-height: 134px;
+    padding: 18px 20px 15px;
+  }
+
+  .app-release-badges .store-badge-card img {
+    max-width: 230px;
+    height: 68px;
+  }
+}
