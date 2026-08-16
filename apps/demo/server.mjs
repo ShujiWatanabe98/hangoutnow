@@ -38,7 +38,10 @@ createServer(async (request, response) => {
   const file = normalize(join(root, pathname));
   if (!file.startsWith(root)) { response.writeHead(403).end(); return; }
   try {
-    const body = await readFile(file);
+    const fileBody = await readFile(file);
+    const body = extname(file) === '.html' && requestedPath !== '/demo.html'
+      ? Buffer.from(fileBody.toString('utf8').replace('<head>', '<head><script src="/analytics.js" defer></script>'))
+      : fileBody;
     response.writeHead(200, {
       'content-type': types[extname(file)] ?? 'application/octet-stream',
       'cache-control': 'no-store',
