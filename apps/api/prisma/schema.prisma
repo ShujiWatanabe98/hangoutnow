@@ -406,3 +406,17 @@ model RefreshToken {
   @@index([userId])
   @@map("refresh_tokens")
 }
+
+model NewsletterSubscription {
+  id                   String    @id @db.Uuid
+  email                String    @unique
+  unsubscribeTokenHash String    @unique @map("unsubscribe_token_hash")
+  source               String?
+  consentAt            DateTime  @map("consent_at")
+  subscribedAt         DateTime  @default(now()) @map("subscribed_at")
+  unsubscribedAt       DateTime? @map("unsubscribed_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  @@index([unsubscribedAt, subscribedAt])
+  @@map("newsletter_subscriptions")
+}

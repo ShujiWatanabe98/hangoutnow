@@ -25,6 +25,8 @@ import { DemoService } from './demo/demo.service';
 import { HostStatusService } from './host-status/host-status.service';
 import { AnalyticsController } from './analytics/analytics.controller';
 import { AnalyticsService } from './analytics/analytics.service';
+import { NewsletterController } from './newsletter/newsletter.controller';
+import { NewsletterService } from './newsletter/newsletter.service';
 
 @Module({
   imports: [JwtModule.registerAsync({
@@ -34,7 +36,7 @@ import { AnalyticsService } from './analytics/analytics.service';
       return { secret };
     },
   }), ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }])],
-  controllers: [HealthController, AuthController, UsersController, HangoutController, JoinRequestController, ChatController, DirectChatController, DemoController, SafetyController, ReportAdminController, NotificationController, AnalyticsController],
-  providers: [PrismaService, HangoutService, ChatService, DemoService, HostStatusService, SafetyService, NotificationService, AnalyticsService, RealtimeGateway, SmsVerificationProvider, ImageStorageService, PrismaAuthRepository, { provide: AuthRepository, useExisting: PrismaAuthRepository }, AuthService, AccessTokenGuard, { provide: APP_GUARD, useClass: ThrottlerGuard }],
+  controllers: [HealthController, AuthController, UsersController, HangoutController, JoinRequestController, ChatController, DirectChatController, DemoController, SafetyController, ReportAdminController, NotificationController, AnalyticsController, NewsletterController],
+  providers: [PrismaService, HangoutService, ChatService, DemoService, HostStatusService, SafetyService, NotificationService, AnalyticsService, NewsletterService, RealtimeGateway, SmsVerificationProvider, ImageStorageService, PrismaAuthRepository, { provide: AuthRepository, useExisting: PrismaAuthRepository }, AuthService, AccessTokenGuard, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

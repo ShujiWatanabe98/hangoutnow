@@ -27,6 +27,11 @@
 - [利用規約](https://method-more.com/terms.html): サービスの利用条件
 - [アカウント削除](https://method-more.com/delete-account.html): 削除手続き
 
+## お知らせと開発情報
+
+- [お知らせ](https://method-more.com/news.html): 開発状況、安全への取り組み、公開テスト情報
+- [公開テストに向けた改善](https://method-more.com/news-public-test.html): 参加申請、トーク、位置情報保護、安全機能の改善内容
+
 ## 運営
 
 - 運営者: methodmore
