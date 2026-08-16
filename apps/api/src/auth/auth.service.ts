@@ -26,7 +26,7 @@ export class AuthService {
     let user = await this.repository.createUser({
       email, passwordHash: await hash(input.password, 10), displayName: input.displayName.trim(), birthDate: new Date(`${input.birthDate}T00:00:00.000Z`), gender: input.gender,
     });
-    user = await this.applyRegistrationPhoto(user, input.profilePhoto);
+    user = await this.applyRegistrationPhotos(user, input.profilePhotos??(input.profilePhoto?[input.profilePhoto]:[]));
     return { user: this.publicUser(user), ...(await this.issueTokens(user.id)) };
   }
 
@@ -78,7 +78,7 @@ export class AuthService {
       const subjectKey = createHash('sha256').update(row.subject).digest('hex').slice(0, 32);
       user = await this.repository.createUser({ email: `line.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: new Date(`${input.birthDate}T00:00:00.000Z`), gender: input.gender });
       await this.repository.createOAuthIdentity('LINE', row.subject, user.id);
-      user = await this.applyRegistrationPhoto(user, input.profilePhoto);
+      user = await this.applyRegistrationPhotos(user, input.profilePhotos??(input.profilePhoto?[input.profilePhoto]:[]));
     }
     await this.repository.consumeOAuthLoginTicket(row.id);
     return { user: this.publicUser(user), ...(await this.issueTokens(user.id)) };
@@ -127,7 +127,7 @@ export class AuthService {
       const subjectKey = createHash('sha256').update(row.subject).digest('hex').slice(0, 32);
       user = await this.repository.createUser({ email: `google.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: new Date(`${input.birthDate}T00:00:00.000Z`), gender: input.gender });
       await this.repository.createOAuthIdentity('GOOGLE', row.subject, user.id);
-      user = await this.applyRegistrationPhoto(user, input.profilePhoto);
+      user = await this.applyRegistrationPhotos(user, input.profilePhotos??(input.profilePhoto?[input.profilePhoto]:[]));
     }
     await this.repository.consumeOAuthLoginTicket(row.id);
     return { user: this.publicUser(user), ...(await this.issueTokens(user.id)) };
@@ -179,7 +179,7 @@ export class AuthService {
       const subjectKey = createHash('sha256').update(row.subject).digest('hex').slice(0, 32);
       user = await this.repository.createUser({ email: `apple.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: new Date(`${input.birthDate}T00:00:00.000Z`), gender: input.gender });
       await this.repository.createOAuthIdentity('APPLE', row.subject, user.id);
-      user = await this.applyRegistrationPhoto(user, input.profilePhoto);
+      user = await this.applyRegistrationPhotos(user, input.profilePhotos??(input.profilePhoto?[input.profilePhoto]:[]));
     }
     await this.repository.consumeOAuthLoginTicket(row.id);
     return { user: this.publicUser(user), ...(await this.issueTokens(user.id)) };
@@ -232,7 +232,7 @@ export class AuthService {
       const subjectKey = createHash('sha256').update(row.subject).digest('hex').slice(0, 32);
       user = await this.repository.createUser({ email: `x.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: new Date(`${input.birthDate}T00:00:00.000Z`), gender: input.gender });
       await this.repository.createOAuthIdentity('X', row.subject, user.id);
-      user = await this.applyRegistrationPhoto(user, input.profilePhoto);
+      user = await this.applyRegistrationPhotos(user, input.profilePhotos??(input.profilePhoto?[input.profilePhoto]:[]));
     }
     await this.repository.consumeOAuthLoginTicket(row.id);
     return { user: this.publicUser(user), ...(await this.issueTokens(user.id)) };
@@ -252,17 +252,22 @@ export class AuthService {
   }
 
   async getProfile(userId: string): Promise<PublicUser> { return this.publicUser(await this.requireUser(userId)); }
-  async deleteAccount(userId:string):Promise<void>{const user=await this.requireUser(userId);if(user.email.endsWith('@hangoutnow.example'))throw new ForbiddenException('Shared demo accounts cannot be deleted');await this.images.deleteProfilePhoto(userId,user.profilePhoto);await this.repository.deleteUser(userId)}
+  async deleteAccount(userId:string):Promise<void>{const user=await this.requireUser(userId);if(user.email.endsWith('@hangoutnow.example'))throw new ForbiddenException('Shared demo accounts cannot be deleted');for(const photo of new Set([user.profilePhoto,...user.profilePhotos].filter((value):value is string=>Boolean(value))))await this.images.deleteProfilePhoto(userId,photo);await this.repository.deleteUser(userId)}
 
-  private async applyRegistrationPhoto(user: StoredUser, profilePhoto?: string): Promise<StoredUser> {
-    if (!profilePhoto) return user;
-    const storedPhoto = await this.images.storeProfilePhoto(user.id, profilePhoto);
-    return this.repository.updateProfile(user.id, { profilePhoto: storedPhoto ?? null });
+  private async applyRegistrationPhotos(user: StoredUser, photos: string[]): Promise<StoredUser> {
+    if (!photos.length) return user;
+    const profilePhotos=(await Promise.all(photos.slice(0,3).map(photo=>this.images.storeProfilePhoto(user.id,photo)))).filter((photo):photo is string=>Boolean(photo));
+    return this.repository.updateProfile(user.id, { profilePhoto: profilePhotos[0]??null, profilePhotos });
   }
   async updateProfile(userId: string, input: UpdateProfileDto): Promise<PublicUser> {
+    if(input.profilePhotos&&input.profilePhotos.length>3)throw new BadRequestException('プロフィール画像は3枚まで登録できます');
     const normalized = input.interests ? [...new Set(input.interests.map((value) => value.trim()).filter(Boolean))] : undefined;
-    const profilePhoto=await this.images.storeProfilePhoto(userId,input.profilePhoto);
-    return this.publicUser(await this.repository.updateProfile(userId, { ...input, interests: normalized, profilePhoto }));
+    const current=await this.requireUser(userId);
+    const suppliedPhotos=input.profilePhotos??(input.profilePhoto!==undefined?(input.profilePhoto?[input.profilePhoto]:[]):undefined);
+    const profilePhotos=suppliedPhotos===undefined?undefined:await Promise.all(suppliedPhotos.map(photo=>this.images.storeProfilePhoto(userId,photo))).then(items=>items.filter((photo):photo is string=>Boolean(photo)).slice(0,3));
+    const updated=await this.repository.updateProfile(userId,{...input,interests:normalized,...(profilePhotos===undefined?{}:{profilePhotos,profilePhoto:profilePhotos[0]??null})});
+    if(profilePhotos!==undefined){const retained=new Set(profilePhotos);for(const oldPhoto of new Set([current.profilePhoto,...current.profilePhotos].filter((value):value is string=>Boolean(value))))if(!retained.has(oldPhoto))await this.images.deleteProfilePhoto(userId,oldPhoto)}
+    return this.publicUser(updated);
   }
   async requestPhoneVerification(userId: string, input: RequestPhoneVerificationDto, requestIp='unknown') {
     const counts=await this.repository.phoneVerificationCounts(userId,input.phone,requestIp,new Date(Date.now()-24*60*60_000));
@@ -310,7 +315,7 @@ export class AuthService {
     return {
       id: user.id, email: user.email, displayName: user.displayName, birthDate: user.birthDate, gender: user.gender,
       bio: user.bio, homeArea: user.homeArea, interests: user.interests, verificationStatus: user.verificationStatus,
-      profilePhoto: user.profilePhoto, phoneNumber: user.phoneNumber,
+      profilePhoto: user.profilePhoto, profilePhotos: user.profilePhotos, phoneNumber: user.phoneNumber,
     };
   }
   private phoneCodeHash(phone: string, code: string): string { return createHash('sha256').update(`${phone}:${code}:${process.env.PHONE_CODE_SECRET || 'local-demo-secret'}`).digest('hex'); }

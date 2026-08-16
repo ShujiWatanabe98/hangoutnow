@@ -495,6 +495,8 @@ describe('social journey safety boundaries', () => {
     const hangoutId = await createHangout();
     const joined = await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('guest')).send({ message: '参加します' }).expect(201);
     await request(app.getHttpServer()).post(`/join-requests/${joined.body.id as string}/accept`).set(auth('host')).expect(201);
+    const secondJoined = await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('waiter')).send({ message: '私も参加します' }).expect(201);
+    await request(app.getHttpServer()).post(`/join-requests/${secondJoined.body.id as string}/accept`).set(auth('host')).expect(201);
     await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/finish`).set(auth('host')).send({}).expect(409);
     await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/start`).set(auth('host')).send({}).expect(201);
     const roomId = db.rooms.find((room) => room.hangoutId === hangoutId)?.id;
@@ -506,22 +508,27 @@ describe('social journey safety boundaries', () => {
     expect(db.notifications.filter((notification) => notification.userId === 'guest' && notification.type === 'CHAT_MESSAGE').map((notification) => notification.body)).toEqual(['Hangout開始', 'Hangout終了']);
     await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/ratings`).set(auth('host')).send({ ratedUserId: 'guest', score: 4 }).expect(201);
     await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/ratings`).set(auth('guest')).send({ ratedUserId: 'host', score: 5 }).expect(201);
+    await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/ratings`).set(auth('guest')).send({ ratedUserId: 'waiter', score: 3 }).expect(201);
     expect(db.ratings).toEqual([
       expect.objectContaining({ raterUserId: 'host', ratedUserId: 'guest', score: 4 }),
       expect.objectContaining({ raterUserId: 'guest', ratedUserId: 'host', score: 5 }),
+      expect.objectContaining({ raterUserId: 'guest', ratedUserId: 'waiter', score: 3 }),
     ]);
   });
 
   it('lets the host start a Hangout and keeps accepting mid-session join requests', async () => {
     const hangoutId = await createHangout();
     await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/start`).set(auth('guest')).send({}).expect(403);
+    await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/start`).set(auth('host')).send({}).expect(409);
+    const firstJoined=await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('guest')).send({message:'参加します'}).expect(201);
+    await request(app.getHttpServer()).post(`/join-requests/${firstJoined.body.id as string}/accept`).set(auth('host')).expect(201);
     await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/start`).set(auth('host')).send({}).expect(201);
     expect(db.hangouts[0]?.status).toBe('STARTED');
 
     const listed = await request(app.getHttpServer()).get('/hangouts').set(auth('guest')).expect(200);
     expect(listed.body.some((hangout: { id: string; status: string }) => hangout.id === hangoutId && hangout.status === 'STARTED')).toBe(true);
 
-    const joined = await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('guest')).send({ message: '途中から参加したいです' }).expect(201);
+    const joined = await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('waiter')).send({ message: '途中から参加したいです' }).expect(201);
     expect(joined.body.status).toBe('PENDING');
   });
 

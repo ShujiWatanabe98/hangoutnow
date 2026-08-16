@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="104" viewBox="0 0 320 104" role="img" aria-labelledby="title desc">
+  <title id="title">Apple版</title>
+  <desc id="desc">準備ができしだい公開</desc>
+  <rect width="320" height="104" rx="22" fill="#17231d"/>
+  <g transform="translate(25 18)" fill="#fff">
+    <path d="M43 35c-.1-11 9-16 9.4-16.3-5.2-7.6-13.2-8.6-16-8.7-6.8-.7-13.2 4-16.7 4-3.5 0-8.9-3.9-14.6-3.8-7.5.1-14.5 4.4-18.4 11.1-7.9 13.6-2 33.8 5.6 44.9 3.7 5.4 8.2 11.4 14 11.2 5.6-.2 7.8-3.6 14.6-3.6s8.8 3.6 14.8 3.5c6.1-.1 10-5.5 13.7-10.9 4.3-6.3 6.1-12.4 6.2-12.7-.1 0-12.5-4.8-12.6-18.7Z" transform="scale(.62) translate(21 -2)"/>
+    <path d="M39 2c3.1-3.8 5.2-9 4.6-14.1-4.5.2-10 3-13.2 6.8-2.9 3.3-5.4 8.6-4.7 13.6C30.8 8.7 35.9 5.8 39 2Z" transform="scale(.62) translate(21 14)"/>
+  </g>
+  <text x="96" y="42" fill="#fff" font-family="Noto Sans JP, sans-serif" font-size="21" font-weight="800">Apple版</text>
+  <text x="96" y="70" fill="#d9ff68" font-family="Noto Sans JP, sans-serif" font-size="14" font-weight="700">準備ができしだい公開</text>
+</svg>

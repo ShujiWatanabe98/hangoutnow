@@ -22,10 +22,10 @@ class MemoryAuthRepository extends AuthRepository {
   async findUserByEmail(email: string) { return this.users.find((user) => user.email === email) ?? null; }
   async findUserById(id: string) { return this.users.find((user) => user.id === id) ?? null; }
   async createUser(input: { email: string; passwordHash: string; displayName: string; birthDate: Date; gender?: string }) {
-    const user: StoredUser = { id: `user-${this.users.length + 1}`, ...input, birthDate: input.birthDate.toISOString().slice(0, 10), gender: input.gender??null, bio: null, homeArea: null, interests: [], verificationStatus: 'UNVERIFIED', profilePhoto: null, phoneNumber: null };
+    const user: StoredUser = { id: `user-${this.users.length + 1}`, ...input, birthDate: input.birthDate.toISOString().slice(0, 10), gender: input.gender??null, bio: null, homeArea: null, interests: [], verificationStatus: 'UNVERIFIED', profilePhoto: null, profilePhotos: [], phoneNumber: null };
     this.users.push(user); return user;
   }
-  async updateProfile(userId: string, input: { displayName?: string; bio?: string | null; homeArea?: string | null; interests?: string[]; profilePhoto?: string | null; gender?: string }) {
+  async updateProfile(userId: string, input: { displayName?: string; bio?: string | null; homeArea?: string | null; interests?: string[]; profilePhoto?: string | null; profilePhotos?: string[]; gender?: string }) {
     const user = await this.findUserById(userId); if (!user) throw new Error('missing user'); Object.assign(user, input); return user;
   }
   async saveRefreshToken(token: StoredRefreshToken) { this.tokens.push(token); }
@@ -138,6 +138,17 @@ describe('authentication and profile', () => {
     expect(verified.body.verificationStatus).toBe('PHONE_VERIFIED');
     expect(verified.body.profilePhoto).toBe(photo);
   }, 15_000);
+
+  it('stores up to three profile photos and rejects a fourth', async () => {
+    app = await createApp();
+    const registered = await request(app.getHttpServer()).post('/auth/register').send({ email: 'three-photos@example.com', password: 'a-secure-password', displayName: 'Three Photos', birthDate: '1990-01-01' }).expect(201);
+    const auth = { Authorization: `Bearer ${registered.body.accessToken as string}` };
+    const photos=['data:image/png;base64,aQ==','data:image/png;base64,ag==','data:image/png;base64,aw=='];
+    const updated=await request(app.getHttpServer()).patch('/users/me').set(auth).send({profilePhotos:photos}).expect(200);
+    expect(updated.body.profilePhotos).toEqual(photos);
+    expect(updated.body.profilePhoto).toBe(photos[0]);
+    await request(app.getHttpServer()).patch('/users/me').set(auth).send({profilePhotos:[...photos,'data:image/png;base64,ZA==']}).expect(400);
+  },15_000);
 
   it('rejects minors and rotates refresh tokens', async () => {
     app = await createApp();

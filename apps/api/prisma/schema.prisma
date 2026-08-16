@@ -31,6 +31,7 @@ model User {
   verification   VerificationStatus @default(UNVERIFIED)
   /// S3-compatible object URL in production. Never persist profile image bytes or base64 data URLs in production.
   profilePhoto   String?        @map("profile_photo") @db.Text
+  profilePhotos  String[]       @default([]) @map("profile_photos")
   phoneNumber    String?        @unique @map("phone_number")
   notificationsEnabled Boolean @default(true) @map("notifications_enabled")
   accountStatus  AccountStatus @default(ACTIVE) @map("account_status")

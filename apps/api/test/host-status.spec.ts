@@ -1,6 +1,6 @@
 import { VerificationStatus } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
-import { calculateHostStatus } from '../src/host-status/host-status.service';
+import { calculateHostStatus, developerHostStatus } from '../src/host-status/host-status.service';
 
 const rating = (score: number, index: number) => ({ score, hangoutId: `hangout-${index}`, startAt: new Date(2026, 7, index + 1) });
 
@@ -23,5 +23,10 @@ describe('host status rules', () => {
   it('keeps organizer and participant ratings separate', () => {
     const status = calculateHostStatus({ completedHangouts: 3, cancelledHangouts: 0, totalParticipants: 4, ratings: [rating(5, 0), rating(3, 1)], participantRatings: [{ score: 2 }, { score: 4 }, { score: 5 }], verification: VerificationStatus.PHONE_VERIFIED, resolvedReports: 0 });
     expect(status).toMatchObject({ hostRatingCount: 2, hostAverageRating: 4, participantRatingCount: 3, participantAverageRating: 3.7 });
+  });
+
+  it('gives the developer account its fixed diamond status', () => {
+    expect(developerHostStatus('info@method-more.com')).toMatchObject({ tier: 'DIAMOND', hostRatingCount: 100, hostAverageRating: 5, participantRatingCount: 100, participantAverageRating: 5 });
+    expect(developerHostStatus('another@example.com')).toBeNull();
   });
 });

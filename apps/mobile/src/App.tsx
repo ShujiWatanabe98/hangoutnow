@@ -37,6 +37,7 @@ type User = {
   interests: string[];
   verificationStatus: string;
   profilePhoto: string | null;
+  profilePhotos: string[];
 };
 
 type Session = { accessToken: string; refreshToken: string; user: User };
@@ -60,6 +61,7 @@ type Host = {
   id: string;
   displayName: string;
   profilePhoto: string | null;
+  profilePhotos?: string[];
   verification: string;
   hostStatus?: HostStatus;
 };
@@ -101,6 +103,7 @@ type ChatMember = {
   id: string;
   displayName: string;
   profilePhoto: string | null;
+  profilePhotos?: string[];
   verification: string;
   myRatingScore?: number | null;
   ratedFiveByMe?: boolean;
@@ -141,6 +144,7 @@ type ApplicantProfile = {
   displayName: string;
   verification: string;
   profilePhoto: string | null;
+  profilePhotos?: string[];
   age: number;
   bio: string | null;
   homeArea: string | null;
@@ -984,19 +988,17 @@ export default function App() {
       if (!permission.granted) throw new Error("写真ライブラリへのアクセスを許可してください");
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
-        allowsEditing: true,
-        aspect: [1, 1],
+        allowsMultipleSelection: true,
+        selectionLimit: 3,
         quality: 0.65,
         base64: true,
       });
       if (result.canceled) return;
-      const asset = result.assets[0];
-      if (!asset?.base64) throw new Error("写真を読み込めませんでした");
-      const mediaType = asset.mimeType === "image/png" ? "png" : asset.mimeType === "image/webp" ? "webp" : "jpeg";
-      const profilePhoto = `data:image/${mediaType};base64,${asset.base64}`;
+      if(result.assets.length>3)throw new Error("プロフィール画像は3枚まで選択できます");
+      const profilePhotos=result.assets.map(asset=>{if(!asset.base64)throw new Error("写真を読み込めませんでした");const mediaType=asset.mimeType==="image/png"?"png":asset.mimeType==="image/webp"?"webp":"jpeg";return`data:image/${mediaType};base64,${asset.base64}`});
       const user = await request<User>("/users/me", {
         method: "PATCH",
-        body: JSON.stringify({ profilePhoto }),
+        body: JSON.stringify({ profilePhotos }),
       });
       setSession((current) => (current ? { ...current, user } : current));
     } catch (cause) {
@@ -1735,13 +1737,7 @@ function ApplicantProfileModal({ profile, onClose }: { profile: ApplicantProfile
     <Modal visible={profile !== null} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.applicantModalBackdrop}>
         <View style={styles.applicantModalCard}>
-          {profile?.profilePhoto ? (
-            <Image source={{ uri: profile.profilePhoto }} style={styles.applicantAvatar} />
-          ) : (
-            <View style={styles.applicantAvatarFallback}>
-              <Text style={styles.applicantAvatarText}>{profile?.displayName.slice(0, 1) || "☺"}</Text>
-            </View>
-          )}
+          <View style={styles.profilePhotoTrio}>{[profile?.profilePhotos?.[1],profile?.profilePhotos?.[0]||profile?.profilePhoto,profile?.profilePhotos?.[2]].map((photo,index)=>photo?<Image key={`${photo}-${index}`} source={{uri:photo}} style={index===1?styles.applicantAvatar:styles.avatarSide}/>:<View key={`applicant-empty-${index}`} style={index===1?styles.applicantAvatarFallback:styles.avatarSideFallback}><Text style={styles.applicantAvatarText}>{index===1?(profile?.displayName.slice(0,1)||"☺"):"＋"}</Text></View>)}</View>
           <Text style={styles.applicantName}>{profile?.displayName}</Text>
           <Text style={styles.applicantMeta}>
             {profile?.age}歳{profile?.homeArea ? ` ・ ${profile.homeArea}` : ""}
@@ -2041,13 +2037,7 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
   };
   return (
     <ScrollView contentContainerStyle={styles.profile}>
-      {user.profilePhoto ? (
-        <Image source={{ uri: user.profilePhoto }} style={styles.avatar} />
-      ) : (
-        <View style={styles.avatarFallback}>
-          <Text style={styles.avatarText}>☺</Text>
-        </View>
-      )}
+      <View style={styles.profilePhotoTrio}>{[user.profilePhotos?.[1],user.profilePhotos?.[0]||user.profilePhoto,user.profilePhotos?.[2]].map((photo,index)=>photo?<Image key={`${photo}-${index}`} source={{uri:photo}} style={index===1?styles.avatar:styles.avatarSide}/>:<View key={`empty-${index}`} style={index===1?styles.avatarFallback:styles.avatarSideFallback}><Text style={styles.avatarText}>{index===1?"☺":"＋"}</Text></View>)}</View>
       <Text style={styles.profileName}>{user.displayName}</Text>
       <Pressable style={styles.profileChatButton} onPress={onChat}>
         <Text style={styles.profileChatButtonIcon}>●</Text>
@@ -2115,7 +2105,7 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
         <SafeAreaView style={styles.profileEditorPage}>
           <View style={styles.profileEditorHeader}><Pressable onPress={() => setEditing(false)}><Text style={styles.profileEditorCancel}>キャンセル</Text></Pressable><Text style={styles.profileEditorTitle}>プロフィールを編集</Text><Pressable onPress={() => void save()}><Text style={styles.profileEditorSave}>保存</Text></Pressable></View>
           <ScrollView contentContainerStyle={styles.profileEditorForm} keyboardShouldPersistTaps="handled">
-            <Text style={styles.profileEditorLabel}>プロフィール写真</Text><Pressable style={styles.profileEditorAction} onPress={onPhoto}><Text style={styles.profileEditorActionText}>写真を変更</Text></Pressable>
+            <Text style={styles.profileEditorLabel}>プロフィール画像（最大3枚）</Text><Pressable style={styles.profileEditorAction} onPress={onPhoto}><Text style={styles.profileEditorActionText}>画像を選び直す</Text></Pressable><Text style={styles.profileEditorHint}>1枚目を中央、2・3枚目を左右に表示します。</Text>
             <Text style={styles.profileEditorLabel}>表示名</Text><TextInput style={styles.profileEditorInput} value={displayName} onChangeText={setDisplayName} maxLength={40} />
             <Text style={styles.profileEditorLabel}>電話番号</Text><Pressable style={styles.profileEditorAction} onPress={() => { setEditing(false); onPhone(); }}><Text style={styles.profileEditorActionText}>{user.verificationStatus === "PHONE_VERIFIED" ? "電話番号を変更" : "電話番号を確認"}</Text></Pressable>
             <Text style={styles.profileEditorLabel}>活動エリア</Text><TextInput style={styles.profileEditorInput} value={homeArea} onChangeText={setHomeArea} maxLength={80} placeholder="例：新宿・渋谷" />
@@ -2901,7 +2891,10 @@ const styles = StyleSheet.create({
   ratingScreenCard: { gap: 14, padding: 16, borderRadius: 18, backgroundColor: "#fff", borderWidth: 1, borderColor: "#dfe4df" },
   ratingScreenPerson: { flexDirection: "row", alignItems: "center", gap: 12 },
   profile: { alignItems: "center", padding: 24 },
+  profilePhotoTrio: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 },
   avatar: { width: 92, height: 92, borderRadius: 46, backgroundColor: "#ddd" },
+  avatarSide: { width: 58, height: 58, borderRadius: 29, backgroundColor: "#ddd", borderWidth: 2, borderColor: "#fff" },
+  avatarSideFallback: { width: 58, height: 58, borderRadius: 29, backgroundColor: "#e7ede8", borderWidth: 2, borderColor: "#fff", alignItems: "center", justifyContent: "center" },
   avatarFallback: {
     width: 92,
     height: 92,

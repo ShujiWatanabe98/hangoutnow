@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="104" viewBox="0 0 320 104" role="img" aria-labelledby="title desc">
+  <title id="title">Android版</title>
+  <desc id="desc">準備ができしだい公開</desc>
+  <rect width="320" height="104" rx="22" fill="#17231d"/>
+  <g transform="translate(25 24)" fill="#d9ff68">
+    <path d="M12 17h40v28a9 9 0 0 1-9 9H21a9 9 0 0 1-9-9V17Z"/>
+    <path d="M17 15a15 15 0 0 1 30 0H17Z"/>
+    <circle cx="25" cy="9" r="2" fill="#17231d"/><circle cx="39" cy="9" r="2" fill="#17231d"/>
+    <path d="m21 1-5-8M43 1l5-8" fill="none" stroke="#d9ff68" stroke-width="3" stroke-linecap="round"/>
+  </g>
+  <text x="96" y="42" fill="#fff" font-family="Noto Sans JP, sans-serif" font-size="21" font-weight="800">Android版</text>
+  <text x="96" y="70" fill="#d9ff68" font-family="Noto Sans JP, sans-serif" font-size="14" font-weight="700">準備ができしだい公開</text>
+</svg>

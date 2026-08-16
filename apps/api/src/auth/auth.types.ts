@@ -9,6 +9,7 @@ export interface PublicUser {
   interests: string[];
   verificationStatus: string;
   profilePhoto: string | null;
+  profilePhotos: string[];
   phoneNumber: string | null;
 }
 
@@ -21,7 +22,7 @@ export abstract class AuthRepository {
   abstract findUserByEmail(email: string): Promise<StoredUser | null>;
   abstract findUserById(id: string): Promise<StoredUser | null>;
   abstract createUser(input: { email: string; passwordHash: string; displayName: string; birthDate: Date; gender?: string }): Promise<StoredUser>;
-  abstract updateProfile(userId: string, input: { displayName?: string; bio?: string | null; homeArea?: string | null; interests?: string[]; profilePhoto?: string | null; gender?: string }): Promise<StoredUser>;
+  abstract updateProfile(userId: string, input: { displayName?: string; bio?: string | null; homeArea?: string | null; interests?: string[]; profilePhoto?: string | null; profilePhotos?: string[]; gender?: string }): Promise<StoredUser>;
   abstract saveRefreshToken(token: StoredRefreshToken): Promise<void>;
   abstract findRefreshToken(tokenHash: string): Promise<StoredRefreshToken | null>;
   abstract revokeRefreshToken(id: string): Promise<void>;

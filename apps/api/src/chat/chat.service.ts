@@ -4,7 +4,7 @@ import { v7 as uuidv7 } from 'uuid';
 import { NotificationService } from '../notifications/notification.service';
 import { PrismaService } from '../prisma/prisma.service';
 
-const publicUser = { id: true, displayName: true, profilePhoto: true, verification: true } as const;
+const publicUser = { id: true, displayName: true, profilePhoto: true, profilePhotos: true, verification: true } as const;
 
 @Injectable()
 export class ChatService {

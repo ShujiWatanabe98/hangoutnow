@@ -10,6 +10,7 @@ export class RegisterDto {
   @IsDateString({ strict: true }) birthDate!: string;
   @IsOptional() @IsEnum(Gender) gender?: Gender;
   @IsOptional() @IsString() @MaxLength(1_500_000) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/) profilePhoto?: string;
+  @IsOptional() @IsArray() @ArrayMaxSize(3) @IsString({ each: true }) @MaxLength(1_500_000, { each: true }) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/, { each: true }) profilePhotos?: string[];
 }
 
 export class LoginDto {
@@ -26,6 +27,7 @@ export class UpdateProfileDto {
   @IsOptional() @IsString() @MaxLength(80) homeArea?: string | null;
   @IsOptional() @IsArray() @ArrayMaxSize(20) @IsString({ each: true }) @MaxLength(40, { each: true }) interests?: string[];
   @IsOptional() @IsString() @MaxLength(1_500_000) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/) profilePhoto?: string | null;
+  @IsOptional() @IsArray() @ArrayMaxSize(3) @IsString({ each: true }) @MaxLength(1_500_000, { each: true }) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/, { each: true }) profilePhotos?: string[];
   @IsOptional() @IsEnum(Gender) gender?: Gender;
 }
 
@@ -45,6 +47,7 @@ export class LineRedeemDto {
   @IsOptional() @IsDateString({ strict: true }) birthDate?: string;
   @IsOptional() @IsEnum(Gender) gender?: Gender;
   @IsOptional() @IsString() @MaxLength(1_500_000) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/) profilePhoto?: string;
+  @IsOptional() @IsArray() @ArrayMaxSize(3) @IsString({ each: true }) @MaxLength(1_500_000, { each: true }) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/, { each: true }) profilePhotos?: string[];
 }
 
 export class GoogleStartDto {
@@ -57,6 +60,7 @@ export class GoogleRedeemDto {
   @IsOptional() @IsDateString({ strict: true }) birthDate?: string;
   @IsOptional() @IsEnum(Gender) gender?: Gender;
   @IsOptional() @IsString() @MaxLength(1_500_000) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/) profilePhoto?: string;
+  @IsOptional() @IsArray() @ArrayMaxSize(3) @IsString({ each: true }) @MaxLength(1_500_000, { each: true }) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/, { each: true }) profilePhotos?: string[];
 }
 
 export class AppleStartDto {
@@ -75,6 +79,7 @@ export class AppleRedeemDto {
   @IsOptional() @IsDateString({ strict: true }) birthDate?: string;
   @IsOptional() @IsEnum(Gender) gender?: Gender;
   @IsOptional() @IsString() @MaxLength(1_500_000) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/) profilePhoto?: string;
+  @IsOptional() @IsArray() @ArrayMaxSize(3) @IsString({ each: true }) @MaxLength(1_500_000, { each: true }) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/, { each: true }) profilePhotos?: string[];
 }
 
 export class XStartDto {
@@ -87,4 +92,5 @@ export class XRedeemDto {
   @IsOptional() @IsDateString({ strict: true }) birthDate?: string;
   @IsOptional() @IsEnum(Gender) gender?: Gender;
   @IsOptional() @IsString() @MaxLength(1_500_000) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/) profilePhoto?: string;
+  @IsOptional() @IsArray() @ArrayMaxSize(3) @IsString({ each: true }) @MaxLength(1_500_000, { each: true }) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/, { each: true }) profilePhotos?: string[];
 }

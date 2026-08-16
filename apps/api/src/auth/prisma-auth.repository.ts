@@ -14,7 +14,7 @@ export class PrismaAuthRepository extends AuthRepository {
       id: user.id, email: user.email, passwordHash: user.passwordHash, displayName: user.displayName,
       birthDate: user.birthDate.toISOString().slice(0, 10), gender: user.gender, bio: user.bio, homeArea: user.homeArea,
       verificationStatus: user.verification, interests: user.interests.map((item) => item.interest.name),
-      profilePhoto: user.profilePhoto, phoneNumber: user.phoneNumber,
+      profilePhoto: user.profilePhoto, profilePhotos: user.profilePhotos, phoneNumber: user.phoneNumber,
     };
   }
 
@@ -35,7 +35,7 @@ export class PrismaAuthRepository extends AuthRepository {
     const user = await this.prisma.user.create({ data: { id: uuidv7(), ...input, gender: input.gender as 'MALE'|'FEMALE'|'OTHER'|'UNDISCLOSED'|undefined }, include: includeInterests });
     return this.mapUser(user);
   }
-  async updateProfile(userId: string, input: { displayName?: string; bio?: string | null; homeArea?: string | null; interests?: string[]; profilePhoto?: string | null; gender?: string }): Promise<StoredUser> {
+  async updateProfile(userId: string, input: { displayName?: string; bio?: string | null; homeArea?: string | null; interests?: string[]; profilePhoto?: string | null; profilePhotos?: string[]; gender?: string }): Promise<StoredUser> {
     const { interests, gender, ...profile } = input;
     const user = await this.prisma.user.update({
       where: { id: userId }, data: {
