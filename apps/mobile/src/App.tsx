@@ -507,13 +507,18 @@ export default function App() {
   async function joinHangout(hangout: Hangout, message: string) {
     setLoading(true);
     setError("");
+    const previousStatus = hangout.myJoinStatus;
+    const applyJoinStatus = (status: string | null) => {
+      setSelectedHangout((current) => current?.id === hangout.id ? { ...current, myJoinStatus: status } : current);
+      setHangouts((current) => current.map((item) => item.id === hangout.id ? { ...item, myJoinStatus: status } : item));
+    };
+    applyJoinStatus("PENDING");
     try {
       const joinRequest = await request<{ status: string }>(`/hangouts/${hangout.id}/join`, {
         method: "POST",
         body: JSON.stringify({ message }),
       });
-      setSelectedHangout((current) => current?.id === hangout.id ? { ...current, myJoinStatus: joinRequest.status } : current);
-      setHangouts((current) => current.map((item) => item.id === hangout.id ? { ...item, myJoinStatus: joinRequest.status } : item));
+      applyJoinStatus(joinRequest.status);
       void request("/analytics/events", {
         method: "POST",
         body: JSON.stringify({
@@ -523,7 +528,10 @@ export default function App() {
       }).catch(() => undefined);
       await loadHome();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "参加申請に失敗しました");
+      applyJoinStatus(previousStatus);
+      const message = cause instanceof Error ? cause.message : "参加申請に失敗しました";
+      setError(message);
+      throw new Error(message);
     } finally {
       setLoading(false);
     }
@@ -1582,6 +1590,11 @@ function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onChat, 
             <Text style={styles.hostName}>待機リストに登録済み</Text>
             <Text style={styles.muted}>空席が出たら通知します。集合場所の詳細は承認後に表示されます。</Text>
           </View>
+        )}
+        {!isHost && hangout.myJoinStatus === "PENDING" && (
+          <Pressable disabled style={[styles.primary, styles.disabledButton]} accessibilityState={{ disabled: true }}>
+            <Text style={styles.primaryText}>申請中</Text>
+          </Pressable>
         )}
         {!isHost && !hangout.myJoinStatus && hangout.status === "OPEN" && (
           <Pressable disabled={!!ineligibleReason} style={[styles.primary, !!ineligibleReason && styles.disabledButton]} onPress={() => setJoining(true)}>

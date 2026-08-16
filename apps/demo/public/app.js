@@ -311,6 +311,8 @@ function showJoinRequestDialogReliable(h,detailSheet){
       try{await loadHangouts()}catch(error){console.warn('Hangout refresh failed after successful join request')}
       applyStatus(nextStatus);
       dialog.remove();
+      detailSheet.remove();
+      await detail(h.id,null,{animate:false});
       toast(nextStatus==='WAITLISTED'?'待機リストに登録しました':'ひとこと付きで参加申請を送りました');
     }catch(error){
       try{
@@ -318,6 +320,9 @@ function showJoinRequestDialogReliable(h,detailSheet){
         if(['PENDING','WAITLISTED','ACCEPTED'].includes(current.myJoinStatus)){
           const reconciledStatus=applyStatus(current.myJoinStatus);
           dialog.remove();
+          try{await loadHangouts()}catch{/* The confirmed request status is already reflected locally. */}
+          detailSheet.remove();
+          await detail(h.id,null,{animate:false});
           toast(reconciledStatus==='WAITLISTED'?'待機リストに登録しました':'参加申請を受け付けました');
           return;
         }
