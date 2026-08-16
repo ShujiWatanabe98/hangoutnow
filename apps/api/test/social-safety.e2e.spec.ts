@@ -54,6 +54,7 @@ interface TestHangout {
   maxParticipants: number;
   genderRestriction: 'ANY'|'MALE_ONLY'|'FEMALE_ONLY';
   maxAge: number | null;
+  isDemo: boolean;
   status: HangoutStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -87,6 +88,7 @@ class MemorySocialDb {
     { id: 'guest', email: 'guest@example.com', displayName: 'Guest', verification: 'PHONE_VERIFIED', profilePhoto: 'guest-photo', notificationsEnabled: true, birthDate:new Date('2000-01-01'), gender:'FEMALE', bio:'カフェ巡りが好きです', homeArea:'渋谷', interests:[{interest:{name:'カフェ'}},{interest:{name:'ランニング'}}] },
     { id: 'outsider', email: 'outsider@example.com', displayName: 'Outsider', verification: 'PHONE_VERIFIED', profilePhoto: 'outsider-photo', notificationsEnabled: true, birthDate:new Date('1980-01-01'), gender:'OTHER', bio:null, homeArea:null, interests:[] },
     { id: 'waiter', email: 'waiter@example.com', displayName: 'Waiter', verification: 'PHONE_VERIFIED', profilePhoto: 'waiter-photo', notificationsEnabled: true, birthDate:new Date('1995-01-01'), gender:'OTHER', bio:null, homeArea:null, interests:[] },
+    { id: 'demo', email: 'demo-host@hangoutnow.example', displayName: 'Demo', verification: 'PHONE_VERIFIED', profilePhoto: 'demo-photo', notificationsEnabled: true, birthDate:new Date('1990-01-01'), gender:'MALE', bio:null, homeArea:null, interests:[] },
   ];
   readonly hangouts: TestHangout[] = [];
   readonly joinRequests: TestJoinRequest[] = [];
@@ -144,10 +146,11 @@ class MemorySocialDb {
       if (!query.include) return row;
       return this.hangoutView(row);
     },
-    findMany: async (query: { where?: { hostUserId?: { notIn: string[] }; status?: { in: HangoutStatus[] }; startAt?: { gt?: Date; lte?: Date } }; include?: unknown }) => {
+    findMany: async (query: { where?: { hostUserId?: { notIn: string[] }; isDemo?: boolean; status?: { in: HangoutStatus[] }; startAt?: { gt?: Date; lte?: Date } }; include?: unknown }) => {
       const rows = this.hangouts.filter((item) => {
         if (query.where?.hostUserId?.notIn.includes(item.hostUserId)) return false;
         if (query.where?.status && !query.where.status.in.includes(item.status)) return false;
+        if (query.where?.isDemo !== undefined && item.isDemo !== query.where.isDemo) return false;
         if (query.where?.startAt?.gt && item.startAt <= query.where.startAt.gt) return false;
         if (query.where?.startAt?.lte && item.startAt > query.where.startAt.lte) return false;
         return true;
@@ -158,6 +161,12 @@ class MemorySocialDb {
       const row = this.requireHangout(query.where.id);
       Object.assign(row, query.data, { updatedAt: new Date() });
       return row;
+    },
+    updateMany: async (query: { where: { id: string; status: { in: HangoutStatus[] } }; data: Partial<TestHangout> }) => {
+      const row = this.hangouts.find((item) => item.id === query.where.id && query.where.status.in.includes(item.status));
+      if (!row) return { count: 0 };
+      Object.assign(row, query.data, { updatedAt: new Date() });
+      return { count: 1 };
     },
   };
 
@@ -361,6 +370,36 @@ describe('social journey safety boundaries', () => {
       publicLocationName: '新宿駅周辺', locationName: '新宿のカフェ', maxParticipants: 2,
     }).expect(201);
     expect(response.body).toMatchObject({ hostMaleCount: 0, hostFemaleCount: 1, hostParticipantCount: 1, maxParticipants: 2 });
+  });
+
+  it('hides demo Hangouts from production users and shows all Hangouts to demo users', async () => {
+    const service = app.get(HangoutService);
+    const production = await service.create('host', { title:'本番Hangout', category:'CAFE', serviceArea:'SHINJUKU', startInMinutes:60, publicLocationName:'新宿駅周辺', locationName:'本番店舗', maxParticipants:3 });
+    const demo = await service.create('demo', { title:'デモHangout', category:'CAFE', serviceArea:'SHINJUKU', startInMinutes:60, publicLocationName:'新宿駅周辺', locationName:'デモ店舗', maxParticipants:3 });
+    expect(production.isDemo).toBe(false);
+    expect(demo.isDemo).toBe(true);
+    expect((await service.list('host')).map((item) => item.title)).toEqual(['本番Hangout']);
+    expect((await service.list('demo')).map((item) => item.title)).toEqual(['本番Hangout','デモHangout']);
+  });
+
+  it('finishes a due Hangout with no applicants', async () => {
+    const id = await createHangout();
+    const hangout = db.hangouts.find((item) => item.id === id)!;
+    hangout.startAt = new Date(Date.now() - 1000);
+    await app.get(HangoutService).reconcileDueHangouts();
+    expect(hangout.status).toBe('FINISHED');
+  });
+
+  it('waits for a due pending request and starts immediately after approval', async () => {
+    const id = await createHangout();
+    const joined = await request(app.getHttpServer()).post(`/hangouts/${id}/join`).set(auth('guest')).send({ message: '参加します' }).expect(201);
+    const hangout = db.hangouts.find((item) => item.id === id)!;
+    hangout.startAt = new Date(Date.now() - 1000);
+    await app.get(HangoutService).reconcileDueHangouts();
+    expect(hangout.status).toBe('OPEN');
+    await request(app.getHttpServer()).post(`/join-requests/${joined.body.id as string}/accept`).set(auth('host')).expect(201);
+    expect(hangout.status).toBe('STARTED');
+    expect(db.messages.some((message) => message.body === 'Hangout開始')).toBe(true);
   });
 
   it('hides the exact venue, address, and coordinates until the host accepts the join request', async () => {

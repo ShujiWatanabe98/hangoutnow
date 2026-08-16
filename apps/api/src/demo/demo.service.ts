@@ -42,6 +42,7 @@ export class DemoService {
         startAt.setHours(19, 0, 0, 0);
         await transaction.hangout.create({ data: {
           id: hangoutId, hostUserId: organizer.id, title: `[1週間デモ] ${title}`,
+          isDemo: true,
           description: 'マミとマドカが参加した架空の過去Hangoutです。', category, serviceArea, startAt,
           publicLocationName, locationName: `${publicLocationName}のデモ店舗`, maxParticipants: 4,
           hostMaleCount: 0, hostFemaleCount: 1, status: HangoutStatus.FINISHED,
@@ -77,6 +78,7 @@ export class DemoService {
       const hangoutId = uuidv7();
       const hangout = await transaction.hangout.create({ data: {
         id: hangoutId, hostUserId: host.id, title: 'マミと新宿で気軽に飲もう',
+        isDemo: true,
         imageUrl: 'https://hangoutnow-demo.onrender.com/assets/demo-drinking-hangout-v2.jpg',
         description: '仕事帰りに気軽に乾杯する、公開デモ用の架空の飲み会です。初参加も歓迎します。',
         category: 'DRINKING', startAt: new Date(Date.now() + 60 * 60_000), publicLocationName: '新宿駅東口周辺（デモ）', locationName: 'デモ居酒屋 新宿店 東京都新宿区新宿3-1-1',

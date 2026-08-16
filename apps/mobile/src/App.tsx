@@ -1250,6 +1250,14 @@ function Field(props: React.ComponentProps<typeof TextInput> & { label: string }
   );
 }
 
+function CountdownText({ startAt, style }: { startAt: string; style?: object }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
+  const seconds = Math.max(0, Math.ceil((new Date(startAt).getTime() - now) / 1000));
+  const label = seconds === 0 ? "開始時刻です" : `開始まで ${String(Math.floor(seconds / 3600)).padStart(2, "0")}:${String(Math.floor(seconds % 3600 / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+  return <Text style={style}>{label}</Text>;
+}
+
 function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, demoRole, onArea, onLocation, onRefresh, onOpen, onHeart, onCreate }: { user: User; hangouts: Hangout[]; refreshing: boolean; locationLabel: string; selectedArea: AlphaArea; demoRole: "host" | "guest" | null; onArea: (area: AlphaArea) => void; onLocation: () => void; onRefresh: () => void; onOpen: (hangout: Hangout) => void; onHeart: (hangout: Hangout) => void; onCreate: () => void }) {
   const [filter, setFilter] = useState<"おすすめ" | "30分後" | "1時間後" | "3時間後">("おすすめ");
   const homeStateLabel = (hangout: Hangout) => hangout.hostUserId === user.id && ["OPEN", "FULL"].includes(hangout.status) ? "主催中" : stateLabel(hangout);
@@ -1298,6 +1306,7 @@ function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, d
             <View style={styles.cardCopy}>
               <Text style={styles.cardCategory}>{hangout.category}</Text>
               <Text style={styles.cardTitle}>{hangout.title}</Text>
+              <CountdownText startAt={hangout.startAt} style={styles.muted} />
               <Text style={styles.muted}>{hangout.locationName}</Text>
               <Text style={styles.muted}>
                 参加 {hangout.participantCount} / {hangout.maxParticipants}人
@@ -1556,6 +1565,7 @@ function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onChat, 
         <Text style={styles.detailMeta}>
           {new Date(hangout.startAt).toLocaleString("ja-JP")} ／ {hangout.participantCount} / {hangout.maxParticipants}人
         </Text>
+        <CountdownText startAt={hangout.startAt} style={styles.detailMeta} />
         <View style={styles.detailPanel}>
           <Text style={styles.label}>集合場所</Text>
           <Text>{hangout.locationName}</Text>

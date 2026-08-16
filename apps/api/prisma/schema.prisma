@@ -220,6 +220,7 @@ model Hangout {
   hostFemaleCount Int            @default(0) @map("host_female_count")
   genderRestriction GenderRestriction @default(ANY) @map("gender_restriction")
   maxAge          Int?           @map("max_age")
+  isDemo          Boolean        @default(false) @map("is_demo")
   status          HangoutStatus  @default(OPEN)
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")
@@ -233,6 +234,7 @@ model Hangout {
 
   @@index([status, startAt])
   @@index([serviceArea, status, startAt])
+  @@index([isDemo, status, startAt])
   @@index([hostUserId])
   @@map("hangouts")
 }
