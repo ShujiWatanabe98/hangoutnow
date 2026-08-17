@@ -164,10 +164,18 @@ async function demoLogin(role, button) {
   if (!account) return;
   const original = button.innerHTML;
   document.querySelectorAll('[data-demo-role]').forEach((item)=>item.disabled=true);
+  const slowTimer = setTimeout(()=>{button.innerHTML='<b>デモを起動中…</b><small>初回は10〜30秒ほどかかる場合があります</small>'},5000);
   button.innerHTML = '<b>ログイン中…</b><small>公開デモを準備しています</small>';
   try {
     session = null;
-    session = await api('/auth/login',{method:'POST',body:JSON.stringify(account)});
+    try {
+      session = await api('/auth/login',{method:'POST',body:JSON.stringify(account)});
+    } catch(firstError) {
+      button.innerHTML='<b>再接続中…</b><small>デモサーバーの起動を待っています</small>';
+      await new Promise((resolve)=>setTimeout(resolve,2000));
+      session = await api('/auth/login',{method:'POST',body:JSON.stringify(account)}).catch(()=>{throw firstError});
+    }
+    clearTimeout(slowTimer);
     demoRole = role;
     localStorage.setItem(DEMO_ROLE_STORAGE_KEY,role);
     saveSession();
@@ -175,6 +183,7 @@ async function demoLogin(role, button) {
     await Promise.all([loadNotificationCount(),loadHangouts()]);
     navigate('home');
   } catch(error) {
+    clearTimeout(slowTimer);
     document.querySelector('#demo-error').textContent=error.message;
     document.querySelectorAll('[data-demo-role]').forEach((item)=>item.disabled=false);
     button.innerHTML=original;
