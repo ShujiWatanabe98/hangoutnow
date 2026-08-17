@@ -72,6 +72,8 @@ export class DemoService {
 
     const result = await this.db.$transaction(async (transaction: Prisma.TransactionClient) => {
       const demoUserIds = users.map((user) => user.id);
+      await transaction.message.deleteMany({ where: { room: { hangout: { isDemo: true } } } });
+      await transaction.directMessage.deleteMany({ where: { directChat: { OR: [{ userOneId: { in: demoUserIds } }, { userTwoId: { in: demoUserIds } }] } } });
       await transaction.directChat.deleteMany({ where: { OR: [{ userOneId: { in: demoUserIds } }, { userTwoId: { in: demoUserIds } }] } });
       await transaction.hangout.deleteMany({ where: { isDemo: true } });
       await transaction.notification.deleteMany({ where: { userId: { in: demoUserIds } } });

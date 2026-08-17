@@ -8,6 +8,7 @@ function setup(requesterIsDemo = true) {
   const guest = { id: '019ffb00-0000-7000-8000-000000000002', email: 'demo-guest@hangoutnow.example' };
   const masaya = { id: '019ffb00-0000-7000-8000-000000000003', email: 'demo-masaya@hangoutnow.example' };
   const transaction = {
+    message: { deleteMany: vi.fn() }, directMessage: { deleteMany: vi.fn() },
     directChat: { deleteMany: vi.fn() }, hangout: { deleteMany: vi.fn(), create: vi.fn().mockResolvedValue({ id: 'new-hangout' }) },
     notification: { deleteMany: vi.fn() }, joinRequest: { create: vi.fn() }, chatRoom: { create: vi.fn() },
   };
@@ -33,6 +34,8 @@ describe('public demo reset boundary', () => {
     const { service, transaction, requesterId } = setup();
     const result = await service.reset(requesterId);
     expect(result).toMatchObject({ ok: true, hangoutId: 'new-hangout', status: 'READY' });
+    expect(transaction.message.deleteMany).toHaveBeenCalledWith({ where: { room: { hangout: { isDemo: true } } } });
+    expect(transaction.directMessage.deleteMany).toHaveBeenCalledOnce();
     expect(transaction.hangout.deleteMany).toHaveBeenCalledWith({ where: { isDemo: true } });
     expect(transaction.hangout.create).toHaveBeenCalledOnce();
     expect(transaction.joinRequest.create).toHaveBeenCalledWith({ data: expect.objectContaining({ userId: '019ffb00-0000-7000-8000-000000000003', status: 'ACCEPTED' }) });
