@@ -37,6 +37,7 @@ export class NotificationService implements OnModuleInit, OnModuleDestroy {
 
   async markRead(userId: string, id: string) { await this.db.notification.updateMany({ where: { id, userId }, data: { readAt: new Date() } }); this.realtime.send(userId, 'notifications:changed', {}); }
   async markAllRead(userId: string) { await this.db.notification.updateMany({ where: { userId, readAt: null }, data: { readAt: new Date() } }); this.realtime.send(userId, 'notifications:changed', {}); }
+  async deleteAll(userId: string) { await this.db.notification.deleteMany({ where: { userId } }); this.realtime.send(userId, 'notifications:changed', {}); }
   async settings(userId: string, enabled: boolean) { await this.db.user.update({ where: { id: userId }, data: { notificationsEnabled: enabled } }); return { enabled }; }
 
   async notify(userId: string, type: string, title: string, body: string, link?: string, eventKey?: string) {
