@@ -3,7 +3,11 @@ import { readFileSync } from 'node:fs';
 const baseUrl = process.env.HANGOUTNOW_API_URL || 'https://hangoutnow-api.onrender.com';
 const demoUrl = process.env.HANGOUTNOW_DEMO_URL || 'https://hangoutnow-demo.onrender.com';
 const password = process.env.HANGOUTNOW_DEMO_PASSWORD || 'HangoutNow-Demo-2026!';
-const hostPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-mami-profile.jpg', import.meta.url)).toString('base64')}`;
+const hostPhotos = [
+  'demo-mami-profile-main.jpg',
+  'demo-mami-profile-left.jpg',
+  'demo-mami-profile-right.jpg',
+].map((name) => `data:image/jpeg;base64,${readFileSync(new URL(`../apps/demo/public/assets/${name}`, import.meta.url)).toString('base64')}`);
 const guestPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-madoka-profile.jpg', import.meta.url)).toString('base64')}`;
 const masayaPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-masaya-profile.jpg', import.meta.url)).toString('base64')}`;
 const kentaPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-host-profile.jpg', import.meta.url)).toString('base64')}`;
@@ -37,7 +41,7 @@ const accounts = {
     homeArea: '新宿',
     interests: ['ツーリング', 'バイク', 'グルメ'],
     bio: '休日はバイクで景色のいい道を走る女性ライダーです。安全第一のツーリングを企画しています。',
-    profilePhoto: hostPhoto,
+    profilePhotos: hostPhotos,
   },
   guest: {
     email: process.env.HANGOUTNOW_DEMO_GUEST_EMAIL || 'demo-guest@hangoutnow.example',
@@ -142,7 +146,7 @@ async function loginOrRegister(account) {
     body: JSON.stringify({
       displayName: account.displayName,
       gender: account.gender,
-      profilePhoto: account.profilePhoto,
+      profilePhotos: account.profilePhotos ?? (account.profilePhoto ? [account.profilePhoto] : []),
       bio: account.bio,
       homeArea: account.homeArea,
       interests: account.interests,
