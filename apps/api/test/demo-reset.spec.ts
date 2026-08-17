@@ -28,12 +28,12 @@ describe('public demo reset boundary', () => {
     await expect(service.reset(requesterId)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it('resets only identified demo-account data and creates a fresh journey', async () => {
+  it('removes all demo data and creates a fresh journey', async () => {
     process.env.DEMO_MODE = 'true';
     const { service, transaction, requesterId } = setup();
     const result = await service.reset(requesterId);
     expect(result).toMatchObject({ ok: true, hangoutId: 'new-hangout', status: 'READY' });
-    expect(transaction.hangout.deleteMany).toHaveBeenCalledWith({ where: { hostUserId: requesterId } });
+    expect(transaction.hangout.deleteMany).toHaveBeenCalledWith({ where: { isDemo: true } });
     expect(transaction.hangout.create).toHaveBeenCalledOnce();
     expect(transaction.joinRequest.create).toHaveBeenCalledWith({ data: expect.objectContaining({ userId: '019ffb00-0000-7000-8000-000000000003', status: 'ACCEPTED' }) });
   });

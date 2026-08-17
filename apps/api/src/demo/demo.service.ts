@@ -62,7 +62,7 @@ export class DemoService {
 
   async reset(requesterId: string) {
     if (process.env.DEMO_MODE !== 'true') throw new ForbiddenException('Demo reset is unavailable');
-    const users = await this.db.user.findMany({ where: { email: { in: [HOST_EMAIL, GUEST_EMAIL, APPROVED_MEMBER_EMAIL] } }, select: { id: true, email: true } });
+    const users = await this.db.user.findMany({ where: { email: { endsWith: '@hangoutnow.example' } }, select: { id: true, email: true } });
     const requester = users.find((user) => user.id === requesterId);
     if (!requester) throw new ForbiddenException('Only public demo accounts can reset demo data');
     const host = users.find((user) => user.email === HOST_EMAIL);
@@ -71,9 +71,9 @@ export class DemoService {
     if (!host || !guest || !approvedMember) throw new NotFoundException('Demo accounts are not ready');
 
     const result = await this.db.$transaction(async (transaction: Prisma.TransactionClient) => {
-      const demoUserIds = [host.id, guest.id, approvedMember.id];
+      const demoUserIds = users.map((user) => user.id);
       await transaction.directChat.deleteMany({ where: { OR: [{ userOneId: { in: demoUserIds } }, { userTwoId: { in: demoUserIds } }] } });
-      await transaction.hangout.deleteMany({ where: { hostUserId: host.id } });
+      await transaction.hangout.deleteMany({ where: { isDemo: true } });
       await transaction.notification.deleteMany({ where: { userId: { in: demoUserIds } } });
       const hangoutId = uuidv7();
       const hangout = await transaction.hangout.create({ data: {

@@ -8,7 +8,11 @@ const hostPhotos = [
   'demo-mami-profile-left.jpg',
   'demo-mami-profile-right.jpg',
 ].map((name) => `data:image/jpeg;base64,${readFileSync(new URL(`../apps/demo/public/assets/${name}`, import.meta.url)).toString('base64')}`);
-const guestPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-madoka-profile.jpg', import.meta.url)).toString('base64')}`;
+const guestPhotos = [
+  'demo-madoka-profile-main.jpg',
+  'demo-madoka-profile-left.jpg',
+  'demo-madoka-profile-right.jpg',
+].map((name) => `data:image/jpeg;base64,${readFileSync(new URL(`../apps/demo/public/assets/${name}`, import.meta.url)).toString('base64')}`);
 const masayaPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-masaya-profile.jpg', import.meta.url)).toString('base64')}`;
 const kentaPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-host-profile.jpg', import.meta.url)).toString('base64')}`;
 const aoiPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-guest-profile.jpg', import.meta.url)).toString('base64')}`;
@@ -52,7 +56,7 @@ const accounts = {
     homeArea: '渋谷',
     interests: ['飲み会', 'カフェ', '映画'],
     bio: '今日参加できる楽しいHangoutを探しています。公開デモ用の架空プロフィールです。',
-    profilePhoto: guestPhoto,
+    profilePhotos: guestPhotos,
   },
   masaya: {
     email: process.env.HANGOUTNOW_DEMO_MASAYA_EMAIL || 'demo-masaya@hangoutnow.example',
