@@ -105,20 +105,29 @@ const accounts = {
 };
 
 async function call(path, options = {}, token, allowedStatuses = []) {
-  const response = await fetch(`${baseUrl}${path}`, {
-    ...options,
-    headers: {
-      'content-type': 'application/json',
-      ...(token ? { authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
-  });
-  const text = await response.text();
-  const body = text ? JSON.parse(text) : null;
-  if (!response.ok && !allowedStatuses.includes(response.status)) {
-    throw new Error(`${options.method || 'GET'} ${path} -> ${response.status}: ${text}`);
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const response = await fetch(`${baseUrl}${path}`, {
+      ...options,
+      headers: {
+        'content-type': 'application/json',
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+        ...options.headers,
+      },
+    });
+    const text = await response.text();
+    const body = text ? JSON.parse(text) : null;
+    if (response.status === 429 && attempt < 3) {
+      const retryAfterSeconds = Number(response.headers.get('retry-after'));
+      const retryDelayMs = Number.isFinite(retryAfterSeconds) ? Math.max(1, retryAfterSeconds) * 1_000 : 61_000;
+      await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+      continue;
+    }
+    if (!response.ok && !allowedStatuses.includes(response.status)) {
+      throw new Error(`${options.method || 'GET'} ${path} -> ${response.status}: ${text}`);
+    }
+    return { status: response.status, body };
   }
-  return { status: response.status, body };
+  throw new Error(`${options.method || 'GET'} ${path} exceeded its retry limit`);
 }
 
 async function loginOrRegister(account) {
