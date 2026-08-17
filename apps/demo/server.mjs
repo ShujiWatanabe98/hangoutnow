@@ -9,6 +9,14 @@ const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=
 
 createServer(async (request, response) => {
   const requestedPath = request.url?.split('?')[0] ?? '/';
+  if (requestedPath === '/demo.html' && request.url === '/demo.html') {
+    response.writeHead(302, {
+      location: '/demo.html?resetAuth=1',
+      'cache-control': 'no-store',
+    });
+    response.end();
+    return;
+  }
   if(proxyApiUrl&&requestedPath.startsWith('/api/')){
     try{
       const body=request.method==='GET'||request.method==='HEAD'?undefined:await new Promise((resolve,reject)=>{const chunks=[];request.on('data',chunk=>chunks.push(chunk));request.on('end',()=>resolve(Buffer.concat(chunks)));request.on('error',reject)});

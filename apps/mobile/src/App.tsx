@@ -20,6 +20,12 @@ const DEFAULT_HANGOUT_IMAGES: Record<string, string> = {
   MOTORCYCLE: `${WEBSITE_URL}/assets/demo-touring-hangout-v2.jpg`,
   DRINKING: `${WEBSITE_URL}/assets/demo-drinking-hangout-v2.jpg`,
 };
+const HANGOUT_IMAGE_PRESETS = [
+  { label: "カフェ", uri: DEFAULT_HANGOUT_IMAGES.CAFE, category: "カフェ", title: "新宿でコーヒー飲もう", description: "初参加歓迎！気軽におしゃべりしながら、おいしいコーヒーを一緒に楽しみましょう。" },
+  { label: "ラーメン", uri: DEFAULT_HANGOUT_IMAGES.FOOD, category: "ラーメン", title: "新宿でラーメンを食べよう", description: "話題のラーメンを一緒に楽しみませんか？一人では入りづらい方も気軽にどうぞ！" },
+  { label: "ランニング", uri: DEFAULT_HANGOUT_IMAGES.RUNNING, category: "ランニング", title: "新宿を気軽にランニングしよう", description: "会話できるゆっくりペースで走ります。初心者も経験者も一緒に楽しみましょう！" },
+  { label: "飲み会", uri: DEFAULT_HANGOUT_IMAGES.DRINKING, category: "飲み会", title: "新宿で気軽に飲もう", description: "仕事帰りに楽しく乾杯しませんか？初参加の方も入りやすい気軽な飲み会です！" },
+] as const;
 const DEMO_PASSWORD = "HangoutNow-Demo-2026!";
 const SESSION_KEY = "hangout-now-session";
 const LINE_REDIRECT_URI = "hangoutnow://auth/line";
@@ -843,16 +849,9 @@ export default function App() {
     }
   }
   function confirmCancelHangout(hangoutId: string) {
-    if (selectedHangout?.status === "FINISHED") {
-      Alert.alert("Hangout削除", "このHangoutを削除しますか？Hangoutのトークもすべて削除されます。", [
-        { text: "戻る", style: "cancel" },
-        { text: "Hangout削除", style: "destructive", onPress: () => void cancelHangout(hangoutId) },
-      ]);
-      return;
-    }
-    Alert.alert("Hangout中止", "このHangoutを中止しますか？参加者にも中止が通知されます。", [
+    Alert.alert("Hangout削除", "このHangoutを削除しますか？Hangoutのトークもすべて削除されます。", [
       { text: "戻る", style: "cancel" },
-      { text: "Hangout中止", style: "destructive", onPress: () => void cancelHangout(hangoutId) },
+      { text: "Hangout削除", style: "destructive", onPress: () => void cancelHangout(hangoutId) },
     ]);
   }
   async function cancelHangout(hangoutId: string) {
@@ -1462,7 +1461,12 @@ function CreateHangoutScreen({ area, gender, onBack, onSubmit }: { area: AlphaAr
           ["ランニング", DEFAULT_HANGOUT_IMAGES.RUNNING],
           ["飲み会", DEFAULT_HANGOUT_IMAGES.DRINKING],
         ] as const).map(([label, uri]) => (
-          <Pressable key={label} style={[styles.providedImageChoice, form.imageUrl === uri && styles.providedImageChoiceOn]} onPress={() => update("imageUrl", uri)}>
+          <Pressable key={label} style={[styles.providedImageChoice, form.imageUrl === uri && styles.providedImageChoiceOn]} onPress={() => {
+            const preset = HANGOUT_IMAGE_PRESETS.find((item) => item.uri === uri);
+            if (!preset) return;
+            setForm((current) => ({ ...current, imageUrl: preset.uri, category: preset.category, title: preset.title, description: preset.description }));
+            setErrors((current) => ({ ...current, title: undefined }));
+          }}>
             <Image source={{ uri }} style={styles.providedImagePhoto} />
             <Text style={styles.providedImageLabel}>{label}</Text>
           </Pressable>
@@ -1486,7 +1490,7 @@ function CreateHangoutScreen({ area, gender, onBack, onSubmit }: { area: AlphaAr
           </Pressable>
         ))}
       </View>
-      <Text style={styles.label}>タイトル</Text>
+      <Text style={styles.label}>何する？</Text>
       <TextInput style={[styles.input, errors.title && styles.invalidInput]} value={form.title} onChangeText={(title) => update("title", title)} placeholder="例：30分後にラーメン" maxLength={80} />
       {errors.title && <Text style={styles.fieldError}>{errors.title}</Text>}
       <Text style={styles.label}>カテゴリ</Text>
@@ -1545,7 +1549,7 @@ function CreateHangoutScreen({ area, gender, onBack, onSubmit }: { area: AlphaAr
           <Pressable key={label} style={[styles.choice, form.maxAge === value && styles.choiceOn]} onPress={() => update("maxAge", value)}><Text>{label}</Text></Pressable>
         ))}
       </View>
-      <Text style={styles.label}>説明（任意）</Text>
+      <Text style={styles.label}>ひとこと</Text>
       <TextInput style={[styles.input, styles.multiline]} value={form.description} onChangeText={(description) => setForm((v) => ({ ...v, description }))} multiline maxLength={500} />
       <Pressable style={styles.primary} onPress={publish}>
         <Text style={styles.primaryText}>Hangoutを公開する</Text>
@@ -1631,7 +1635,7 @@ function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onChat, 
         {isHost && hangout.status !== "FINISHED" && (
           <>
             <Pressable style={styles.editHangoutButton} onPress={() => setEditing(true)}><Text style={styles.editHangoutButtonText}>Hangout編集</Text></Pressable>
-            <Pressable style={styles.cancelHangoutButton} onPress={() => onCancel(hangout.id)}><Text style={styles.cancelHangoutButtonText}>Hangout中止</Text></Pressable>
+            <Pressable style={styles.cancelHangoutButton} onPress={() => onCancel(hangout.id)}><Text style={styles.cancelHangoutButtonText}>Hangout削除</Text></Pressable>
             <Text style={styles.sectionTitle}>参加申請</Text>
             {requests.map((item) => (
               <View key={item.id} style={styles.requestCard}>
@@ -3065,7 +3069,7 @@ const styles = StyleSheet.create({
   providedImageGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   providedImageChoice: { width: "47%", overflow: "hidden", borderWidth: 2, borderColor: "transparent", borderRadius: 16, backgroundColor: "#fff" },
   providedImageChoiceOn: { borderColor: "#176b48" },
-  providedImagePhoto: { width: "100%", height: 88 },
+  providedImagePhoto: { width: "100%", height: 64 },
   providedImageLabel: { padding: 9, color: "#344039", fontWeight: "900" },
   privatePlaceBox: { gap: 7, padding: 14, borderRadius: 18, backgroundColor: "#eaf4e8", borderWidth: 1, borderColor: "#c9ddcc" },
   privatePlaceTitle: { color: "#176b48", fontSize: 16, fontWeight: "900" },
