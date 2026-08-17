@@ -135,6 +135,10 @@ function authScreen(mode = 'login') {
   let gender='UNDISCLOSED';
   document.querySelectorAll('[data-auth-gender]').forEach((button)=>button.onclick=()=>{gender=button.dataset.authGender;document.querySelectorAll('[data-auth-gender]').forEach(item=>item.classList.toggle('chosen',item===button))});
   document.querySelectorAll('[data-demo-role]').forEach((button)=>button.onclick=()=>demoLogin(button.dataset.demoRole,button));
+  if(DEMO_ACCOUNTS){
+    document.querySelector('.auth-card')?.remove();
+    return;
+  }
   document.querySelectorAll('[data-auth-provider]').forEach((button)=>button.onclick=async()=>{const provider=button.dataset.authProvider;if(!['Google','Apple','X','LINE'].includes(provider)){document.querySelector('#provider-auth-note').textContent=`${provider}認証は公開テスト開始時に利用できます。`;return}const input=register?{displayName:document.querySelector('#display-name').value.trim(),birthDate:document.querySelector('#birth-date').value,gender}:null;if(register&&(!input.displayName||!input.birthDate)){document.querySelector('#provider-auth-note').textContent=`表示名と生年月日を入力してから${provider}登録してください。`;return}try{const files=[...(document.querySelector('#register-photo')?.files||[])];if(files.length>3)throw new Error('プロフィール画像は3枚まで選択できます');if(input&&files.length)input.profilePhotos=await Promise.all(files.map(imageData));const providerKey=provider.toLowerCase();sessionStorage.setItem('hangout-now-oauth-input',JSON.stringify(input));const returnTo=`${location.origin}${location.pathname}`;location.assign(`${API_URL}/auth/${providerKey}/start?returnTo=${encodeURIComponent(returnTo)}`)}catch(error){document.querySelector('#provider-auth-note').textContent=error.message}});
   document.querySelector('#switch-auth').onclick = () => authScreen(register ? 'login' : 'register');
   document.querySelector('#auth-form').onsubmit = async (event) => { event.preventDefault(); const button=event.submitter; button.disabled=true; button.textContent='接続中…'; const body={email:document.querySelector('#email').value.trim(),password:document.querySelector('#password').value}; try{if(register){Object.assign(body,{displayName:document.querySelector('#display-name').value.trim(),birthDate:document.querySelector('#birth-date').value,gender});const files=[...document.querySelector('#register-photo').files];if(files.length>3)throw new Error('プロフィール画像は3枚まで選択できます');if(files.length)body.profilePhotos=await Promise.all(files.map(imageData))}session=await api(register?'/auth/register':'/auth/login',{method:'POST',body:JSON.stringify(body)});demoRole=null;localStorage.removeItem(DEMO_ROLE_STORAGE_KEY);saveSession();connectRealtime();await Promise.all([loadNotificationCount(),loadHangouts()]);if(register)await profileScreen();else navigate('home')}catch(error){document.querySelector('#auth-error').textContent=error.message;button.disabled=false;button.textContent=register?'無料で登録':'ログイン'} };
@@ -585,6 +589,8 @@ async function profileScreen() {
   const profileChatButton=screen.querySelector('#profile-chat');
   const phoneVerification=screen.querySelector('.profile>.verified');
   if(profileChatButton&&phoneVerification)profileChatButton.before(phoneVerification);
+  const profileEditButton=screen.querySelector('#edit-profile');
+  if(profileChatButton&&profileEditButton)profileChatButton.after(profileEditButton);
   screen.querySelector('#edit-profile').onclick=showProfileEditor;
 }
 

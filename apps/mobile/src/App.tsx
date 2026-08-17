@@ -2906,9 +2906,9 @@ const styles = StyleSheet.create({
   ratingScreenPerson: { flexDirection: "row", alignItems: "center", gap: 12 },
   profile: { alignItems: "center", padding: 24 },
   profilePhotoTrio: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 },
-  avatar: { width: 92, height: 92, borderRadius: 46, backgroundColor: "#ddd" },
-  avatarSide: { width: 58, height: 58, borderRadius: 29, backgroundColor: "#ddd", borderWidth: 2, borderColor: "#fff" },
-  avatarSideFallback: { width: 58, height: 58, borderRadius: 29, backgroundColor: "#e7ede8", borderWidth: 2, borderColor: "#fff", alignItems: "center", justifyContent: "center" },
+  avatar: { width: 96, height: 96, borderRadius: 48, backgroundColor: "#ddd", borderWidth: 3, borderColor: "#fff", shadowColor: "#17221d", shadowOpacity: 0.15, shadowRadius: 8, elevation: 3 },
+  avatarSide: { width: 66, height: 66, borderRadius: 33, backgroundColor: "#ddd", borderWidth: 3, borderColor: "#fff", shadowColor: "#17221d", shadowOpacity: 0.15, shadowRadius: 8, elevation: 3 },
+  avatarSideFallback: { width: 66, height: 66, borderRadius: 33, backgroundColor: "#e7ede8", borderWidth: 3, borderColor: "#fff", alignItems: "center", justifyContent: "center", shadowColor: "#17221d", shadowOpacity: 0.15, shadowRadius: 8, elevation: 3 },
   avatarFallback: {
     width: 92,
     height: 92,
