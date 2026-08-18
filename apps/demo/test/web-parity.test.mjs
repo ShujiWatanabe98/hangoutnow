@@ -54,8 +54,14 @@ test('demo authentication is not rolled back by optional initial data loading', 
 });
 
 test('first-time LINE authentication continues directly into account creation', async () => {
-  const application = await readFile(new URL('app.js', publicDirectory), 'utf8');
+  const [application, mobile] = await Promise.all([
+    readFile(new URL('app.js', publicDirectory), 'utf8'),
+    readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8'),
+  ]);
 
+  assert.match(application, /const input=register&&provider!=='LINE'\?/);
+  assert.match(application, /register&&provider!=='LINE'&&\(!input\.displayName\|\|!input\.birthDate\)/);
+  assert.match(mobile, /provider === "LINE" \? void onLine\(\)/);
   assert.match(application, /sessionStorage\.setItem\('hangout-now-oauth-pending',JSON\.stringify\(\{provider,ticket,displayName:result\.displayName\|\|''\}\)\)/);
   assert.match(application, /pending\?\.provider===providerKey&&pending\.ticket/);
   assert.match(application, /ticket:pending\.ticket,\.\.\.input/);

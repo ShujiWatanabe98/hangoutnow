@@ -12,7 +12,7 @@ export class PrismaAuthRepository extends AuthRepository {
   private mapUser(user: Awaited<ReturnType<PrismaAuthRepository['loadUser']>>): StoredUser {
     return {
       id: user.id, email: user.email, passwordHash: user.passwordHash, displayName: user.displayName,
-      birthDate: user.birthDate.toISOString().slice(0, 10), gender: user.gender, bio: user.bio, homeArea: user.homeArea,
+      birthDate: user.birthDate?.toISOString().slice(0, 10) ?? null, gender: user.gender, bio: user.bio, homeArea: user.homeArea,
       verificationStatus: user.verification, interests: user.interests.map((item) => item.interest.name),
       profilePhoto: user.profilePhoto, profilePhotos: user.profilePhotos, phoneNumber: user.phoneNumber,
     };
@@ -31,7 +31,7 @@ export class PrismaAuthRepository extends AuthRepository {
     const user = await this.prisma.user.findUnique({ where: { id }, include: includeInterests });
     return user ? this.mapUser(user) : null;
   }
-  async createUser(input: { email: string; passwordHash: string; displayName: string; birthDate: Date; gender?: string }): Promise<StoredUser> {
+  async createUser(input: { email: string; passwordHash: string; displayName: string; birthDate: Date | null; gender?: string }): Promise<StoredUser> {
     const user = await this.prisma.user.create({ data: { id: uuidv7(), ...input, gender: input.gender as 'MALE'|'FEMALE'|'OTHER'|'UNDISCLOSED'|undefined }, include: includeInterests });
     return this.mapUser(user);
   }

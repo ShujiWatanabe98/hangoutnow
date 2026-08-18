@@ -1230,7 +1230,7 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine }: { loading: 
             <Pressable
               key={provider}
               style={styles.providerButton}
-              onPress={() => provider === "LINE" ? void onLine(mode === "register" ? { displayName, birthDate, gender } : undefined) : setProviderNote(`${provider}認証は公開テスト開始時に利用できます。`)}
+              onPress={() => provider === "LINE" ? void onLine() : setProviderNote(`${provider}認証は公開テスト開始時に利用できます。`)}
             >
               <Text style={styles.providerMark}>{provider === "Google" ? "G" : provider === "Apple" ? "●" : provider === "LINE" ? "L" : "☎"}</Text>
               <Text style={styles.providerButtonText}>{provider}{mode === "register" ? "でアカウント作成" : "でログイン"}</Text>

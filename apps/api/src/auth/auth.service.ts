@@ -75,17 +75,15 @@ export class AuthService {
     return `${statePayload.returnTo}${statePayload.returnTo.includes('?') ? '&' : '?'}ticket=${encodeURIComponent(ticket)}`;
   }
 
-  async redeemLineLogin(input: LineRedeemDto): Promise<AuthResponse | { registrationRequired: true; displayName: string | null }> {
+  async redeemLineLogin(input: LineRedeemDto): Promise<AuthResponse> {
     const row = await this.repository.findOAuthLoginTicket(this.tokenHash(input.ticket));
     if (!row || row.provider !== 'LINE' || row.usedAt || row.expiresAt <= new Date()) throw new UnauthorizedException('LINEログインの有効期限が切れました。もう一度お試しください');
     let user = row.userId ? await this.repository.findUserById(row.userId) : await this.repository.findOAuthIdentity('LINE', row.subject);
     if (!user) {
-      if (!input.birthDate) return { registrationRequired: true, displayName: row.displayName };
-      if (!this.isAdult(input.birthDate)) throw new BadRequestException('18歳以上の方のみ登録できます');
-      const displayName = (input.displayName || row.displayName || '').trim();
-      if (!displayName) throw new BadRequestException('表示名を入力してください');
+      if (input.birthDate && !this.isAdult(input.birthDate)) throw new BadRequestException('18歳以上の方のみ登録できます');
+      const displayName = (input.displayName || row.displayName || 'LINEユーザー').trim();
       const subjectKey = createHash('sha256').update(row.subject).digest('hex').slice(0, 32);
-      user = await this.repository.createUser({ email: `line.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: new Date(`${input.birthDate}T00:00:00.000Z`), gender: input.gender });
+      user = await this.repository.createUser({ email: `line.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: input.birthDate ? new Date(`${input.birthDate}T00:00:00.000Z`) : null, gender: input.gender });
       await this.repository.createOAuthIdentity('LINE', row.subject, user.id);
       user = await this.applyRegistrationPhotos(user, input.profilePhotos??(input.profilePhoto?[input.profilePhoto]:[]));
     }

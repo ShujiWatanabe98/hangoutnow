@@ -21,8 +21,8 @@ class MemoryAuthRepository extends AuthRepository {
   private oauthIdentities: Array<{provider:string;subject:string;userId:string}> = [];
   async findUserByEmail(email: string) { return this.users.find((user) => user.email === email) ?? null; }
   async findUserById(id: string) { return this.users.find((user) => user.id === id) ?? null; }
-  async createUser(input: { email: string; passwordHash: string; displayName: string; birthDate: Date; gender?: string }) {
-    const user: StoredUser = { id: `user-${this.users.length + 1}`, ...input, birthDate: input.birthDate.toISOString().slice(0, 10), gender: input.gender??null, bio: null, homeArea: null, interests: [], verificationStatus: 'UNVERIFIED', profilePhoto: null, profilePhotos: [], phoneNumber: null };
+  async createUser(input: { email: string; passwordHash: string; displayName: string; birthDate: Date | null; gender?: string }) {
+    const user: StoredUser = { id: `user-${this.users.length + 1}`, ...input, birthDate: input.birthDate?.toISOString().slice(0, 10) ?? null, gender: input.gender??null, bio: null, homeArea: null, interests: [], verificationStatus: 'UNVERIFIED', profilePhoto: null, profilePhotos: [], phoneNumber: null };
     this.users.push(user); return user;
   }
   async updateProfile(userId: string, input: { displayName?: string; bio?: string | null; homeArea?: string | null; interests?: string[]; profilePhoto?: string | null; profilePhotos?: string[]; gender?: string }) {
@@ -79,8 +79,7 @@ describe('authentication and profile', () => {
     expect(new URL(await auth.lineAuthorizeUrl(webReturnTo)).searchParams.get('ui_locales')).toBe('ja');
     const state=await jwt.signAsync({kind:'line_state',returnTo:webReturnTo,nonce:'line-nonce'},{expiresIn:600});
     const redirect=await auth.lineCallback('authorization-code',state);expect(redirect.startsWith(`${webReturnTo}?ticket=`)).toBe(true);const ticket=new URL(redirect).searchParams.get('ticket');expect(ticket).toBeTruthy();
-    const needsProfile=await request(app.getHttpServer()).post('/auth/line/redeem').send({ticket}).expect(200);expect(needsProfile.body.registrationRequired).toBe(true);
-    const registered=await request(app.getHttpServer()).post('/auth/line/redeem').send({ticket,birthDate:'1990-01-01',displayName:'LINE User',gender:'UNDISCLOSED'}).expect(200);expect(registered.body.user.displayName).toBe('LINE User');expect(registered.body.user.profilePhoto).toBeNull();
+    const registered=await request(app.getHttpServer()).post('/auth/line/redeem').send({ticket}).expect(200);expect(registered.body.user.displayName).toBe('LINE User');expect(registered.body.user.birthDate).toBeNull();expect(registered.body.user.profilePhoto).toBeNull();
     await request(app.getHttpServer()).post('/auth/line/redeem').send({ticket,birthDate:'1990-01-01'}).expect(401);
   },15_000);
 
