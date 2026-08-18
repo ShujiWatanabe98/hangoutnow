@@ -194,6 +194,7 @@ type ApplicantProfile = {
   profilePhoto: string | null;
   profilePhotos?: string[];
   age?: number;
+  gender?: string | null;
   bio: string | null;
   homeArea: string | null;
   interests: string[];
@@ -293,6 +294,8 @@ export default function App() {
   const [profileActivity, setProfileActivity] = useState<ProfileActivity>({ hosted: [], participated: [], hearted: [] });
   const [selectedArea, setSelectedArea] = useState<AlphaArea>("新宿");
   const [selectedHangout, setSelectedHangout] = useState<Hangout | null>(null);
+  const [detailReturnScreen, setDetailReturnScreen] = useState<"home" | "map" | "profile">("home");
+  const [ratingReturnScreen, setRatingReturnScreen] = useState<"home" | "detail">("home");
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
   const [notificationInbox, setNotificationInbox] = useState<NotificationInbox>({ items: [], unreadCount: 0, enabled: true });
   const handledNotificationResponseId = useRef<string | null>(null);
@@ -551,7 +554,7 @@ export default function App() {
     }
   }
 
-  async function register(input: { email: string; password: string; displayName: string; birthDate: string; gender: string }) {
+  async function register(input: { email: string; password: string; displayName: string; birthDate: string; gender: string; profilePhotos?: string[] }) {
     setLoading(true);
     setError("");
     try {
@@ -679,6 +682,7 @@ export default function App() {
           hangoutId: detail.id,
         }),
       }).catch(() => undefined);
+      setDetailReturnScreen(screen === "profile" ? "profile" : screen === "map" ? "map" : "home");
       setSelectedHangout(detail);
       if (detail.hostUserId === session?.user.id) setJoinRequests(await request<JoinRequest[]>(`/hangouts/${detail.id}/requests`));
       else setJoinRequests([]);
@@ -725,6 +729,7 @@ export default function App() {
       setSelectedArea(input.area);
       setCoordinates(coordinates);
       setLocationLabel(input.area);
+      setDetailReturnScreen("home");
       setSelectedHangout(created);
       setJoinRequests([]);
       await loadHome();
@@ -944,11 +949,27 @@ export default function App() {
       const nextRooms = await loadRooms();
       const finishedRoom = nextRooms.find((room): room is GroupRoom => room.type === "GROUP" && room.hangout.id === hangoutId);
       if (finishedRoom) {
+        setRatingReturnScreen("home");
         setRatingRoom(finishedRoom);
         setScreen("rating");
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Hangoutを終了できませんでした");
+    } finally {
+      setLoading(false);
+    }
+  }
+  async function openHangoutRating(hangoutId: string) {
+    setLoading(true);
+    try {
+      const nextRooms = await loadRooms();
+      const room = nextRooms.find((item): item is GroupRoom => item.type === "GROUP" && item.hangout.id === hangoutId);
+      if (!room) return Alert.alert("評価を開始できません", "Hangoutのトーク情報を取得できませんでした。");
+      setRatingReturnScreen("detail");
+      setRatingRoom(room);
+      setScreen("rating");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "評価画面を開けませんでした");
     } finally {
       setLoading(false);
     }
@@ -1264,13 +1285,13 @@ export default function App() {
       )}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <View style={styles.content}>
-        {screen === "home" && <HomeScreen user={session.user} hangouts={hangouts} refreshing={refreshing} locationLabel={locationLabel} selectedArea={selectedArea} demoRole={demoRole} onArea={chooseArea} onLocation={useCurrentLocation} onMap={() => setScreen("map")} onRefresh={refreshCurrent} onOpen={openHangout} onHeart={toggleHeart} onCreate={() => setScreen(session.user.verificationStatus === "PHONE_VERIFIED" ? "create" : "phone")} />}
+        {screen === "home" && <HomeScreen user={session.user} hangouts={hangouts} refreshing={refreshing} locationLabel={locationLabel} selectedArea={selectedArea} demoRole={demoRole} onArea={chooseArea} onLocation={useCurrentLocation} onMap={() => setScreen("map")} onRefresh={refreshCurrent} onOpen={openHangout} onHeart={toggleHeart} onCreate={() => { if (!session.user.profilePhoto) { Alert.alert("プロフィール写真が必要です", "Hangoutを作る前に、顔が分かるプロフィール写真を登録してください。"); setScreen("profile"); return; } setScreen(session.user.verificationStatus === "PHONE_VERIFIED" ? "create" : "phone"); }} />}
         {screen === "map" && <MapScreen hangouts={hangouts} locationLabel={locationLabel} onBack={() => setScreen("home")} onLocation={useCurrentLocation} onOpen={openHangout} />}
         {screen === "create" && <CreateHangoutScreen area={selectedArea} onBack={() => setScreen("home")} onSubmit={createHangout} />}
-        {screen === "detail" && selectedHangout && <HangoutDetailScreen user={session.user} hangout={selectedHangout} requests={joinRequests} onBack={() => setScreen("home")} onJoin={joinHangout} onChat={openHangoutChat} onStart={startHangout} onFinish={confirmFinishHangout} onCancel={confirmCancelHangout} onEdit={updateHangout} onDecide={decideJoinRequest} onReport={confirmReportHost} onAttendance={updateAttendance} onMatchFeedback={submitMatchFeedback} />}
+        {screen === "detail" && selectedHangout && <HangoutDetailScreen user={session.user} hangout={selectedHangout} requests={joinRequests} onBack={() => setScreen(detailReturnScreen)} onJoin={joinHangout} onChat={openHangoutChat} onRate={() => void openHangoutRating(selectedHangout.id)} onStart={startHangout} onFinish={confirmFinishHangout} onCancel={confirmCancelHangout} onEdit={updateHangout} onDecide={decideJoinRequest} onReport={confirmReportHost} onAttendance={updateAttendance} onMatchFeedback={submitMatchFeedback} />}
         {screen === "phone" && <PhoneVerificationScreen onBack={() => setScreen("profile")} onVerify={verifyPhone} />}
         {screen === "chat" && <ChatScreen user={session.user} rooms={rooms} selectedRoom={selectedRoom} messages={messages} messageBody={messageBody} sending={sending} refreshing={refreshing} unreadByRoom={unreadByRoom} realtimeOnline={realtimeOnline} onRefresh={refreshCurrent} onOpen={openRoom} onRate={rateParticipant} onBack={() => selectedRoom ? setSelectedRoom(null) : setScreen("home")} onChangeBody={setMessageBody} onSend={sendMessage} />}
-        {screen === "rating" && ratingRoom && <RatingScreen user={session.user} room={ratingRoom} onRate={rateParticipant} onDone={() => { setRatingRoom(null); setScreen("home"); }} />}
+        {screen === "rating" && ratingRoom && <RatingScreen user={session.user} room={ratingRoom} onRate={rateParticipant} onDone={() => { setRatingRoom(null); setScreen(ratingReturnScreen); }} />}
         {screen === "profile" && <ProfileScreen user={session.user} hostStatus={hostStatus} activity={profileActivity} demo={!!demoRole} onChat={() => { setSelectedRoom(null); setScreen("chat"); }} onOpenHangout={(id) => void openHangout({ id })} onPhone={() => setScreen("phone")} onPhoto={chooseProfilePhoto} onSave={updateProfile} onDelete={confirmDeleteAccount} onLogout={logout} />}
         {screen === "notifications" && <NotificationScreen inbox={notificationInbox} refreshing={refreshing} onBack={() => setScreen("home")} onRefresh={refreshCurrent} onEnabled={setNotificationEnabled} onRead={readNotification} onReadAll={readAllNotifications} onDelete={confirmDeleteNotifications} />}
       </View>
@@ -1314,7 +1335,7 @@ export default function App() {
   );
 }
 
-function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle, onApple, onPhone }: { loading: boolean; error: string; onLogin: (email: string, password: string, role?: "host" | "guest" | null) => Promise<void>; onRegister: (input: { email: string; password: string; displayName: string; birthDate: string; gender: string }) => Promise<void>; onLine: (input?: { displayName: string; birthDate: string; gender: string }) => Promise<void>; onX: () => Promise<void>; onGoogle:()=>Promise<void>;onApple:()=>Promise<void>;onPhone:(phone:string,code?:string,challengeToken?:string)=>Promise<{challengeToken?:string;demoCode?:string}> }) {
+function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle, onApple, onPhone }: { loading: boolean; error: string; onLogin: (email: string, password: string, role?: "host" | "guest" | null) => Promise<void>; onRegister: (input: { email: string; password: string; displayName: string; birthDate: string; gender: string; profilePhotos?: string[] }) => Promise<void>; onLine: (input?: { displayName: string; birthDate: string; gender: string }) => Promise<void>; onX: () => Promise<void>; onGoogle:()=>Promise<void>;onApple:()=>Promise<void>;onPhone:(phone:string,code?:string,challengeToken?:string)=>Promise<{challengeToken?:string;demoCode?:string}> }) {
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -1322,7 +1343,16 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle
   const [birthDate, setBirthDate] = useState("1990-01-01");
   const [gender, setGender] = useState("UNDISCLOSED");
   const [providerNote, setProviderNote] = useState("");
+  const [registrationPhotos, setRegistrationPhotos] = useState<string[]>([]);
   const [phone,setPhone]=useState("+81");const[phoneCode,setPhoneCode]=useState("");const[phoneChallenge,setPhoneChallenge]=useState<string|null>(null);
+  const chooseRegistrationPhotos = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) return Alert.alert("写真へのアクセスが必要です");
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsMultipleSelection: true, selectionLimit: 3, quality: 0.65, base64: true });
+    if (result.canceled) return;
+    const photos = result.assets.flatMap((asset) => asset.base64 ? [`data:image/${asset.mimeType === "image/png" ? "png" : asset.mimeType === "image/webp" ? "webp" : "jpeg"};base64,${asset.base64}`] : []).slice(0, 3);
+    setRegistrationPhotos(photos);
+  };
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.authPage} keyboardShouldPersistTaps="handled">
@@ -1353,6 +1383,10 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle
             <>
               <Field label="表示名" value={displayName} onChangeText={setDisplayName} />
               <Field label="生年月日" value={birthDate} onChangeText={setBirthDate} />
+              <Text style={styles.label}>プロフィール画像（任意・3枚まで）</Text>
+              <Pressable style={styles.imagePickerButton} onPress={() => void chooseRegistrationPhotos()}><Text style={styles.imagePickerButtonText}>プロフィール画像を選ぶ</Text></Pressable>
+              {!!registrationPhotos.length && <View style={styles.registrationPhotoRow}>{registrationPhotos.map((photo, index) => <Image key={`${index}-${photo.length}`} source={{ uri: photo }} style={index === 0 ? styles.registrationPhotoMain : styles.registrationPhoto} />)}</View>}
+              <Text style={styles.profileEditorHint}>1枚目が中央のメイン画像になります。</Text>
               <Text style={styles.label}>性別</Text>
               <View style={styles.genderChoices}>
                 {[
@@ -1382,6 +1416,7 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle
                     displayName,
                     birthDate,
                     gender,
+                    ...(registrationPhotos.length ? { profilePhotos: registrationPhotos } : {}),
                   })
             }
           >
@@ -1407,6 +1442,13 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle
           <Pressable onPress={() => setMode(mode === "login" ? "register" : "login")}>
             <Text style={styles.authSwitch}>{mode === "login" ? "新しくアカウントを作る" : "アカウントをお持ちの方はログイン"}</Text>
           </Pressable>
+          <Text style={styles.authAgreement}>登録により利用規約とプライバシーポリシーに同意します。</Text>
+          <View style={styles.authPolicyLinks}>
+            <Pressable onPress={() => void Linking.openURL(`${WEBSITE_URL}/privacy.html`)}><Text style={styles.authPolicyLink}>プライバシー</Text></Pressable>
+            <Pressable onPress={() => void Linking.openURL(`${WEBSITE_URL}/terms.html`)}><Text style={styles.authPolicyLink}>利用規約</Text></Pressable>
+            <Pressable onPress={() => void Linking.openURL(`${WEBSITE_URL}/community-guidelines.html`)}><Text style={styles.authPolicyLink}>ガイドライン</Text></Pressable>
+            <Pressable onPress={() => void Linking.openURL(`${WEBSITE_URL}/delete-account.html`)}><Text style={styles.authPolicyLink}>アカウント削除</Text></Pressable>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -1710,12 +1752,14 @@ function CreateHangoutScreen({ area, onBack, onSubmit }: { area: AlphaArea; onBa
   );
 }
 
-function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onChat, onStart, onFinish, onCancel, onEdit, onDecide, onReport, onAttendance, onMatchFeedback }: { user: User; hangout: Hangout; requests: JoinRequest[]; onBack: () => void; onJoin: (hangout: Hangout, message: string) => Promise<void>; onChat: (id: string) => void; onStart: (id: string) => void; onFinish: (id: string) => void; onCancel: (id: string) => void; onEdit: (hangoutId: string, input: Partial<CreateHangoutInput>) => Promise<void>; onDecide: (id: string, accept: boolean) => void; onReport: (hangout: Hangout) => void; onAttendance: (status: "CONFIRMED" | "CANCELLED") => void; onMatchFeedback: (hangout: Hangout) => void }) {
+function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onChat, onRate, onStart, onFinish, onCancel, onEdit, onDecide, onReport, onAttendance, onMatchFeedback }: { user: User; hangout: Hangout; requests: JoinRequest[]; onBack: () => void; onJoin: (hangout: Hangout, message: string) => Promise<void>; onChat: (id: string) => void; onRate: () => void; onStart: (id: string) => void; onFinish: (id: string) => void; onCancel: (id: string) => void; onEdit: (hangoutId: string, input: Partial<CreateHangoutInput>) => Promise<void>; onDecide: (id: string, accept: boolean) => void; onReport: (hangout: Hangout) => void; onAttendance: (status: "CONFIRMED" | "CANCELLED") => void; onMatchFeedback: (hangout: Hangout) => void }) {
   const isHost = hangout.hostUserId === user.id;
   const ineligibleReason = eligibilityReason(user, hangout);
   const [selectedApplicant, setSelectedApplicant] = useState<ApplicantProfile | null>(null);
   const [joining, setJoining] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [hostPhotoIndex, setHostPhotoIndex] = useState<number | null>(null);
+  const hostPhotos = (hangout.host.profilePhotos?.length ? hangout.host.profilePhotos : hangout.host.profilePhoto ? [hangout.host.profilePhoto] : []).filter(Boolean);
   return (
     <>
       <ScrollView contentContainerStyle={styles.formPage}>
@@ -1723,6 +1767,13 @@ function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onChat, 
           <Text style={styles.backText}>‹ 一覧へ</Text>
         </Pressable>
         <Image source={{ uri: hangoutImageUrl(hangout) }} style={styles.detailPhoto} resizeMode="cover" />
+        <View style={styles.detailHostRow}>
+          <Pressable disabled={!hostPhotos.length} onPress={() => setHostPhotoIndex(0)} accessibilityLabel={`${hangout.host.displayName}のプロフィール画像を見る`}>
+            {hangout.host.profilePhoto ? <Image source={{ uri: hangout.host.profilePhoto }} style={styles.detailHostPhoto} /> : <View style={styles.detailHostPhotoFallback}><Text style={styles.approvedMemberInitial}>{hangout.host.displayName.slice(0, 1)}</Text></View>}
+          </Pressable>
+          <View style={styles.cardCopy}><Text style={styles.hostName}>{hangout.host.displayName}</Text><Text style={styles.muted}>{hangout.host.hostStatus?.hostAverageRating ? `主催評価 ★ ${hangout.host.hostStatus.hostAverageRating}` : "主催評価なし"}{hangout.host.verification === "PHONE_VERIFIED" ? " ・ 電話確認済み" : " ・ 本人確認前"}</Text></View>
+          <View style={styles.cardMatchWrap}><Text style={styles.cardMatchLabel}>相性</Text><Text style={styles.cardMatchScore}>{Math.round(hangout.matchScore ?? 70)}%</Text></View>
+        </View>
         <Text style={styles.eyebrow}>
           {hangout.category} ・ {stateLabel(hangout)}
         </Text>
@@ -1734,6 +1785,9 @@ function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onChat, 
         <View style={styles.detailPanel}>
           <Text style={styles.label}>集合場所</Text>
           <Text>{hangout.locationName}</Text>
+          {(isHost || hangout.myJoinStatus === "ACCEPTED") && hangout.meetingPlaceName && <><Text style={[styles.label, { marginTop: 12 }]}>店名</Text><Text>{hangout.meetingPlaceName}</Text></>}
+          {(isHost || hangout.myJoinStatus === "ACCEPTED") && hangout.meetingAddress && <><Text style={[styles.label, { marginTop: 12 }]}>住所</Text><Text>{hangout.meetingAddress}</Text></>}
+          {hangout.distanceKm != null && <Text style={styles.muted}>現在地から約{hangout.distanceKm}km</Text>}
           <Text style={styles.privacyText}>{hangout.myJoinStatus === "ACCEPTED" || isHost ? "承認済みのため詳細を表示しています。" : "参加承認までは、おおまかな場所だけが表示されます。"}</Text>
           {hangout.description && <Text style={styles.description}>{hangout.description}</Text>}
           <Text style={styles.detailCondition}>{hangout.genderRestriction === "MALE_ONLY" ? "男性のみ" : hangout.genderRestriction === "FEMALE_ONLY" ? "女性のみ" : "性別条件なし"}{hangout.maxAge ? ` ・ ${hangout.maxAge}歳以下` : " ・ 年齢制限なし"}</Text>
@@ -1741,11 +1795,13 @@ function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onChat, 
             <Pressable style={styles.mapLocationButton} onPress={() => void Linking.openURL(hangout.navigationUrl!)}><Text style={styles.locationText}>地図アプリでナビ開始</Text></Pressable>
           ) : null}
         </View>
+        {hangout.distanceKm != null && hangout.distanceKm > 10 && <Text style={styles.distanceWarning}>移動距離が長めです。開始時刻に間に合うか確認してください。</Text>}
         {(isHost || hangout.myJoinStatus === "ACCEPTED") && (
           <Pressable style={styles.talkButtonWide} onPress={() => onChat(hangout.id)}>
             <Text style={styles.talkButtonWideText}>トーク</Text>
           </Pressable>
         )}
+        {hangout.status === "FINISHED" && (isHost || hangout.myJoinStatus === "ACCEPTED") && <Pressable style={styles.finishButtonWide} onPress={onRate}><Text style={styles.primaryText}>主催者・参加者を評価</Text></Pressable>}
         {!isHost && hangout.myJoinStatus === "ACCEPTED" && (
           <View style={styles.detailPanel}>
             <Text style={styles.hostName}>{hangout.myAttendanceStatus === "CONFIRMED" ? "参加予定として回答済み" : "開始前の出欠確認"}</Text>
@@ -1789,16 +1845,18 @@ function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onChat, 
             <Text style={styles.reportText}>この募集の主催者を通報・ブロック</Text>
           </Pressable>
         )}
-        {!!hangout.acceptedParticipants?.length && (
+        {(isHost || hangout.myJoinStatus === "ACCEPTED") && (
           <View style={styles.detailPanel}>
             <Text style={styles.sectionTitle}>参加メンバー</Text>
-            {hangout.acceptedParticipants.map((member) => (
+            <Text style={styles.muted}>主催者 1人</Text>
+            {(hangout.acceptedParticipants ?? []).map((member) => (
               <Pressable key={member.id} style={styles.approvedMemberRow} onPress={() => setSelectedApplicant(member)} accessibilityRole="button" accessibilityLabel={`${member.displayName}のプロフィールを見る`}>
                 {member.profilePhoto ? <Image source={{ uri: member.profilePhoto }} style={styles.approvedMemberPhoto} /> : <View style={styles.approvedMemberPhotoFallback}><Text style={styles.approvedMemberInitial}>{member.displayName.slice(0, 1)}</Text></View>}
                 <View style={styles.cardCopy}><Text style={styles.hostName}>{member.displayName}</Text><Text style={styles.muted}>{member.verification === "PHONE_VERIFIED" ? "電話確認済み" : "本人確認前"}</Text></View>
                 <Text style={styles.profileActivityChevron}>›</Text>
               </Pressable>
             ))}
+            {!hangout.acceptedParticipants?.length && <Text style={styles.empty}>承認済みの参加者はまだいません。</Text>}
           </View>
         )}
         {isHost && hangout.status === "FINISHED" && (
@@ -1836,7 +1894,7 @@ function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onChat, 
               </View>
             ))}
             {!requests.length && <Text style={styles.empty}>まだ申請はありません。</Text>}
-            {['OPEN', 'FULL'].includes(hangout.status) && <Pressable style={styles.finishButtonWide} onPress={() => onStart(hangout.id)}><Text style={styles.primaryText}>Hangout開始</Text></Pressable>}
+            {['OPEN', 'FULL'].includes(hangout.status) && <><Pressable disabled={!hangout.acceptedParticipants?.length} style={[styles.finishButtonWide, !hangout.acceptedParticipants?.length && styles.disabledButton]} onPress={() => onStart(hangout.id)}><Text style={styles.primaryText}>Hangout開始</Text></Pressable>{!hangout.acceptedParticipants?.length && <Text style={styles.startDisabledNote}>参加メンバーを承認すると開始できます。</Text>}</>}
             {hangout.status === 'STARTED' && <Pressable style={styles.finishButtonWide} onPress={() => onFinish(hangout.id)}><Text style={styles.primaryText}>Hangout終了</Text></Pressable>}
           </>
         )}
@@ -1844,6 +1902,7 @@ function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onChat, 
       <ApplicantProfileModal profile={selectedApplicant} onClose={() => setSelectedApplicant(null)} />
       <JoinRequestModal visible={joining} hangout={hangout} onClose={() => setJoining(false)} onSubmit={async (message) => { await onJoin(hangout, message); setJoining(false); }} />
       <EditHangoutModal visible={editing} hangout={hangout} onClose={() => setEditing(false)} onSave={async (input) => { await onEdit(hangout.id, input); setEditing(false); }} />
+      <PhotoViewerModal photos={hostPhotos} index={hostPhotoIndex} onIndex={setHostPhotoIndex} onClose={() => setHostPhotoIndex(null)} />
     </>
   );
 }
@@ -1919,14 +1978,16 @@ function EditHangoutModal({ visible, hangout, onClose, onSave }: { visible: bool
 }
 
 function ApplicantProfileModal({ profile, onClose }: { profile: ApplicantProfile | null; onClose: () => void }) {
+  const [photoIndex, setPhotoIndex] = useState<number | null>(null);
+  const photos = (profile?.profilePhotos?.length ? profile.profilePhotos : profile?.profilePhoto ? [profile.profilePhoto] : []).filter(Boolean);
   return (
-    <Modal visible={profile !== null} transparent animationType="slide" onRequestClose={onClose}>
+    <><Modal visible={profile !== null} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.applicantModalBackdrop}>
         <View style={styles.applicantModalCard}>
-          <View style={styles.profilePhotoTrio}>{[profile?.profilePhotos?.[1],profile?.profilePhotos?.[0]||profile?.profilePhoto,profile?.profilePhotos?.[2]].map((photo,index)=>photo?<Image key={`${photo}-${index}`} source={{uri:photo}} style={index===1?styles.applicantAvatar:styles.avatarSide}/>:<View key={`applicant-empty-${index}`} style={index===1?styles.applicantAvatarFallback:styles.avatarSideFallback}><Text style={styles.applicantAvatarText}>{index===1?(profile?.displayName.slice(0,1)||"☺"):"＋"}</Text></View>)}</View>
+          <View style={styles.profilePhotoTrio}>{[profile?.profilePhotos?.[1],profile?.profilePhotos?.[0]||profile?.profilePhoto,profile?.profilePhotos?.[2]].map((photo,index)=>photo?<Pressable key={`${photo}-${index}`} onPress={() => setPhotoIndex(Math.max(0, photos.indexOf(photo)))} accessibilityLabel="プロフィール画像を拡大"><Image source={{uri:photo}} style={index===1?styles.applicantAvatar:styles.avatarSide}/></Pressable>:<View key={`applicant-empty-${index}`} style={index===1?styles.applicantAvatarFallback:styles.avatarSideFallback}><Text style={styles.applicantAvatarText}>{index===1?(profile?.displayName.slice(0,1)||"☺"):"＋"}</Text></View>)}</View>
           <Text style={styles.applicantName}>{profile?.displayName}</Text>
           <Text style={styles.applicantMeta}>
-            {profile?.age !== undefined ? `${profile.age}歳` : "年齢非公開"}{profile?.homeArea ? ` ・ ${profile.homeArea}` : ""}
+            {profile?.age !== undefined ? `${profile.age}歳` : "年齢非公開"}{profile?.gender ? ` ・ ${profile.gender === "MALE" ? "男性" : profile.gender === "FEMALE" ? "女性" : "性別非公開"}` : ""}{profile?.homeArea ? ` ・ ${profile.homeArea}` : ""}
           </Text>
           <Text style={styles.applicantVerification}>{profile?.verification === "PHONE_VERIFIED" ? "✓ 電話番号確認済み" : "電話番号未確認"}</Text>
           <Text style={styles.applicantBio}>{profile?.bio || "自己紹介はまだありません。"}</Text>
@@ -1943,8 +2004,18 @@ function ApplicantProfileModal({ profile, onClose }: { profile: ApplicantProfile
           </Pressable>
         </View>
       </View>
-    </Modal>
+    </Modal><PhotoViewerModal photos={photos} index={photoIndex} onIndex={setPhotoIndex} onClose={() => setPhotoIndex(null)} /></>
   );
+}
+
+function PhotoViewerModal({ photos, index, onIndex, onClose }: { photos: string[]; index: number | null; onIndex: (index: number | null) => void; onClose: () => void }) {
+  return <Modal visible={index !== null && photos.length > 0} transparent animationType="fade" onRequestClose={onClose}>
+    <View style={styles.photoViewerBackdrop}>
+      <Pressable style={styles.photoViewerClose} onPress={onClose} accessibilityLabel="画像を閉じる"><Text style={styles.photoViewerCloseText}>×</Text></Pressable>
+      {index !== null && photos[index] ? <Image source={{ uri: photos[index] }} style={styles.photoViewerImage} resizeMode="contain" /> : null}
+      {photos.length > 1 && <View style={styles.photoViewerControls}><Pressable style={styles.photoViewerControl} onPress={() => onIndex(index === null ? 0 : (index - 1 + photos.length) % photos.length)}><Text style={styles.photoViewerControlText}>‹</Text></Pressable><Text style={styles.photoViewerCount}>{(index ?? 0) + 1} / {photos.length}</Text><Pressable style={styles.photoViewerControl} onPress={() => onIndex(index === null ? 0 : (index + 1) % photos.length)}><Text style={styles.photoViewerControlText}>›</Text></Pressable></View>}
+    </View>
+  </Modal>;
 }
 
 function PhoneVerificationScreen({ onBack, onVerify }: { onBack: () => void; onVerify: (phone: string, code?: string) => Promise<void> }) {
@@ -2305,6 +2376,12 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
           </Text>
         </View>
       )}
+      <View style={styles.profileStats}>
+        <View style={styles.profileStat}><Text style={styles.profileStatValue}>{hostStatus?.hostAverageRating ?? "—"}</Text><Text style={styles.profileStatLabel}>主催評価</Text></View>
+        <View style={styles.profileStat}><Text style={styles.profileStatValue}>{hostStatus?.participantAverageRating ?? "—"}</Text><Text style={styles.profileStatLabel}>参加評価</Text></View>
+        <View style={styles.profileStat}><Text style={styles.profileStatValue}>{activity.participated.length}</Text><Text style={styles.profileStatLabel}>参加</Text></View>
+        <View style={styles.profileStat}><Text style={styles.profileStatValue}>{hostStatus?.completedHangouts ?? activity.hosted.filter((item) => item.status === "FINISHED").length}</Text><Text style={styles.profileStatLabel}>開催完了</Text></View>
+      </View>
       <Text style={styles.bio}>{user.bio || "自己紹介を登録しましょう。"}</Text>
       <View style={styles.tags}>
         {user.interests.map((item) => (
@@ -2628,6 +2705,12 @@ const styles = StyleSheet.create({
   providerButtonText: { color: "#17221d", fontSize: 13, fontWeight: "900" },
   providerNote: { minHeight: 30, paddingTop: 7, color: "#59645d", fontSize: 11, textAlign: "center" },
   authSwitch: { textAlign: "center", color: "#59635c", padding: 15 },
+  authAgreement: { marginTop: 16, color: "#737c75", fontSize: 10, textAlign: "center" },
+  authPolicyLinks: { marginTop: 9, flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 13 },
+  authPolicyLink: { color: "#176b48", fontSize: 10, fontWeight: "800", textDecorationLine: "underline" },
+  registrationPhotoRow: { marginTop: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9 },
+  registrationPhotoMain: { width: 70, height: 70, borderRadius: 35, backgroundColor: "#dfe6df" },
+  registrationPhoto: { width: 52, height: 52, borderRadius: 26, backgroundColor: "#dfe6df" },
   hero: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 },
   eyebrow: { color: "#176b48", fontSize: 12, fontWeight: "900" },
   heroTitle: {
@@ -2792,6 +2875,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     backgroundColor: "#dfe6df",
   },
+  detailHostRow: { flexDirection: "row", alignItems: "center", gap: 11, padding: 13, borderRadius: 18, backgroundColor: "#fff", borderWidth: 1, borderColor: "#e3e8e2", marginBottom: 12 },
+  detailHostPhoto: { width: 50, height: 50, borderRadius: 25, backgroundColor: "#dfe6df" },
+  detailHostPhotoFallback: { width: 50, height: 50, borderRadius: 25, alignItems: "center", justifyContent: "center", backgroundColor: "#176b48" },
+  distanceWarning: { padding: 12, borderRadius: 13, color: "#8a5315", backgroundColor: "#fff3d9", fontSize: 12, fontWeight: "700", marginBottom: 12 },
+  startDisabledNote: { marginTop: -8, color: "#737c75", fontSize: 11, textAlign: "center" },
   detailMeta: { color: "#667069", marginBottom: 16 },
   detailPanel: {
     padding: 17,
@@ -3268,6 +3356,10 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   hostRankStats: { fontSize: 11, lineHeight: 18, color: "#fff", marginTop: 7 },
+  profileStats: { width: "100%", flexDirection: "row", borderRadius: 18, overflow: "hidden", backgroundColor: "#fff", borderWidth: 1, borderColor: "#e3e8e2", marginTop: 14 },
+  profileStat: { flex: 1, alignItems: "center", paddingVertical: 13, borderRightWidth: 1, borderColor: "#edf0ec" },
+  profileStatValue: { color: "#17221d", fontSize: 16, fontWeight: "900" },
+  profileStatLabel: { marginTop: 3, color: "#737c75", fontSize: 8, fontWeight: "700" },
   bio: {
     textAlign: "center",
     color: "#5f6862",

@@ -240,5 +240,14 @@ test('native screens include the latest production profile, notification, talk, 
   assert.match(mobile, /photoViewerBackdrop/);
   assert.match(mobile, /acceptedParticipants/);
   assert.match(mobile, /quickMessageButton/);
+  assert.match(mobile, /registrationPhotos/);
+  assert.match(mobile, /authPolicyLinks/);
+  assert.match(mobile, /detailHostRow/);
+  assert.match(mobile, /distanceWarning/);
+  assert.match(mobile, /openHangoutRating/);
+  assert.match(mobile, /disabled=\{!hangout\.acceptedParticipants\?\.length\}/);
+  assert.match(mobile, /detailReturnScreen/);
+  assert.match(mobile, /profileStats/);
+  assert.match(mobile, /PhotoViewerModal/);
   for (const message of ['向かっています', '少し遅れます', '到着しました']) assert.ok(mobile.includes(message));
 });
