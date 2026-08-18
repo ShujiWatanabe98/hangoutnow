@@ -33,6 +33,11 @@ const GOOGLE_REDIRECT_URI = "hangoutnow://auth/google";
 const APPLE_REDIRECT_URI = "hangoutnow://auth/apple";
 WebBrowser.maybeCompleteAuthSession();
 const INTEREST_OPTIONS = ["カフェ", "ラーメン", "ランニング", "飲み会", "ダーツ", "バー", "ごはん", "カラオケ", "英会話", "シーシャ", "スイーツ", "映画"] as const;
+const SOCIAL_STYLE_OPTIONS = ["静かに話したい", "ワイワイ楽しみたい", "初対面でも積極的", "少人数でじっくり", "聞き役が多い"] as const;
+const PARTICIPATION_GOAL_OPTIONS = ["趣味仲間", "友達づくり", "暇つぶし", "情報交換", "運動習慣", "食事・飲み", "新しい体験"] as const;
+const FIRST_TIME_OPTIONS = ["初参加歓迎", "ひとり参加が安心", "常連が多くてもOK", "主催者から話しかけてほしい"] as const;
+const AVOID_OPTIONS = ["大人数", "飲酒中心", "深夜", "屋外", "激しい運動", "写真撮影", "営業・勧誘"] as const;
+const FLEXIBILITY_OPTIONS = ["時間厳守", "多少の遅れは許容", "途中参加OK", "途中退出OK", "急な予定変更OK"] as const;
 
 type User = {
   id: string;
@@ -54,13 +59,21 @@ type User = {
   preferredGroupSizes: number[];
   budgetMin: number | null;
   budgetMax: number | null;
+  socialStyles: string[];
+  participationGoals: string[];
+  firstTimePreferences: string[];
+  alcoholPreference: "AVOID" | "OK" | "PREFER" | null;
+  smokingPreference: "AVOID" | "OK" | null;
+  avoidPreferences: string[];
+  scheduleFlexibility: string[];
+  behaviorLearningEnabled: boolean;
   interests: string[];
   verificationStatus: string;
   profilePhoto: string | null;
   profilePhotos: string[];
 };
 
-type UpdateProfileInput = Pick<User, "displayName" | "gender" | "bio" | "homeArea" | "interests" | "preferredAreas" | "preferredActivities" | "preferredAgeMin" | "preferredAgeMax" | "preferredGenders" | "activityTimeSlots" | "matchingDataConsent" | "participationUrgency" | "maxTravelMinutes" | "preferredGroupSizes" | "budgetMin" | "budgetMax">;
+type UpdateProfileInput = Pick<User, "displayName" | "gender" | "bio" | "homeArea" | "interests" | "preferredAreas" | "preferredActivities" | "preferredAgeMin" | "preferredAgeMax" | "preferredGenders" | "activityTimeSlots" | "matchingDataConsent" | "participationUrgency" | "maxTravelMinutes" | "preferredGroupSizes" | "budgetMin" | "budgetMax" | "socialStyles" | "participationGoals" | "firstTimePreferences" | "alcoholPreference" | "smokingPreference" | "avoidPreferences" | "scheduleFlexibility" | "behaviorLearningEnabled">;
 
 type Session = { accessToken: string; refreshToken: string; user: User };
 type HostTier = "WHITE" | "BRONZE" | "SILVER" | "GOLD" | "PLATINUM" | "DIAMOND";
@@ -2104,6 +2117,14 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
   const [budgetMin, setBudgetMin] = useState(user.budgetMin?.toString() ?? "");
   const [budgetMax, setBudgetMax] = useState(user.budgetMax?.toString() ?? "");
   const [matchingDataConsent, setMatchingDataConsent] = useState(user.matchingDataConsent ?? false);
+  const [socialStyles, setSocialStyles] = useState(user.socialStyles ?? []);
+  const [participationGoals, setParticipationGoals] = useState(user.participationGoals ?? []);
+  const [firstTimePreferences, setFirstTimePreferences] = useState(user.firstTimePreferences ?? []);
+  const [alcoholPreference, setAlcoholPreference] = useState<User["alcoholPreference"]>(user.alcoholPreference ?? null);
+  const [smokingPreference, setSmokingPreference] = useState<User["smokingPreference"]>(user.smokingPreference ?? null);
+  const [avoidPreferences, setAvoidPreferences] = useState(user.avoidPreferences ?? []);
+  const [scheduleFlexibility, setScheduleFlexibility] = useState(user.scheduleFlexibility ?? []);
+  const [behaviorLearningEnabled, setBehaviorLearningEnabled] = useState(user.behaviorLearningEnabled ?? false);
   const activeStatuses = new Set(["OPEN", "FULL", "STARTED"]);
   const activitySections = [
     ["主催中のHangout", activity.hosted.filter((item) => activeStatuses.has(item.status))],
@@ -2118,6 +2139,10 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
   };
   const parseList = (value: string) => [...new Set(value.split(/[、,]/).map((item) => item.trim()).filter(Boolean))];
   const togglePreferredGender = (value: string) => setPreferredGenders((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value].slice(0, 4));
+  const toggleChoice = (value: string, current: string[], update: (values: string[]) => void, limit: number) => update(current.includes(value) ? current.filter((item) => item !== value) : [...current, value].slice(0, limit));
+  const choiceGrid = (options: readonly string[], current: string[], update: (values: string[]) => void, limit: number) => (
+    <View style={styles.interestOptionGrid}>{options.map((option) => { const selected = current.includes(option); return <Pressable key={option} style={[styles.interestOption, selected && styles.interestOptionSelected]} onPress={() => toggleChoice(option, current, update, limit)}><Text style={[styles.interestOptionText, selected && styles.interestOptionTextSelected]}>{option}</Text></Pressable>; })}</View>
+  );
   const save = async () => {
     const name = displayName.trim();
     if (!name) return Alert.alert("表示名を入力してください");
@@ -2138,6 +2163,8 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
         maxTravelMinutes: maxTravelMinutes ? Number(maxTravelMinutes) : null,
         preferredGroupSizes: parseList(preferredGroupSizes).map(Number).filter((value) => Number.isInteger(value) && value >= 2 && value <= 20).slice(0, 6),
         budgetMin: minimumBudget, budgetMax: maximumBudget, matchingDataConsent,
+        socialStyles, participationGoals, firstTimePreferences, alcoholPreference, smokingPreference,
+        avoidPreferences, scheduleFlexibility, behaviorLearningEnabled,
       });
       setEditing(false);
       Alert.alert("保存しました", "プロフィールを更新しました。");
@@ -2231,12 +2258,20 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
               <Text style={styles.profileEditorLabel}>希望する活動</Text><TextInput style={styles.profileEditorInput} value={preferredActivities} onChangeText={setPreferredActivities} maxLength={500} placeholder="例：カフェ、ランニング" />
               <Text style={styles.profileEditorLabel}>希望年齢</Text><View style={styles.matchingRangeRow}><TextInput style={[styles.profileEditorInput, styles.matchingRangeInput]} value={preferredAgeMin} onChangeText={setPreferredAgeMin} keyboardType="number-pad" placeholder="下限" maxLength={3} /><Text style={styles.matchingRangeSeparator}>〜</Text><TextInput style={[styles.profileEditorInput, styles.matchingRangeInput]} value={preferredAgeMax} onChangeText={setPreferredAgeMax} keyboardType="number-pad" placeholder="上限" maxLength={3} /></View>
               <Text style={styles.profileEditorLabel}>希望する相手</Text><View style={styles.profileGenderOptions}>{[["MALE", "男性"], ["FEMALE", "女性"], ["OTHER", "その他"], ["UNDISCLOSED", "指定なし"]].map(([value, label]) => { const selected = preferredGenders.includes(value); return <Pressable key={value} style={[styles.profileGenderOption, selected && styles.profileGenderOptionSelected]} onPress={() => togglePreferredGender(value)}><Text style={selected ? styles.profileGenderOptionTextSelected : styles.profileGenderOptionText}>{label}</Text></Pressable>; })}</View>
+              <Text style={styles.profileEditorLabel}>雰囲気・交流スタイル</Text><Text style={styles.profileEditorHint}>自分に合う過ごし方を選択</Text>{choiceGrid(SOCIAL_STYLE_OPTIONS, socialStyles, setSocialStyles, 5)}
               <Text style={styles.profileEditorLabel}>活動しやすい時間</Text><TextInput style={styles.profileEditorInput} value={activityTimeSlots} onChangeText={setActivityTimeSlots} maxLength={200} placeholder="例：平日夜、土日昼" />
               <Text style={styles.profileEditorLabel}>参加したい時期</Text><View style={styles.interestOptionGrid}>{([[null, "未設定"], ["NOW", "今すぐ"], ["TODAY", "今日"], ["THIS_WEEK", "今週"], ["WEEKEND", "週末"], ["FLEXIBLE", "いつでも"]] as const).map(([value, label]) => <Pressable key={label} style={[styles.interestOption, participationUrgency === value && styles.interestOptionSelected]} onPress={() => setParticipationUrgency(value)}><Text style={[styles.interestOptionText, participationUrgency === value && styles.interestOptionTextSelected]}>{label}</Text></Pressable>)}</View>
               <Text style={styles.profileEditorLabel}>移動できる時間（分）</Text><TextInput style={styles.profileEditorInput} value={maxTravelMinutes} onChangeText={setMaxTravelMinutes} keyboardType="number-pad" maxLength={3} placeholder="例：30" />
               <Text style={styles.profileEditorLabel}>希望人数</Text><TextInput style={styles.profileEditorInput} value={preferredGroupSizes} onChangeText={setPreferredGroupSizes} maxLength={40} placeholder="例：2、4、6" />
               <Text style={styles.profileEditorLabel}>予算（円）</Text><View style={styles.matchingRangeRow}><TextInput style={[styles.profileEditorInput, styles.matchingRangeInput]} value={budgetMin} onChangeText={setBudgetMin} keyboardType="number-pad" placeholder="下限" maxLength={6} /><Text style={styles.matchingRangeSeparator}>〜</Text><TextInput style={[styles.profileEditorInput, styles.matchingRangeInput]} value={budgetMax} onChangeText={setBudgetMax} keyboardType="number-pad" placeholder="上限" maxLength={6} /></View>
-              <Pressable accessibilityRole="switch" accessibilityState={{ checked: matchingDataConsent }} style={[styles.matchingConsent, matchingDataConsent && styles.matchingConsentOn]} onPress={() => setMatchingDataConsent((value) => !value)}><View style={[styles.matchingCheckbox, matchingDataConsent && styles.matchingCheckboxOn]}><Text style={styles.matchingCheckmark}>{matchingDataConsent ? "✓" : ""}</Text></View><Text style={styles.matchingConsentText}>この情報とアプリ内の閲覧・参加履歴を、マッチング改善に利用することに同意します</Text></Pressable>
+              <Text style={styles.profileEditorLabel}>参加目的</Text>{choiceGrid(PARTICIPATION_GOAL_OPTIONS, participationGoals, setParticipationGoals, 7)}
+              <Text style={styles.profileEditorLabel}>飲酒</Text><View style={styles.interestOptionGrid}>{([[null, "指定なし"], ["AVOID", "飲まない場を希望"], ["OK", "どちらでも"], ["PREFER", "飲酒ありを希望"]] as const).map(([value,label]) => <Pressable key={label} style={[styles.interestOption, alcoholPreference === value && styles.interestOptionSelected]} onPress={() => setAlcoholPreference(value)}><Text style={[styles.interestOptionText, alcoholPreference === value && styles.interestOptionTextSelected]}>{label}</Text></Pressable>)}</View>
+              <Text style={styles.profileEditorLabel}>喫煙</Text><View style={styles.interestOptionGrid}>{([[null, "指定なし"], ["AVOID", "禁煙を希望"], ["OK", "どちらでも"]] as const).map(([value,label]) => <Pressable key={label} style={[styles.interestOption, smokingPreference === value && styles.interestOptionSelected]} onPress={() => setSmokingPreference(value)}><Text style={[styles.interestOptionText, smokingPreference === value && styles.interestOptionTextSelected]}>{label}</Text></Pressable>)}</View>
+              <Text style={styles.profileEditorLabel}>初参加への配慮</Text><Text style={styles.profileEditorHint}>安心して参加するために必要なこと</Text>{choiceGrid(FIRST_TIME_OPTIONS, firstTimePreferences, setFirstTimePreferences, 4)}
+              <Text style={styles.profileEditorLabel}>苦手・避けたい条件</Text><Text style={styles.profileEditorHint}>おすすめから優先的に外します</Text>{choiceGrid(AVOID_OPTIONS, avoidPreferences, setAvoidPreferences, 7)}
+              <Text style={styles.profileEditorLabel}>予定の柔軟性</Text>{choiceGrid(FLEXIBILITY_OPTIONS, scheduleFlexibility, setScheduleFlexibility, 5)}
+              <Pressable accessibilityRole="switch" accessibilityState={{ checked: matchingDataConsent }} style={[styles.matchingConsent, matchingDataConsent && styles.matchingConsentOn]} onPress={() => setMatchingDataConsent((value) => !value)}><View style={[styles.matchingCheckbox, matchingDataConsent && styles.matchingCheckboxOn]}><Text style={styles.matchingCheckmark}>{matchingDataConsent ? "✓" : ""}</Text></View><Text style={styles.matchingConsentText}>この設定情報をマッチング改善に利用することに同意します。正確なGPS位置やトーク内容は利用しません。</Text></Pressable>
+              <Pressable accessibilityRole="switch" accessibilityState={{ checked: behaviorLearningEnabled }} style={[styles.matchingConsent, behaviorLearningEnabled && styles.matchingConsentOn]} onPress={() => setBehaviorLearningEnabled((value) => !value)}><View style={[styles.matchingCheckbox, behaviorLearningEnabled && styles.matchingCheckboxOn]}><Text style={styles.matchingCheckmark}>{behaviorLearningEnabled ? "✓" : ""}</Text></View><Text style={styles.matchingConsentText}>アプリ内行動からおすすめを改善します。閲覧した募集、ハート、参加、評価を使い、正確な位置やトーク内容は学習に使いません。</Text></Pressable>
             </View>
           </ScrollView>
         </SafeAreaView>

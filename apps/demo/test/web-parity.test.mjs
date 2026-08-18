@@ -60,7 +60,7 @@ test('profile editor saves privacy-safe matching preferences', async () => {
   assert.match(application, /正確なGPS位置は保存しません/);
   assert.match(application, /function showMatchFeedbackDialog/);
   assert.match(application, /\/analytics\/match-feedback/);
-  for (const contract of ['preferredAreas', 'preferredActivities', 'preferredAgeMin', 'preferredGenders', 'activityTimeSlots', 'participationUrgency', 'maxTravelMinutes', 'preferredGroupSizes', 'budgetMin', 'matchingDataConsent']) {
+  for (const contract of ['preferredAreas', 'preferredActivities', 'preferredAgeMin', 'preferredGenders', 'activityTimeSlots', 'participationUrgency', 'maxTravelMinutes', 'preferredGroupSizes', 'budgetMin', 'matchingDataConsent', 'socialStyles', 'participationGoals', 'firstTimePreferences', 'alcoholPreference', 'smokingPreference', 'avoidPreferences', 'scheduleFlexibility', 'behaviorLearningEnabled']) {
     assert.ok(mobile.includes(contract), `missing mobile matching preference contract: ${contract}`);
   }
   assert.match(mobile, /正確なGPS位置は保存しません/);
