@@ -53,6 +53,16 @@ test('demo authentication is not rolled back by optional initial data loading', 
   assert.match(loginFlow, /Promise\.allSettled\(\[loadNotificationCount\(\),loadHangouts\(\)\]\)/);
 });
 
+test('first-time LINE authentication continues directly into account creation', async () => {
+  const application = await readFile(new URL('app.js', publicDirectory), 'utf8');
+
+  assert.match(application, /sessionStorage\.setItem\('hangout-now-oauth-pending',JSON\.stringify\(\{provider,ticket,displayName:result\.displayName\|\|''\}\)\)/);
+  assert.match(application, /pending\?\.provider===providerKey&&pending\.ticket/);
+  assert.match(application, /ticket:pending\.ticket,\.\.\.input/);
+  assert.match(application, /LINE認証をやり直す必要はありません/);
+  assert.match(application, /sessionStorage\.removeItem\('hangout-now-oauth-pending'\)/);
+});
+
 test('profile remains behind talk while returning with the back animation', async () => {
   const [application, portraits] = await Promise.all([
     readFile(new URL('app.js', publicDirectory), 'utf8'),
