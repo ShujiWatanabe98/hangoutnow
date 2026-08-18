@@ -328,10 +328,10 @@ const rooms = await call('/chat-rooms', {}, masaya.token).then((result) => resul
 const room = rooms.find((item) => item.hangoutId === hangout.id);
 if (!room) throw new Error('Demo chat room was not created');
 const messages = await call(`/chat-rooms/${room.id}/messages`, {}, masaya.token).then((result) => result.body);
-if (!messages.some((message) => message.body === 'こんにちは！デモチャットへようこそ。')) {
+if (!messages.some((message) => message.body === 'こんにちは！デモトークへようこそ。')) {
   await call(`/chat-rooms/${room.id}/messages`, {
     method: 'POST',
-    body: JSON.stringify({ body: 'こんにちは！デモチャットへようこそ。' }),
+    body: JSON.stringify({ body: 'こんにちは！デモトークへようこそ。' }),
   }, host.token);
 }
 
@@ -349,8 +349,8 @@ process.stdout.write(`${JSON.stringify({
     '主催者で新しいHangoutを作成',
     '参加者へ役割を切り替えて参加申請',
     '主催者へ戻って申請を承認',
-    '双方でグループチャットを確認',
+    '双方でグループトークを確認',
     '主催者がHangoutを終了して参加者へ★5',
-    '参加者も主催者へ★5を付け、1対1チャットを開始',
+    '参加者も主催者へ★5を付け、1対1トークを開始',
   ],
 }, null, 2)}\n`);

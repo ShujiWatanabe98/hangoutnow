@@ -31,8 +31,8 @@ await call(`/hangouts/${hangout.id}/ratings`, { method: 'POST', body: JSON.strin
 
 const direct = await call('/direct-chats', { method: 'POST', body: JSON.stringify({ userId: member.user.id }) }, host.accessToken);
 const messages = await call(`/direct-chats/${direct.id}/messages`, {}, host.accessToken);
-if (!messages.some((message) => message.body === '相互★5で1対1チャットが解放されました。')) {
-  await call(`/direct-chats/${direct.id}/messages`, { method: 'POST', body: JSON.stringify({ body: '相互★5で1対1チャットが解放されました。' }) }, host.accessToken);
+if (!messages.some((message) => message.body === '相互★5で1対1トークが解放されました。')) {
+  await call(`/direct-chats/${direct.id}/messages`, { method: 'POST', body: JSON.stringify({ body: '相互★5で1対1トークが解放されました。' }) }, host.accessToken);
 }
 
 const [hostDirects, memberDirects] = await Promise.all([
@@ -40,7 +40,7 @@ const [hostDirects, memberDirects] = await Promise.all([
   call('/direct-chats', {}, member.accessToken),
 ]);
 if (!hostDirects.some((item) => item.id === direct.id) || !memberDirects.some((item) => item.id === direct.id)) {
-  throw new Error('1対1チャットが双方に表示されません');
+  throw new Error('1対1トークが双方に表示されません');
 }
 
 process.stdout.write(`${JSON.stringify({ ok: true, hangoutId: hangout.id, directChatId: direct.id, mutualRating: 5, visibleToBoth: true }, null, 2)}\n`);

@@ -28,7 +28,7 @@ button:focus-visible{outline:3px solid #d9ff68;outline-offset:3px}
 @media(max-width:699px){.owner-actions{grid-template-columns:1fr}.owner-actions #start-hangout,.owner-actions #finish-hangout{grid-column:1}.host-menu-actions{position:sticky;bottom:0}.primary{min-height:54px}.composer input{min-height:46px}.conversation-actions .composer .chat-send-button{width:48px;min-width:48px;height:48px}}
 .navigation-button,.owner-actions button{font-size:15px;line-height:1.35}
 .owner-actions #edit-hangout{border-color:#bfd6ed;background:#edf6ff;color:#245f93}
-.owner-actions #cancel-hangout{border-color:#efc4c0;background:#fff0ef;color:#a83b32}
+.owner-actions #delete-hangout-active,.owner-actions #delete-hangout{border-color:#efc4c0;background:#fff0ef;color:#a83b32}
 .owner-actions #start-hangout{border-color:#b9d6c4;background:#edf8f0;color:#176b48;box-shadow:0 7px 18px #176b4824}
 .owner-actions #finish-hangout{border-color:#efcfad;background:#fff3e6;color:#a95617;box-shadow:0 7px 18px #a9561724}
 @media(max-width:699px){

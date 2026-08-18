@@ -24,12 +24,33 @@ test('production uses the shared Hangout, talk, notification, and profile flows'
   const application = await readFile(new URL('app.js', publicDirectory), 'utf8');
 
   for (const contract of [
-    'showJoinRequestDialogReliable',
+    'function showJoinRequestDialog',
     'openHangoutFlowChat',
-    'showEditHangoutFixed',
+    'function showEditHangout',
     'notificationScreen',
     'showProfileEditor',
     'showHangoutRail',
     "h.hostUserId===session.user.id",
   ]) assert.ok(application.includes(contract), `missing shared production contract: ${contract}`);
+
+  for (const functionName of ['showJoinRequestDialog', 'showEditHangout', 'showHangoutRatingScreen', 'showCreate', 'showProfileEditor']) {
+    const declarations = application.match(new RegExp(`function ${functionName}\\(`, 'g')) ?? [];
+    assert.equal(declarations.length, 1, `${functionName} must have exactly one current implementation`);
+  }
+  for (const retiredContract of ['showJoinRequestDialogReliable', 'showEditHangoutFixed', 'showHangoutRatingScreenStable', '画像を選び直す', 'Hangoutを公開する', '内容を編集', '開催を中止']) {
+    assert.ok(!application.includes(retiredContract), `retired implementation remains: ${retiredContract}`);
+  }
+});
+
+test('retired web and mobile implementations do not return', async () => {
+  const [application, portraits, requests, mobile] = await Promise.all([
+    readFile(new URL('app.js', publicDirectory), 'utf8'),
+    readFile(new URL('portraits.css', publicDirectory), 'utf8'),
+    readFile(new URL('requests.css', publicDirectory), 'utf8'),
+    readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8'),
+  ]);
+  const currentSources = `${application}\n${portraits}\n${requests}\n${mobile}`;
+  for (const retiredContract of ['#cancel-hangout', 'profile-editor-photo{', '画像を選び直す', 'Hangoutを公開する', '内容を編集', '開催を中止']) {
+    assert.ok(!currentSources.includes(retiredContract), `retired cross-platform implementation remains: ${retiredContract}`);
+  }
 });

@@ -986,7 +986,7 @@ export default function App() {
     }
   }
 
-  async function chooseProfilePhoto() {
+  async function chooseProfilePhoto(index: number) {
     setLoading(true);
     setError("");
     try {
@@ -994,14 +994,17 @@ export default function App() {
       if (!permission.granted) throw new Error("写真ライブラリへのアクセスを許可してください");
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
-        allowsMultipleSelection: true,
-        selectionLimit: 3,
+        allowsMultipleSelection: false,
         quality: 0.65,
         base64: true,
       });
       if (result.canceled) return;
-      if(result.assets.length>3)throw new Error("プロフィール画像は3枚まで選択できます");
-      const profilePhotos=result.assets.map(asset=>{if(!asset.base64)throw new Error("写真を読み込めませんでした");const mediaType=asset.mimeType==="image/png"?"png":asset.mimeType==="image/webp"?"webp":"jpeg";return`data:image/${mediaType};base64,${asset.base64}`});
+      const asset=result.assets[0];
+      if(!asset?.base64)throw new Error("写真を読み込めませんでした");
+      const mediaType=asset.mimeType==="image/png"?"png":asset.mimeType==="image/webp"?"webp":"jpeg";
+      const photo=`data:image/${mediaType};base64,${asset.base64}`;
+      const profilePhotos=[...(session?.user.profilePhotos??[])];
+      profilePhotos[index]=photo;
       const user = await request<User>("/users/me", {
         method: "PATCH",
         body: JSON.stringify({ profilePhotos }),
@@ -1552,7 +1555,7 @@ function CreateHangoutScreen({ area, gender, onBack, onSubmit }: { area: AlphaAr
       <Text style={styles.label}>ひとこと</Text>
       <TextInput style={[styles.input, styles.multiline]} value={form.description} onChangeText={(description) => setForm((v) => ({ ...v, description }))} multiline maxLength={500} />
       <Pressable style={styles.primary} onPress={publish}>
-        <Text style={styles.primaryText}>Hangoutを公開する</Text>
+        <Text style={styles.primaryText}>Hangout公開</Text>
       </Pressable>
     </ScrollView>
   );
@@ -2016,15 +2019,15 @@ function NotificationScreen({ inbox, refreshing, onBack, onRefresh, onEnabled, o
   );
 }
 
-function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout, onPhone, onPhoto, onSave, onDelete, onLogout }: { user: User; hostStatus: HostStatus | null; activity: ProfileActivity; demo: boolean; onChat: () => void; onOpenHangout: (id: string) => void; onPhone: () => void; onPhoto: () => void; onSave: (input: Pick<User, "displayName" | "gender" | "bio" | "homeArea" | "interests">) => Promise<void>; onDelete: () => void; onLogout: () => void }) {
+function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout, onPhone, onPhoto, onSave, onDelete, onLogout }: { user: User; hostStatus: HostStatus | null; activity: ProfileActivity; demo: boolean; onChat: () => void; onOpenHangout: (id: string) => void; onPhone: () => void; onPhoto: (index: number) => void; onSave: (input: Pick<User, "displayName" | "gender" | "bio" | "homeArea" | "interests">) => Promise<void>; onDelete: () => void; onLogout: () => void }) {
   const white = hostStatus?.tier === "WHITE";
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState(user.displayName);
   const [homeArea, setHomeArea] = useState(user.homeArea ?? "");
   const [bio, setBio] = useState(user.bio ?? "");
-  const [interests, setInterests] = useState(user.interests.join("、"));
+  const [interests, setInterests] = useState(user.interests.filter((value) => !(INTEREST_OPTIONS as readonly string[]).includes(value)).join("、"));
+  const [selectedInterests, setSelectedInterests] = useState(user.interests.filter((value) => (INTEREST_OPTIONS as readonly string[]).includes(value)));
   const [gender, setGender] = useState(user.gender ?? "UNDISCLOSED");
-  const selectedInterests = interests.split(/[、,]/).map((value) => value.trim()).filter(Boolean);
   const activeStatuses = new Set(["OPEN", "FULL", "STARTED"]);
   const activitySections = [
     ["主催中のHangout", activity.hosted.filter((item) => activeStatuses.has(item.status))],
@@ -2035,12 +2038,13 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
   ] as const;
   const toggleInterest = (interest: string) => {
     const next = selectedInterests.includes(interest) ? selectedInterests.filter((item) => item !== interest) : [...selectedInterests, interest];
-    setInterests([...new Set(next)].slice(0, 20).join("、"));
+    setSelectedInterests([...new Set(next)].slice(0, 20));
   };
   const save = async () => {
     const name = displayName.trim();
     if (!name) return Alert.alert("表示名を入力してください");
-    const values = [...new Set(interests.split(/[、,]/).map((value) => value.trim()).filter(Boolean))].slice(0, 20);
+    const customValues = interests.split(/[、,]/).map((value) => value.trim()).filter(Boolean).filter((value) => !(INTEREST_OPTIONS as readonly string[]).includes(value));
+    const values = [...new Set([...selectedInterests, ...customValues])].slice(0, 20);
     try {
       await onSave({ displayName: name, homeArea: homeArea.trim() || null, bio: bio.trim() || null, interests: values, gender });
       setEditing(false);
@@ -2115,18 +2119,18 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
       <Pressable style={styles.deleteButton} onPress={onDelete}>
         <Text style={styles.deleteText}>{demo ? "デモアカウントについて" : "アカウントを削除"}</Text>
       </Pressable>
-      <Modal visible={editing} animationType="slide" onRequestClose={() => setEditing(false)}>
+      <Modal visible={editing} animationType="slide" onRequestClose={() => void save()}>
         <SafeAreaView style={styles.profileEditorPage}>
-          <View style={styles.profileEditorHeader}><Pressable onPress={() => setEditing(false)}><Text style={styles.profileEditorCancel}>キャンセル</Text></Pressable><Text style={styles.profileEditorTitle}>プロフィールを編集</Text><Pressable onPress={() => void save()}><Text style={styles.profileEditorSave}>保存</Text></Pressable></View>
+          <View style={styles.profileEditorHeader}><Pressable onPress={() => void save()} accessibilityLabel="プロフィールに戻る"><Text style={styles.profileEditorCancel}>‹</Text></Pressable><Text style={styles.profileEditorTitle}>プロフィールを編集</Text><View style={{ width: 24 }} /></View>
           <ScrollView contentContainerStyle={styles.profileEditorForm} keyboardShouldPersistTaps="handled">
-            <Text style={styles.profileEditorLabel}>プロフィール画像（最大3枚）</Text><Pressable style={styles.profileEditorAction} onPress={onPhoto}><Text style={styles.profileEditorActionText}>画像を選び直す</Text></Pressable><Text style={styles.profileEditorHint}>1枚目を中央、2・3枚目を左右に表示します。</Text>
+            <Text style={styles.profileEditorLabel}>プロフィール画像（最大3枚）</Text><View style={styles.profilePhotoTrio}>{[1,0,2].map((photoIndex,position)=>{const photo=user.profilePhotos?.[photoIndex]||(photoIndex===0?user.profilePhoto:undefined);return <Pressable key={photoIndex} onPress={()=>onPhoto(photoIndex)} accessibilityLabel={`${photoIndex+1}枚目の画像を選ぶ`}>{photo?<Image source={{uri:photo}} style={position===1?styles.avatar:styles.avatarSide}/>:<View style={position===1?styles.avatarFallback:styles.avatarSideFallback}><Text style={styles.avatarText}>{position===1?"☺":"＋"}</Text></View>}</Pressable>})}</View><Text style={styles.profileEditorHint}>丸い画像をタップして入れ替えます。中央がメイン画像です。</Text>
             <Text style={styles.profileEditorLabel}>表示名</Text><TextInput style={styles.profileEditorInput} value={displayName} onChangeText={setDisplayName} maxLength={40} />
             <Text style={styles.profileEditorLabel}>電話番号</Text><Pressable style={styles.profileEditorAction} onPress={() => { setEditing(false); onPhone(); }}><Text style={styles.profileEditorActionText}>{user.verificationStatus === "PHONE_VERIFIED" ? "電話番号を変更" : "電話番号を確認"}</Text></Pressable>
             <Text style={styles.profileEditorLabel}>活動エリア</Text><TextInput style={styles.profileEditorInput} value={homeArea} onChangeText={setHomeArea} maxLength={80} placeholder="例：新宿・渋谷" />
             <Text style={styles.profileEditorLabel}>自己紹介</Text><TextInput style={[styles.profileEditorInput, styles.profileEditorBio]} value={bio} onChangeText={setBio} maxLength={500} multiline textAlignVertical="top" placeholder="好きなことや参加したいHangoutを書きましょう" />
             <Text style={styles.profileEditorLabel}>興味のあること</Text>
             <View style={styles.interestOptionGrid}>{INTEREST_OPTIONS.map((interest) => { const selected = selectedInterests.includes(interest); return <Pressable key={interest} style={[styles.interestOption, selected && styles.interestOptionSelected]} onPress={() => toggleInterest(interest)}><Text style={[styles.interestOptionText, selected && styles.interestOptionTextSelected]}>{interest}</Text></Pressable>; })}</View>
-            <TextInput style={[styles.profileEditorInput, { marginTop: 10 }]} value={interests} onChangeText={setInterests} maxLength={300} placeholder="その他の興味も入力できます" /><Text style={styles.profileEditorHint}>選択または「、」区切りで20個まで登録できます。</Text>
+            <TextInput style={[styles.profileEditorInput, { marginTop: 10 }]} value={interests} onChangeText={setInterests} maxLength={300} placeholder="ボタンにない興味だけ入力" /><Text style={styles.profileEditorHint}>候補はタップして選択し、入力欄には候補にない言葉だけを記載します。</Text>
             <Text style={styles.profileEditorLabel}>性別</Text><View style={styles.profileGenderOptions}>{[["UNDISCLOSED", "回答しない"], ["MALE", "男性"], ["FEMALE", "女性"], ["OTHER", "その他"]].map(([value, label]) => <Pressable key={value} style={[styles.profileGenderOption, gender === value && styles.profileGenderOptionSelected]} onPress={() => setGender(value)}><Text style={gender === value ? styles.profileGenderOptionTextSelected : styles.profileGenderOptionText}>{label}</Text></Pressable>)}</View>
           </ScrollView>
         </SafeAreaView>
