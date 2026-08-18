@@ -25,6 +25,7 @@ test('production uses the shared Hangout, talk, notification, and profile flows'
 
   for (const contract of [
     'function showJoinRequestDialog',
+    '/auth/demo-login',
     'openHangoutFlowChat',
     'function showEditHangout',
     'notificationScreen',

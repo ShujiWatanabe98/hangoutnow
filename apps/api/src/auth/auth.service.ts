@@ -5,7 +5,7 @@ import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto
 import { v7 as uuidv7 } from 'uuid';
 import { createRemoteJWKSet, importPKCS8, jwtVerify, SignJWT } from 'jose';
 import { AuthRepository, PublicUser, StoredUser } from './auth.types';
-import { AppleRedeemDto, ConfirmPhoneVerificationDto, GoogleRedeemDto, LineRedeemDto, LoginDto, RegisterDto, RequestPhoneVerificationDto, UpdateProfileDto, XRedeemDto } from './auth.dto';
+import { AppleRedeemDto, ConfirmPhoneVerificationDto, DemoLoginDto, DemoRole, GoogleRedeemDto, LineRedeemDto, LoginDto, RegisterDto, RequestPhoneVerificationDto, UpdateProfileDto, XRedeemDto } from './auth.dto';
 import { SmsVerificationProvider } from './sms-verification.provider';
 import { ImageStorageService } from '../storage/image-storage.service';
 
@@ -34,6 +34,15 @@ export class AuthService {
     const user = await this.repository.findUserByEmail(input.email.trim().toLowerCase());
     if (!user || !(await compare(input.password, user.passwordHash))) throw new UnauthorizedException('メールアドレスまたはパスワードが正しくありません');
     return { user: this.publicUser(user), ...(await this.issueTokens(user.id)) };
+  }
+
+  async demoLogin(input: DemoLoginDto): Promise<AuthResponse> {
+    if (input.role !== DemoRole.HOST && input.role !== DemoRole.GUEST) throw new BadRequestException('デモの役割が正しくありません');
+    const email = input.role === DemoRole.HOST
+      ? process.env.HANGOUTNOW_DEMO_HOST_EMAIL || 'demo-host@hangoutnow.example'
+      : process.env.HANGOUTNOW_DEMO_GUEST_EMAIL || 'demo-guest@hangoutnow.example';
+    const password = process.env.HANGOUTNOW_DEMO_PASSWORD || 'HangoutNow-Demo-2026!';
+    return this.login({ email, password });
   }
 
   async lineAuthorizeUrl(returnTo: string): Promise<string> {

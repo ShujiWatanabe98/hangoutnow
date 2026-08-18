@@ -160,8 +160,7 @@ async function redeemOAuthTicket(){
 }
 
 async function demoLogin(role, button) {
-  const account = DEMO_ACCOUNTS?.[role];
-  if (!account) return;
+  if (!DEMO_ACCOUNTS?.[role]) return;
   const original = button.innerHTML;
   document.querySelectorAll('[data-demo-role]').forEach((item)=>item.disabled=true);
   const slowTimer = setTimeout(()=>{button.innerHTML='<b>デモを起動中…</b><small>初回は10〜30秒ほどかかる場合があります</small>'},5000);
@@ -169,11 +168,11 @@ async function demoLogin(role, button) {
   try {
     session = null;
     try {
-      session = await api('/auth/login',{method:'POST',body:JSON.stringify(account)});
+      session = await api('/auth/demo-login',{method:'POST',body:JSON.stringify({role})});
     } catch(firstError) {
       button.innerHTML='<b>再接続中…</b><small>デモサーバーの起動を待っています</small>';
       await new Promise((resolve)=>setTimeout(resolve,2000));
-      session = await api('/auth/login',{method:'POST',body:JSON.stringify(account)}).catch(()=>{throw firstError});
+      session = await api('/auth/demo-login',{method:'POST',body:JSON.stringify({role})}).catch(()=>{throw firstError});
     }
     clearTimeout(slowTimer);
     demoRole = role;

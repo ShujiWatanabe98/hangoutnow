@@ -26,7 +26,6 @@ const HANGOUT_IMAGE_PRESETS = [
   { label: "ランニング", uri: DEFAULT_HANGOUT_IMAGES.RUNNING, category: "ランニング", title: "新宿を気軽にランニングしよう", description: "会話できるゆっくりペースで走ります。初心者も経験者も一緒に楽しみましょう！" },
   { label: "飲み会", uri: DEFAULT_HANGOUT_IMAGES.DRINKING, category: "飲み会", title: "新宿で気軽に飲もう", description: "仕事帰りに楽しく乾杯しませんか？初参加の方も入りやすい気軽な飲み会です！" },
 ] as const;
-const DEMO_PASSWORD = "HangoutNow-Demo-2026!";
 const SESSION_KEY = "hangout-now-session";
 const LINE_REDIRECT_URI = "hangoutnow://auth/line";
 WebBrowser.maybeCompleteAuthSession();
@@ -448,10 +447,10 @@ export default function App() {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch(`${API_URL}/auth/login`, {
+      const response = await fetch(`${API_URL}${role ? "/auth/demo-login" : "/auth/login"}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(role ? { role } : { email, password }),
       });
       const data = (await readJson(response)) as Session | { message?: string };
       if (!response.ok) throw new Error("message" in data && data.message ? data.message : "ログインできませんでした");
@@ -1174,11 +1173,11 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine }: { loading: 
           <Text style={styles.demoHeading}>役割を選んですぐに体験</Text>
           <Text style={styles.demoDescription}>登録や電話番号入力は必要ありません。</Text>
           <View style={styles.demoRow}>
-            <Pressable disabled={loading} style={styles.roleButton} onPress={() => onLogin("demo-host@hangoutnow.example", DEMO_PASSWORD, "host")}>
+            <Pressable disabled={loading} style={styles.roleButton} onPress={() => onLogin("", "", "host")}>
               <Text style={styles.roleTitle}>主催者として見る</Text>
               <Text style={styles.roleHint}>募集管理・承認</Text>
             </Pressable>
-            <Pressable disabled={loading} style={[styles.roleButton, styles.roleGuest]} onPress={() => onLogin("demo-guest@hangoutnow.example", DEMO_PASSWORD, "guest")}>
+            <Pressable disabled={loading} style={[styles.roleButton, styles.roleGuest]} onPress={() => onLogin("", "", "guest")}>
               <Text style={styles.roleTitle}>参加者として見る</Text>
               <Text style={styles.roleHint}>検索・トーク</Text>
             </Pressable>

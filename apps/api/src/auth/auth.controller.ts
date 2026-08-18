@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, HttpCode, Inject, Patch, Post, Query, Re
 import { Throttle } from '@nestjs/throttler';
 import { AccessTokenGuard, AuthenticatedRequest } from './access-token.guard';
 import { AuthService } from './auth.service';
-import { AppleCallbackDto, AppleRedeemDto, AppleStartDto, ConfirmPhoneVerificationDto, GoogleRedeemDto, GoogleStartDto, LineRedeemDto, LineStartDto, LoginDto, RefreshDto, RegisterDto, RequestPhoneVerificationDto, UpdateProfileDto, XRedeemDto, XStartDto } from './auth.dto';
+import { AppleCallbackDto, AppleRedeemDto, AppleStartDto, ConfirmPhoneVerificationDto, DemoLoginDto, GoogleRedeemDto, GoogleStartDto, LineRedeemDto, LineStartDto, LoginDto, RefreshDto, RegisterDto, RequestPhoneVerificationDto, UpdateProfileDto, XRedeemDto, XStartDto } from './auth.dto';
 import { HostStatusService } from '../host-status/host-status.service';
 
 @Controller('auth')
@@ -10,6 +10,7 @@ export class AuthController {
   constructor(@Inject(AuthService) private readonly auth: AuthService) {}
   @Post('register') @Throttle({ default: { limit: 5, ttl: 60_000 } }) register(@Body() input: RegisterDto) { return this.auth.register(input); }
   @Post('login') @Throttle({ default: { limit: 5, ttl: 60_000 } }) @HttpCode(200) login(@Body() input: LoginDto) { return this.auth.login(input); }
+  @Post('demo-login') @Throttle({ default: { limit: 60, ttl: 60_000 } }) @HttpCode(200) demoLogin(@Body() input: DemoLoginDto) { return this.auth.demoLogin(input); }
   @Post('refresh') @HttpCode(200) refresh(@Body() input: RefreshDto) { return this.auth.refresh(input.refreshToken); }
   @Post('logout') @HttpCode(204) async logout(@Body() input: RefreshDto): Promise<void> { await this.auth.logout(input.refreshToken); }
   @Get('line/start') @Redirect() async lineStart(@Query() input: LineStartDto) { return { url: await this.auth.lineAuthorizeUrl(input.returnTo), statusCode: 302 }; }

@@ -58,6 +58,18 @@ describe('authentication and profile', () => {
   }
   afterEach(async () => { await app?.close(); app = undefined; vi.unstubAllGlobals(); delete process.env.LINE_LOGIN_CHANNEL_ID; delete process.env.LINE_LOGIN_CHANNEL_SECRET; delete process.env.GOOGLE_LOGIN_CLIENT_ID; delete process.env.GOOGLE_LOGIN_CLIENT_SECRET; delete process.env.APPLE_LOGIN_CLIENT_ID; delete process.env.APPLE_TEAM_ID; delete process.env.APPLE_KEY_ID; delete process.env.APPLE_PRIVATE_KEY; delete process.env.X_LOGIN_CLIENT_ID; delete process.env.X_LOGIN_CLIENT_SECRET; });
 
+  it('logs in both public demo roles through the dedicated endpoint', async () => {
+    app = await createApp();
+    const password = 'HangoutNow-Demo-2026!';
+    await request(app.getHttpServer()).post('/auth/register').send({ email: 'demo-host@hangoutnow.example', password, displayName: 'マミ', birthDate: '1990-01-01', gender: 'FEMALE' }).expect(201);
+    await request(app.getHttpServer()).post('/auth/register').send({ email: 'demo-guest@hangoutnow.example', password, displayName: 'マドカ', birthDate: '1991-01-01', gender: 'FEMALE' }).expect(201);
+    const host = await request(app.getHttpServer()).post('/auth/demo-login').send({ role: 'host' }).expect(200);
+    const guest = await request(app.getHttpServer()).post('/auth/demo-login').send({ role: 'guest' }).expect(200);
+    expect(host.body.user.displayName).toBe('マミ');
+    expect(guest.body.user.displayName).toBe('マドカ');
+    await request(app.getHttpServer()).post('/auth/demo-login').send({ role: 'unknown' }).expect(400);
+  });
+
   it('registers with a verified LINE identity and rejects ticket reuse', async()=>{
     process.env.LINE_LOGIN_CHANNEL_ID='2011130010';process.env.LINE_LOGIN_CHANNEL_SECRET='test-secret';
     vi.stubGlobal('fetch',vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({id_token:'line-id-token'}),{status:200})).mockResolvedValueOnce(new Response(JSON.stringify({sub:'line-user-1',name:'LINE User',picture:'https://example.com/photo.jpg',nonce:'line-nonce'}),{status:200})));

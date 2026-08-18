@@ -33,10 +33,7 @@ createServer(async (request, response) => {
   if(requestedPath==='/config.js'){
     const config={
       apiUrl:proxyApiUrl?'/api':process.env.API_URL||'http://localhost:3000',
-      demoAccounts:{
-        host:{email:process.env.HANGOUTNOW_DEMO_HOST_EMAIL||'demo-host@hangoutnow.example',password:process.env.HANGOUTNOW_DEMO_PASSWORD||'HangoutNow-Demo-2026!'},
-        guest:{email:process.env.HANGOUTNOW_DEMO_GUEST_EMAIL||'demo-guest@hangoutnow.example',password:process.env.HANGOUTNOW_DEMO_PASSWORD||'HangoutNow-Demo-2026!'},
-      },
+      demoAccounts:{host:{enabled:true},guest:{enabled:true}},
     };
     response.writeHead(200,{'content-type':'text/javascript; charset=utf-8','cache-control':'no-store'});
     response.end(`globalThis.HANGOUT_NOW_CONFIG=${JSON.stringify(config)};`);

@@ -19,6 +19,9 @@ export class LoginDto {
   @IsString({ message: 'パスワードを入力してください' }) password!: string;
 }
 
+export enum DemoRole { HOST = 'host', GUEST = 'guest' }
+export class DemoLoginDto { @IsEnum(DemoRole) role!: DemoRole; }
+
 export class RefreshDto { @IsString() @MinLength(20) refreshToken!: string; }
 
 export class UpdateProfileDto {
