@@ -122,6 +122,8 @@ type Hangout = {
   meetingPlaceName?: string | null;
   meetingAddress?: string | null;
   navigationUrl?: string | null;
+  distanceKm?: number | null;
+  matchScore?: number;
   participantCount: number;
   maxParticipants: number;
   hostMaleCount?: number;
@@ -1239,7 +1241,7 @@ export default function App() {
       )}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <View style={styles.content}>
-        {screen === "home" && <HomeScreen user={session.user} hangouts={hangouts} refreshing={refreshing} locationLabel={locationLabel} selectedArea={selectedArea} demoRole={demoRole} onArea={chooseArea} onLocation={useCurrentLocation} onRefresh={refreshCurrent} onOpen={openHangout} onHeart={toggleHeart} onCreate={() => setScreen(session.user.verificationStatus === "PHONE_VERIFIED" ? "create" : "phone")} />}
+        {screen === "home" && <HomeScreen user={session.user} hangouts={hangouts} refreshing={refreshing} locationLabel={locationLabel} selectedArea={selectedArea} demoRole={demoRole} onArea={chooseArea} onLocation={useCurrentLocation} onMap={() => setScreen("map")} onRefresh={refreshCurrent} onOpen={openHangout} onHeart={toggleHeart} onCreate={() => setScreen(session.user.verificationStatus === "PHONE_VERIFIED" ? "create" : "phone")} />}
         {screen === "map" && <MapScreen hangouts={hangouts} locationLabel={locationLabel} onBack={() => setScreen("home")} onLocation={useCurrentLocation} onOpen={openHangout} />}
         {screen === "create" && <CreateHangoutScreen area={selectedArea} onBack={() => setScreen("home")} onSubmit={createHangout} />}
         {screen === "detail" && selectedHangout && <HangoutDetailScreen user={session.user} hangout={selectedHangout} requests={joinRequests} onBack={() => setScreen("home")} onJoin={joinHangout} onChat={openHangoutChat} onStart={startHangout} onFinish={confirmFinishHangout} onCancel={confirmCancelHangout} onEdit={updateHangout} onDecide={decideJoinRequest} onReport={confirmReportHost} onAttendance={updateAttendance} onMatchFeedback={submitMatchFeedback} />}
@@ -1406,7 +1408,7 @@ function CountdownText({ startAt, style }: { startAt: string; style?: object }) 
   return <Text style={style}>{label}</Text>;
 }
 
-function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, demoRole, onArea, onLocation, onRefresh, onOpen, onHeart, onCreate }: { user: User; hangouts: Hangout[]; refreshing: boolean; locationLabel: string; selectedArea: AlphaArea; demoRole: "host" | "guest" | null; onArea: (area: AlphaArea) => void; onLocation: () => void; onRefresh: () => void; onOpen: (hangout: Hangout) => void; onHeart: (hangout: Hangout) => void; onCreate: () => void }) {
+function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, demoRole, onArea, onLocation, onMap, onRefresh, onOpen, onHeart, onCreate }: { user: User; hangouts: Hangout[]; refreshing: boolean; locationLabel: string; selectedArea: AlphaArea; demoRole: "host" | "guest" | null; onArea: (area: AlphaArea) => void; onLocation: () => void; onMap: () => void; onRefresh: () => void; onOpen: (hangout: Hangout) => void; onHeart: (hangout: Hangout) => void; onCreate: () => void }) {
   const [filter, setFilter] = useState<"おすすめ" | "30分後" | "1時間後" | "3時間後">("おすすめ");
   const homeStateLabel = (hangout: Hangout) => hangout.hostUserId === user.id && ["OPEN", "FULL"].includes(hangout.status) ? "主催中" : stateLabel(hangout);
   const timeLabel = (startAt: string) => {
@@ -1414,6 +1416,7 @@ function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, d
     return minutes <= 45 ? "30分後" : minutes <= 90 ? "1時間後" : "3時間後";
   };
   const visibleHangouts = filter === "おすすめ" ? hangouts : hangouts.filter((hangout) => timeLabel(hangout.startAt) === filter);
+  const conditionLabel = (hangout: Hangout) => `${hangout.genderRestriction === "MALE_ONLY" ? "男性のみ" : hangout.genderRestriction === "FEMALE_ONLY" ? "女性のみ" : "だれでも"}${hangout.maxAge ? `・${hangout.maxAge === 29 ? "20代" : hangout.maxAge === 39 ? "30代" : "50代"}まで` : ""}`;
   return (
     <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
       {demoRole && <View style={styles.demoJourney}><Text style={styles.demoJourneyTitle}>デモ：マミの飲み企画</Text><Text style={styles.demoJourneyText}>1. 主催者は30代女性のマミ{`\n`}2. 20代男性のマサヤは承認済み{`\n`}3. 30代女性のマドカはHangoutを検索中{`\n`}4. マドカが途中参加を申請{`\n`}5. 承認後はグループトークで会話</Text><Text style={styles.demoJourneyHint}>「マミと新宿で気軽に飲もう」を開いて試せます。</Text></View>}
@@ -1441,7 +1444,7 @@ function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, d
       </ScrollView>
       <View style={styles.sectionHead}>
         <Text style={styles.sectionTitle}>近くのHangout</Text>
-        <Text style={styles.muted}>{visibleHangouts.length}件・距離順</Text>
+        <View style={styles.sectionHeadActions}><Text style={styles.muted}>{visibleHangouts.length}件・おすすめ順</Text><Pressable style={styles.homeMapButton} onPress={onMap} accessibilityRole="button" accessibilityLabel="近くのHangoutをマップで表示"><Text style={styles.homeMapButtonText}>マップ</Text></Pressable></View>
       </View>
       {visibleHangouts.map((hangout) => (
         <Pressable key={hangout.id} style={styles.card} onPress={() => onOpen(hangout)}>
@@ -1454,23 +1457,23 @@ function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, d
             <View style={styles.cardCopy}>
               <Text style={styles.cardCategory}>{hangout.category}</Text>
               <Text style={styles.cardTitle}>{hangout.title}</Text>
-              <CountdownText startAt={hangout.startAt} style={styles.muted} />
-              <Text style={styles.muted}>{hangout.locationName}</Text>
+              <View style={styles.cardMetaRow}><CountdownText startAt={hangout.startAt} style={styles.muted} />{hangout.distanceKm != null && <Text style={styles.muted}>・ 約{hangout.distanceKm}km</Text>}</View>
+              <Text style={styles.muted}>{hangout.publicLocationName || hangout.locationName}</Text>
               <Text style={styles.muted}>
-                参加 {hangout.participantCount} / {hangout.maxParticipants}人
+                参加 {hangout.participantCount} / {hangout.maxParticipants}人 ・ {conditionLabel(hangout)}
               </Text>
             </View>
             <Text style={styles.status}>{homeStateLabel(hangout)}</Text>
           </View>
           <View style={styles.cardBottom}>
-            <View>
-              <Text style={styles.hostName}>
-                主催：{hangout.host.displayName}
-                {hangout.host.verification === "PHONE_VERIFIED" ? " ・確認済み" : ""}
-              </Text>
-              <Text style={styles.hostTier}>{hangout.host.hostStatus?.label || "ホワイト"}</Text>
+            <View style={styles.cardHostRow}>
+              {hangout.host.profilePhoto ? <Image source={{ uri: hangout.host.profilePhoto }} style={styles.cardHostPhoto} /> : <View style={styles.cardHostFallback}><Text style={styles.cardHostInitial}>{hangout.host.displayName.slice(0,1)}</Text></View>}
+              <View>
+                <Text style={styles.hostName}>{hangout.host.displayName}{hangout.host.verification === "PHONE_VERIFIED" ? " ・確認済み" : ""}</Text>
+                <Text style={styles.hostTier}>{hangout.host.hostStatus?.label || "ホワイト"}{hangout.host.hostStatus?.hostAverageRating ? ` ・ 主催評価 ★ ${hangout.host.hostStatus.hostAverageRating}` : " ・ 主催評価なし"}</Text>
+              </View>
             </View>
-            <Text style={styles.detailLink}>詳細を見る ›</Text>
+            <View style={styles.cardMatchWrap}><Text style={styles.cardMatchLabel}>相性</Text><Text style={styles.cardMatchScore}>{Math.round(hangout.matchScore ?? 70)}%</Text></View>
           </View>
         </Pressable>
       ))}
@@ -2596,6 +2599,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   sectionTitle: { fontSize: 19, fontWeight: "900" },
+  sectionHeadActions: { flexDirection: "row", alignItems: "center", gap: 9 },
+  homeMapButton: { minHeight: 36, justifyContent: "center", paddingHorizontal: 11, borderRadius: 11, borderWidth: 1, borderColor: "#cfd8d0", backgroundColor: "#fff" },
+  homeMapButtonText: { color: "#176b48", fontSize: 10, fontWeight: "900" },
   muted: { fontSize: 12, color: "#6d766f", marginTop: 3 },
   card: {
     backgroundColor: "#fff",
@@ -2628,6 +2634,7 @@ const styles = StyleSheet.create({
   },
   cardCopy: { flex: 1 },
   cardTitle: { fontSize: 16, fontWeight: "900", color: "#17221d" },
+  cardMetaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap" },
   cardBottom: {
     marginTop: 14,
     flexDirection: "row",
@@ -2636,6 +2643,13 @@ const styles = StyleSheet.create({
   },
   hostName: { fontSize: 12, fontWeight: "700" },
   hostTier: { fontSize: 9, fontWeight: "900", color: "#8a6647", marginTop: 3 },
+  cardHostRow: { flex: 1, flexDirection: "row", alignItems: "center", gap: 9, paddingRight: 8 },
+  cardHostPhoto: { width: 38, height: 38, borderRadius: 19, backgroundColor: "#dfe6df" },
+  cardHostFallback: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: "#e9f1e9" },
+  cardHostInitial: { color: "#176b48", fontWeight: "900" },
+  cardMatchWrap: { minWidth: 58, alignItems: "flex-end" },
+  cardMatchLabel: { color: "#6d766f", fontSize: 9, fontWeight: "800" },
+  cardMatchScore: { color: "#176b48", fontSize: 19, fontWeight: "900" },
   status: {
     fontSize: 11,
     fontWeight: "900",

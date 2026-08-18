@@ -82,6 +82,13 @@ test('native talk notifications display and open the addressed room', async () =
   assert.match(chat, /'DIRECT_MESSAGE'/);
 });
 
+test('native home exposes the current production recommendation cards', async () => {
+  const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
+  for (const contract of ['matchScore', 'distanceKm', '相性', 'おすすめ順', 'publicLocationName || hangout.locationName', 'conditionLabel(hangout)', '主催評価', 'onMap={() => setScreen("map")}']) {
+    assert.ok(mobile.includes(contract), `missing native production-home contract: ${contract}`);
+  }
+});
+
 test('demo authentication is not rolled back by optional initial data loading', async () => {
   const application = await readFile(new URL('app.js', publicDirectory), 'utf8');
   const loginStart = application.indexOf('async function demoLogin');
