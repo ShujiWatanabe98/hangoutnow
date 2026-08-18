@@ -29,7 +29,7 @@ const HANGOUT_IMAGE_PRESETS = [
 const SESSION_KEY = "hangout-now-session";
 const LINE_REDIRECT_URI = "hangoutnow://auth/line";
 WebBrowser.maybeCompleteAuthSession();
-const INTEREST_OPTIONS = ["ワイン", "バー", "居酒屋", "寿司", "焼肉", "スイーツ", "カラオケ", "ダーツ", "ゲーム", "映画", "シーシャ", "英会話", "ごはん", "散歩"] as const;
+const INTEREST_OPTIONS = ["カフェ", "ラーメン", "ランニング", "飲み会", "ダーツ", "バー", "ごはん", "カラオケ", "英会話", "シーシャ", "スイーツ", "映画"] as const;
 
 type User = {
   id: string;

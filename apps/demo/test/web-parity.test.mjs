@@ -66,13 +66,18 @@ test('profile remains behind talk while returning with the back animation', asyn
 });
 
 test('profile interest choices are unique and rendered by one implementation', async () => {
-  const application = await readFile(new URL('app.js', publicDirectory), 'utf8');
+  const [application, mobile] = await Promise.all([
+    readFile(new URL('app.js', publicDirectory), 'utf8'),
+    readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8'),
+  ]);
   const optionsSource = application.match(/const INTEREST_OPTIONS=\[([^\]]+)\]/)?.[1] ?? '';
   const options = [...optionsSource.matchAll(/'([^']+)'/g)].map((match) => match[1]);
+  const expected = ['カフェ', 'ラーメン', 'ランニング', '飲み会', 'ダーツ', 'バー', 'ごはん', 'カラオケ', '英会話', 'シーシャ', 'スイーツ', '映画'];
 
-  assert.ok(options.length > 0);
+  assert.deepEqual(options, expected, 'interest buttons must match Hangout Now image choices');
   assert.equal(new Set(options).size, options.length, 'interest option labels must be unique');
   assert.ok(!application.includes('profileInterestObserver'), 'legacy interest picker must not render a duplicate button set');
+  for (const option of expected) assert.ok(mobile.includes(`"${option}"`), `mobile interest choices must include ${option}`);
 });
 
 test('retired web and mobile implementations do not return', async () => {
