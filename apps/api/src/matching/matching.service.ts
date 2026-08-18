@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { FunnelEventType, Gender, JoinRequestStatus } from '@prisma/client';
+import { FunnelEventType, Gender, HangoutStatus, JoinRequestStatus, ModerationActionType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface MatchCandidate {
@@ -11,7 +11,7 @@ export interface MatchCandidate {
   title: string;
   startAt: Date;
   maxParticipants: number;
-  host: { gender?: Gender | null; birthDate?: Date | null };
+  host: { gender?: Gender | null; birthDate?: Date | null; socialStyles?: string[]; preferredLanguages?: string[] };
 }
 
 interface MatchProfile {
@@ -25,9 +25,12 @@ interface MatchProfile {
   preferredGroupSizes: number[];
   matchingDataConsent: boolean;
   behaviorLearningEnabled: boolean;
+  socialStyles: string[];
+  preferredLanguages: string[];
 }
 
 interface BehaviorSignal { category: string; serviceArea: string; strength: number }
+export interface InteractionSignal { averageRating: number | null; ratingCount: number; completionRate: number | null; conversationParticipationRate: number | null; enforcedSafetyActions: number }
 
 const clamp = (value: number) => Math.max(40, Math.min(99, Math.round(value)));
 const normalized = (value: string) => value.trim().toLocaleLowerCase('ja-JP');
@@ -48,7 +51,7 @@ function age(birthDate?: Date | null) {
   return value;
 }
 
-export function calculateMatchScore(profile: MatchProfile, candidate: MatchCandidate, behavior: BehaviorSignal[] = [], now = new Date()) {
+export function calculateMatchScore(profile: MatchProfile, candidate: MatchCandidate, behavior: BehaviorSignal[] = [], now = new Date(), interaction?: InteractionSignal) {
   if (!profile.matchingDataConsent) return 70;
   let score = 62;
   const activityAliases: Record<string, string[]> = {
@@ -73,6 +76,8 @@ export function calculateMatchScore(profile: MatchProfile, candidate: MatchCandi
     score += (profile.preferredAgeMin === null || hostAge >= profile.preferredAgeMin) && (profile.preferredAgeMax === null || hostAge <= profile.preferredAgeMax) ? 5 : -5;
   }
   if (profile.preferredGenders.length && candidate.host.gender) score += profile.preferredGenders.includes(candidate.host.gender) ? 4 : -4;
+  if (profile.socialStyles.length && candidate.host.socialStyles?.length) score += includesLoose(profile.socialStyles, ...candidate.host.socialStyles) ? 3 : 0;
+  if (profile.preferredLanguages.length && candidate.host.preferredLanguages?.length) score += includesLoose(profile.preferredLanguages, ...candidate.host.preferredLanguages) ? 4 : -2;
 
   const hoursAway = Math.max(0, (candidate.startAt.getTime() - now.getTime()) / 3_600_000);
   if (profile.participationUrgency === 'NOW') score += hoursAway <= 3 ? 7 : -3;
@@ -84,6 +89,12 @@ export function calculateMatchScore(profile: MatchProfile, candidate: MatchCandi
     for (const signal of behavior) {
       if (normalized(signal.category) === normalized(candidate.category)) score += signal.strength;
       if (normalized(signal.serviceArea) === normalized(candidate.serviceArea)) score += signal.strength * 0.45;
+    }
+    if (interaction) {
+      if (interaction.ratingCount >= 3 && interaction.averageRating !== null) score += Math.max(-4, Math.min(4, (interaction.averageRating - 3) * 2));
+      if (interaction.completionRate !== null) score += Math.max(-3, Math.min(3, (interaction.completionRate - 0.7) * 6));
+      if (interaction.conversationParticipationRate !== null) score += Math.max(0, Math.min(2, interaction.conversationParticipationRate * 2));
+      score -= Math.min(8, interaction.enforcedSafetyActions * 4);
     }
   }
   return clamp(score);
@@ -98,10 +109,15 @@ export class MatchingService {
       preferredAreas: true, preferredActivities: true, preferredAgeMin: true, preferredAgeMax: true,
       preferredGenders: true, activityTimeSlots: true, participationUrgency: true, preferredGroupSizes: true,
       matchingDataConsent: true, behaviorLearningEnabled: true,
+      socialStyles: true, preferredLanguages: true,
     }});
     if (!profile) return new Map<string, number>();
-    const behavior = profile.matchingDataConsent && profile.behaviorLearningEnabled ? await this.behaviorSignals(userId) : [];
-    return new Map(candidates.map(candidate => [candidate.id, calculateMatchScore(profile, candidate, behavior)]));
+    const learningEnabled = profile.matchingDataConsent && profile.behaviorLearningEnabled;
+    const [behavior, interactions] = await Promise.all([
+      learningEnabled ? this.behaviorSignals(userId) : Promise.resolve([]),
+      learningEnabled ? this.interactionSignals(candidates.map(candidate => candidate.hostUserId)) : Promise.resolve(new Map<string, InteractionSignal>()),
+    ]);
+    return new Map(candidates.map(candidate => [candidate.id, calculateMatchScore(profile, candidate, behavior, new Date(), interactions.get(candidate.hostUserId))]));
   }
 
   private async behaviorSignals(userId: string): Promise<BehaviorSignal[]> {
@@ -113,5 +129,31 @@ export class MatchingService {
     ]);
     const compact = (rows: Array<{ category: string; serviceArea: string }>, strength: number) => rows.slice(0, 12).map(row => ({ ...row, strength }));
     return [...compact(hearted, 0.8), ...compact(joined, 1.5), ...compact(hosted, 1.2), ...compact(viewed, 0.25)];
+  }
+
+  private async interactionSignals(hostUserIds: string[]) {
+    const ids = [...new Set(hostUserIds)];
+    if (!ids.length) return new Map<string, InteractionSignal>();
+    const [ratings, hosted, conversationRooms, actions] = await Promise.all([
+      this.db.hangoutRating.groupBy({ by: ['ratedUserId'], where: { ratedUserId: { in: ids } }, _avg: { score: true }, _count: { score: true } }),
+      this.db.hangout.groupBy({ by: ['hostUserId', 'status'], where: { hostUserId: { in: ids } }, _count: { _all: true } }),
+      this.db.message.findMany({ where: { senderUserId: { in: ids }, room: { hangout: { hostUserId: { in: ids } } } }, select: { roomId: true, senderUserId: true, room: { select: { hangout: { select: { hostUserId: true } } } } } }),
+      this.db.moderationAction.findMany({ where: { targetUserId: { in: ids }, action: { in: [ModerationActionType.WARNING, ModerationActionType.SUSPEND, ModerationActionType.BAN] } }, select: { targetUserId: true } }),
+    ]);
+    const result = new Map<string, InteractionSignal>();
+    for (const id of ids) {
+      const rating = ratings.find(row => row.ratedUserId === id);
+      const hostRows = hosted.filter(row => row.hostUserId === id);
+      const total = hostRows.reduce((sum, row) => sum + row._count._all, 0);
+      const completed = hostRows.find(row => row.status === HangoutStatus.FINISHED)?._count._all ?? 0;
+      const roomsWithHostMessage = new Set(conversationRooms.filter(message => message.senderUserId === id && message.room.hangout.hostUserId === id).map(message => message.roomId)).size;
+      result.set(id, {
+        averageRating: rating?._avg.score ?? null, ratingCount: rating?._count.score ?? 0,
+        completionRate: total ? completed / total : null,
+        conversationParticipationRate: total ? Math.min(1, roomsWithHostMessage / total) : null,
+        enforcedSafetyActions: actions.filter(row => row.targetUserId === id).length,
+      });
+    }
+    return result;
   }
 }
