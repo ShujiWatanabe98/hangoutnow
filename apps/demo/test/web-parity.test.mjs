@@ -128,6 +128,18 @@ test('profile Hangouts show loading immediately and return to the preserved prof
   assert.match(requests, /\.hangout-detail-sheet\.profile-origin\{z-index:42\}/);
 });
 
+test('completed Hangout ratings have a persistent completion action that removes rating screens', async () => {
+  const [application, portraits] = await Promise.all([
+    readFile(new URL('app.js', publicDirectory), 'utf8'),
+    readFile(new URL('portraits.css', publicDirectory), 'utf8'),
+  ]);
+
+  assert.match(application, /class="primary hangout-rating-complete" data-finish-ratings>評価完了<\/button>/);
+  assert.match(application, /document\.querySelectorAll\('\.hangout-rating-sheet'\)\.forEach\(screen=>screen\.remove\(\)\)/);
+  assert.match(application, /document\.querySelector\('\.hangout-detail-sheet'\)\?\.remove\(\);home\(\)/);
+  assert.match(portraits, /\.hangout-rating-complete\{position:sticky;bottom:0;z-index:2/);
+});
+
 test('retired web and mobile implementations do not return', async () => {
   const [application, portraits, requests, mobile] = await Promise.all([
     readFile(new URL('app.js', publicDirectory), 'utf8'),
