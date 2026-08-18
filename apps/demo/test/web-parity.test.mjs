@@ -80,6 +80,19 @@ test('profile interest choices are unique and rendered by one implementation', a
   for (const option of expected) assert.ok(mobile.includes(`"${option}"`), `mobile interest choices must include ${option}`);
 });
 
+test('Hangout creation fixes the organizer to one person', async () => {
+  const [application, mobile, service] = await Promise.all([
+    readFile(new URL('app.js', publicDirectory), 'utf8'),
+    readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../../api/src/hangouts/hangout.service.ts', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(application, /partyGrid\.previousElementSibling\.remove\(\);partyGrid\.nextElementSibling\.remove\(\);partyGrid\.remove\(\)/);
+  assert.ok(!mobile.includes('<Text style={styles.label}>主催者側の人数</Text>'));
+  assert.ok(!mobile.includes('hostMaleCount: input.hostMaleCount'));
+  assert.match(service, /const hostMaleCount=user\.gender===Gender\.FEMALE\?0:1;const hostFemaleCount=user\.gender===Gender\.FEMALE\?1:0/);
+});
+
 test('retired web and mobile implementations do not return', async () => {
   const [application, portraits, requests, mobile] = await Promise.all([
     readFile(new URL('app.js', publicDirectory), 'utf8'),

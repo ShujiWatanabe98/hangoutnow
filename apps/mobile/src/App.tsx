@@ -173,8 +173,6 @@ type CreateHangoutInput = {
   meetingAddress: string;
   navigationUrl: string;
   maxParticipants: number;
-  hostMaleCount: number;
-  hostFemaleCount: number;
   genderRestriction: "ANY" | "MALE_ONLY" | "FEMALE_ONLY";
   maxAge: number | null;
   area: AlphaArea;
@@ -590,8 +588,6 @@ export default function App() {
           latitude: coordinates.latitude,
           longitude: coordinates.longitude,
           maxParticipants: input.maxParticipants,
-          hostMaleCount: input.hostMaleCount,
-          hostFemaleCount: input.hostFemaleCount,
           genderRestriction: input.genderRestriction,
           maxAge: input.maxAge,
         }),
@@ -1105,7 +1101,7 @@ export default function App() {
       <View style={styles.content}>
         {screen === "home" && <HomeScreen user={session.user} hangouts={hangouts} refreshing={refreshing} locationLabel={locationLabel} selectedArea={selectedArea} demoRole={demoRole} onArea={chooseArea} onLocation={useCurrentLocation} onRefresh={refreshCurrent} onOpen={openHangout} onHeart={toggleHeart} onCreate={() => setScreen(session.user.verificationStatus === "PHONE_VERIFIED" ? "create" : "phone")} />}
         {screen === "map" && <MapScreen hangouts={hangouts} locationLabel={locationLabel} onBack={() => setScreen("home")} onLocation={useCurrentLocation} onOpen={openHangout} />}
-        {screen === "create" && <CreateHangoutScreen area={selectedArea} gender={session.user.gender} onBack={() => setScreen("home")} onSubmit={createHangout} />}
+        {screen === "create" && <CreateHangoutScreen area={selectedArea} onBack={() => setScreen("home")} onSubmit={createHangout} />}
         {screen === "detail" && selectedHangout && <HangoutDetailScreen user={session.user} hangout={selectedHangout} requests={joinRequests} onBack={() => setScreen("home")} onJoin={joinHangout} onChat={openHangoutChat} onStart={startHangout} onFinish={confirmFinishHangout} onCancel={confirmCancelHangout} onEdit={updateHangout} onDecide={decideJoinRequest} onReport={confirmReportHost} onAttendance={updateAttendance} />}
         {screen === "phone" && <PhoneVerificationScreen onBack={() => setScreen("profile")} onVerify={verifyPhone} />}
         {screen === "chat" && <ChatScreen user={session.user} rooms={rooms} selectedRoom={selectedRoom} messages={messages} messageBody={messageBody} sending={sending} refreshing={refreshing} unreadByRoom={unreadByRoom} realtimeOnline={realtimeOnline} onRefresh={refreshCurrent} onOpen={openRoom} onRate={rateParticipant} onBack={() => selectedRoom ? setSelectedRoom(null) : setScreen("home")} onChangeBody={setMessageBody} onSend={sendMessage} />}
@@ -1386,9 +1382,9 @@ function MapScreen({ hangouts, locationLabel, onBack, onLocation, onOpen }: { ha
   );
 }
 
-type CreateField = "title" | "publicLocationName" | "meetingPlaceName" | "meetingAddress" | "hostParty" | "maxParticipants";
+type CreateField = "title" | "publicLocationName" | "meetingPlaceName" | "meetingAddress" | "maxParticipants";
 
-function CreateHangoutScreen({ area, gender, onBack, onSubmit }: { area: AlphaArea; gender: string | null; onBack: () => void; onSubmit: (input: CreateHangoutInput) => void }) {
+function CreateHangoutScreen({ area, onBack, onSubmit }: { area: AlphaArea; onBack: () => void; onSubmit: (input: CreateHangoutInput) => void }) {
   const [form, setForm] = useState<CreateHangoutInput>({
     title: "",
     description: "",
@@ -1400,8 +1396,6 @@ function CreateHangoutScreen({ area, gender, onBack, onSubmit }: { area: AlphaAr
     meetingAddress: "",
     navigationUrl: "",
     maxParticipants: 4,
-    hostMaleCount: gender === "MALE" ? 1 : 0,
-    hostFemaleCount: gender === "FEMALE" ? 1 : 0,
     genderRestriction: "ANY",
     maxAge: null,
     area,
@@ -1409,7 +1403,7 @@ function CreateHangoutScreen({ area, gender, onBack, onSubmit }: { area: AlphaAr
   const [errors, setErrors] = useState<Partial<Record<CreateField, string>>>({});
   const update = <K extends keyof CreateHangoutInput>(key: K, value: CreateHangoutInput[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
-    setErrors((current) => ({ ...current, [key]: undefined, ...(key === "hostMaleCount" || key === "hostFemaleCount" ? { hostParty: undefined } : {}) }));
+    setErrors((current) => ({ ...current, [key]: undefined }));
   };
   const chooseHangoutImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -1436,9 +1430,7 @@ function CreateHangoutScreen({ area, gender, onBack, onSubmit }: { area: AlphaAr
     if (!form.publicLocationName.trim()) next.publicLocationName = "公開エリアを入力してください";
     if (!form.meetingPlaceName.trim()) next.meetingPlaceName = "集合場所の店名を入力してください";
     if (!form.meetingAddress.trim()) next.meetingAddress = "集合場所の住所を入力してください";
-    if (form.hostMaleCount + form.hostFemaleCount < 1) next.hostParty = "主催者側の人数を設定してください";
     if (form.maxParticipants < 2) next.maxParticipants = "合計人数は2人以上にしてください";
-    if (form.hostMaleCount + form.hostFemaleCount > form.maxParticipants) next.maxParticipants = "合計人数は主催者側の人数以上にしてください";
     setErrors(next);
     if (Object.keys(next).length === 0) onSubmit({ ...form, locationName: `${form.meetingPlaceName.trim()} ${form.meetingAddress.trim()}`.trim() });
   };
@@ -1526,17 +1518,7 @@ function CreateHangoutScreen({ area, gender, onBack, onSubmit }: { area: AlphaAr
         <Text style={styles.label}>ナビアプリの共有URL（任意）</Text>
         <TextInput style={styles.input} value={form.navigationUrl} onChangeText={(value) => update("navigationUrl", value)} autoCapitalize="none" keyboardType="url" maxLength={500} />
       </View>
-      <Text style={styles.label}>主催者側の人数</Text>
-      <View style={[styles.partyCounts, errors.hostParty && styles.invalidGroup]}>
-        {(["hostMaleCount", "hostFemaleCount"] as const).map((key) => (
-          <View key={key} style={styles.partyCount}>
-            <Text>{key === "hostMaleCount" ? "男性" : "女性"}</Text>
-            <View style={styles.choiceRow}>{[0, 1, 2, 3].map((count) => <Pressable key={count} style={[styles.choice, form[key] === count && styles.choiceOn]} onPress={() => update(key, count)}><Text>{count}人</Text></Pressable>)}</View>
-          </View>
-        ))}
-      </View>
-      {errors.hostParty && <Text style={styles.fieldError}>{errors.hostParty}</Text>}
-      <Text style={styles.label}>合計人数（主催者側を含む）</Text>
+      <Text style={styles.label}>合計人数（主催者1人を含む）</Text>
       <View style={[styles.choiceRow, errors.maxParticipants && styles.invalidGroup]}>{[2, 3, 4, 5, 6, 7, 8].map((count) => <Pressable key={count} style={[styles.choice, form.maxParticipants === count && styles.choiceOn]} onPress={() => update("maxParticipants", count)}><Text>{count}人</Text></Pressable>)}</View>
       {errors.maxParticipants && <Text style={styles.fieldError}>{errors.maxParticipants}</Text>}
       <Text style={styles.label}>参加できる性別</Text>

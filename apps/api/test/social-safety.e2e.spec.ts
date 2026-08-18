@@ -358,16 +358,13 @@ describe('social journey safety boundaries', () => {
     await expect(pipe.transform({
       title: 'Invalid', category: 'CAFE', startInMinutes: 15, publicLocationName: '新宿駅周辺', locationName: 'Secret', latitude: 91, longitude: 200, maxParticipants: 1, unexpected: 'field',
     }, { type: 'body', metatype: CreateHangoutDto })).rejects.toMatchObject({ status: 400 });
-    await request(app.getHttpServer()).post('/hangouts').set(auth('host')).send({
-      title: '人数不正', category: 'CAFE', serviceArea: 'SHINJUKU', startInMinutes: 30,
-      publicLocationName: '新宿駅周辺', locationName: '新宿の店舗', maxParticipants: 1, hostMaleCount: 2, hostFemaleCount: 0,
-    }).expect(400);
   });
 
-  it('defaults the organizer count to the organizer gender', async () => {
+  it('always creates a Hangout with exactly one organizer', async () => {
     const response = await request(app.getHttpServer()).post('/hangouts').set(auth('guest')).send({
       title: '女性主催のカフェ', category: 'CAFE', serviceArea: 'SHINJUKU', startInMinutes: 30,
       publicLocationName: '新宿駅周辺', locationName: '新宿のカフェ', maxParticipants: 2,
+      hostMaleCount: 4, hostFemaleCount: 4,
     }).expect(201);
     expect(response.body).toMatchObject({ hostMaleCount: 0, hostFemaleCount: 1, hostParticipantCount: 1, maxParticipants: 2 });
   });
