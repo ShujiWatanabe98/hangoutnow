@@ -20,7 +20,8 @@ export class MatchingAdminService {
   }
 
   async dashboard() {
-    const [configs, users, hangouts, completed, feedback, ratings, reports, funnel, ratingDistribution, declineReasons] = await Promise.all([
+    const now = Date.now();
+    const [configs, users, hangouts, completed, feedback, ratings, reports, funnel, ratingDistribution, declineReasons, active1d, active7d, active30d] = await Promise.all([
       this.db.matchingAlgorithmConfig.findMany({ orderBy: { createdAt: 'desc' }, take: 30 }),
       this.db.user.count(), this.db.hangout.count(), this.db.hangout.count({ where: { status: 'FINISHED' } }),
       this.db.matchFeedback.groupBy({ by: ['algorithmVersion', 'outcome'], _count: { _all: true } }),
@@ -29,8 +30,11 @@ export class MatchingAdminService {
       this.db.funnelEvent.groupBy({ by: ['eventType'], _count: { _all: true } }),
       this.db.hangoutRating.groupBy({ by: ['score'], _count: { _all: true }, orderBy: { score: 'asc' } }),
       this.db.matchFeedback.groupBy({ by: ['reason'], where: { outcome: 'NOT_MATCHED', reason: { not: null } }, _count: { _all: true } }),
+      this.db.refreshToken.findMany({ where: { createdAt: { gte: new Date(now - 24 * 60 * 60 * 1000) } }, distinct: ['userId'], select: { userId: true } }),
+      this.db.refreshToken.findMany({ where: { createdAt: { gte: new Date(now - 7 * 24 * 60 * 60 * 1000) } }, distinct: ['userId'], select: { userId: true } }),
+      this.db.refreshToken.findMany({ where: { createdAt: { gte: new Date(now - 30 * 24 * 60 * 60 * 1000) } }, distinct: ['userId'], select: { userId: true } }),
     ]);
-    return { activeVersion: configs.find(item => item.status === MatchingAlgorithmStatus.ACTIVE)?.version ?? MATCHING_ALGORITHM_VERSION, defaults: DEFAULT_MATCHING_WEIGHTS, metrics: { users, hangouts, completed, averageRating: ratings._avg.score, ratingCount: ratings._count.score, reports }, feedback, funnel, ratingDistribution, declineReasons, configs };
+    return { activeVersion: configs.find(item => item.status === MatchingAlgorithmStatus.ACTIVE)?.version ?? MATCHING_ALGORITHM_VERSION, defaults: DEFAULT_MATCHING_WEIGHTS, metrics: { users, registeredUsers: users, activeUsers: { day: active1d.length, week: active7d.length, month: active30d.length }, hangouts, completed, averageRating: ratings._avg.score, ratingCount: ratings._count.score, reports }, feedback, funnel, ratingDistribution, declineReasons, configs };
   }
 
   create(adminId: string, input: CreateMatchingConfigDto) {
