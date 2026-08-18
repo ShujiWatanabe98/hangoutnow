@@ -292,7 +292,7 @@ export class AuthService {
     const current=await this.requireUser(userId);
     const suppliedPhotos=input.profilePhotos??(input.profilePhoto!==undefined?(input.profilePhoto?[input.profilePhoto]:[]):undefined);
     const profilePhotos=suppliedPhotos===undefined?undefined:await Promise.all(suppliedPhotos.map(photo=>this.images.storeProfilePhoto(userId,photo))).then(items=>items.filter((photo):photo is string=>Boolean(photo)).slice(0,3));
-    const updated=await this.repository.updateProfile(userId,{...input,interests:normalized,preferredAreas:normalizedList(input.preferredAreas),preferredActivities:normalizedList(input.preferredActivities),activityTimeSlots:normalizedList(input.activityTimeSlots),socialStyles:normalizedList(input.socialStyles),participationGoals:normalizedList(input.participationGoals),firstTimePreferences:normalizedList(input.firstTimePreferences),avoidPreferences:normalizedList(input.avoidPreferences),scheduleFlexibility:normalizedList(input.scheduleFlexibility),...(profilePhotos===undefined?{}:{profilePhotos,profilePhoto:profilePhotos[0]??null})});
+    const updated=await this.repository.updateProfile(userId,{...input,interests:normalized,preferredAreas:normalizedList(input.preferredAreas),preferredActivities:normalizedList(input.preferredActivities),activityTimeSlots:normalizedList(input.activityTimeSlots),socialStyles:normalizedList(input.socialStyles),participationGoals:normalizedList(input.participationGoals),firstTimePreferences:normalizedList(input.firstTimePreferences),avoidPreferences:normalizedList(input.avoidPreferences),scheduleFlexibility:normalizedList(input.scheduleFlexibility),preferredLanguages:normalizedList(input.preferredLanguages),...(profilePhotos===undefined?{}:{profilePhotos,profilePhoto:profilePhotos[0]??null})});
     if(profilePhotos!==undefined){const retained=new Set(profilePhotos);for(const oldPhoto of new Set([current.profilePhoto,...current.profilePhotos].filter((value):value is string=>Boolean(value))))if(!retained.has(oldPhoto))await this.images.deleteProfilePhoto(userId,oldPhoto)}
     return this.publicUser(updated);
   }
@@ -351,6 +351,7 @@ export class AuthService {
       socialStyles: user.socialStyles, participationGoals: user.participationGoals, firstTimePreferences: user.firstTimePreferences,
       alcoholPreference: user.alcoholPreference, smokingPreference: user.smokingPreference,
       avoidPreferences: user.avoidPreferences, scheduleFlexibility: user.scheduleFlexibility, behaviorLearningEnabled: user.behaviorLearningEnabled,
+      preferredLanguages: user.preferredLanguages,
       profilePhoto: user.profilePhoto, profilePhotos: user.profilePhotos, phoneNumber: user.phoneNumber,
     };
   }

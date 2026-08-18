@@ -22,6 +22,7 @@ export class PrismaAuthRepository extends AuthRepository {
       socialStyles: user.socialStyles, participationGoals: user.participationGoals, firstTimePreferences: user.firstTimePreferences,
       alcoholPreference: user.alcoholPreference, smokingPreference: user.smokingPreference,
       avoidPreferences: user.avoidPreferences, scheduleFlexibility: user.scheduleFlexibility, behaviorLearningEnabled: user.behaviorLearningEnabled,
+      preferredLanguages: user.preferredLanguages,
       verificationStatus: user.verification, interests: user.interests.map((item) => item.interest.name),
       profilePhoto: user.profilePhoto, profilePhotos: user.profilePhotos, phoneNumber: user.phoneNumber,
     };
@@ -48,7 +49,7 @@ export class PrismaAuthRepository extends AuthRepository {
     const user = await this.prisma.user.create({ data: { id: uuidv7(), ...input, gender: input.gender as 'MALE'|'FEMALE'|'OTHER'|'UNDISCLOSED'|undefined }, include: includeInterests });
     return this.mapUser(user);
   }
-  async updateProfile(userId: string, input: { displayName?: string; bio?: string | null; homeArea?: string | null; interests?: string[]; profilePhoto?: string | null; profilePhotos?: string[]; gender?: string; preferredAreas?: string[]; preferredActivities?: string[]; preferredAgeMin?: number | null; preferredAgeMax?: number | null; preferredGenders?: string[]; activityTimeSlots?: string[]; matchingDataConsent?: boolean; participationUrgency?: string | null; maxTravelMinutes?: number | null; preferredGroupSizes?: number[]; budgetMin?: number | null; budgetMax?: number | null; socialStyles?: string[]; participationGoals?: string[]; firstTimePreferences?: string[]; alcoholPreference?: string | null; smokingPreference?: string | null; avoidPreferences?: string[]; scheduleFlexibility?: string[]; behaviorLearningEnabled?: boolean }): Promise<StoredUser> {
+  async updateProfile(userId: string, input: { displayName?: string; bio?: string | null; homeArea?: string | null; interests?: string[]; profilePhoto?: string | null; profilePhotos?: string[]; gender?: string; preferredAreas?: string[]; preferredActivities?: string[]; preferredAgeMin?: number | null; preferredAgeMax?: number | null; preferredGenders?: string[]; activityTimeSlots?: string[]; matchingDataConsent?: boolean; participationUrgency?: string | null; maxTravelMinutes?: number | null; preferredGroupSizes?: number[]; budgetMin?: number | null; budgetMax?: number | null; socialStyles?: string[]; participationGoals?: string[]; firstTimePreferences?: string[]; alcoholPreference?: string | null; smokingPreference?: string | null; avoidPreferences?: string[]; scheduleFlexibility?: string[]; behaviorLearningEnabled?: boolean; preferredLanguages?: string[] }): Promise<StoredUser> {
     const { interests, gender, preferredGenders, matchingDataConsent, participationUrgency, ...profile } = input;
     const user = await this.prisma.user.update({
       where: { id: userId }, data: {

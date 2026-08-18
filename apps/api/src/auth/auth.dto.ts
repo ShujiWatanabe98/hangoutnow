@@ -22,6 +22,7 @@ export class LoginDto {
 export enum DemoRole { HOST = 'host', GUEST = 'guest' }
 export enum AlcoholPreference { NONE = 'NONE', SOMETIMES = 'SOMETIMES', YES = 'YES' }
 export enum SmokingPreference { NON_SMOKING = 'NON_SMOKING', SEPARATED = 'SEPARATED', NO_PREFERENCE = 'NO_PREFERENCE' }
+export enum LanguagePreference { JAPANESE = 'JAPANESE', ENGLISH = 'ENGLISH', KOREAN = 'KOREAN', CHINESE = 'CHINESE' }
 export class DemoLoginDto { @IsEnum(DemoRole) role!: DemoRole; }
 
 export class RefreshDto { @IsString() @MinLength(20) refreshToken!: string; }
@@ -54,6 +55,7 @@ export class UpdateProfileDto {
   @IsOptional() @IsArray() @ArrayMaxSize(7) @IsString({ each: true }) @MaxLength(40, { each: true }) avoidPreferences?: string[];
   @IsOptional() @IsArray() @ArrayMaxSize(5) @IsString({ each: true }) @MaxLength(40, { each: true }) scheduleFlexibility?: string[];
   @IsOptional() @IsBoolean() behaviorLearningEnabled?: boolean;
+  @IsOptional() @IsArray() @ArrayMaxSize(4) @IsEnum(LanguagePreference, { each: true }) preferredLanguages?: LanguagePreference[];
 }
 
 export class RequestPhoneVerificationDto { @IsString() @Matches(/^\+[1-9]\d{7,14}$/) phone!: string; }

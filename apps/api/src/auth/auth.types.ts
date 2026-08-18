@@ -26,6 +26,7 @@ export interface PublicUser {
   avoidPreferences: string[];
   scheduleFlexibility: string[];
   behaviorLearningEnabled: boolean;
+  preferredLanguages: string[];
   interests: string[];
   verificationStatus: string;
   profilePhoto: string | null;
@@ -43,7 +44,7 @@ export abstract class AuthRepository {
   abstract findUserById(id: string): Promise<StoredUser | null>;
   abstract findUserByPhone(phone: string): Promise<StoredUser | null>;
   abstract createUser(input: { email: string; passwordHash: string; displayName: string; birthDate: Date | null; gender?: string }): Promise<StoredUser>;
-  abstract updateProfile(userId: string, input: { displayName?: string; bio?: string | null; homeArea?: string | null; interests?: string[]; profilePhoto?: string | null; profilePhotos?: string[]; gender?: string; preferredAreas?: string[]; preferredActivities?: string[]; preferredAgeMin?: number | null; preferredAgeMax?: number | null; preferredGenders?: string[]; activityTimeSlots?: string[]; matchingDataConsent?: boolean; participationUrgency?: string | null; maxTravelMinutes?: number | null; preferredGroupSizes?: number[]; budgetMin?: number | null; budgetMax?: number | null; socialStyles?: string[]; participationGoals?: string[]; firstTimePreferences?: string[]; alcoholPreference?: string | null; smokingPreference?: string | null; avoidPreferences?: string[]; scheduleFlexibility?: string[]; behaviorLearningEnabled?: boolean }): Promise<StoredUser>;
+  abstract updateProfile(userId: string, input: { displayName?: string; bio?: string | null; homeArea?: string | null; interests?: string[]; profilePhoto?: string | null; profilePhotos?: string[]; gender?: string; preferredAreas?: string[]; preferredActivities?: string[]; preferredAgeMin?: number | null; preferredAgeMax?: number | null; preferredGenders?: string[]; activityTimeSlots?: string[]; matchingDataConsent?: boolean; participationUrgency?: string | null; maxTravelMinutes?: number | null; preferredGroupSizes?: number[]; budgetMin?: number | null; budgetMax?: number | null; socialStyles?: string[]; participationGoals?: string[]; firstTimePreferences?: string[]; alcoholPreference?: string | null; smokingPreference?: string | null; avoidPreferences?: string[]; scheduleFlexibility?: string[]; behaviorLearningEnabled?: boolean; preferredLanguages?: string[] }): Promise<StoredUser>;
   abstract saveRefreshToken(token: StoredRefreshToken): Promise<void>;
   abstract findRefreshToken(tokenHash: string): Promise<StoredRefreshToken | null>;
   abstract revokeRefreshToken(id: string): Promise<void>;

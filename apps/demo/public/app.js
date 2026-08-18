@@ -29,6 +29,7 @@ const MATCH_GOAL_OPTIONS=['趣味仲間','友達づくり','暇つぶし','情�
 const MATCH_FIRST_TIME_OPTIONS=['初参加歓迎','ひとり参加が安心','常連が多くてもOK','主催者から話しかけてほしい'];
 const MATCH_AVOID_OPTIONS=['大人数','飲酒中心','深夜','屋外','激しい運動','写真撮影','営業・勧誘'];
 const MATCH_FLEXIBILITY_OPTIONS=['時間厳守','多少の遅刻は許容','途中参加OK','途中退出OK','急な予定変更OK'];
+const MATCH_LANGUAGE_OPTIONS=[['JAPANESE','日本語'],['ENGLISH','英語'],['KOREAN','韓国語'],['CHINESE','中国語']];
 let session = JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY) || 'null');
 let demoRole = IS_PRODUCTION ? null : localStorage.getItem(DEMO_ROLE_STORAGE_KEY);
 const areas={新宿:{latitude:35.6901,longitude:139.7005},渋谷:{latitude:35.6580,longitude:139.7016}};
@@ -116,6 +117,7 @@ async function api(path, options = {}) {
     payload.avoidPreferences=[...editor.querySelectorAll('[data-match-avoid].chosen')].map(button=>button.dataset.matchAvoid);
     payload.scheduleFlexibility=[...editor.querySelectorAll('[data-match-flexibility].chosen')].map(button=>button.dataset.matchFlexibility);
     payload.behaviorLearningEnabled=editor.querySelector('#edit-behavior-learning')?.checked===true;
+    payload.preferredLanguages=[...editor.querySelectorAll('[data-match-language].chosen')].map(button=>button.dataset.matchLanguage);
     options={...options,body:JSON.stringify(payload)};
   }
   const response = await fetch(`${API_URL}${path}`, { ...options, headers: { 'content-type': 'application/json', ...(session?.accessToken ? { authorization: `Bearer ${session.accessToken}` } : {}), ...options.headers } });
@@ -607,6 +609,7 @@ function showProfileEditor(){
     <div class="matching-field"><b>希望する相手</b><div class="match-choice-grid">${[['MALE','男性'],['FEMALE','女性'],['OTHER','その他'],['UNDISCLOSED','指定なし']].map(([value,label])=>chip('data-preferred-gender',value,label,(session.user.preferredGenders||[]).includes(value))).join('')}</div></div>
     <div class="matching-field"><b>雰囲気・交流スタイル</b><small>自分に合う過ごし方を選択</small><div class="match-choice-grid match-choice-grid-wide">${MATCH_SOCIAL_STYLE_OPTIONS.map(value=>chip('data-match-social-style',value,value,(session.user.socialStyles||[]).includes(value))).join('')}</div></div>
     <div class="matching-field"><b>参加目的</b><small>今回の出会いに求めること</small><div class="match-choice-grid">${MATCH_GOAL_OPTIONS.map(value=>chip('data-match-goal',value,value,(session.user.participationGoals||[]).includes(value))).join('')}</div></div>
+    <div class="matching-field"><b>言語</b><small>会話に使いたい言語を複数選択できます</small><div class="match-choice-grid match-choice-grid-wide">${MATCH_LANGUAGE_OPTIONS.map(([value,label])=>chip('data-match-language',value,label,(session.user.preferredLanguages||[]).includes(value))).join('')}</div></div>
     <div class="matching-field"><b>活動しやすい時間</b><small>時間帯と曜日をそれぞれ選択</small><div class="match-choice-subtitle">時間帯</div><div class="match-choice-grid">${MATCH_TIME_OPTIONS.map(value=>chip('data-match-time',value,value,selectedSlots.includes(value))).join('')}</div><div class="match-choice-subtitle">曜日</div><div class="match-choice-grid match-week-grid">${MATCH_DAY_OPTIONS.map(value=>chip('data-match-day',value,value,selectedSlots.includes(value))).join('')}</div><input id="edit-activity-time-slots" type="hidden"></div>
     <div class="matching-field"><b>参加したい時期</b><div class="match-choice-grid match-choice-grid-wide">${[['NOW','今すぐ'],['TODAY','今日'],['THIS_WEEK','今週'],['WEEKEND','週末'],['FLEXIBLE','いつでも']].map(([value,label])=>chip('data-match-urgency',value,label,session.user.participationUrgency===value)).join('')}</div><input id="edit-participation-urgency" type="hidden" value="${session.user.participationUrgency||''}"></div>
     <div class="matching-field"><b>移動できる時間</b><div class="match-choice-grid">${MATCH_TRAVEL_OPTIONS.map(([value,label])=>chip('data-match-travel',value,label,session.user.maxTravelMinutes===value)).join('')}</div><input id="edit-max-travel-minutes" type="hidden" value="${session.user.maxTravelMinutes??''}"></div>
@@ -622,7 +625,7 @@ function showProfileEditor(){
   sheet.querySelectorAll('[data-preferred-gender]').forEach(button=>button.onclick=()=>button.classList.toggle('chosen'));
   const toggleChoices=selector=>sheet.querySelectorAll(selector).forEach(button=>button.onclick=()=>button.classList.toggle('chosen'));
   const singleChoice=(selector,onChange)=>sheet.querySelectorAll(selector).forEach(button=>button.onclick=()=>{const wasChosen=button.classList.contains('chosen');sheet.querySelectorAll(selector).forEach(item=>item.classList.remove('chosen'));if(!wasChosen)button.classList.add('chosen');onChange(wasChosen?null:button)});
-  toggleChoices('[data-match-area]');toggleChoices('[data-match-activity]');toggleChoices('[data-match-time]');toggleChoices('[data-match-day]');toggleChoices('[data-match-group]');toggleChoices('[data-match-social-style]');toggleChoices('[data-match-goal]');toggleChoices('[data-match-first-time]');toggleChoices('[data-match-avoid]');toggleChoices('[data-match-flexibility]');
+  toggleChoices('[data-match-area]');toggleChoices('[data-match-activity]');toggleChoices('[data-match-time]');toggleChoices('[data-match-day]');toggleChoices('[data-match-group]');toggleChoices('[data-match-social-style]');toggleChoices('[data-match-goal]');toggleChoices('[data-match-first-time]');toggleChoices('[data-match-avoid]');toggleChoices('[data-match-flexibility]');toggleChoices('[data-match-language]');
   singleChoice('[data-match-age-min]',button=>{sheet.querySelector('#edit-preferred-age-min').value=button?.dataset.matchAgeMin||'';sheet.querySelector('#edit-preferred-age-max').value=button?.dataset.matchAgeMax||''});
   singleChoice('[data-match-urgency]',button=>{sheet.querySelector('#edit-participation-urgency').value=button?.dataset.matchUrgency||''});
   singleChoice('[data-match-travel]',button=>{sheet.querySelector('#edit-max-travel-minutes').value=button?.dataset.matchTravel||''});
