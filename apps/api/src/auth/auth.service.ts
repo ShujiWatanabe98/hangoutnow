@@ -5,7 +5,7 @@ import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto
 import { v7 as uuidv7 } from 'uuid';
 import { createRemoteJWKSet, importPKCS8, jwtVerify, SignJWT } from 'jose';
 import { AuthRepository, PublicUser, StoredUser } from './auth.types';
-import { AppleRedeemDto, ConfirmPhoneVerificationDto, DemoLoginDto, DemoRole, GoogleRedeemDto, LineRedeemDto, LoginDto, RegisterDto, RequestPhoneVerificationDto, UpdateProfileDto, XRedeemDto } from './auth.dto';
+import { AppleRedeemDto, ConfirmPhoneAuthDto, ConfirmPhoneVerificationDto, DemoLoginDto, DemoRole, GoogleRedeemDto, LineRedeemDto, LoginDto, RegisterDto, RequestPhoneAuthDto, RequestPhoneVerificationDto, UpdateProfileDto, XRedeemDto } from './auth.dto';
 import { SmsVerificationProvider } from './sms-verification.provider';
 import { ImageStorageService } from '../storage/image-storage.service';
 
@@ -122,17 +122,15 @@ export class AuthService {
     return `${statePayload.returnTo}${statePayload.returnTo.includes('?') ? '&' : '?'}provider=google&ticket=${encodeURIComponent(ticket)}`;
   }
 
-  async redeemGoogleLogin(input: GoogleRedeemDto): Promise<AuthResponse | { registrationRequired: true; displayName: string | null }> {
+  async redeemGoogleLogin(input: GoogleRedeemDto): Promise<AuthResponse> {
     const row = await this.repository.findOAuthLoginTicket(this.tokenHash(input.ticket));
     if (!row || row.provider !== 'GOOGLE' || row.usedAt || row.expiresAt <= new Date()) throw new UnauthorizedException('Googleログインの有効期限が切れました。もう一度お試しください');
     let user = row.userId ? await this.repository.findUserById(row.userId) : await this.repository.findOAuthIdentity('GOOGLE', row.subject);
     if (!user) {
-      if (!input.birthDate) return { registrationRequired: true, displayName: row.displayName };
-      if (!this.isAdult(input.birthDate)) throw new BadRequestException('18歳以上の方のみ登録できます');
-      const displayName = (input.displayName || row.displayName || '').trim();
-      if (!displayName) throw new BadRequestException('表示名を入力してください');
+      if (input.birthDate && !this.isAdult(input.birthDate)) throw new BadRequestException('18歳以上の方のみ登録できます');
+      const displayName = (input.displayName || row.displayName || 'Googleユーザー').trim();
       const subjectKey = createHash('sha256').update(row.subject).digest('hex').slice(0, 32);
-      user = await this.repository.createUser({ email: `google.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: new Date(`${input.birthDate}T00:00:00.000Z`), gender: input.gender });
+      user = await this.repository.createUser({ email: `google.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: input.birthDate ? new Date(`${input.birthDate}T00:00:00.000Z`) : null, gender: input.gender });
       await this.repository.createOAuthIdentity('GOOGLE', row.subject, user.id);
       user = await this.applyRegistrationPhotos(user, input.profilePhotos??(input.profilePhoto?[input.profilePhoto]:[]));
     }
@@ -174,17 +172,15 @@ export class AuthService {
     return `${statePayload.returnTo}${statePayload.returnTo.includes('?') ? '&' : '?'}provider=apple&ticket=${encodeURIComponent(ticket)}`;
   }
 
-  async redeemAppleLogin(input: AppleRedeemDto): Promise<AuthResponse | { registrationRequired: true; displayName: string | null }> {
+  async redeemAppleLogin(input: AppleRedeemDto): Promise<AuthResponse> {
     const row = await this.repository.findOAuthLoginTicket(this.tokenHash(input.ticket));
     if (!row || row.provider !== 'APPLE' || row.usedAt || row.expiresAt <= new Date()) throw new UnauthorizedException('Appleログインの有効期限が切れました。もう一度お試しください');
     let user = row.userId ? await this.repository.findUserById(row.userId) : await this.repository.findOAuthIdentity('APPLE', row.subject);
     if (!user) {
-      if (!input.birthDate) return { registrationRequired: true, displayName: row.displayName };
-      if (!this.isAdult(input.birthDate)) throw new BadRequestException('18歳以上の方のみ登録できます');
-      const displayName = (input.displayName || row.displayName || '').trim();
-      if (!displayName) throw new BadRequestException('表示名を入力してください');
+      if (input.birthDate && !this.isAdult(input.birthDate)) throw new BadRequestException('18歳以上の方のみ登録できます');
+      const displayName = (input.displayName || row.displayName || 'Appleユーザー').trim();
       const subjectKey = createHash('sha256').update(row.subject).digest('hex').slice(0, 32);
-      user = await this.repository.createUser({ email: `apple.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: new Date(`${input.birthDate}T00:00:00.000Z`), gender: input.gender });
+      user = await this.repository.createUser({ email: `apple.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: input.birthDate ? new Date(`${input.birthDate}T00:00:00.000Z`) : null, gender: input.gender });
       await this.repository.createOAuthIdentity('APPLE', row.subject, user.id);
       user = await this.applyRegistrationPhotos(user, input.profilePhotos??(input.profilePhoto?[input.profilePhoto]:[]));
     }
@@ -241,6 +237,27 @@ export class AuthService {
     }
     await this.repository.consumeOAuthLoginTicket(row.id);
     return { user: this.publicUser(user), ...(await this.issueTokens(user.id)) };
+  }
+
+  async requestPhoneAuth(input:RequestPhoneAuthDto,_requestIp='unknown'){
+    if(process.env.NODE_ENV==='production'&&!this.sms.enabled)throw new ServiceUnavailableException('SMS認証は現在利用できません');
+    const challengeToken=randomBytes(40).toString('base64url');
+    const code=randomInt(100000,1000000).toString();
+    if(this.sms.enabled)await this.sms.request(input.phone);
+    const existing=await this.repository.findUserByPhone(input.phone);
+    await this.repository.saveOAuthLoginTicket({id:uuidv7(),tokenHash:this.tokenHash(challengeToken),provider:'PHONE',subject:input.phone,displayName:null,profilePhoto:this.sms.enabled?'twilio':this.phoneCodeHash(input.phone,code),userId:existing?.id||null,expiresAt:new Date(Date.now()+10*60_000),usedAt:null});
+    return{challengeToken,expiresIn:600,...(process.env.NODE_ENV!=='production'&&!this.sms.enabled?{demoCode:code}:{})};
+  }
+
+  async confirmPhoneAuth(input:ConfirmPhoneAuthDto):Promise<AuthResponse>{
+    const row=await this.repository.findOAuthLoginTicket(this.tokenHash(input.challengeToken));
+    if(!row||row.provider!=='PHONE'||row.subject!==input.phone||row.usedAt||row.expiresAt<=new Date())throw new UnauthorizedException('認証コードの有効期限が切れました。もう一度お試しください');
+    const valid=this.sms.enabled?await this.sms.check(input.phone,input.code):(()=>{const expected=Buffer.from(row.profilePhoto||'','hex');const actual=Buffer.from(this.phoneCodeHash(input.phone,input.code),'hex');return expected.length===actual.length&&expected.length>0&&timingSafeEqual(expected,actual)})();
+    if(!valid)throw new UnauthorizedException('認証コードが正しくありません');
+    let user=row.userId?await this.repository.findUserById(row.userId):await this.repository.findUserByPhone(input.phone);
+    if(!user){const subjectKey=createHash('sha256').update(input.phone).digest('hex').slice(0,32);try{user=await this.repository.createUser({email:`phone.${subjectKey}@oauth.hangoutnow.invalid`,passwordHash:await hash(randomBytes(48).toString('base64url'),10),displayName:'電話番号ユーザー',birthDate:null});user=await this.repository.setVerifiedPhone(user.id,input.phone)}catch{throw new ConflictException('この電話番号はすでに登録されています')}}
+    await this.repository.consumeOAuthLoginTicket(row.id);
+    return{user:this.publicUser(user),...(await this.issueTokens(user.id))};
   }
 
   async refresh(rawToken: string): Promise<AuthResponse> {

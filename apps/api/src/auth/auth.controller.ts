@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, HttpCode, Inject, Patch, Post, Query, Re
 import { Throttle } from '@nestjs/throttler';
 import { AccessTokenGuard, AuthenticatedRequest } from './access-token.guard';
 import { AuthService } from './auth.service';
-import { AppleCallbackDto, AppleRedeemDto, AppleStartDto, ConfirmPhoneVerificationDto, DemoLoginDto, GoogleRedeemDto, GoogleStartDto, LineRedeemDto, LineStartDto, LoginDto, RefreshDto, RegisterDto, RequestPhoneVerificationDto, UpdateProfileDto, XRedeemDto, XStartDto } from './auth.dto';
+import { AppleCallbackDto, AppleRedeemDto, AppleStartDto, ConfirmPhoneAuthDto, ConfirmPhoneVerificationDto, DemoLoginDto, GoogleRedeemDto, GoogleStartDto, LineRedeemDto, LineStartDto, LoginDto, RefreshDto, RegisterDto, RequestPhoneAuthDto, RequestPhoneVerificationDto, UpdateProfileDto, XRedeemDto, XStartDto } from './auth.dto';
 import { HostStatusService } from '../host-status/host-status.service';
 
 @Controller('auth')
@@ -13,6 +13,8 @@ export class AuthController {
   @Post('demo-login') @Throttle({ default: { limit: 60, ttl: 60_000 } }) @HttpCode(200) demoLogin(@Body() input: DemoLoginDto) { return this.auth.demoLogin(input); }
   @Post('refresh') @HttpCode(200) refresh(@Body() input: RefreshDto) { return this.auth.refresh(input.refreshToken); }
   @Post('logout') @HttpCode(204) async logout(@Body() input: RefreshDto): Promise<void> { await this.auth.logout(input.refreshToken); }
+  @Post('phone/request') @Throttle({ default: { limit: 5, ttl: 60_000 } }) requestPhone(@Body() input:RequestPhoneAuthDto,@Req() request:AuthenticatedRequest){return this.auth.requestPhoneAuth(input,request.ip||request.socket.remoteAddress||'unknown')}
+  @Post('phone/confirm') @Throttle({ default: { limit: 10, ttl: 60_000 } }) @HttpCode(200) confirmPhone(@Body() input:ConfirmPhoneAuthDto){return this.auth.confirmPhoneAuth(input)}
   @Get('line/start') @Redirect() async lineStart(@Query() input: LineStartDto) { return { url: await this.auth.lineAuthorizeUrl(input.returnTo), statusCode: 302 }; }
   @Get('line/callback') @Redirect() async lineCallback(@Query('code') code: string, @Query('state') state: string) { return { url: await this.auth.lineCallback(code, state), statusCode: 302 }; }
   @Post('line/redeem') @HttpCode(200) redeemLine(@Body() input: LineRedeemDto) { return this.auth.redeemLineLogin(input); }

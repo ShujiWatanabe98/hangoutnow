@@ -21,6 +21,7 @@ class MemoryAuthRepository extends AuthRepository {
   private oauthIdentities: Array<{provider:string;subject:string;userId:string}> = [];
   async findUserByEmail(email: string) { return this.users.find((user) => user.email === email) ?? null; }
   async findUserById(id: string) { return this.users.find((user) => user.id === id) ?? null; }
+  async findUserByPhone(phone:string){return this.users.find((user)=>user.phoneNumber===phone)??null}
   async createUser(input: { email: string; passwordHash: string; displayName: string; birthDate: Date | null; gender?: string }) {
     const user: StoredUser = { id: `user-${this.users.length + 1}`, ...input, birthDate: input.birthDate?.toISOString().slice(0, 10) ?? null, gender: input.gender??null, bio: null, homeArea: null, interests: [], verificationStatus: 'UNVERIFIED', profilePhoto: null, profilePhotos: [], phoneNumber: null };
     this.users.push(user); return user;
@@ -35,6 +36,7 @@ class MemoryAuthRepository extends AuthRepository {
   async findPhoneVerification(userId: string, phone: string) { return [...this.phoneCodes].reverse().find((item) => item.userId === userId && item.phone === phone && !item.usedAt) ?? null; }
   async failPhoneVerification(id: string) { const item=this.phoneCodes.find((row)=>row.id===id); if(item)item.attempts+=1; }
   async verifyPhone(userId: string, phone: string, verificationId: string) { const user=await this.findUserById(userId); if(!user)throw new Error(); const row=this.phoneCodes.find((item)=>item.id===verificationId); if(row)row.usedAt=new Date(); user.phoneNumber=phone;user.verificationStatus='PHONE_VERIFIED';return user; }
+  async setVerifiedPhone(userId:string,phone:string){const user=await this.findUserById(userId);if(!user)throw new Error();user.phoneNumber=phone;user.verificationStatus='PHONE_VERIFIED';return user}
   async phoneVerificationCounts(userId:string,phone:string,requestIp:string,since:Date){const rows=this.phoneCodes.filter(x=>(x.createdAt??new Date())>=since);return{user:rows.filter(x=>x.userId===userId).length,phone:rows.filter(x=>x.phone===phone).length,ip:rows.filter(x=>x.requestIp===requestIp).length}}
   async deleteUser(userId:string){this.users=this.users.filter((user)=>user.id!==userId);this.tokens=this.tokens.filter((token)=>token.userId!==userId);this.phoneCodes=this.phoneCodes.filter((row)=>row.userId!==userId)}
   async findOAuthIdentity(provider:string,subject:string){const identity=this.oauthIdentities.find((item)=>item.provider===provider&&item.subject===subject);return identity?this.findUserById(identity.userId):null}
@@ -107,8 +109,7 @@ describe('authentication and profile', () => {
     expect(new URL(await auth.appleAuthorizeUrl(webReturnTo)).searchParams.get('locale')).toBe('ja_JP');
     const state=await jwt.signAsync({kind:'apple_state',returnTo:webReturnTo,nonce:'apple-nonce'},{expiresIn:600});
     const redirect=await auth.appleCallback('apple-authorization-code',state,JSON.stringify({name:{firstName:'Apple',lastName:'User'}}));expect(redirect.startsWith(`${webReturnTo}?provider=apple&ticket=`)).toBe(true);const ticket=new URL(redirect).searchParams.get('ticket');expect(ticket).toBeTruthy();
-    const needsProfile=await request(app.getHttpServer()).post('/auth/apple/redeem').send({ticket}).expect(200);expect(needsProfile.body.registrationRequired).toBe(true);
-    const registered=await request(app.getHttpServer()).post('/auth/apple/redeem').send({ticket,birthDate:'1990-01-01',displayName:'Apple User',gender:'UNDISCLOSED'}).expect(200);expect(registered.body.user.displayName).toBe('Apple User');
+    const registered=await request(app.getHttpServer()).post('/auth/apple/redeem').send({ticket}).expect(200);expect(registered.body.user.displayName).toBe('Apple User');expect(registered.body.user.birthDate).toBeNull();
     await request(app.getHttpServer()).post('/auth/apple/redeem').send({ticket,birthDate:'1990-01-01'}).expect(401);
   },15_000);
 
@@ -121,8 +122,7 @@ describe('authentication and profile', () => {
     expect(new URL(await auth.googleAuthorizeUrl(webReturnTo)).searchParams.get('hl')).toBe('ja');
     const state=await jwt.signAsync({kind:'google_state',returnTo:webReturnTo,nonce:'google-nonce'},{expiresIn:600});
     const redirect=await auth.googleCallback('authorization-code',state);expect(redirect.startsWith(`${webReturnTo}?provider=google&ticket=`)).toBe(true);const ticket=new URL(redirect).searchParams.get('ticket');expect(ticket).toBeTruthy();
-    const needsProfile=await request(app.getHttpServer()).post('/auth/google/redeem').send({ticket}).expect(200);expect(needsProfile.body.registrationRequired).toBe(true);
-    const registered=await request(app.getHttpServer()).post('/auth/google/redeem').send({ticket,birthDate:'1990-01-01',displayName:'Google User',gender:'UNDISCLOSED'}).expect(200);expect(registered.body.user.displayName).toBe('Google User');expect(registered.body.user.profilePhoto).toBeNull();
+    const registered=await request(app.getHttpServer()).post('/auth/google/redeem').send({ticket}).expect(200);expect(registered.body.user.displayName).toBe('Google User');expect(registered.body.user.birthDate).toBeNull();expect(registered.body.user.profilePhoto).toBeNull();
     await request(app.getHttpServer()).post('/auth/google/redeem').send({ticket,birthDate:'1990-01-01'}).expect(401);
   },15_000);
 
@@ -151,6 +151,17 @@ describe('authentication and profile', () => {
     expect(verified.body.verificationStatus).toBe('PHONE_VERIFIED');
     expect(verified.body.profilePhoto).toBe(photo);
   }, 15_000);
+
+  it('creates an account and logs in with a verified phone number',async()=>{
+    app=await createApp();
+    const requested=await request(app.getHttpServer()).post('/auth/phone/request').send({phone:'+819012345679'}).expect(201);
+    const registered=await request(app.getHttpServer()).post('/auth/phone/confirm').send({phone:'+819012345679',challengeToken:requested.body.challengeToken,code:requested.body.demoCode}).expect(200);
+    expect(registered.body.user).toMatchObject({displayName:'電話番号ユーザー',phoneNumber:'+819012345679',verificationStatus:'PHONE_VERIFIED',birthDate:null});
+    const requestedAgain=await request(app.getHttpServer()).post('/auth/phone/request').send({phone:'+819012345679'}).expect(201);
+    const loggedIn=await request(app.getHttpServer()).post('/auth/phone/confirm').send({phone:'+819012345679',challengeToken:requestedAgain.body.challengeToken,code:requestedAgain.body.demoCode}).expect(200);
+    expect(loggedIn.body.user.id).toBe(registered.body.user.id);
+    await request(app.getHttpServer()).post('/auth/phone/confirm').send({phone:'+819012345679',challengeToken:requestedAgain.body.challengeToken,code:requestedAgain.body.demoCode}).expect(401);
+  },15_000);
 
   it('stores up to three profile photos and rejects a fourth', async () => {
     app = await createApp();

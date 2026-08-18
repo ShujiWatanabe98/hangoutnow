@@ -31,6 +31,10 @@ export class PrismaAuthRepository extends AuthRepository {
     const user = await this.prisma.user.findUnique({ where: { id }, include: includeInterests });
     return user ? this.mapUser(user) : null;
   }
+  async findUserByPhone(phone: string): Promise<StoredUser | null> {
+    const user = await this.prisma.user.findUnique({ where: { phoneNumber: phone }, include: includeInterests });
+    return user ? this.mapUser(user) : null;
+  }
   async createUser(input: { email: string; passwordHash: string; displayName: string; birthDate: Date | null; gender?: string }): Promise<StoredUser> {
     const user = await this.prisma.user.create({ data: { id: uuidv7(), ...input, gender: input.gender as 'MALE'|'FEMALE'|'OTHER'|'UNDISCLOSED'|undefined }, include: includeInterests });
     return this.mapUser(user);
@@ -60,6 +64,7 @@ export class PrismaAuthRepository extends AuthRepository {
     ]);
     return this.loadUser(userId).then((user) => this.mapUser(user));
   }
+  async setVerifiedPhone(userId:string,phone:string):Promise<StoredUser>{const user=await this.prisma.user.update({where:{id:userId},data:{phoneNumber:phone,verification:'PHONE_VERIFIED'},include:includeInterests});return this.mapUser(user)}
   async phoneVerificationCounts(userId:string,phone:string,requestIp:string,since:Date){const[user,phoneCount,ip]=await Promise.all([this.prisma.phoneVerification.count({where:{userId,createdAt:{gte:since}}}),this.prisma.phoneVerification.count({where:{phone,createdAt:{gte:since}}}),this.prisma.phoneVerification.count({where:{requestIp,createdAt:{gte:since}}})]);return{user,phone:phoneCount,ip}}
   async deleteUser(userId:string):Promise<void>{await this.prisma.user.delete({where:{id:userId}})}
   async findOAuthIdentity(provider:string,subject:string):Promise<StoredUser|null>{

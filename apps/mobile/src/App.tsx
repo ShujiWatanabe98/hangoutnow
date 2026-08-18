@@ -29,6 +29,8 @@ const HANGOUT_IMAGE_PRESETS = [
 const SESSION_KEY = "hangout-now-session";
 const LINE_REDIRECT_URI = "hangoutnow://auth/line";
 const X_REDIRECT_URI = "hangoutnow://auth/x";
+const GOOGLE_REDIRECT_URI = "hangoutnow://auth/google";
+const APPLE_REDIRECT_URI = "hangoutnow://auth/apple";
 WebBrowser.maybeCompleteAuthSession();
 const INTEREST_OPTIONS = ["カフェ", "ラーメン", "ランニング", "飲み会", "ダーツ", "バー", "ごはん", "カラオケ", "英会話", "シーシャ", "スイーツ", "映画"] as const;
 
@@ -535,6 +537,15 @@ export default function App() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function authenticateWithOAuth(provider:"google"|"apple") {
+    setLoading(true);setError("");
+    try{const redirectUri=provider==="google"?GOOGLE_REDIRECT_URI:APPLE_REDIRECT_URI;const label=provider==="google"?"Google":"Apple";const result=await WebBrowser.openAuthSessionAsync(`${API_URL}/auth/${provider}/start?returnTo=${encodeURIComponent(redirectUri)}`,redirectUri);if(result.type!=="success"||!result.url)throw new Error(`${label}ログインがキャンセルされました`);const ticket=new URL(result.url).searchParams.get("ticket");if(!ticket)throw new Error(`${label}ログインの確認情報を取得できませんでした`);const response=await fetch(`${API_URL}/auth/${provider}/redeem`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({ticket})});const data=await readJson(response) as Session|{message?:string|string[]};if(!response.ok||!("accessToken" in data)){const message="message" in data?data.message:null;throw new Error(Array.isArray(message)?message[0]:message||`${label}ログインに失敗しました`)}setSession(data);setDemoRole(null);setScreen("home")}catch(cause){setError(cause instanceof Error?cause.message:"ログインに失敗しました")}finally{setLoading(false)}
+  }
+
+  async function authenticateWithPhone(phone:string,code?:string,challengeToken?:string):Promise<{challengeToken?:string;demoCode?:string}>{
+    setLoading(true);setError("");try{const path=challengeToken?'/auth/phone/confirm':'/auth/phone/request';const response=await fetch(`${API_URL}${path}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(challengeToken?{phone,code,challengeToken}:{phone})});const data=await readJson(response) as Session|{challengeToken?:string;demoCode?:string;message?:string|string[]};if(!response.ok){const message='message'in data?data.message:null;throw new Error(Array.isArray(message)?message[0]:message||'電話番号認証に失敗しました')}if('accessToken'in data){setSession(data);setDemoRole(null);setScreen('home');return{}}return{challengeToken:data.challengeToken,demoCode:data.demoCode}}catch(cause){setError(cause instanceof Error?cause.message:'電話番号認証に失敗しました');throw cause}finally{setLoading(false)}
   }
 
   async function joinHangout(hangout: Hangout, message: string) {
@@ -1089,7 +1100,7 @@ export default function App() {
     );
 
   if (!session) {
-    return <AuthScreen loading={loading} error={error} onLogin={authenticate} onRegister={register} onLine={authenticateWithLine} onX={authenticateWithX} />;
+    return <AuthScreen loading={loading} error={error} onLogin={authenticate} onRegister={register} onLine={authenticateWithLine} onX={authenticateWithX} onGoogle={()=>authenticateWithOAuth('google')} onApple={()=>authenticateWithOAuth('apple')} onPhone={authenticateWithPhone} />;
   }
 
   return (
@@ -1175,7 +1186,7 @@ export default function App() {
   );
 }
 
-function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX }: { loading: boolean; error: string; onLogin: (email: string, password: string, role?: "host" | "guest" | null) => Promise<void>; onRegister: (input: { email: string; password: string; displayName: string; birthDate: string; gender: string }) => Promise<void>; onLine: (input?: { displayName: string; birthDate: string; gender: string }) => Promise<void>; onX: () => Promise<void> }) {
+function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle, onApple, onPhone }: { loading: boolean; error: string; onLogin: (email: string, password: string, role?: "host" | "guest" | null) => Promise<void>; onRegister: (input: { email: string; password: string; displayName: string; birthDate: string; gender: string }) => Promise<void>; onLine: (input?: { displayName: string; birthDate: string; gender: string }) => Promise<void>; onX: () => Promise<void>; onGoogle:()=>Promise<void>;onApple:()=>Promise<void>;onPhone:(phone:string,code?:string,challengeToken?:string)=>Promise<{challengeToken?:string;demoCode?:string}> }) {
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -1183,6 +1194,7 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX }: { load
   const [birthDate, setBirthDate] = useState("1990-01-01");
   const [gender, setGender] = useState("UNDISCLOSED");
   const [providerNote, setProviderNote] = useState("");
+  const [phone,setPhone]=useState("+81");const[phoneCode,setPhoneCode]=useState("");const[phoneChallenge,setPhoneChallenge]=useState<string|null>(null);
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.authPage} keyboardShouldPersistTaps="handled">
@@ -1256,12 +1268,13 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX }: { load
             <Pressable
               key={provider}
               style={styles.providerButton}
-              onPress={() => provider === "LINE" ? void onLine() : provider === "X" ? void onX() : setProviderNote(`${provider}認証は公開テスト開始時に利用できます。`)}
+              onPress={() => provider === "LINE" ? void onLine() : provider === "X" ? void onX() : provider==="Google"?void onGoogle():provider==="Apple"?void onApple():setPhoneChallenge("")}
             >
               <Text style={styles.providerMark}>{provider === "Google" ? "G" : provider === "Apple" ? "●" : provider === "X" ? "X" : provider === "LINE" ? "L" : "☎"}</Text>
               <Text style={styles.providerButtonText}>{provider}{mode === "register" ? "でアカウント作成" : "でログイン"}</Text>
             </Pressable>
           ))}
+          {phoneChallenge!==null?<View><Field label="電話番号（国番号から）" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />{phoneChallenge?<Field label="6桁の認証コード" value={phoneCode} onChangeText={setPhoneCode} keyboardType="number-pad" />:null}<Pressable disabled={loading} style={styles.primary} onPress={async()=>{try{const result=await onPhone(phone,phoneCode,phoneChallenge||undefined);if(result.challengeToken){setPhoneChallenge(result.challengeToken);setProviderNote(result.demoCode?`開発用コード：${result.demoCode}`:'SMSに認証コードを送信しました')}}catch{}}}><Text style={styles.primaryText}>{phoneChallenge?'アカウント作成・ログイン':'認証コードを送る'}</Text></Pressable></View>:null}
           <Text style={styles.providerNote}>{providerNote}</Text>
           <Pressable onPress={() => setMode(mode === "login" ? "register" : "login")}>
             <Text style={styles.authSwitch}>{mode === "login" ? "新しくアカウントを作る" : "アカウントをお持ちの方はログイン"}</Text>

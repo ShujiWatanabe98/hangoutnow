@@ -21,6 +21,7 @@ export interface StoredOAuthLoginTicket { id: string; tokenHash: string; provide
 export abstract class AuthRepository {
   abstract findUserByEmail(email: string): Promise<StoredUser | null>;
   abstract findUserById(id: string): Promise<StoredUser | null>;
+  abstract findUserByPhone(phone: string): Promise<StoredUser | null>;
   abstract createUser(input: { email: string; passwordHash: string; displayName: string; birthDate: Date | null; gender?: string }): Promise<StoredUser>;
   abstract updateProfile(userId: string, input: { displayName?: string; bio?: string | null; homeArea?: string | null; interests?: string[]; profilePhoto?: string | null; profilePhotos?: string[]; gender?: string }): Promise<StoredUser>;
   abstract saveRefreshToken(token: StoredRefreshToken): Promise<void>;
@@ -30,6 +31,7 @@ export abstract class AuthRepository {
   abstract findPhoneVerification(userId: string, phone: string): Promise<StoredPhoneVerification | null>;
   abstract failPhoneVerification(id: string): Promise<void>;
   abstract verifyPhone(userId: string, phone: string, verificationId: string): Promise<StoredUser>;
+  abstract setVerifiedPhone(userId: string, phone: string): Promise<StoredUser>;
   abstract phoneVerificationCounts(userId: string, phone: string, requestIp: string, since: Date): Promise<{user: number; phone: number; ip: number}>;
   abstract deleteUser(userId: string): Promise<void>;
   abstract findOAuthIdentity(provider: string, subject: string): Promise<StoredUser | null>;

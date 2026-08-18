@@ -53,21 +53,20 @@ test('demo authentication is not rolled back by optional initial data loading', 
   assert.match(loginFlow, /Promise\.allSettled\(\[loadNotificationCount\(\),loadHangouts\(\)\]\)/);
 });
 
-test('first-time LINE and X authentication continue directly into account creation', async () => {
+test('social and phone authentication continue directly into account creation', async () => {
   const [application, mobile] = await Promise.all([
     readFile(new URL('app.js', publicDirectory), 'utf8'),
     readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8'),
   ]);
 
-  assert.match(application, /const requiresProfileInput=register&&!\['LINE','X'\]\.includes\(provider\)/);
-  assert.match(application, /if\(requiresProfileInput&&\(!input\.displayName\|\|!input\.birthDate\)\)/);
+  assert.match(application, /if\(provider==='電話番号'\)\{phoneAuthDialog\(\);return\}/);
+  assert.match(application, /const input=null/);
+  assert.match(application, /\/auth\/phone\/confirm/);
   assert.match(mobile, /provider === "LINE" \? void onLine\(\) : provider === "X" \? void onX\(\)/);
+  assert.match(mobile, /authenticateWithOAuth\(provider:"google"\|"apple"\)/);
+  assert.match(mobile, /\/auth\/phone\/confirm/);
   assert.match(mobile, /\/auth\/x\/redeem/);
-  assert.match(application, /sessionStorage\.setItem\('hangout-now-oauth-pending',JSON\.stringify\(\{provider,ticket,displayName:result\.displayName\|\|''\}\)\)/);
-  assert.match(application, /pending\?\.provider===providerKey&&pending\.ticket/);
-  assert.match(application, /ticket:pending\.ticket,\.\.\.input/);
-  assert.match(application, /LINE認証をやり直す必要はありません/);
-  assert.match(application, /sessionStorage\.removeItem\('hangout-now-oauth-pending'\)/);
+  assert.match(application, /const result=await api\(`\/auth\/\$\{provider\}\/redeem`/);
 });
 
 test('profile remains behind talk while returning with the back animation', async () => {
