@@ -215,6 +215,28 @@ enum MatchDeclineReason {
   CONDITIONS
   OTHER
 }
+
+enum MatchingAlgorithmStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+model MatchingAlgorithmConfig {
+  id          String                  @id @db.Uuid
+  version     String                  @unique
+  status      MatchingAlgorithmStatus @default(DRAFT)
+  weights     Json
+  note        String
+  createdBy   String                  @map("created_by")
+  activatedBy String?                 @map("activated_by")
+  activatedAt DateTime?               @map("activated_at")
+  createdAt   DateTime                @default(now()) @map("created_at")
+  updatedAt   DateTime                @updatedAt @map("updated_at")
+
+  @@index([status, activatedAt])
+  @@map("matching_algorithm_configs")
+}
 enum Gender {
   MALE
   FEMALE

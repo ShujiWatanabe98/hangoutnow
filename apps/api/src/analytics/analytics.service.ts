@@ -1,9 +1,10 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Optional } from '@nestjs/common';
 import { FunnelEventType, MatchOutcome } from '@prisma/client';
 import { v7 as uuidv7 } from 'uuid';
 import { PrismaService } from '../prisma/prisma.service';
 import { SaveMatchFeedbackDto, TrackFunnelEventDto } from './analytics.dto';
 import { MATCHING_ALGORITHM_VERSION } from '../matching/matching-version';
+import { MatchingAdminService } from '../matching/matching-admin.service';
 
 const HANGOUT_REQUIRED = new Set<FunnelEventType>([
   FunnelEventType.HANGOUT_VIEWED,
@@ -15,7 +16,7 @@ const HANGOUT_REQUIRED = new Set<FunnelEventType>([
 
 @Injectable()
 export class AnalyticsService {
-  constructor(@Inject(PrismaService) private readonly db: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly db: PrismaService, @Optional() @Inject(MatchingAdminService) private readonly matchingAdmin?: MatchingAdminService) {}
 
   async track(userId: string, input: TrackFunnelEventDto) {
     if (HANGOUT_REQUIRED.has(input.eventType) && !input.hangoutId) {
@@ -40,10 +41,11 @@ export class AnalyticsService {
     if (!consent?.matchingDataConsent) throw new BadRequestException('マッチング改善への利用同意が必要です');
     const exists = await this.db.hangout.findUnique({ where: { id: input.hangoutId }, select: { id: true } });
     if (!exists) throw new BadRequestException('Unknown hangoutId');
+    const algorithmVersion = this.matchingAdmin ? await this.matchingAdmin.activeVersion() : MATCHING_ALGORITHM_VERSION;
     return this.db.matchFeedback.upsert({
       where: { userId_hangoutId: { userId, hangoutId: input.hangoutId } },
-      create: { id: uuidv7(), userId, hangoutId: input.hangoutId, outcome: input.outcome, reason: input.reason, algorithmVersion: MATCHING_ALGORITHM_VERSION },
-      update: { outcome: input.outcome, reason: input.reason ?? null, algorithmVersion: MATCHING_ALGORITHM_VERSION },
+      create: { id: uuidv7(), userId, hangoutId: input.hangoutId, outcome: input.outcome, reason: input.reason, algorithmVersion },
+      update: { outcome: input.outcome, reason: input.reason ?? null, algorithmVersion },
       select: { hangoutId: true, outcome: true, reason: true, updatedAt: true },
     });
   }

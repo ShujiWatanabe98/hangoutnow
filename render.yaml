@@ -51,7 +51,7 @@ services:
       - key: X_LOGIN_CALLBACK_URL
         value: https://hangoutnow-api.onrender.com/auth/x/callback
       - key: CORS_ORIGINS
-        value: https://method-more.com,https://www.method-more.com,https://hangoutnow-demo.onrender.com
+        value: https://method-more.com,https://www.method-more.com,https://hangoutnow-demo.onrender.com,https://hangoutnow-admin.onrender.com
       - key: S3_ENDPOINT
         sync: false
       - key: S3_REGION
@@ -89,4 +89,18 @@ services:
       - key: NODE_VERSION
         value: 22
       - key: API_URL
+        value: https://hangoutnow-api.onrender.com
+
+  - type: web
+    name: hangoutnow-admin
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build -w @hangout-now/admin
+    startCommand: npm start -w @hangout-now/admin
+    healthCheckPath: /
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: NEXT_PUBLIC_API_URL
         value: https://hangoutnow-api.onrender.com

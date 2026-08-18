@@ -2,6 +2,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { FunnelEventType, Gender, HangoutStatus, JoinRequestStatus, ModerationActionType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 export { MATCHING_ALGORITHM_VERSION } from './matching-version';
+import { DEFAULT_MATCHING_WEIGHTS, MatchingWeights } from './matching-version';
+import { MatchingAdminService } from './matching-admin.service';
 
 export interface MatchCandidate {
   id: string;
@@ -52,9 +54,9 @@ function age(birthDate?: Date | null) {
   return value;
 }
 
-export function calculateMatchScore(profile: MatchProfile, candidate: MatchCandidate, behavior: BehaviorSignal[] = [], now = new Date(), interaction?: InteractionSignal) {
+export function calculateMatchScore(profile: MatchProfile, candidate: MatchCandidate, behavior: BehaviorSignal[] = [], now = new Date(), interaction?: InteractionSignal, weights: MatchingWeights = DEFAULT_MATCHING_WEIGHTS) {
   if (!profile.matchingDataConsent) return 70;
-  let score = 62;
+  let score = weights.baseScore;
   const activityAliases: Record<string, string[]> = {
     FOOD: ['グルメ', '食事', 'ラーメン'], CAFE: ['カフェ', 'コーヒー'], RUNNING: ['ランニング', '運動', 'スポーツ'],
     WALKING: ['散歩', 'ウォーキング'], MOTORCYCLE: ['ツーリング', 'バイク'],
@@ -62,23 +64,23 @@ export function calculateMatchScore(profile: MatchProfile, candidate: MatchCandi
   const searchableActivity = [candidate.category, candidate.title, ...(activityAliases[candidate.category] ?? [])];
   const searchableArea = [candidate.serviceArea, candidate.publicLocationName];
 
-  if (profile.preferredActivities.length) score += includesLoose(profile.preferredActivities, ...searchableActivity) ? 12 : -4;
-  if (profile.preferredAreas.length) score += includesLoose(profile.preferredAreas, ...searchableArea) ? 10 : -5;
+  if (profile.preferredActivities.length) score += includesLoose(profile.preferredActivities, ...searchableActivity) ? weights.activityMatch : weights.activityMiss;
+  if (profile.preferredAreas.length) score += includesLoose(profile.preferredAreas, ...searchableArea) ? weights.areaMatch : weights.areaMiss;
   if (profile.activityTimeSlots.length) {
     const keys = slotKeys(candidate.startAt);
-    score += includesLoose(profile.activityTimeSlots, ...keys) ? 8 : -3;
+    score += includesLoose(profile.activityTimeSlots, ...keys) ? weights.timeMatch : weights.timeMiss;
   }
   if (profile.preferredGroupSizes.length) {
     const distance = Math.min(...profile.preferredGroupSizes.map(size => Math.abs(size - candidate.maxParticipants)));
-    score += distance === 0 ? 7 : distance <= 2 ? 3 : -3;
+    score += distance === 0 ? weights.groupMatch : distance <= 2 ? weights.groupMatch * 0.4 : -3;
   }
   const hostAge = age(candidate.host.birthDate);
   if (hostAge !== null && (profile.preferredAgeMin !== null || profile.preferredAgeMax !== null)) {
-    score += (profile.preferredAgeMin === null || hostAge >= profile.preferredAgeMin) && (profile.preferredAgeMax === null || hostAge <= profile.preferredAgeMax) ? 5 : -5;
+    score += (profile.preferredAgeMin === null || hostAge >= profile.preferredAgeMin) && (profile.preferredAgeMax === null || hostAge <= profile.preferredAgeMax) ? weights.ageMatch : weights.ageMiss;
   }
   if (profile.preferredGenders.length && candidate.host.gender) score += profile.preferredGenders.includes(candidate.host.gender) ? 4 : -4;
   if (profile.socialStyles.length && candidate.host.socialStyles?.length) score += includesLoose(profile.socialStyles, ...candidate.host.socialStyles) ? 3 : 0;
-  if (profile.preferredLanguages.length && candidate.host.preferredLanguages?.length) score += includesLoose(profile.preferredLanguages, ...candidate.host.preferredLanguages) ? 4 : -2;
+  if (profile.preferredLanguages.length && candidate.host.preferredLanguages?.length) score += includesLoose(profile.preferredLanguages, ...candidate.host.preferredLanguages) ? weights.languageMatch : -Math.min(2, weights.languageMatch);
 
   const hoursAway = Math.max(0, (candidate.startAt.getTime() - now.getTime()) / 3_600_000);
   if (profile.participationUrgency === 'NOW') score += hoursAway <= 3 ? 7 : -3;
@@ -95,7 +97,7 @@ export function calculateMatchScore(profile: MatchProfile, candidate: MatchCandi
       if (interaction.ratingCount >= 3 && interaction.averageRating !== null) score += Math.max(-4, Math.min(4, (interaction.averageRating - 3) * 2));
       if (interaction.completionRate !== null) score += Math.max(-3, Math.min(3, (interaction.completionRate - 0.7) * 6));
       if (interaction.conversationParticipationRate !== null) score += Math.max(0, Math.min(2, interaction.conversationParticipationRate * 2));
-      score -= Math.min(8, interaction.enforcedSafetyActions * 4);
+      score -= Math.min(weights.safetyPenalty * 2, interaction.enforcedSafetyActions * weights.safetyPenalty);
     }
   }
   return clamp(score);
@@ -103,7 +105,7 @@ export function calculateMatchScore(profile: MatchProfile, candidate: MatchCandi
 
 @Injectable()
 export class MatchingService {
-  constructor(@Inject(PrismaService) private readonly db: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly db: PrismaService, @Inject(MatchingAdminService) private readonly admin: MatchingAdminService) {}
 
   async scoresFor(userId: string, candidates: MatchCandidate[]) {
     const profile = await this.db.user.findUnique({ where: { id: userId }, select: {
@@ -114,11 +116,12 @@ export class MatchingService {
     }});
     if (!profile) return new Map<string, number>();
     const learningEnabled = profile.matchingDataConsent && profile.behaviorLearningEnabled;
-    const [behavior, interactions] = await Promise.all([
+    const [behavior, interactions, weights] = await Promise.all([
       learningEnabled ? this.behaviorSignals(userId) : Promise.resolve([]),
       learningEnabled ? this.interactionSignals(candidates.map(candidate => candidate.hostUserId)) : Promise.resolve(new Map<string, InteractionSignal>()),
+      this.admin.activeWeights(),
     ]);
-    return new Map(candidates.map(candidate => [candidate.id, calculateMatchScore(profile, candidate, behavior, new Date(), interactions.get(candidate.hostUserId))]));
+    return new Map(candidates.map(candidate => [candidate.id, calculateMatchScore(profile, candidate, behavior, new Date(), interactions.get(candidate.hostUserId), weights)]));
   }
 
   private async behaviorSignals(userId: string): Promise<BehaviorSignal[]> {
