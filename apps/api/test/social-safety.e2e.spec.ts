@@ -56,6 +56,8 @@ interface TestHangout {
   maxAge: number | null;
   isDemo: boolean;
   status: HangoutStatus;
+  startedAt?: Date | null;
+  endedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -146,13 +148,24 @@ class MemorySocialDb {
       if (!query.include) return row;
       return this.hangoutView(row);
     },
-    findMany: async (query: { where?: { hostUserId?: { notIn: string[] }; isDemo?: boolean; status?: { in: HangoutStatus[] }; startAt?: { gt?: Date; lte?: Date } }; include?: unknown }) => {
+    findMany: async (query: { where?: { hostUserId?: { notIn: string[] }; isDemo?: boolean; status?: HangoutStatus | { in: HangoutStatus[] }; startAt?: { gt?: Date; lte?: Date }; OR?: Array<{ startedAt?: Date | null | { lte: Date }; startAt?: { lte: Date } }> }; include?: unknown }) => {
       const rows = this.hangouts.filter((item) => {
         if (query.where?.hostUserId?.notIn.includes(item.hostUserId)) return false;
-        if (query.where?.status && !query.where.status.in.includes(item.status)) return false;
+        if (query.where?.status) {
+          const statuses = typeof query.where.status === 'string' ? [query.where.status] : query.where.status.in;
+          if (!statuses.includes(item.status)) return false;
+        }
         if (query.where?.isDemo !== undefined && item.isDemo !== query.where.isDemo) return false;
         if (query.where?.startAt?.gt && item.startAt <= query.where.startAt.gt) return false;
         if (query.where?.startAt?.lte && item.startAt > query.where.startAt.lte) return false;
+        if (query.where?.OR && !query.where.OR.some((condition) => {
+          const startedAtMatches = condition.startedAt === null
+            ? item.startedAt == null
+            : typeof condition.startedAt === 'object' && condition.startedAt !== null && 'lte' in condition.startedAt
+              ? item.startedAt != null && item.startedAt <= condition.startedAt.lte
+              : true;
+          return startedAtMatches && (!condition.startAt?.lte || item.startAt <= condition.startAt.lte);
+        })) return false;
         return true;
       });
       return rows.map((row) => this.hangoutView(row));
@@ -162,8 +175,9 @@ class MemorySocialDb {
       Object.assign(row, query.data, { updatedAt: new Date() });
       return row;
     },
-    updateMany: async (query: { where: { id: string; status: { in: HangoutStatus[] } }; data: Partial<TestHangout> }) => {
-      const row = this.hangouts.find((item) => item.id === query.where.id && query.where.status.in.includes(item.status));
+    updateMany: async (query: { where: { id: string; status: HangoutStatus | { in: HangoutStatus[] } }; data: Partial<TestHangout> }) => {
+      const statuses = typeof query.where.status === 'string' ? [query.where.status] : query.where.status.in;
+      const row = this.hangouts.find((item) => item.id === query.where.id && statuses.includes(item.status));
       if (!row) return { count: 0 };
       Object.assign(row, query.data, { updatedAt: new Date() });
       return { count: 1 };
@@ -397,6 +411,24 @@ describe('social journey safety boundaries', () => {
     await request(app.getHttpServer()).post(`/join-requests/${joined.body.id as string}/accept`).set(auth('host')).expect(201);
     expect(hangout.status).toBe('STARTED');
     expect(db.messages.some((message) => message.body === 'Hangout開始')).toBe(true);
+  });
+
+  it('forces a started Hangout to finish after three hours', async () => {
+    const id = await createHangout();
+    const joined = await request(app.getHttpServer()).post(`/hangouts/${id}/join`).set(auth('guest')).send({ message: '参加します' }).expect(201);
+    await request(app.getHttpServer()).post(`/join-requests/${joined.body.id as string}/accept`).set(auth('host')).expect(201);
+    await request(app.getHttpServer()).post(`/hangouts/${id}/start`).set(auth('host')).expect(201);
+    const hangout = db.hangouts.find((item) => item.id === id)!;
+    const now = new Date('2026-08-18T12:00:00.000Z');
+    hangout.startedAt = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+
+    await app.get(HangoutService).reconcileDueHangouts(now);
+
+    expect(hangout.status).toBe('FINISHED');
+    expect(hangout.endedAt).toEqual(now);
+    expect(db.messages.some((message) => message.body.includes('3時間'))).toBe(true);
+    expect(db.notifications.some((notification) => notification.userId === 'host' && notification.eventKey === `auto-finished-max-duration:${id}`)).toBe(true);
+    expect(db.notifications.some((notification) => notification.userId === 'guest' && notification.body.includes('3時間'))).toBe(true);
   });
 
   it('hides the exact venue, address, and coordinates until the host accepts the join request', async () => {

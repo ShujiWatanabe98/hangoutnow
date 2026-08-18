@@ -223,6 +223,8 @@ model Hangout {
   maxAge          Int?           @map("max_age")
   isDemo          Boolean        @default(false) @map("is_demo")
   status          HangoutStatus  @default(OPEN)
+  startedAt       DateTime?      @map("started_at")
+  endedAt         DateTime?      @map("ended_at")
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")
   host            User           @relation("HostHangouts", fields: [hostUserId], references: [id], onDelete: Cascade)
@@ -234,6 +236,7 @@ model Hangout {
   hearts          HangoutHeart[]
 
   @@index([status, startAt])
+  @@index([status, startedAt])
   @@index([serviceArea, status, startAt])
   @@index([isDemo, status, startAt])
   @@index([hostUserId])

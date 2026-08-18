@@ -140,6 +140,17 @@ test('completed Hangout ratings have a persistent completion action that removes
   assert.match(portraits, /\.hangout-rating-complete\{position:sticky;bottom:0;z-index:2/);
 });
 
+test('profile ends with a logout action that clears the session', async () => {
+  const [application, portraits] = await Promise.all([
+    readFile(new URL('app.js', publicDirectory), 'utf8'),
+    readFile(new URL('portraits.css', publicDirectory), 'utf8'),
+  ]);
+
+  assert.match(application, /profile-screen-content'\)\.insertAdjacentHTML\('beforeend','<button class="profile-logout-button" id="profile-logout" type="button">ログアウト<\/button>'\)/);
+  assert.match(application, /screen\.querySelector\('#profile-logout'\)\.onclick=\(\)=>\{realtimeSocket\?\.disconnect\(\);session=null;demoRole=null;localStorage\.removeItem\(SESSION_STORAGE_KEY\);localStorage\.removeItem\(DEMO_ROLE_STORAGE_KEY\);screen\.remove\(\);authScreen\('login'\)\}/);
+  assert.match(portraits, /\.profile-logout-button\{display:block;width:calc\(100% - 32px\)/);
+});
+
 test('retired web and mobile implementations do not return', async () => {
   const [application, portraits, requests, mobile] = await Promise.all([
     readFile(new URL('app.js', publicDirectory), 'utf8'),
