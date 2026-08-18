@@ -10,7 +10,7 @@ function serviceWith(db: object) {
 }
 
 describe('Hangout deletion', () => {
-  it('physically deletes a finished Hangout so its cascaded chat room and messages are removed', async () => {
+  it('physically deletes a hosted Hangout so its cascaded chat room and messages are removed', async () => {
     const remove = vi.fn().mockResolvedValue({});
     const update = vi.fn();
     const service = serviceWith({
@@ -26,9 +26,9 @@ describe('Hangout deletion', () => {
     expect(update).not.toHaveBeenCalled();
   });
 
-  it('keeps pre-finish deletion as cancellation', async () => {
-    const remove = vi.fn();
-    const update = vi.fn().mockResolvedValue({ status: HangoutStatus.CANCELLED });
+  it('physically deletes a pre-finish hosted Hangout instead of leaving a cancelled history item', async () => {
+    const remove = vi.fn().mockResolvedValue({});
+    const update = vi.fn();
     const service = serviceWith({
       hangout: {
         findUnique: vi.fn().mockResolvedValue({ id: 'hangout', hostUserId: 'host', status: HangoutStatus.OPEN }),
@@ -37,8 +37,8 @@ describe('Hangout deletion', () => {
       },
     });
 
-    await expect(service.cancel('host', 'hangout')).resolves.toEqual({ status: HangoutStatus.CANCELLED });
-    expect(update).toHaveBeenCalledWith({ where: { id: 'hangout' }, data: { status: HangoutStatus.CANCELLED } });
-    expect(remove).not.toHaveBeenCalled();
+    await expect(service.cancel('host', 'hangout')).resolves.toBeUndefined();
+    expect(remove).toHaveBeenCalledWith({ where: { id: 'hangout' } });
+    expect(update).not.toHaveBeenCalled();
   });
 });

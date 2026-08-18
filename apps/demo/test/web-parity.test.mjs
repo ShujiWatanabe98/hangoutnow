@@ -93,6 +93,14 @@ test('Hangout creation fixes the organizer to one person', async () => {
   assert.match(service, /const hostMaleCount=user\.gender===Gender\.FEMALE\?0:1;const hostFemaleCount=user\.gender===Gender\.FEMALE\?1:0/);
 });
 
+test('host deletion returns to profile and cancelled Hangouts stay out of hosted history', async () => {
+  const application = await readFile(new URL('app.js', publicDirectory), 'utf8');
+
+  assert.match(application, /const returnAfterDeletion=async\(\)=>\{await loadHangouts\(\);await profileScreen\(\{animate:false\}\)\}/);
+  assert.match(application, /const hostedPast=activity\.hosted\.filter\(item=>item\.status!=='CANCELLED'/);
+  assert.ok(!application.includes('if(returnToProfile)await profileScreen({animate:false});else home()'));
+});
+
 test('retired web and mobile implementations do not return', async () => {
   const [application, portraits, requests, mobile] = await Promise.all([
     readFile(new URL('app.js', publicDirectory), 'utf8'),

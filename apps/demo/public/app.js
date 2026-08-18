@@ -219,7 +219,7 @@ async function useCurrentLocation(){if(!navigator.geolocation){toast('現在地�
 
 async function detail(id, sourceScreen = null, options = {}) {
   const returnToProfile=Boolean(sourceScreen?.classList.contains('profile-screen'));
-  const returnAfterDeletion=async()=>{await loadHangouts();if(returnToProfile)await profileScreen({animate:false});else home()};
+  const returnAfterDeletion=async()=>{await loadHangouts();await profileScreen({animate:false})};
   let h = hangouts.find((item) => item.id === id);
   if (!h) {
     try {
@@ -519,7 +519,7 @@ async function profileScreen({animate=true}={}) {
   const activityRows=items=>items.length?items.map(item=>`<button class="profile-activity-row" data-profile-hangout="${item.id}" aria-label="${safeText(item.title)}を表示">${item.imageUrl?`<span style="background-image:url('${safeText(item.imageUrl)}')"></span>`:'<span class="empty-photo">✨</span>'}<div><b>${safeText(item.title)}</b><small>${new Date(item.startAt).toLocaleDateString('ja-JP')} ・ ${{FINISHED:'終了',CANCELLED:'中止',STARTED:'Hangout中',FULL:'満員',OPEN:'募集中'}[item.status]||safeText(item.status)}</small></div><i>›</i></button>`).join(''):'<p class="profile-activity-empty">まだありません。</p>';
   const activeStatuses=new Set(['OPEN','FULL','STARTED']);
   const hostedActive=activity.hosted.filter(item=>activeStatuses.has(item.status));
-  const hostedPast=activity.hosted.filter(item=>!activeStatuses.has(item.status));
+  const hostedPast=activity.hosted.filter(item=>item.status!=='CANCELLED'&&!activeStatuses.has(item.status));
   const participatingActive=activity.participated.filter(item=>activeStatuses.has(item.status));
   const participatedPast=activity.participated.filter(item=>!activeStatuses.has(item.status));
   screen.querySelector('.tags').insertAdjacentHTML('afterend',`<section class="profile-activity"><h2>主催中のHangout</h2>${activityRows(hostedActive)}<h2>主催したHangout</h2>${activityRows(hostedPast)}<h2>参加するHangout</h2>${activityRows(participatingActive)}<h2>参加したHangout</h2>${activityRows(participatedPast)}<h2>ハートしたHangout</h2>${activityRows(activity.hearted||[])}</section>`);
