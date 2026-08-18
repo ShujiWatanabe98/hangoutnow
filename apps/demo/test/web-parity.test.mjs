@@ -53,6 +53,18 @@ test('demo authentication is not rolled back by optional initial data loading', 
   assert.match(loginFlow, /Promise\.allSettled\(\[loadNotificationCount\(\),loadHangouts\(\)\]\)/);
 });
 
+test('profile remains behind talk while returning with the back animation', async () => {
+  const [application, portraits] = await Promise.all([
+    readFile(new URL('app.js', publicDirectory), 'utf8'),
+    readFile(new URL('portraits.css', publicDirectory), 'utf8'),
+  ]);
+
+  assert.match(application, /if\(returnToProfile\)sourceScreen\.classList\.add\('profile-behind-chat'\)/);
+  assert.match(application, /if\(!returnToProfile\)sourceScreen\?\.remove\(\)/);
+  assert.match(application, /phone\.remove\(\);sourceScreen\.classList\.remove\('profile-behind-chat'\);activeScreen='profileScreen'/);
+  assert.match(portraits, /\.profile-screen\.profile-behind-chat\{pointer-events:none\}\.chat-phone\{z-index:42\}/);
+});
+
 test('retired web and mobile implementations do not return', async () => {
   const [application, portraits, requests, mobile] = await Promise.all([
     readFile(new URL('app.js', publicDirectory), 'utf8'),
