@@ -20,6 +20,8 @@ export class LoginDto {
 }
 
 export enum DemoRole { HOST = 'host', GUEST = 'guest' }
+export enum AlcoholPreference { NONE = 'NONE', SOMETIMES = 'SOMETIMES', YES = 'YES' }
+export enum SmokingPreference { NON_SMOKING = 'NON_SMOKING', SEPARATED = 'SEPARATED', NO_PREFERENCE = 'NO_PREFERENCE' }
 export class DemoLoginDto { @IsEnum(DemoRole) role!: DemoRole; }
 
 export class RefreshDto { @IsString() @MinLength(20) refreshToken!: string; }
@@ -44,6 +46,11 @@ export class UpdateProfileDto {
   @IsOptional() @IsArray() @ArrayMaxSize(6) @IsInt({ each: true }) @Min(2, { each: true }) @Max(20, { each: true }) preferredGroupSizes?: number[];
   @IsOptional() @IsInt() @Min(0) @Max(100_000) budgetMin?: number | null;
   @IsOptional() @IsInt() @Min(0) @Max(100_000) budgetMax?: number | null;
+  @IsOptional() @IsArray() @ArrayMaxSize(5) @IsString({ each: true }) @MaxLength(40, { each: true }) socialStyles?: string[];
+  @IsOptional() @IsArray() @ArrayMaxSize(7) @IsString({ each: true }) @MaxLength(40, { each: true }) participationGoals?: string[];
+  @IsOptional() @IsArray() @ArrayMaxSize(4) @IsString({ each: true }) @MaxLength(40, { each: true }) firstTimePreferences?: string[];
+  @IsOptional() @IsEnum(AlcoholPreference) alcoholPreference?: AlcoholPreference | null;
+  @IsOptional() @IsEnum(SmokingPreference) smokingPreference?: SmokingPreference | null;
 }
 
 export class RequestPhoneVerificationDto { @IsString() @Matches(/^\+[1-9]\d{7,14}$/) phone!: string; }

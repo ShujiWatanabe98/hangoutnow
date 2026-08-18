@@ -41,6 +41,11 @@ model User {
   preferredGroupSizes Int[]       @default([]) @map("preferred_group_sizes")
   budgetMin        Int?           @map("budget_min")
   budgetMax        Int?           @map("budget_max")
+  socialStyles     String[]       @default([]) @map("social_styles")
+  participationGoals String[]     @default([]) @map("participation_goals")
+  firstTimePreferences String[]   @default([]) @map("first_time_preferences")
+  alcoholPreference String?       @map("alcohol_preference")
+  smokingPreference String?       @map("smoking_preference")
   verification   VerificationStatus @default(UNVERIFIED)
   /// S3-compatible object URL in production. Never persist profile image bytes or base64 data URLs in production.
   profilePhoto   String?        @map("profile_photo") @db.Text
