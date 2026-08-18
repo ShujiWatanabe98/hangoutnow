@@ -43,6 +43,16 @@ test('production uses the shared Hangout, talk, notification, and profile flows'
   }
 });
 
+test('demo authentication is not rolled back by optional initial data loading', async () => {
+  const application = await readFile(new URL('app.js', publicDirectory), 'utf8');
+  const loginStart = application.indexOf('async function demoLogin');
+  const loginEnd = application.indexOf('\nfunction shell', loginStart);
+  const loginFlow = application.slice(loginStart, loginEnd);
+
+  assert.ok(loginFlow.indexOf("navigate('home')") < loginFlow.indexOf('Promise.allSettled'), 'successful authentication must show the home screen before optional data refresh');
+  assert.match(loginFlow, /Promise\.allSettled\(\[loadNotificationCount\(\),loadHangouts\(\)\]\)/);
+});
+
 test('retired web and mobile implementations do not return', async () => {
   const [application, portraits, requests, mobile] = await Promise.all([
     readFile(new URL('app.js', publicDirectory), 'utf8'),

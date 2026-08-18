@@ -179,8 +179,9 @@ async function demoLogin(role, button) {
     localStorage.setItem(DEMO_ROLE_STORAGE_KEY,role);
     saveSession();
     connectRealtime();
-    await Promise.all([loadNotificationCount(),loadHangouts()]);
     navigate('home');
+    await Promise.allSettled([loadNotificationCount(),loadHangouts()]);
+    if(activeScreen==='home')home();
   } catch(error) {
     clearTimeout(slowTimer);
     document.querySelector('#demo-error').textContent=error.message;
