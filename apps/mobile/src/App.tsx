@@ -1266,7 +1266,7 @@ export default function App() {
           </View>
         </View>
       )}
-      {screen !== "chat" && (
+      {screen !== "chat" && screen !== "detail" && (
         <View style={styles.header}>
           <Text style={styles.brand}>
             Hangout <Text style={styles.brandAccent}>Now</Text>
@@ -1295,37 +1295,6 @@ export default function App() {
         {screen === "profile" && <ProfileScreen user={session.user} hostStatus={hostStatus} activity={profileActivity} demo={!!demoRole} onChat={() => { setSelectedRoom(null); setScreen("chat"); }} onOpenHangout={(id) => void openHangout({ id })} onPhone={() => setScreen("phone")} onPhoto={chooseProfilePhoto} onSave={updateProfile} onDelete={confirmDeleteAccount} onLogout={logout} />}
         {screen === "notifications" && <NotificationScreen inbox={notificationInbox} refreshing={refreshing} onBack={() => setScreen("home")} onRefresh={refreshCurrent} onEnabled={setNotificationEnabled} onRead={readNotification} onReadAll={readAllNotifications} onDelete={confirmDeleteNotifications} />}
       </View>
-      {!selectedRoom && ["home", "map", "chat", "profile"].includes(screen) && (
-        <View style={styles.nav}>
-          {(
-            [
-              ["home", "ホーム"],
-              ["map", "マップ"],
-              ["chat", "トーク"],
-            ] as const
-          ).map(([value, label]) => (
-            <Pressable
-              key={value}
-              onPress={() => {
-                setSelectedRoom(null);
-                setScreen(value);
-              }}
-              style={styles.navItem}
-            >
-              {value === "map" ? (
-                <View style={styles.mapNavIconWrap}>
-                  <View style={[styles.mapNavPin, screen === value && styles.mapNavPinOn]}>
-                    <View style={styles.mapNavPinCenter} />
-                  </View>
-                </View>
-              ) : (
-                <View style={[styles.navMark, screen === value && styles.navMarkOn]} />
-              )}
-              <Text style={[styles.navLabel, screen === value && styles.navOn]}>{label}</Text>
-            </Pressable>
-          ))}
-        </View>
-      )}
       {loading ? (
         <View style={styles.loading}>
           <ActivityIndicator color="#d9ff68" />
@@ -1518,6 +1487,7 @@ function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, d
             <Text style={[styles.heartIcon, hangout.hearted && styles.heartIconOn]}>{hangout.hearted ? "♥" : "♡"}</Text>
             <Text style={[styles.heartCount, hangout.hearted && styles.heartIconOn]}>{hangout.heartCount}</Text>
           </Pressable>
+          <Text style={styles.status}>{homeStateLabel(hangout)}</Text>
           <View style={styles.cardTop}>
             <View style={styles.cardCopy}>
               <Text style={styles.cardCategory}>{hangout.category}</Text>
@@ -1528,7 +1498,6 @@ function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, d
                 参加 {hangout.participantCount} / {hangout.maxParticipants}人 ・ {conditionLabel(hangout)}
               </Text>
             </View>
-            <Text style={styles.status}>{homeStateLabel(hangout)}</Text>
           </View>
           <View style={styles.cardBottom}>
             <View style={styles.cardHostRow}>
@@ -1762,10 +1731,14 @@ function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onChat, 
   const hostPhotos = (hangout.host.profilePhotos?.length ? hangout.host.profilePhotos : hangout.host.profilePhoto ? [hangout.host.profilePhoto] : []).filter(Boolean);
   return (
     <>
-      <ScrollView contentContainerStyle={styles.formPage}>
-        <Pressable onPress={onBack}>
-          <Text style={styles.backText}>‹ 一覧へ</Text>
+      <View style={styles.detailHeader}>
+        <Pressable style={styles.detailBackButton} onPress={onBack} accessibilityRole="button" accessibilityLabel="Hangout一覧に戻る">
+          <View style={styles.backChevron} />
         </Pressable>
+        <Text style={styles.detailHeaderTitle}>Hangout</Text>
+        <View style={styles.detailHeaderSpacer} />
+      </View>
+      <ScrollView style={styles.detailScroll} contentContainerStyle={styles.detailPage}>
         <Image source={{ uri: hangoutImageUrl(hangout) }} style={styles.detailPhoto} resizeMode="cover" />
         <View style={styles.detailHostRow}>
           <Pressable disabled={!hostPhotos.length} onPress={() => setHostPhotoIndex(0)} accessibilityLabel={`${hangout.host.displayName}のプロフィール画像を見る`}>
@@ -2792,12 +2765,17 @@ const styles = StyleSheet.create({
   cardMatchLabel: { color: "#6d766f", fontSize: 9, fontWeight: "800" },
   cardMatchScore: { color: "#176b48", fontSize: 19, fontWeight: "900" },
   status: {
-    fontSize: 11,
+    position: "absolute",
+    zIndex: 2,
+    top: 10,
+    right: 10,
+    fontSize: 10,
     fontWeight: "900",
     color: "#176b48",
     backgroundColor: "#e9f7ec",
-    padding: 7,
-    borderRadius: 10,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 999,
   },
   joinButton: {
     backgroundColor: "#d9ff68",
@@ -2829,11 +2807,11 @@ const styles = StyleSheet.create({
   homeActions: { flexDirection: "row", gap: 8, marginTop: 10 },
   createButton: {
     backgroundColor: "#176b48",
-    minHeight: 44,
+    minHeight: 40,
     justifyContent: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 11,
-    borderRadius: 13,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 12,
   },
   detailLink: { fontSize: 11, color: "#176b48", fontWeight: "900" },
   formPage: { padding: 20, paddingBottom: 60, backgroundColor: "#f7f8f3" },
@@ -2870,11 +2848,17 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.45 },
   detailPhoto: {
     width: "100%",
-    height: 170,
-    borderRadius: 20,
+    height: 220,
+    borderRadius: 16,
     marginBottom: 16,
     backgroundColor: "#dfe6df",
   },
+  detailHeader: { height: 62, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#fff", borderBottomWidth: 1, borderColor: "#e5e9e5" },
+  detailBackButton: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: "#f7faf7", borderWidth: 1, borderColor: "#dce5df" },
+  detailHeaderTitle: { color: "#17221d", fontSize: 17, fontWeight: "900" },
+  detailHeaderSpacer: { width: 44, height: 44 },
+  detailScroll: { flex: 1, backgroundColor: "#fff" },
+  detailPage: { padding: 20, paddingBottom: 60, backgroundColor: "#fff" },
   detailHostRow: { flexDirection: "row", alignItems: "center", gap: 11, padding: 13, borderRadius: 18, backgroundColor: "#fff", borderWidth: 1, borderColor: "#e3e8e2", marginBottom: 12 },
   detailHostPhoto: { width: 50, height: 50, borderRadius: 25, backgroundColor: "#dfe6df" },
   detailHostPhotoFallback: { width: 50, height: 50, borderRadius: 25, alignItems: "center", justifyContent: "center", backgroundColor: "#176b48" },
@@ -3233,9 +3217,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderColor: "#dfe4df",
   },
-  quickMessageRow: { gap: 8, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: "#fff", borderTopWidth: 1, borderColor: "#edf0eb" },
-  quickMessageButton: { minHeight: 38, justifyContent: "center", paddingHorizontal: 14, borderRadius: 19, backgroundColor: "#edf6ed", borderWidth: 1, borderColor: "#d5e6d6" },
-  quickMessageText: { color: "#176b48", fontSize: 12, fontWeight: "800" },
+  quickMessageRow: { gap: 6, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: "#fff", borderTopWidth: 1, borderColor: "#edf0eb" },
+  quickMessageButton: { minHeight: 30, justifyContent: "center", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: "#fff", borderWidth: 1, borderColor: "#dce5df" },
+  quickMessageText: { color: "#176b48", fontSize: 10, fontWeight: "800" },
   composerInput: {
     flex: 1,
     minHeight: 40,
@@ -3294,9 +3278,9 @@ const styles = StyleSheet.create({
   profileName: { fontSize: 25, fontWeight: "900", marginTop: 14 },
   profileEditButton: { marginTop: 12, minHeight: 48, justifyContent: "center", paddingHorizontal: 24, borderRadius: 16, backgroundColor: "#176b48", shadowColor: "#176b48", shadowOpacity: 0.18, shadowRadius: 7, elevation: 2 },
   profileEditButtonText: { color: "#fff", fontSize: 13, fontWeight: "900" },
-  profileChatButton: { marginTop: 12, minWidth: 150, minHeight: 48, paddingHorizontal: 22, borderRadius: 24, backgroundColor: "#d9ff68", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, shadowColor: "#176b48", shadowOpacity: 0.16, shadowRadius: 7, elevation: 2 },
-  profileChatButtonIcon: { color: "#176b48", fontSize: 11 },
-  profileChatButtonText: { color: "#17221d", fontSize: 14, fontWeight: "900" },
+  profileChatButton: { marginTop: 12, width: "100%", minHeight: 52, paddingHorizontal: 22, borderRadius: 15, backgroundColor: "#edf8f0", borderWidth: 1, borderColor: "#b9d6c4", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9 },
+  profileChatButtonIcon: { color: "#176b48", fontSize: 10 },
+  profileChatButtonText: { color: "#176b48", fontSize: 16, fontWeight: "900" },
   profileEditorPage: { flex: 1, backgroundColor: "#f7f8f3" },
   profileEditorHeader: { minHeight: 58, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderColor: "#dfe5df", backgroundColor: "#fff" },
   profileEditorTitle: { fontSize: 16, fontWeight: "900", color: "#17221d" },
