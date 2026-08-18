@@ -2129,11 +2129,13 @@ function ChatScreen({ user, rooms, selectedRoom, messages, messageBody, sending,
 
 function NotificationScreen({ inbox, refreshing, onBack, onRefresh, onEnabled, onRead, onReadAll }: { inbox: NotificationInbox; refreshing: boolean; onBack: () => void; onRefresh: () => void; onEnabled: (enabled: boolean) => void; onRead: (id: string) => void; onReadAll: () => void }) {
   return (
-    <ScrollView contentContainerStyle={styles.notificationPage} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+    <View style={styles.notificationScreen}>
       <View style={styles.notificationHead}>
         <Pressable accessibilityRole="button" accessibilityLabel="ホームに戻る" onPress={onBack} style={styles.backButton}><View style={styles.backChevron} /></Pressable>
-        <View><Text style={styles.eyebrow}>リアルタイム更新</Text><Text style={styles.pageTitle}>通知</Text></View>
+        <View style={styles.notificationHeadTitle}><Text style={styles.notificationHeadEyebrow}>リアルタイム更新</Text><Text style={styles.notificationHeadText}>通知</Text></View>
+        <View style={styles.notificationHeadSpacer} />
       </View>
+      <ScrollView contentContainerStyle={styles.notificationPage} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
       <View style={styles.notificationSettings}>
         <View style={styles.notificationSettingCopy}><Text style={styles.notificationSettingTitle}>アプリ内通知を受け取る</Text><Text style={styles.muted}>申請・承認・トーク・Hangoutの更新をお知らせします。</Text></View>
         <Pressable accessibilityRole="switch" accessibilityState={{ checked: inbox.enabled }} style={[styles.notificationToggle, inbox.enabled && styles.notificationToggleOn]} onPress={() => onEnabled(!inbox.enabled)}><View style={[styles.notificationToggleKnob, inbox.enabled && styles.notificationToggleKnobOn]} /></Pressable>
@@ -2146,7 +2148,8 @@ function NotificationScreen({ inbox, refreshing, onBack, onRefresh, onEnabled, o
         </Pressable>
       ))}
       {!inbox.items.length && <Text style={styles.empty}>通知はまだありません。</Text>}
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -3303,8 +3306,13 @@ const styles = StyleSheet.create({
   filterPillOn: { backgroundColor: "#176b48" },
   filterPillText: { color: "#59635c", fontSize: 12, fontWeight: "800" },
   filterPillTextOn: { color: "#fff" },
+  notificationScreen: { flex: 1, backgroundColor: "#f7f8f3" },
   notificationPage: { padding: 18, paddingBottom: 80, gap: 12 },
-  notificationHead: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 4 },
+  notificationHead: { minHeight: 64, flexDirection: "row", alignItems: "center", paddingHorizontal: 18, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#dfe5df", backgroundColor: "#fff" },
+  notificationHeadTitle: { flex: 1, alignItems: "center" },
+  notificationHeadEyebrow: { color: "#176b48", fontSize: 10, fontWeight: "900" },
+  notificationHeadText: { marginTop: 2, color: "#17221d", fontSize: 17, fontWeight: "900" },
+  notificationHeadSpacer: { width: 42 },
   notificationSettings: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, padding: 16, borderRadius: 18, backgroundColor: "#fff" },
   notificationSettingCopy: { flex: 1, gap: 3 },
   notificationSettingTitle: { color: "#17221d", fontSize: 14, fontWeight: "900" },
