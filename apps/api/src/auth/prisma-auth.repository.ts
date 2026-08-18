@@ -13,6 +13,12 @@ export class PrismaAuthRepository extends AuthRepository {
     return {
       id: user.id, email: user.email, passwordHash: user.passwordHash, displayName: user.displayName,
       birthDate: user.birthDate?.toISOString().slice(0, 10) ?? null, gender: user.gender, bio: user.bio, homeArea: user.homeArea,
+      preferredAreas: user.preferredAreas, preferredActivities: user.preferredActivities,
+      preferredAgeMin: user.preferredAgeMin, preferredAgeMax: user.preferredAgeMax,
+      preferredGenders: user.preferredGenders, activityTimeSlots: user.activityTimeSlots,
+      matchingDataConsent: user.matchingDataConsent,
+      participationUrgency: user.participationUrgency, maxTravelMinutes: user.maxTravelMinutes,
+      preferredGroupSizes: user.preferredGroupSizes, budgetMin: user.budgetMin, budgetMax: user.budgetMax,
       verificationStatus: user.verification, interests: user.interests.map((item) => item.interest.name),
       profilePhoto: user.profilePhoto, profilePhotos: user.profilePhotos, phoneNumber: user.phoneNumber,
     };
@@ -39,11 +45,14 @@ export class PrismaAuthRepository extends AuthRepository {
     const user = await this.prisma.user.create({ data: { id: uuidv7(), ...input, gender: input.gender as 'MALE'|'FEMALE'|'OTHER'|'UNDISCLOSED'|undefined }, include: includeInterests });
     return this.mapUser(user);
   }
-  async updateProfile(userId: string, input: { displayName?: string; bio?: string | null; homeArea?: string | null; interests?: string[]; profilePhoto?: string | null; profilePhotos?: string[]; gender?: string }): Promise<StoredUser> {
-    const { interests, gender, ...profile } = input;
+  async updateProfile(userId: string, input: { displayName?: string; bio?: string | null; homeArea?: string | null; interests?: string[]; profilePhoto?: string | null; profilePhotos?: string[]; gender?: string; preferredAreas?: string[]; preferredActivities?: string[]; preferredAgeMin?: number | null; preferredAgeMax?: number | null; preferredGenders?: string[]; activityTimeSlots?: string[]; matchingDataConsent?: boolean; participationUrgency?: string | null; maxTravelMinutes?: number | null; preferredGroupSizes?: number[]; budgetMin?: number | null; budgetMax?: number | null }): Promise<StoredUser> {
+    const { interests, gender, preferredGenders, matchingDataConsent, participationUrgency, ...profile } = input;
     const user = await this.prisma.user.update({
       where: { id: userId }, data: {
         ...profile, ...(gender ? { gender: gender as 'MALE'|'FEMALE'|'OTHER'|'UNDISCLOSED' } : {}),
+        ...(preferredGenders ? { preferredGenders: preferredGenders as ('MALE'|'FEMALE'|'OTHER'|'UNDISCLOSED')[] } : {}),
+        ...(matchingDataConsent === undefined ? {} : { matchingDataConsent, matchingDataConsentAt: matchingDataConsent ? new Date() : null }),
+        ...(participationUrgency === undefined ? {} : { participationUrgency: participationUrgency as 'NOW'|'TODAY'|'THIS_WEEK'|'WEEKEND'|'FLEXIBLE'|null }),
         ...(interests ? { interests: { deleteMany: {}, create: interests.map((name) => ({ interest: { connectOrCreate: { where: { name }, create: { id: uuidv7(), name } } } })) } } : {}),
       }, include: includeInterests,
     });

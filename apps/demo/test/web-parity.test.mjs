@@ -43,6 +43,24 @@ test('production uses the shared Hangout, talk, notification, and profile flows'
   }
 });
 
+test('profile editor saves privacy-safe matching preferences', async () => {
+  const [application, mobile] = await Promise.all([
+    readFile(new URL('app.js', publicDirectory), 'utf8'),
+    readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8'),
+  ]);
+  for (const contract of ['edit-preferred-areas', 'edit-preferred-activities', 'edit-preferred-age-min', 'data-preferred-gender', 'edit-activity-time-slots', 'edit-participation-urgency', 'edit-max-travel-minutes', 'edit-preferred-group-sizes', 'edit-budget-min', 'edit-budget-max', 'edit-matching-consent', 'matchingDataConsent']) {
+    assert.ok(application.includes(contract), `missing matching preference contract: ${contract}`);
+  }
+  assert.match(application, /正確なGPS位置は保存しません/);
+  assert.match(application, /function showMatchFeedbackDialog/);
+  assert.match(application, /\/analytics\/match-feedback/);
+  for (const contract of ['preferredAreas', 'preferredActivities', 'preferredAgeMin', 'preferredGenders', 'activityTimeSlots', 'participationUrgency', 'maxTravelMinutes', 'preferredGroupSizes', 'budgetMin', 'matchingDataConsent']) {
+    assert.ok(mobile.includes(contract), `missing mobile matching preference contract: ${contract}`);
+  }
+  assert.match(mobile, /正確なGPS位置は保存しません/);
+  assert.match(mobile, /\/analytics\/match-feedback/);
+});
+
 test('demo authentication is not rolled back by optional initial data loading', async () => {
   const application = await readFile(new URL('app.js', publicDirectory), 'utf8');
   const loginStart = application.indexOf('async function demoLogin');

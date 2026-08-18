@@ -23,10 +23,10 @@ class MemoryAuthRepository extends AuthRepository {
   async findUserById(id: string) { return this.users.find((user) => user.id === id) ?? null; }
   async findUserByPhone(phone:string){return this.users.find((user)=>user.phoneNumber===phone)??null}
   async createUser(input: { email: string; passwordHash: string; displayName: string; birthDate: Date | null; gender?: string }) {
-    const user: StoredUser = { id: `user-${this.users.length + 1}`, ...input, birthDate: input.birthDate?.toISOString().slice(0, 10) ?? null, gender: input.gender??null, bio: null, homeArea: null, interests: [], verificationStatus: 'UNVERIFIED', profilePhoto: null, profilePhotos: [], phoneNumber: null };
+    const user: StoredUser = { id: `user-${this.users.length + 1}`, ...input, birthDate: input.birthDate?.toISOString().slice(0, 10) ?? null, gender: input.gender??null, bio: null, homeArea: null, preferredAreas: [], preferredActivities: [], preferredAgeMin: null, preferredAgeMax: null, preferredGenders: [], activityTimeSlots: [], matchingDataConsent: false, participationUrgency: null, maxTravelMinutes: null, preferredGroupSizes: [], budgetMin: null, budgetMax: null, interests: [], verificationStatus: 'UNVERIFIED', profilePhoto: null, profilePhotos: [], phoneNumber: null };
     this.users.push(user); return user;
   }
-  async updateProfile(userId: string, input: { displayName?: string; bio?: string | null; homeArea?: string | null; interests?: string[]; profilePhoto?: string | null; profilePhotos?: string[]; gender?: string }) {
+  async updateProfile(userId: string, input: { displayName?: string; bio?: string | null; homeArea?: string | null; interests?: string[]; profilePhoto?: string | null; profilePhotos?: string[]; gender?: string; preferredAreas?: string[]; preferredActivities?: string[]; preferredAgeMin?: number | null; preferredAgeMax?: number | null; preferredGenders?: string[]; activityTimeSlots?: string[]; matchingDataConsent?: boolean; participationUrgency?: string | null; maxTravelMinutes?: number | null; preferredGroupSizes?: number[]; budgetMin?: number | null; budgetMax?: number | null }) {
     const user = await this.findUserById(userId); if (!user) throw new Error('missing user'); Object.assign(user, input); return user;
   }
   async saveRefreshToken(token: StoredRefreshToken) { this.tokens.push(token); }
@@ -137,6 +137,11 @@ describe('authentication and profile', () => {
     expect(registeredWithPhoto.body.user.profilePhoto).toBe(selectedPhoto);
     const profile = await request(app.getHttpServer()).patch('/users/me').set('Authorization', `Bearer ${registered.body.accessToken as string}`).send({ bio: '今から走ろう', interests: ['ランニング', 'ランニング', 'AI'] }).expect(200);
     expect(profile.body.interests).toEqual(['ランニング', 'AI']);
+    const matching = await request(app.getHttpServer()).patch('/users/me').set('Authorization', `Bearer ${registered.body.accessToken as string}`).send({ preferredAreas: ['新宿', '新宿', '渋谷'], preferredActivities: ['カフェ', 'ランニング'], preferredAgeMin: 25, preferredAgeMax: 40, preferredGenders: ['FEMALE', 'OTHER'], activityTimeSlots: ['平日夜', '土日昼'], matchingDataConsent: true, participationUrgency: 'TODAY', maxTravelMinutes: 30, preferredGroupSizes: [2, 4], budgetMin: 1000, budgetMax: 5000 }).expect(200);
+    expect(matching.body).toMatchObject({ preferredAreas: ['新宿', '渋谷'], preferredActivities: ['カフェ', 'ランニング'], preferredAgeMin: 25, preferredAgeMax: 40, preferredGenders: ['FEMALE', 'OTHER'], activityTimeSlots: ['平日夜', '土日昼'], matchingDataConsent: true, participationUrgency: 'TODAY', maxTravelMinutes: 30, preferredGroupSizes: [2, 4], budgetMin: 1000, budgetMax: 5000 });
+    await request(app.getHttpServer()).patch('/users/me').set('Authorization', `Bearer ${registered.body.accessToken as string}`).send({ preferredAgeMin: 45, preferredAgeMax: 30 }).expect(400);
+    await request(app.getHttpServer()).patch('/users/me').set('Authorization', `Bearer ${registered.body.accessToken as string}`).send({ preferredAgeMin: 17 }).expect(400);
+    await request(app.getHttpServer()).patch('/users/me').set('Authorization', `Bearer ${registered.body.accessToken as string}`).send({ budgetMin: 6000, budgetMax: 2000 }).expect(400);
   }, 15_000);
 
   it('uploads a profile photo and verifies a phone number', async () => {

@@ -1,6 +1,6 @@
 import { Transform } from 'class-transformer';
-import { Gender } from '@prisma/client';
-import { ArrayMaxSize, IsArray, IsDateString, IsEmail, IsEnum, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { Gender, ParticipationUrgency } from '@prisma/client';
+import { ArrayMaxSize, IsArray, IsBoolean, IsDateString, IsEmail, IsEnum, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength } from 'class-validator';
 
 export class RegisterDto {
   @IsEmail({}, { message: '正しいメールアドレスを入力してください' }) @Transform(({ value }: { value: unknown }) => typeof value === 'string' ? value.trim().toLowerCase() : value)
@@ -32,6 +32,18 @@ export class UpdateProfileDto {
   @IsOptional() @IsString() @MaxLength(1_500_000) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/) profilePhoto?: string | null;
   @IsOptional() @IsArray() @ArrayMaxSize(3) @IsString({ each: true }) @MaxLength(1_500_000, { each: true }) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/, { each: true }) profilePhotos?: string[];
   @IsOptional() @IsEnum(Gender) gender?: Gender;
+  @IsOptional() @IsArray() @ArrayMaxSize(10) @IsString({ each: true }) @MaxLength(80, { each: true }) preferredAreas?: string[];
+  @IsOptional() @IsArray() @ArrayMaxSize(20) @IsString({ each: true }) @MaxLength(40, { each: true }) preferredActivities?: string[];
+  @IsOptional() @IsInt() @Min(18) @Max(100) preferredAgeMin?: number | null;
+  @IsOptional() @IsInt() @Min(18) @Max(100) preferredAgeMax?: number | null;
+  @IsOptional() @IsArray() @ArrayMaxSize(4) @IsEnum(Gender, { each: true }) preferredGenders?: Gender[];
+  @IsOptional() @IsArray() @ArrayMaxSize(7) @IsString({ each: true }) @MaxLength(30, { each: true }) activityTimeSlots?: string[];
+  @IsOptional() @IsBoolean() matchingDataConsent?: boolean;
+  @IsOptional() @IsEnum(ParticipationUrgency) participationUrgency?: ParticipationUrgency | null;
+  @IsOptional() @IsInt() @Min(5) @Max(180) maxTravelMinutes?: number | null;
+  @IsOptional() @IsArray() @ArrayMaxSize(6) @IsInt({ each: true }) @Min(2, { each: true }) @Max(20, { each: true }) preferredGroupSizes?: number[];
+  @IsOptional() @IsInt() @Min(0) @Max(100_000) budgetMin?: number | null;
+  @IsOptional() @IsInt() @Min(0) @Max(100_000) budgetMax?: number | null;
 }
 
 export class RequestPhoneVerificationDto { @IsString() @Matches(/^\+[1-9]\d{7,14}$/) phone!: string; }

@@ -7,7 +7,8 @@ COPY apps/mobile/package.json apps/mobile/package.json
 COPY apps/demo/package.json apps/demo/package.json
 COPY packages/shared/package.json packages/shared/package.json
 COPY packages/config/package.json packages/config/package.json
-RUN npm ci
+RUN npm ci --include=optional
+RUN npm install --no-save --os=linux --libc=musl --cpu=x64 @img/sharp-linuxmusl-x64
 COPY apps/api apps/api
 RUN npm run prisma:generate -w @hangout-now/api && npm run build -w @hangout-now/api
 EXPOSE 3000

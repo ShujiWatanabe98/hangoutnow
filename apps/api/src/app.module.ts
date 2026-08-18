@@ -23,7 +23,7 @@ import { ImageStorageService } from './storage/image-storage.service';
 import { DemoController } from './demo/demo.controller';
 import { DemoService } from './demo/demo.service';
 import { HostStatusService } from './host-status/host-status.service';
-import { AnalyticsController } from './analytics/analytics.controller';
+import { AnalyticsController, MatchFeedbackController } from './analytics/analytics.controller';
 import { AnalyticsService } from './analytics/analytics.service';
 import { NewsletterController } from './newsletter/newsletter.controller';
 import { NewsletterService } from './newsletter/newsletter.service';
@@ -37,7 +37,7 @@ import { NewsletterEmailService } from './newsletter/newsletter-email.service';
       return { secret };
     },
   }), ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }])],
-  controllers: [HealthController, AuthController, UsersController, HangoutController, JoinRequestController, ChatController, DirectChatController, DemoController, SafetyController, ReportAdminController, NotificationController, AnalyticsController, NewsletterController],
+  controllers: [HealthController, AuthController, UsersController, HangoutController, JoinRequestController, ChatController, DirectChatController, DemoController, SafetyController, ReportAdminController, NotificationController, AnalyticsController, MatchFeedbackController, NewsletterController],
   providers: [PrismaService, HangoutService, ChatService, DemoService, HostStatusService, SafetyService, NotificationService, AnalyticsService, NewsletterService, NewsletterEmailService, RealtimeGateway, SmsVerificationProvider, ImageStorageService, PrismaAuthRepository, { provide: AuthRepository, useExisting: PrismaAuthRepository }, AuthService, AccessTokenGuard, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

@@ -163,6 +163,18 @@ async function loginOrRegister(account) {
       bio: account.bio,
       homeArea: account.homeArea,
       interests: account.interests,
+      preferredAreas: [account.homeArea, account.homeArea === '新宿' ? '渋谷' : '新宿'],
+      preferredActivities: account.interests,
+      preferredAgeMin: 24,
+      preferredAgeMax: 45,
+      preferredGenders: [],
+      activityTimeSlots: ['平日夜', '土日昼'],
+      matchingDataConsent: true,
+      participationUrgency: 'THIS_WEEK',
+      maxTravelMinutes: 30,
+      preferredGroupSizes: [2, 4, 6],
+      budgetMin: 1000,
+      budgetMax: 5000,
     }),
   }, token).then((result) => result.body);
 

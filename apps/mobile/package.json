@@ -11,7 +11,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "expo": "~54.0.36",
+    "@expo/metro-runtime": "~6.1.2",
+    "@ide/backoff": "^1.0.0",
+    "expo": "~54.0.37",
     "expo-device": "~8.0.10",
     "expo-image-picker": "~17.0.11",
     "expo-location": "~19.0.8",
@@ -21,7 +23,9 @@
     "expo-system-ui": "~6.0.9",
     "expo-web-browser": "~15.0.11",
     "react": "19.1.0",
+    "react-dom": "19.1.0",
     "react-native": "0.81.5",
+    "react-native-web": "^0.21.0",
     "socket.io-client": "^4.8.0"
   },
   "devDependencies": {

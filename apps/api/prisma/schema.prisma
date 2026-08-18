@@ -28,6 +28,19 @@ model User {
   gender         Gender?
   bio            String?
   homeArea       String?        @map("home_area")
+  preferredAreas String[]       @default([]) @map("preferred_areas")
+  preferredActivities String[]  @default([]) @map("preferred_activities")
+  preferredAgeMin Int?          @map("preferred_age_min")
+  preferredAgeMax Int?          @map("preferred_age_max")
+  preferredGenders Gender[]     @default([]) @map("preferred_genders")
+  activityTimeSlots String[]    @default([]) @map("activity_time_slots")
+  matchingDataConsent Boolean   @default(false) @map("matching_data_consent")
+  matchingDataConsentAt DateTime? @map("matching_data_consent_at")
+  participationUrgency ParticipationUrgency? @map("participation_urgency")
+  maxTravelMinutes Int?           @map("max_travel_minutes")
+  preferredGroupSizes Int[]       @default([]) @map("preferred_group_sizes")
+  budgetMin        Int?           @map("budget_min")
+  budgetMax        Int?           @map("budget_max")
   verification   VerificationStatus @default(UNVERIFIED)
   /// S3-compatible object URL in production. Never persist profile image bytes or base64 data URLs in production.
   profilePhoto   String?        @map("profile_photo") @db.Text
@@ -59,6 +72,7 @@ model User {
   hangoutHearts HangoutHeart[]
   oauthIdentities OAuthIdentity[]
   oauthLoginTickets OAuthLoginTicket[]
+  matchFeedbacks MatchFeedback[]
 
   @@map("users")
 }
@@ -173,6 +187,25 @@ enum FunnelEventType {
   HANGOUT_CREATED
   HANGOUT_COMPLETED
 }
+enum ParticipationUrgency {
+  NOW
+  TODAY
+  THIS_WEEK
+  WEEKEND
+  FLEXIBLE
+}
+enum MatchOutcome {
+  MATCHED
+  NOT_MATCHED
+}
+enum MatchDeclineReason {
+  TIME
+  DISTANCE
+  FULL
+  BUDGET
+  CONDITIONS
+  OTHER
+}
 enum Gender {
   MALE
   FEMALE
@@ -234,6 +267,7 @@ model Hangout {
   ratings         HangoutRating[]
   funnelEvents    FunnelEvent[]
   hearts          HangoutHeart[]
+  matchFeedbacks  MatchFeedback[]
 
   @@index([status, startAt])
   @@index([status, startedAt])
@@ -267,6 +301,22 @@ model FunnelEvent {
   @@index([hangoutId, eventType, createdAt])
   @@index([userId, createdAt])
   @@map("funnel_events")
+}
+
+model MatchFeedback {
+  id        String             @id @db.Uuid
+  userId    String             @map("user_id") @db.Uuid
+  hangoutId String             @map("hangout_id") @db.Uuid
+  outcome   MatchOutcome
+  reason    MatchDeclineReason?
+  createdAt DateTime           @default(now()) @map("created_at")
+  updatedAt DateTime           @updatedAt @map("updated_at")
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hangout   Hangout            @relation(fields: [hangoutId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, hangoutId])
+  @@index([outcome, reason, createdAt])
+  @@map("match_feedback")
 }
 
 model HangoutRating {

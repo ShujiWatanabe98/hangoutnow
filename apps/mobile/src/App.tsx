@@ -42,11 +42,25 @@ type User = {
   gender: string | null;
   bio: string | null;
   homeArea: string | null;
+  preferredAreas: string[];
+  preferredActivities: string[];
+  preferredAgeMin: number | null;
+  preferredAgeMax: number | null;
+  preferredGenders: string[];
+  activityTimeSlots: string[];
+  matchingDataConsent: boolean;
+  participationUrgency: "NOW" | "TODAY" | "THIS_WEEK" | "WEEKEND" | "FLEXIBLE" | null;
+  maxTravelMinutes: number | null;
+  preferredGroupSizes: number[];
+  budgetMin: number | null;
+  budgetMax: number | null;
   interests: string[];
   verificationStatus: string;
   profilePhoto: string | null;
   profilePhotos: string[];
 };
+
+type UpdateProfileInput = Pick<User, "displayName" | "gender" | "bio" | "homeArea" | "interests" | "preferredAreas" | "preferredActivities" | "preferredAgeMin" | "preferredAgeMax" | "preferredGenders" | "activityTimeSlots" | "matchingDataConsent" | "participationUrgency" | "maxTravelMinutes" | "preferredGroupSizes" | "budgetMin" | "budgetMax">;
 
 type Session = { accessToken: string; refreshToken: string; user: User };
 type HostTier = "WHITE" | "BRONZE" | "SILVER" | "GOLD" | "PLATINUM" | "DIAMOND";
@@ -1049,7 +1063,7 @@ export default function App() {
     }
   }
 
-  async function updateProfile(input: Pick<User, "displayName" | "gender" | "bio" | "homeArea" | "interests">) {
+  async function updateProfile(input: UpdateProfileInput) {
     setLoading(true);
     setError("");
     try {
@@ -1062,6 +1076,28 @@ export default function App() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function submitMatchFeedback(hangout: Hangout) {
+    const reasons = [
+      ["TIME", "時間が合わない"],
+      ["DISTANCE", "距離が遠い"],
+      ["FULL", "希望人数と違う"],
+      ["BUDGET", "予算が合わない"],
+      ["CONDITIONS", "参加条件が合わない"],
+      ["OTHER", "その他"],
+    ] as const;
+    Alert.alert("合わない理由", "次回のおすすめ改善にだけ利用します。", [
+      ...reasons.map(([reason, label]) => ({
+        text: label,
+        onPress: () => void request("/analytics/match-feedback", {
+          method: "POST",
+          body: JSON.stringify({ hangoutId: hangout.id, outcome: "NOT_MATCHED", reason }),
+        }).then(() => Alert.alert("送信しました", "おすすめ改善に反映しました。"))
+          .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "理由を送信できませんでした")),
+      })),
+      { text: "閉じる", style: "cancel" },
+    ]);
   }
 
   function confirmDeleteAccount() {
@@ -1139,7 +1175,7 @@ export default function App() {
         {screen === "home" && <HomeScreen user={session.user} hangouts={hangouts} refreshing={refreshing} locationLabel={locationLabel} selectedArea={selectedArea} demoRole={demoRole} onArea={chooseArea} onLocation={useCurrentLocation} onRefresh={refreshCurrent} onOpen={openHangout} onHeart={toggleHeart} onCreate={() => setScreen(session.user.verificationStatus === "PHONE_VERIFIED" ? "create" : "phone")} />}
         {screen === "map" && <MapScreen hangouts={hangouts} locationLabel={locationLabel} onBack={() => setScreen("home")} onLocation={useCurrentLocation} onOpen={openHangout} />}
         {screen === "create" && <CreateHangoutScreen area={selectedArea} onBack={() => setScreen("home")} onSubmit={createHangout} />}
-        {screen === "detail" && selectedHangout && <HangoutDetailScreen user={session.user} hangout={selectedHangout} requests={joinRequests} onBack={() => setScreen("home")} onJoin={joinHangout} onChat={openHangoutChat} onStart={startHangout} onFinish={confirmFinishHangout} onCancel={confirmCancelHangout} onEdit={updateHangout} onDecide={decideJoinRequest} onReport={confirmReportHost} onAttendance={updateAttendance} />}
+        {screen === "detail" && selectedHangout && <HangoutDetailScreen user={session.user} hangout={selectedHangout} requests={joinRequests} onBack={() => setScreen("home")} onJoin={joinHangout} onChat={openHangoutChat} onStart={startHangout} onFinish={confirmFinishHangout} onCancel={confirmCancelHangout} onEdit={updateHangout} onDecide={decideJoinRequest} onReport={confirmReportHost} onAttendance={updateAttendance} onMatchFeedback={submitMatchFeedback} />}
         {screen === "phone" && <PhoneVerificationScreen onBack={() => setScreen("profile")} onVerify={verifyPhone} />}
         {screen === "chat" && <ChatScreen user={session.user} rooms={rooms} selectedRoom={selectedRoom} messages={messages} messageBody={messageBody} sending={sending} refreshing={refreshing} unreadByRoom={unreadByRoom} realtimeOnline={realtimeOnline} onRefresh={refreshCurrent} onOpen={openRoom} onRate={rateParticipant} onBack={() => selectedRoom ? setSelectedRoom(null) : setScreen("home")} onChangeBody={setMessageBody} onSend={sendMessage} />}
         {screen === "rating" && ratingRoom && <RatingScreen user={session.user} room={ratingRoom} onRate={rateParticipant} onDone={() => { setRatingRoom(null); setScreen("home"); }} />}
@@ -1581,7 +1617,7 @@ function CreateHangoutScreen({ area, onBack, onSubmit }: { area: AlphaArea; onBa
   );
 }
 
-function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onChat, onStart, onFinish, onCancel, onEdit, onDecide, onReport, onAttendance }: { user: User; hangout: Hangout; requests: JoinRequest[]; onBack: () => void; onJoin: (hangout: Hangout, message: string) => Promise<void>; onChat: (id: string) => void; onStart: (id: string) => void; onFinish: (id: string) => void; onCancel: (id: string) => void; onEdit: (hangoutId: string, input: Partial<CreateHangoutInput>) => Promise<void>; onDecide: (id: string, accept: boolean) => void; onReport: (hangout: Hangout) => void; onAttendance: (status: "CONFIRMED" | "CANCELLED") => void }) {
+function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onChat, onStart, onFinish, onCancel, onEdit, onDecide, onReport, onAttendance, onMatchFeedback }: { user: User; hangout: Hangout; requests: JoinRequest[]; onBack: () => void; onJoin: (hangout: Hangout, message: string) => Promise<void>; onChat: (id: string) => void; onStart: (id: string) => void; onFinish: (id: string) => void; onCancel: (id: string) => void; onEdit: (hangoutId: string, input: Partial<CreateHangoutInput>) => Promise<void>; onDecide: (id: string, accept: boolean) => void; onReport: (hangout: Hangout) => void; onAttendance: (status: "CONFIRMED" | "CANCELLED") => void; onMatchFeedback: (hangout: Hangout) => void }) {
   const isHost = hangout.hostUserId === user.id;
   const ineligibleReason = eligibilityReason(user, hangout);
   const [selectedApplicant, setSelectedApplicant] = useState<ApplicantProfile | null>(null);
@@ -1646,6 +1682,14 @@ function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onChat, 
           <Pressable disabled={!!ineligibleReason} style={[styles.primary, !!ineligibleReason && styles.disabledButton]} onPress={() => setJoining(true)}>
             <Text style={styles.primaryText}>{ineligibleReason || "参加したい"}</Text>
           </Pressable>
+        )}
+        {!isHost && !hangout.myJoinStatus && user.matchingDataConsent && (
+          <View style={styles.matchFeedbackPanel}>
+            <Text style={styles.muted}>この募集が合わない場合</Text>
+            <Pressable style={styles.matchFeedbackButton} onPress={() => onMatchFeedback(hangout)}>
+              <Text style={styles.matchFeedbackButtonText}>合わない理由を送る</Text>
+            </Pressable>
+          </View>
         )}
         {!isHost && (
           <Pressable style={styles.reportButton} onPress={() => onReport(hangout)}>
@@ -2039,7 +2083,7 @@ function NotificationScreen({ inbox, refreshing, onBack, onRefresh, onEnabled, o
   );
 }
 
-function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout, onPhone, onPhoto, onSave, onDelete, onLogout }: { user: User; hostStatus: HostStatus | null; activity: ProfileActivity; demo: boolean; onChat: () => void; onOpenHangout: (id: string) => void; onPhone: () => void; onPhoto: (index: number) => void; onSave: (input: Pick<User, "displayName" | "gender" | "bio" | "homeArea" | "interests">) => Promise<void>; onDelete: () => void; onLogout: () => void }) {
+function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout, onPhone, onPhoto, onSave, onDelete, onLogout }: { user: User; hostStatus: HostStatus | null; activity: ProfileActivity; demo: boolean; onChat: () => void; onOpenHangout: (id: string) => void; onPhone: () => void; onPhoto: (index: number) => void; onSave: (input: UpdateProfileInput) => Promise<void>; onDelete: () => void; onLogout: () => void }) {
   const white = hostStatus?.tier === "WHITE";
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState(user.displayName);
@@ -2048,6 +2092,18 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
   const [interests, setInterests] = useState(user.interests.filter((value) => !(INTEREST_OPTIONS as readonly string[]).includes(value)).join("、"));
   const [selectedInterests, setSelectedInterests] = useState(user.interests.filter((value) => (INTEREST_OPTIONS as readonly string[]).includes(value)));
   const [gender, setGender] = useState(user.gender ?? "UNDISCLOSED");
+  const [preferredAreas, setPreferredAreas] = useState((user.preferredAreas ?? []).join("、"));
+  const [preferredActivities, setPreferredActivities] = useState((user.preferredActivities ?? []).join("、"));
+  const [preferredAgeMin, setPreferredAgeMin] = useState(user.preferredAgeMin?.toString() ?? "");
+  const [preferredAgeMax, setPreferredAgeMax] = useState(user.preferredAgeMax?.toString() ?? "");
+  const [preferredGenders, setPreferredGenders] = useState(user.preferredGenders ?? []);
+  const [activityTimeSlots, setActivityTimeSlots] = useState((user.activityTimeSlots ?? []).join("、"));
+  const [participationUrgency, setParticipationUrgency] = useState<User["participationUrgency"]>(user.participationUrgency ?? null);
+  const [maxTravelMinutes, setMaxTravelMinutes] = useState(user.maxTravelMinutes?.toString() ?? "");
+  const [preferredGroupSizes, setPreferredGroupSizes] = useState((user.preferredGroupSizes ?? []).join("、"));
+  const [budgetMin, setBudgetMin] = useState(user.budgetMin?.toString() ?? "");
+  const [budgetMax, setBudgetMax] = useState(user.budgetMax?.toString() ?? "");
+  const [matchingDataConsent, setMatchingDataConsent] = useState(user.matchingDataConsent ?? false);
   const activeStatuses = new Set(["OPEN", "FULL", "STARTED"]);
   const activitySections = [
     ["主催中のHangout", activity.hosted.filter((item) => activeStatuses.has(item.status))],
@@ -2060,13 +2116,29 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
     const next = selectedInterests.includes(interest) ? selectedInterests.filter((item) => item !== interest) : [...selectedInterests, interest];
     setSelectedInterests([...new Set(next)].slice(0, 20));
   };
+  const parseList = (value: string) => [...new Set(value.split(/[、,]/).map((item) => item.trim()).filter(Boolean))];
+  const togglePreferredGender = (value: string) => setPreferredGenders((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value].slice(0, 4));
   const save = async () => {
     const name = displayName.trim();
     if (!name) return Alert.alert("表示名を入力してください");
     const customValues = interests.split(/[、,]/).map((value) => value.trim()).filter(Boolean).filter((value) => !(INTEREST_OPTIONS as readonly string[]).includes(value));
     const values = [...new Set([...selectedInterests, ...customValues])].slice(0, 20);
+    const ageMin = preferredAgeMin ? Number(preferredAgeMin) : null;
+    const ageMax = preferredAgeMax ? Number(preferredAgeMax) : null;
+    const minimumBudget = budgetMin ? Number(budgetMin) : null;
+    const maximumBudget = budgetMax ? Number(budgetMax) : null;
+    if (ageMin !== null && ageMax !== null && ageMin > ageMax) return Alert.alert("希望年齢を確認してください", "下限は上限以下にしてください。");
+    if (minimumBudget !== null && maximumBudget !== null && minimumBudget > maximumBudget) return Alert.alert("予算を確認してください", "下限は上限以下にしてください。");
     try {
-      await onSave({ displayName: name, homeArea: homeArea.trim() || null, bio: bio.trim() || null, interests: values, gender });
+      await onSave({
+        displayName: name, homeArea: homeArea.trim() || null, bio: bio.trim() || null, interests: values, gender,
+        preferredAreas: parseList(preferredAreas).slice(0, 10), preferredActivities: parseList(preferredActivities).slice(0, 20),
+        preferredAgeMin: ageMin, preferredAgeMax: ageMax, preferredGenders,
+        activityTimeSlots: parseList(activityTimeSlots).slice(0, 7), participationUrgency,
+        maxTravelMinutes: maxTravelMinutes ? Number(maxTravelMinutes) : null,
+        preferredGroupSizes: parseList(preferredGroupSizes).map(Number).filter((value) => Number.isInteger(value) && value >= 2 && value <= 20).slice(0, 6),
+        budgetMin: minimumBudget, budgetMax: maximumBudget, matchingDataConsent,
+      });
       setEditing(false);
       Alert.alert("保存しました", "プロフィールを更新しました。");
     } catch {
@@ -2152,6 +2224,20 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
             <View style={styles.interestOptionGrid}>{INTEREST_OPTIONS.map((interest) => { const selected = selectedInterests.includes(interest); return <Pressable key={interest} style={[styles.interestOption, selected && styles.interestOptionSelected]} onPress={() => toggleInterest(interest)}><Text style={[styles.interestOptionText, selected && styles.interestOptionTextSelected]}>{interest}</Text></Pressable>; })}</View>
             <TextInput style={[styles.profileEditorInput, { marginTop: 10 }]} value={interests} onChangeText={setInterests} maxLength={300} placeholder="ボタンにない興味だけ入力" /><Text style={styles.profileEditorHint}>候補はタップして選択し、入力欄には候補にない言葉だけを記載します。</Text>
             <Text style={styles.profileEditorLabel}>性別</Text><View style={styles.profileGenderOptions}>{[["UNDISCLOSED", "回答しない"], ["MALE", "男性"], ["FEMALE", "女性"], ["OTHER", "その他"]].map(([value, label]) => <Pressable key={value} style={[styles.profileGenderOption, gender === value && styles.profileGenderOptionSelected]} onPress={() => setGender(value)}><Text style={gender === value ? styles.profileGenderOptionTextSelected : styles.profileGenderOptionText}>{label}</Text></Pressable>)}</View>
+            <View style={styles.matchingPreferences}>
+              <Text style={styles.matchingTitle}>マッチング設定</Text>
+              <Text style={styles.profileEditorHint}>入力は任意です。位置は市区・駅などのおおまかなエリアだけを保存し、正確なGPS位置は保存しません。</Text>
+              <Text style={styles.profileEditorLabel}>希望エリア</Text><TextInput style={styles.profileEditorInput} value={preferredAreas} onChangeText={setPreferredAreas} maxLength={300} placeholder="例：新宿、渋谷" />
+              <Text style={styles.profileEditorLabel}>希望する活動</Text><TextInput style={styles.profileEditorInput} value={preferredActivities} onChangeText={setPreferredActivities} maxLength={500} placeholder="例：カフェ、ランニング" />
+              <Text style={styles.profileEditorLabel}>希望年齢</Text><View style={styles.matchingRangeRow}><TextInput style={[styles.profileEditorInput, styles.matchingRangeInput]} value={preferredAgeMin} onChangeText={setPreferredAgeMin} keyboardType="number-pad" placeholder="下限" maxLength={3} /><Text style={styles.matchingRangeSeparator}>〜</Text><TextInput style={[styles.profileEditorInput, styles.matchingRangeInput]} value={preferredAgeMax} onChangeText={setPreferredAgeMax} keyboardType="number-pad" placeholder="上限" maxLength={3} /></View>
+              <Text style={styles.profileEditorLabel}>希望する相手</Text><View style={styles.profileGenderOptions}>{[["MALE", "男性"], ["FEMALE", "女性"], ["OTHER", "その他"], ["UNDISCLOSED", "指定なし"]].map(([value, label]) => { const selected = preferredGenders.includes(value); return <Pressable key={value} style={[styles.profileGenderOption, selected && styles.profileGenderOptionSelected]} onPress={() => togglePreferredGender(value)}><Text style={selected ? styles.profileGenderOptionTextSelected : styles.profileGenderOptionText}>{label}</Text></Pressable>; })}</View>
+              <Text style={styles.profileEditorLabel}>活動しやすい時間</Text><TextInput style={styles.profileEditorInput} value={activityTimeSlots} onChangeText={setActivityTimeSlots} maxLength={200} placeholder="例：平日夜、土日昼" />
+              <Text style={styles.profileEditorLabel}>参加したい時期</Text><View style={styles.interestOptionGrid}>{([[null, "未設定"], ["NOW", "今すぐ"], ["TODAY", "今日"], ["THIS_WEEK", "今週"], ["WEEKEND", "週末"], ["FLEXIBLE", "いつでも"]] as const).map(([value, label]) => <Pressable key={label} style={[styles.interestOption, participationUrgency === value && styles.interestOptionSelected]} onPress={() => setParticipationUrgency(value)}><Text style={[styles.interestOptionText, participationUrgency === value && styles.interestOptionTextSelected]}>{label}</Text></Pressable>)}</View>
+              <Text style={styles.profileEditorLabel}>移動できる時間（分）</Text><TextInput style={styles.profileEditorInput} value={maxTravelMinutes} onChangeText={setMaxTravelMinutes} keyboardType="number-pad" maxLength={3} placeholder="例：30" />
+              <Text style={styles.profileEditorLabel}>希望人数</Text><TextInput style={styles.profileEditorInput} value={preferredGroupSizes} onChangeText={setPreferredGroupSizes} maxLength={40} placeholder="例：2、4、6" />
+              <Text style={styles.profileEditorLabel}>予算（円）</Text><View style={styles.matchingRangeRow}><TextInput style={[styles.profileEditorInput, styles.matchingRangeInput]} value={budgetMin} onChangeText={setBudgetMin} keyboardType="number-pad" placeholder="下限" maxLength={6} /><Text style={styles.matchingRangeSeparator}>〜</Text><TextInput style={[styles.profileEditorInput, styles.matchingRangeInput]} value={budgetMax} onChangeText={setBudgetMax} keyboardType="number-pad" placeholder="上限" maxLength={6} /></View>
+              <Pressable accessibilityRole="switch" accessibilityState={{ checked: matchingDataConsent }} style={[styles.matchingConsent, matchingDataConsent && styles.matchingConsentOn]} onPress={() => setMatchingDataConsent((value) => !value)}><View style={[styles.matchingCheckbox, matchingDataConsent && styles.matchingCheckboxOn]}><Text style={styles.matchingCheckmark}>{matchingDataConsent ? "✓" : ""}</Text></View><Text style={styles.matchingConsentText}>この情報とアプリ内の閲覧・参加履歴を、マッチング改善に利用することに同意します</Text></Pressable>
+            </View>
           </ScrollView>
         </SafeAreaView>
       </Modal>
@@ -2978,6 +3064,20 @@ const styles = StyleSheet.create({
   profileGenderOptionSelected: { borderColor: "#176b48", backgroundColor: "#e9f7ec" },
   profileGenderOptionText: { color: "#59635c", fontSize: 12, fontWeight: "700" },
   profileGenderOptionTextSelected: { color: "#176b48", fontSize: 12, fontWeight: "900" },
+  matchingPreferences: { marginTop: 22, padding: 16, borderWidth: 1, borderColor: "#dfe5df", borderRadius: 18, backgroundColor: "#f8faf7" },
+  matchingTitle: { color: "#17221d", fontSize: 18, fontWeight: "900" },
+  matchingRangeRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  matchingRangeInput: { flex: 1 },
+  matchingRangeSeparator: { color: "#687169", fontWeight: "800" },
+  matchingConsent: { marginTop: 20, flexDirection: "row", alignItems: "flex-start", gap: 10, padding: 13, borderWidth: 1, borderColor: "#d8dfd9", borderRadius: 14, backgroundColor: "#fff" },
+  matchingConsentOn: { borderColor: "#176b48", backgroundColor: "#eaf6ec" },
+  matchingCheckbox: { width: 22, height: 22, borderWidth: 1, borderColor: "#aeb8b0", borderRadius: 6, alignItems: "center", justifyContent: "center", backgroundColor: "#fff" },
+  matchingCheckboxOn: { borderColor: "#176b48", backgroundColor: "#176b48" },
+  matchingCheckmark: { color: "#fff", fontSize: 13, fontWeight: "900" },
+  matchingConsentText: { flex: 1, color: "#435049", fontSize: 11, lineHeight: 17 },
+  matchFeedbackPanel: { marginTop: 14, gap: 8, padding: 14, borderRadius: 15, backgroundColor: "#fff", borderWidth: 1, borderColor: "#dfe5df" },
+  matchFeedbackButton: { minHeight: 44, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#176b48", borderRadius: 12 },
+  matchFeedbackButtonText: { color: "#176b48", fontSize: 12, fontWeight: "900" },
   verified: { color: "#176b48", fontWeight: "800", marginTop: 5 },
   unverified: { color: "#b25c31" },
   hostRankCard: {

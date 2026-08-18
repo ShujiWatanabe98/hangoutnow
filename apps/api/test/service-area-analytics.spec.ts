@@ -1,5 +1,5 @@
 import { ValidationPipe } from '@nestjs/common';
-import { FunnelEventType, ServiceArea } from '@prisma/client';
+import { FunnelEventType, MatchDeclineReason, MatchOutcome, ServiceArea } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
 import { AnalyticsService } from '../src/analytics/analytics.service';
 import { TrackFunnelEventDto } from '../src/analytics/analytics.dto';
@@ -36,5 +36,14 @@ describe('Shinjuku/Shibuya launch constraints and funnel events', () => {
   it('validates event names and UUIDs at the API boundary', async () => {
     await expect(pipe.transform({ eventType: 'PASSWORD_EXPOSED' }, { type: 'body', metatype: TrackFunnelEventDto })).rejects.toMatchObject({ status: 400 });
     await expect(pipe.transform({ eventType: FunnelEventType.HANGOUT_VIEWED, hangoutId: 'not-a-uuid' }, { type: 'body', metatype: TrackFunnelEventDto })).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('stores match outcomes and requires a reason when matching fails', async () => {
+    const upsert = vi.fn().mockResolvedValue({ hangoutId: '01900000-0000-7000-8000-000000000001', outcome: MatchOutcome.NOT_MATCHED, reason: MatchDeclineReason.TIME });
+    const db = { user: { findUnique: vi.fn().mockResolvedValue({ matchingDataConsent: true }) }, hangout: { findUnique: vi.fn().mockResolvedValue({ id: '01900000-0000-7000-8000-000000000001' }) }, matchFeedback: { upsert } } as unknown as PrismaService;
+    const analytics = new AnalyticsService(db);
+    await expect(analytics.saveMatchFeedback('user-id', { hangoutId: '01900000-0000-7000-8000-000000000001', outcome: MatchOutcome.NOT_MATCHED })).rejects.toMatchObject({ status: 400 });
+    await analytics.saveMatchFeedback('user-id', { hangoutId: '01900000-0000-7000-8000-000000000001', outcome: MatchOutcome.NOT_MATCHED, reason: MatchDeclineReason.TIME });
+    expect(upsert).toHaveBeenCalledOnce();
   });
 });

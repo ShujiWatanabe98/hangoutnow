@@ -240,6 +240,7 @@ export class AuthService {
   }
 
   async requestPhoneAuth(input:RequestPhoneAuthDto,_requestIp='unknown'){
+    void _requestIp;
     if(process.env.NODE_ENV==='production'&&!this.sms.enabled)throw new ServiceUnavailableException('SMS認証は現在利用できません');
     const challengeToken=randomBytes(40).toString('base64url');
     const code=randomInt(100000,1000000).toString();
@@ -283,11 +284,15 @@ export class AuthService {
   }
   async updateProfile(userId: string, input: UpdateProfileDto): Promise<PublicUser> {
     if(input.profilePhotos&&input.profilePhotos.length>3)throw new BadRequestException('プロフィール画像は3枚まで登録できます');
+    if ((input.preferredAgeMin != null && (input.preferredAgeMin < 18 || input.preferredAgeMin > 100)) || (input.preferredAgeMax != null && (input.preferredAgeMax < 18 || input.preferredAgeMax > 100))) throw new BadRequestException('希望年齢は18歳から100歳で入力してください');
+    if (input.preferredAgeMin != null && input.preferredAgeMax != null && input.preferredAgeMin > input.preferredAgeMax) throw new BadRequestException('希望年齢の下限は上限以下にしてください');
+    if (input.budgetMin != null && input.budgetMax != null && input.budgetMin > input.budgetMax) throw new BadRequestException('予算の下限は上限以下にしてください');
     const normalized = input.interests ? [...new Set(input.interests.map((value) => value.trim()).filter(Boolean))] : undefined;
+    const normalizedList = (values: string[] | undefined) => values ? [...new Set(values.map((value) => value.trim()).filter(Boolean))] : undefined;
     const current=await this.requireUser(userId);
     const suppliedPhotos=input.profilePhotos??(input.profilePhoto!==undefined?(input.profilePhoto?[input.profilePhoto]:[]):undefined);
     const profilePhotos=suppliedPhotos===undefined?undefined:await Promise.all(suppliedPhotos.map(photo=>this.images.storeProfilePhoto(userId,photo))).then(items=>items.filter((photo):photo is string=>Boolean(photo)).slice(0,3));
-    const updated=await this.repository.updateProfile(userId,{...input,interests:normalized,...(profilePhotos===undefined?{}:{profilePhotos,profilePhoto:profilePhotos[0]??null})});
+    const updated=await this.repository.updateProfile(userId,{...input,interests:normalized,preferredAreas:normalizedList(input.preferredAreas),preferredActivities:normalizedList(input.preferredActivities),activityTimeSlots:normalizedList(input.activityTimeSlots),...(profilePhotos===undefined?{}:{profilePhotos,profilePhoto:profilePhotos[0]??null})});
     if(profilePhotos!==undefined){const retained=new Set(profilePhotos);for(const oldPhoto of new Set([current.profilePhoto,...current.profilePhotos].filter((value):value is string=>Boolean(value))))if(!retained.has(oldPhoto))await this.images.deleteProfilePhoto(userId,oldPhoto)}
     return this.publicUser(updated);
   }
@@ -337,6 +342,12 @@ export class AuthService {
     return {
       id: user.id, email: user.email, displayName: user.displayName, birthDate: user.birthDate, gender: user.gender,
       bio: user.bio, homeArea: user.homeArea, interests: user.interests, verificationStatus: user.verificationStatus,
+      preferredAreas: user.preferredAreas, preferredActivities: user.preferredActivities,
+      preferredAgeMin: user.preferredAgeMin, preferredAgeMax: user.preferredAgeMax,
+      preferredGenders: user.preferredGenders, activityTimeSlots: user.activityTimeSlots,
+      matchingDataConsent: user.matchingDataConsent,
+      participationUrgency: user.participationUrgency, maxTravelMinutes: user.maxTravelMinutes,
+      preferredGroupSizes: user.preferredGroupSizes, budgetMin: user.budgetMin, budgetMax: user.budgetMax,
       profilePhoto: user.profilePhoto, profilePhotos: user.profilePhotos, phoneNumber: user.phoneNumber,
     };
   }

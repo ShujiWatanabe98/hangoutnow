@@ -5,6 +5,9 @@ node_modules/
 dist/
 .next/
 .expo/
+.expo-export-check/
 coverage/
 tmp/
 *.log
+appleappkey.txt
+render.txt
