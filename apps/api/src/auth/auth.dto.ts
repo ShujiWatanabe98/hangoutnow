@@ -37,7 +37,7 @@ export class UpdateProfileDto {
   @IsOptional() @IsInt() @Min(18) @Max(100) preferredAgeMin?: number | null;
   @IsOptional() @IsInt() @Min(18) @Max(100) preferredAgeMax?: number | null;
   @IsOptional() @IsArray() @ArrayMaxSize(4) @IsEnum(Gender, { each: true }) preferredGenders?: Gender[];
-  @IsOptional() @IsArray() @ArrayMaxSize(7) @IsString({ each: true }) @MaxLength(30, { each: true }) activityTimeSlots?: string[];
+  @IsOptional() @IsArray() @ArrayMaxSize(12) @IsString({ each: true }) @MaxLength(30, { each: true }) activityTimeSlots?: string[];
   @IsOptional() @IsBoolean() matchingDataConsent?: boolean;
   @IsOptional() @IsEnum(ParticipationUrgency) participationUrgency?: ParticipationUrgency | null;
   @IsOptional() @IsInt() @Min(5) @Max(180) maxTravelMinutes?: number | null;
