@@ -118,9 +118,11 @@ test('profile Hangouts show loading immediately and return to the preserved prof
   ]);
 
   assert.match(application, /profile-hangout-loading[^;]+Hangoutを読み込んでいます/);
+  assert.match(application, /if\(returnToProfile\)sheet\.classList\.add\('profile-origin'\)/);
   assert.match(application, /returnToProfile\?'プロフィールに戻る':'ホームに戻る'/);
   assert.match(application, /if\(returnToProfile\)\{sourceScreen\.classList\.remove\('profile-behind-hangout'\);activeScreen='profileScreen'\}else home\(\)/);
   assert.match(requests, /\.profile-hangout-loading\{z-index:42;align-items:center\}/);
+  assert.match(requests, /\.hangout-detail-sheet\.profile-origin\{z-index:42\}/);
 });
 
 test('retired web and mobile implementations do not return', async () => {
