@@ -2,5 +2,5 @@
   "name": "@hangout-now/demo",
   "version": "0.1.0",
   "private": true,
-  "scripts": { "start": "node server.mjs", "typecheck": "node --check server.mjs && node --check public/app.js" }
+  "scripts": { "start": "node server.mjs", "typecheck": "node --check server.mjs && node --check public/app.js", "test": "node --test test/web-parity.test.mjs" }
 }
