@@ -229,3 +229,16 @@ test('retired web and mobile implementations do not return', async () => {
     assert.ok(!currentSources.includes(retiredContract), `retired cross-platform implementation remains: ${retiredContract}`);
   }
 });
+
+test('native screens include the latest production profile, notification, talk, and member actions', async () => {
+  const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
+
+  assert.match(mobile, /preferredLanguages/);
+  assert.match(mobile, /LANGUAGE_OPTIONS/);
+  assert.match(mobile, /method: "DELETE"/);
+  assert.match(mobile, /deleteNotificationsButton/);
+  assert.match(mobile, /photoViewerBackdrop/);
+  assert.match(mobile, /acceptedParticipants/);
+  assert.match(mobile, /quickMessageButton/);
+  for (const message of ['向かっています', '少し遅れます', '到着しました']) assert.ok(mobile.includes(message));
+});

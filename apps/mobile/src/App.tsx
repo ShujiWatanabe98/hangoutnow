@@ -46,6 +46,7 @@ const PARTICIPATION_GOAL_OPTIONS = ["趣味仲間", "友達づくり", "暇つ�
 const FIRST_TIME_OPTIONS = ["初参加歓迎", "ひとり参加が安心", "常連が多くてもOK", "主催者から話しかけてほしい"] as const;
 const AVOID_OPTIONS = ["大人数", "飲酒中心", "深夜", "屋外", "激しい運動", "写真撮影", "営業・勧誘"] as const;
 const FLEXIBILITY_OPTIONS = ["時間厳守", "多少の遅れは許容", "途中参加OK", "途中退出OK", "急な予定変更OK"] as const;
+const LANGUAGE_OPTIONS = [["JAPANESE", "日本語"], ["ENGLISH", "英語"], ["KOREAN", "韓国語"], ["CHINESE", "中国語"]] as const;
 
 type User = {
   id: string;
@@ -75,13 +76,14 @@ type User = {
   avoidPreferences: string[];
   scheduleFlexibility: string[];
   behaviorLearningEnabled: boolean;
+  preferredLanguages: string[];
   interests: string[];
   verificationStatus: string;
   profilePhoto: string | null;
   profilePhotos: string[];
 };
 
-type UpdateProfileInput = Pick<User, "displayName" | "gender" | "bio" | "homeArea" | "interests" | "preferredAreas" | "preferredActivities" | "preferredAgeMin" | "preferredAgeMax" | "preferredGenders" | "activityTimeSlots" | "matchingDataConsent" | "participationUrgency" | "maxTravelMinutes" | "preferredGroupSizes" | "budgetMin" | "budgetMax" | "socialStyles" | "participationGoals" | "firstTimePreferences" | "alcoholPreference" | "smokingPreference" | "avoidPreferences" | "scheduleFlexibility" | "behaviorLearningEnabled">;
+type UpdateProfileInput = Pick<User, "displayName" | "gender" | "bio" | "homeArea" | "interests" | "preferredAreas" | "preferredActivities" | "preferredAgeMin" | "preferredAgeMax" | "preferredGenders" | "activityTimeSlots" | "matchingDataConsent" | "participationUrgency" | "maxTravelMinutes" | "preferredGroupSizes" | "budgetMin" | "budgetMax" | "socialStyles" | "participationGoals" | "firstTimePreferences" | "alcoholPreference" | "smokingPreference" | "avoidPreferences" | "scheduleFlexibility" | "behaviorLearningEnabled" | "preferredLanguages">;
 
 type Session = { accessToken: string; refreshToken: string; user: User };
 type HostTier = "WHITE" | "BRONZE" | "SILVER" | "GOLD" | "PLATINUM" | "DIAMOND";
@@ -136,6 +138,7 @@ type Hangout = {
   host: Host;
   hearted: boolean;
   heartCount: number;
+  acceptedParticipants?: ApplicantProfile[];
 };
 type Message = {
   id: string;
@@ -190,7 +193,7 @@ type ApplicantProfile = {
   verification: string;
   profilePhoto: string | null;
   profilePhotos?: string[];
-  age: number;
+  age?: number;
   bio: string | null;
   homeArea: string | null;
   interests: string[];
@@ -905,8 +908,8 @@ export default function App() {
     }
   }
 
-  async function sendMessage() {
-    const body = messageBody.trim();
+  async function sendMessage(quickBody?: string) {
+    const body = (quickBody ?? messageBody).trim();
     if (!selectedRoom || !body) return;
     setSending(true);
     try {
@@ -1025,6 +1028,26 @@ export default function App() {
       await loadNotifications();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "通知を既読にできませんでした");
+    }
+  }
+
+  function confirmDeleteNotifications() {
+    if (!notificationInbox.items.length) {
+      Alert.alert("削除する通知はありません");
+      return;
+    }
+    Alert.alert("通知を削除", "通知をすべて削除しますか？", [
+      { text: "キャンセル", style: "cancel" },
+      { text: "削除", style: "destructive", onPress: () => void deleteNotifications() },
+    ]);
+  }
+
+  async function deleteNotifications() {
+    try {
+      await request("/notifications", { method: "DELETE" });
+      await loadNotifications();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "通知を削除できませんでした");
     }
   }
 
@@ -1249,7 +1272,7 @@ export default function App() {
         {screen === "chat" && <ChatScreen user={session.user} rooms={rooms} selectedRoom={selectedRoom} messages={messages} messageBody={messageBody} sending={sending} refreshing={refreshing} unreadByRoom={unreadByRoom} realtimeOnline={realtimeOnline} onRefresh={refreshCurrent} onOpen={openRoom} onRate={rateParticipant} onBack={() => selectedRoom ? setSelectedRoom(null) : setScreen("home")} onChangeBody={setMessageBody} onSend={sendMessage} />}
         {screen === "rating" && ratingRoom && <RatingScreen user={session.user} room={ratingRoom} onRate={rateParticipant} onDone={() => { setRatingRoom(null); setScreen("home"); }} />}
         {screen === "profile" && <ProfileScreen user={session.user} hostStatus={hostStatus} activity={profileActivity} demo={!!demoRole} onChat={() => { setSelectedRoom(null); setScreen("chat"); }} onOpenHangout={(id) => void openHangout({ id })} onPhone={() => setScreen("phone")} onPhoto={chooseProfilePhoto} onSave={updateProfile} onDelete={confirmDeleteAccount} onLogout={logout} />}
-        {screen === "notifications" && <NotificationScreen inbox={notificationInbox} refreshing={refreshing} onBack={() => setScreen("home")} onRefresh={refreshCurrent} onEnabled={setNotificationEnabled} onRead={readNotification} onReadAll={readAllNotifications} />}
+        {screen === "notifications" && <NotificationScreen inbox={notificationInbox} refreshing={refreshing} onBack={() => setScreen("home")} onRefresh={refreshCurrent} onEnabled={setNotificationEnabled} onRead={readNotification} onReadAll={readAllNotifications} onDelete={confirmDeleteNotifications} />}
       </View>
       {!selectedRoom && ["home", "map", "chat", "profile"].includes(screen) && (
         <View style={styles.nav}>
@@ -1766,6 +1789,18 @@ function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onChat, 
             <Text style={styles.reportText}>この募集の主催者を通報・ブロック</Text>
           </Pressable>
         )}
+        {!!hangout.acceptedParticipants?.length && (
+          <View style={styles.detailPanel}>
+            <Text style={styles.sectionTitle}>参加メンバー</Text>
+            {hangout.acceptedParticipants.map((member) => (
+              <Pressable key={member.id} style={styles.approvedMemberRow} onPress={() => setSelectedApplicant(member)} accessibilityRole="button" accessibilityLabel={`${member.displayName}のプロフィールを見る`}>
+                {member.profilePhoto ? <Image source={{ uri: member.profilePhoto }} style={styles.approvedMemberPhoto} /> : <View style={styles.approvedMemberPhotoFallback}><Text style={styles.approvedMemberInitial}>{member.displayName.slice(0, 1)}</Text></View>}
+                <View style={styles.cardCopy}><Text style={styles.hostName}>{member.displayName}</Text><Text style={styles.muted}>{member.verification === "PHONE_VERIFIED" ? "電話確認済み" : "本人確認前"}</Text></View>
+                <Text style={styles.profileActivityChevron}>›</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
         {isHost && hangout.status === "FINISHED" && (
           <Pressable style={styles.cancelHangoutButton} onPress={() => onCancel(hangout.id)}><Text style={styles.cancelHangoutButtonText}>Hangout削除</Text></Pressable>
         )}
@@ -1891,7 +1926,7 @@ function ApplicantProfileModal({ profile, onClose }: { profile: ApplicantProfile
           <View style={styles.profilePhotoTrio}>{[profile?.profilePhotos?.[1],profile?.profilePhotos?.[0]||profile?.profilePhoto,profile?.profilePhotos?.[2]].map((photo,index)=>photo?<Image key={`${photo}-${index}`} source={{uri:photo}} style={index===1?styles.applicantAvatar:styles.avatarSide}/>:<View key={`applicant-empty-${index}`} style={index===1?styles.applicantAvatarFallback:styles.avatarSideFallback}><Text style={styles.applicantAvatarText}>{index===1?(profile?.displayName.slice(0,1)||"☺"):"＋"}</Text></View>)}</View>
           <Text style={styles.applicantName}>{profile?.displayName}</Text>
           <Text style={styles.applicantMeta}>
-            {profile?.age}歳{profile?.homeArea ? ` ・ ${profile.homeArea}` : ""}
+            {profile?.age !== undefined ? `${profile.age}歳` : "年齢非公開"}{profile?.homeArea ? ` ・ ${profile.homeArea}` : ""}
           </Text>
           <Text style={styles.applicantVerification}>{profile?.verification === "PHONE_VERIFIED" ? "✓ 電話番号確認済み" : "電話番号未確認"}</Text>
           <Text style={styles.applicantBio}>{profile?.bio || "自己紹介はまだありません。"}</Text>
@@ -1977,7 +2012,7 @@ function RatingScreen({ user, room, onRate, onDone }: { user: User; room: GroupR
   );
 }
 
-function ChatScreen({ user, rooms, selectedRoom, messages, messageBody, sending, refreshing, unreadByRoom, realtimeOnline, onRefresh, onOpen, onRate, onBack, onChangeBody, onSend }: { user: User; rooms: Room[]; selectedRoom: Room | null; messages: Message[]; messageBody: string; sending: boolean; refreshing: boolean; unreadByRoom: Record<string, number>; realtimeOnline: boolean; onRefresh: () => void; onOpen: (room: Room) => void; onRate: (hangoutId: string, userId: string, score: number) => void; onBack: () => void; onChangeBody: (value: string) => void; onSend: () => void }) {
+function ChatScreen({ user, rooms, selectedRoom, messages, messageBody, sending, refreshing, unreadByRoom, realtimeOnline, onRefresh, onOpen, onRate, onBack, onChangeBody, onSend }: { user: User; rooms: Room[]; selectedRoom: Room | null; messages: Message[]; messageBody: string; sending: boolean; refreshing: boolean; unreadByRoom: Record<string, number>; realtimeOnline: boolean; onRefresh: () => void; onOpen: (room: Room) => void; onRate: (hangoutId: string, userId: string, score: number) => void; onBack: () => void; onChangeBody: (value: string) => void; onSend: (body?: string) => void }) {
   const listRef = useRef<FlatList<Message>>(null);
   const time = (value?: string) =>
     value
@@ -2068,9 +2103,18 @@ function ChatScreen({ user, rooms, selectedRoom, messages, messageBody, sending,
           }}
           ListEmptyComponent={<Text style={styles.empty}>最初のメッセージを送ってみましょう。</Text>}
         />
+        {selectedRoom.type === "GROUP" && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickMessageRow}>
+            {["向かっています", "少し遅れます", "到着しました"].map((body) => (
+              <Pressable key={body} disabled={sending} style={styles.quickMessageButton} onPress={() => onSend(body)}>
+                <Text style={styles.quickMessageText}>{body}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
         <View style={styles.composer}>
           <TextInput style={styles.composerInput} value={messageBody} onChangeText={onChangeBody} placeholder="メッセージ" placeholderTextColor="#8a918c" multiline maxLength={1000} />
-          <Pressable disabled={sending || !messageBody.trim()} style={[styles.sendButton, (sending || !messageBody.trim()) && styles.sendDisabled]} onPress={onSend}>
+          <Pressable disabled={sending || !messageBody.trim()} style={[styles.sendButton, (sending || !messageBody.trim()) && styles.sendDisabled]} onPress={() => onSend()}>
             <Text style={styles.sendText}>{sending ? "…" : "↑"}</Text>
           </Pressable>
         </View>
@@ -2130,7 +2174,7 @@ function ChatScreen({ user, rooms, selectedRoom, messages, messageBody, sending,
   );
 }
 
-function NotificationScreen({ inbox, refreshing, onBack, onRefresh, onEnabled, onRead, onReadAll }: { inbox: NotificationInbox; refreshing: boolean; onBack: () => void; onRefresh: () => void; onEnabled: (enabled: boolean) => void; onRead: (id: string) => void; onReadAll: () => void }) {
+function NotificationScreen({ inbox, refreshing, onBack, onRefresh, onEnabled, onRead, onReadAll, onDelete }: { inbox: NotificationInbox; refreshing: boolean; onBack: () => void; onRefresh: () => void; onEnabled: (enabled: boolean) => void; onRead: (id: string) => void; onReadAll: () => void; onDelete: () => void }) {
   return (
     <View style={styles.notificationScreen}>
       <View style={styles.notificationHead}>
@@ -2143,7 +2187,10 @@ function NotificationScreen({ inbox, refreshing, onBack, onRefresh, onEnabled, o
         <View style={styles.notificationSettingCopy}><Text style={styles.notificationSettingTitle}>アプリ内通知を受け取る</Text><Text style={styles.muted}>申請・承認・トーク・Hangoutの更新をお知らせします。</Text></View>
         <Pressable accessibilityRole="switch" accessibilityState={{ checked: inbox.enabled }} style={[styles.notificationToggle, inbox.enabled && styles.notificationToggleOn]} onPress={() => onEnabled(!inbox.enabled)}><View style={[styles.notificationToggleKnob, inbox.enabled && styles.notificationToggleKnobOn]} /></Pressable>
       </View>
-      <Pressable style={styles.readAllButton} onPress={onReadAll}><Text style={styles.readAllButtonText}>すべて既読</Text></Pressable>
+      <View style={styles.notificationActions}>
+        <Pressable style={styles.readAllButton} onPress={onReadAll}><Text style={styles.readAllButtonText}>すべて既読</Text></Pressable>
+        <Pressable style={styles.deleteNotificationsButton} onPress={onDelete}><Text style={styles.deleteNotificationsText}>通知を削除</Text></Pressable>
+      </View>
       {inbox.items.map((item) => (
         <Pressable key={item.id} style={[styles.notificationItem, !item.readAt && styles.notificationItemUnread]} onPress={() => onRead(item.id)}>
           <View style={[styles.notificationDot, item.readAt && styles.notificationDotRead]} />
@@ -2185,6 +2232,9 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
   const [avoidPreferences, setAvoidPreferences] = useState(user.avoidPreferences ?? []);
   const [scheduleFlexibility, setScheduleFlexibility] = useState(user.scheduleFlexibility ?? []);
   const [behaviorLearningEnabled, setBehaviorLearningEnabled] = useState(user.behaviorLearningEnabled ?? false);
+  const [preferredLanguages, setPreferredLanguages] = useState(user.preferredLanguages ?? []);
+  const [photoViewerIndex, setPhotoViewerIndex] = useState<number | null>(null);
+  const profilePhotos = (user.profilePhotos?.length ? user.profilePhotos : user.profilePhoto ? [user.profilePhoto] : []).filter(Boolean);
   const activeStatuses = new Set(["OPEN", "FULL", "STARTED"]);
   const activitySections = [
     ["主催中のHangout", activity.hosted.filter((item) => activeStatuses.has(item.status))],
@@ -2224,7 +2274,7 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
         preferredGroupSizes: parseList(preferredGroupSizes).map(Number).filter((value) => Number.isInteger(value) && value >= 2 && value <= 20).slice(0, 6),
         budgetMin: minimumBudget, budgetMax: maximumBudget, matchingDataConsent,
         socialStyles, participationGoals, firstTimePreferences, alcoholPreference, smokingPreference,
-        avoidPreferences, scheduleFlexibility, behaviorLearningEnabled,
+        avoidPreferences, scheduleFlexibility, behaviorLearningEnabled, preferredLanguages,
       });
       setEditing(false);
       Alert.alert("保存しました", "プロフィールを更新しました。");
@@ -2234,7 +2284,7 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
   };
   return (
     <ScrollView contentContainerStyle={styles.profile}>
-      <View style={styles.profilePhotoTrio}>{[user.profilePhotos?.[1],user.profilePhotos?.[0]||user.profilePhoto,user.profilePhotos?.[2]].map((photo,index)=>photo?<Image key={`${photo}-${index}`} source={{uri:photo}} style={index===1?styles.avatar:styles.avatarSide}/>:<View key={`empty-${index}`} style={index===1?styles.avatarFallback:styles.avatarSideFallback}><Text style={styles.avatarText}>{index===1?"☺":"＋"}</Text></View>)}</View>
+      <View style={styles.profilePhotoTrio}>{[user.profilePhotos?.[1],user.profilePhotos?.[0]||user.profilePhoto,user.profilePhotos?.[2]].map((photo,index)=>photo?<Pressable key={`${photo}-${index}`} onPress={() => setPhotoViewerIndex(index === 0 ? 1 : index === 1 ? 0 : 2)} accessibilityLabel="プロフィール画像を拡大"><Image source={{uri:photo}} style={index===1?styles.avatar:styles.avatarSide}/></Pressable>:<View key={`empty-${index}`} style={index===1?styles.avatarFallback:styles.avatarSideFallback}><Text style={styles.avatarText}>{index===1?"☺":"＋"}</Text></View>)}</View>
       <Text style={styles.profileName}>{user.displayName}</Text>
       <Pressable style={styles.profileChatButton} onPress={onChat}>
         <Text style={styles.profileChatButtonIcon}>●</Text>
@@ -2318,6 +2368,7 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
               <Text style={styles.profileEditorLabel}>希望する活動</Text><TextInput style={styles.profileEditorInput} value={preferredActivities} onChangeText={setPreferredActivities} maxLength={500} placeholder="例：カフェ、ランニング" />
               <Text style={styles.profileEditorLabel}>希望年齢</Text><View style={styles.matchingRangeRow}><TextInput style={[styles.profileEditorInput, styles.matchingRangeInput]} value={preferredAgeMin} onChangeText={setPreferredAgeMin} keyboardType="number-pad" placeholder="下限" maxLength={3} /><Text style={styles.matchingRangeSeparator}>〜</Text><TextInput style={[styles.profileEditorInput, styles.matchingRangeInput]} value={preferredAgeMax} onChangeText={setPreferredAgeMax} keyboardType="number-pad" placeholder="上限" maxLength={3} /></View>
               <Text style={styles.profileEditorLabel}>希望する相手</Text><View style={styles.profileGenderOptions}>{[["MALE", "男性"], ["FEMALE", "女性"], ["OTHER", "その他"], ["UNDISCLOSED", "指定なし"]].map(([value, label]) => { const selected = preferredGenders.includes(value); return <Pressable key={value} style={[styles.profileGenderOption, selected && styles.profileGenderOptionSelected]} onPress={() => togglePreferredGender(value)}><Text style={selected ? styles.profileGenderOptionTextSelected : styles.profileGenderOptionText}>{label}</Text></Pressable>; })}</View>
+              <Text style={styles.profileEditorLabel}>言語</Text><Text style={styles.profileEditorHint}>会話に使いたい言語を複数選択できます</Text>{choiceGrid(LANGUAGE_OPTIONS.map(([, label]) => label), preferredLanguages.map((value) => LANGUAGE_OPTIONS.find(([key]) => key === value)?.[1] ?? value), (labels) => setPreferredLanguages(labels.map((label) => LANGUAGE_OPTIONS.find(([, optionLabel]) => optionLabel === label)?.[0] ?? label)), 4)}
               <Text style={styles.profileEditorLabel}>雰囲気・交流スタイル</Text><Text style={styles.profileEditorHint}>自分に合う過ごし方を選択</Text>{choiceGrid(SOCIAL_STYLE_OPTIONS, socialStyles, setSocialStyles, 5)}
               <Text style={styles.profileEditorLabel}>活動しやすい時間</Text><TextInput style={styles.profileEditorInput} value={activityTimeSlots} onChangeText={setActivityTimeSlots} maxLength={200} placeholder="例：平日夜、土日昼" />
               <Text style={styles.profileEditorLabel}>参加したい時期</Text><View style={styles.interestOptionGrid}>{([[null, "未設定"], ["NOW", "今すぐ"], ["TODAY", "今日"], ["THIS_WEEK", "今週"], ["WEEKEND", "週末"], ["FLEXIBLE", "いつでも"]] as const).map(([value, label]) => <Pressable key={label} style={[styles.interestOption, participationUrgency === value && styles.interestOptionSelected]} onPress={() => setParticipationUrgency(value)}><Text style={[styles.interestOptionText, participationUrgency === value && styles.interestOptionTextSelected]}>{label}</Text></Pressable>)}</View>
@@ -2335,6 +2386,13 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
             </View>
           </ScrollView>
         </SafeAreaView>
+      </Modal>
+      <Modal visible={photoViewerIndex !== null && profilePhotos.length > 0} transparent animationType="fade" onRequestClose={() => setPhotoViewerIndex(null)}>
+        <View style={styles.photoViewerBackdrop}>
+          <Pressable style={styles.photoViewerClose} onPress={() => setPhotoViewerIndex(null)} accessibilityLabel="画像を閉じる"><Text style={styles.photoViewerCloseText}>×</Text></Pressable>
+          {photoViewerIndex !== null && profilePhotos[photoViewerIndex] ? <Image source={{ uri: profilePhotos[photoViewerIndex] }} style={styles.photoViewerImage} resizeMode="contain" /> : null}
+          {profilePhotos.length > 1 && <View style={styles.photoViewerControls}><Pressable style={styles.photoViewerControl} onPress={() => setPhotoViewerIndex((current) => current === null ? 0 : (current - 1 + profilePhotos.length) % profilePhotos.length)}><Text style={styles.photoViewerControlText}>‹</Text></Pressable><Text style={styles.photoViewerCount}>{(photoViewerIndex ?? 0) + 1} / {profilePhotos.length}</Text><Pressable style={styles.photoViewerControl} onPress={() => setPhotoViewerIndex((current) => current === null ? 0 : (current + 1) % profilePhotos.length)}><Text style={styles.photoViewerControlText}>›</Text></Pressable></View>}
+        </View>
       </Modal>
     </ScrollView>
   );
@@ -3087,6 +3145,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderColor: "#dfe4df",
   },
+  quickMessageRow: { gap: 8, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: "#fff", borderTopWidth: 1, borderColor: "#edf0eb" },
+  quickMessageButton: { minHeight: 38, justifyContent: "center", paddingHorizontal: 14, borderRadius: 19, backgroundColor: "#edf6ed", borderWidth: 1, borderColor: "#d5e6d6" },
+  quickMessageText: { color: "#176b48", fontSize: 12, fontWeight: "800" },
   composerInput: {
     flex: 1,
     minHeight: 40,
@@ -3334,8 +3395,23 @@ const styles = StyleSheet.create({
   notificationToggleOn: { backgroundColor: "#176b48" },
   notificationToggleKnob: { width: 22, height: 22, borderRadius: 11, backgroundColor: "#fff" },
   notificationToggleKnobOn: { transform: [{ translateX: 20 }] },
-  readAllButton: { alignSelf: "flex-end", paddingHorizontal: 14, paddingVertical: 9, borderRadius: 16, backgroundColor: "#e8f3e8" },
+  notificationActions: { flexDirection: "row", justifyContent: "flex-end", gap: 8 },
+  readAllButton: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 16, backgroundColor: "#e8f3e8" },
   readAllButtonText: { color: "#176b48", fontSize: 11, fontWeight: "900" },
+  deleteNotificationsButton: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 16, backgroundColor: "#fff0eb" },
+  deleteNotificationsText: { color: "#a93622", fontSize: 11, fontWeight: "900" },
+  approvedMemberRow: { minHeight: 62, flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 8, borderBottomWidth: 1, borderColor: "#e7ebe6" },
+  approvedMemberPhoto: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#dfe6df" },
+  approvedMemberPhotoFallback: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: "#176b48" },
+  approvedMemberInitial: { color: "#fff", fontWeight: "900" },
+  photoViewerBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.92)", alignItems: "center", justifyContent: "center" },
+  photoViewerClose: { position: "absolute", top: 54, right: 22, zIndex: 2, width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.18)" },
+  photoViewerCloseText: { color: "#fff", fontSize: 30, lineHeight: 34 },
+  photoViewerImage: { width: "100%", height: "72%" },
+  photoViewerControls: { position: "absolute", bottom: 54, flexDirection: "row", alignItems: "center", gap: 24 },
+  photoViewerControl: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.18)" },
+  photoViewerControlText: { color: "#fff", fontSize: 38, lineHeight: 42 },
+  photoViewerCount: { color: "#fff", fontSize: 13, fontWeight: "800" },
   notificationItem: { flexDirection: "row", gap: 11, padding: 15, borderRadius: 17, backgroundColor: "#fff", borderWidth: 1, borderColor: "#e5e9e4" },
   notificationItemUnread: { backgroundColor: "#f3fbe2", borderColor: "#cce58a" },
   notificationDot: { width: 9, height: 9, borderRadius: 5, marginTop: 5, backgroundColor: "#e05245" },
