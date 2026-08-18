@@ -28,6 +28,7 @@ const HANGOUT_IMAGE_PRESETS = [
 ] as const;
 const SESSION_KEY = "hangout-now-session";
 const LINE_REDIRECT_URI = "hangoutnow://auth/line";
+const X_REDIRECT_URI = "hangoutnow://auth/x";
 WebBrowser.maybeCompleteAuthSession();
 const INTEREST_OPTIONS = ["カフェ", "ラーメン", "ランニング", "飲み会", "ダーツ", "バー", "ごはん", "カラオケ", "英会話", "シーシャ", "スイーツ", "映画"] as const;
 
@@ -506,6 +507,31 @@ export default function App() {
       setScreen("home");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "LINEログインに失敗しました");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function authenticateWithX() {
+    setLoading(true);
+    setError("");
+    try {
+      const startUrl = `${API_URL}/auth/x/start?returnTo=${encodeURIComponent(X_REDIRECT_URI)}`;
+      const result = await WebBrowser.openAuthSessionAsync(startUrl, X_REDIRECT_URI);
+      if (result.type !== "success" || !result.url) throw new Error("Xログインがキャンセルされました");
+      const ticket = new URL(result.url).searchParams.get("ticket");
+      if (!ticket) throw new Error("Xログインの確認情報を取得できませんでした");
+      const response = await fetch(`${API_URL}/auth/x/redeem`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ticket }) });
+      const data = await readJson(response) as Session | { message?: string | string[] };
+      if (!response.ok || !("accessToken" in data)) {
+        const message = "message" in data ? data.message : null;
+        throw new Error(Array.isArray(message) ? message[0] : message || "Xログインに失敗しました");
+      }
+      setSession(data);
+      setDemoRole(null);
+      setScreen("home");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Xログインに失敗しました");
     } finally {
       setLoading(false);
     }
@@ -1063,7 +1089,7 @@ export default function App() {
     );
 
   if (!session) {
-    return <AuthScreen loading={loading} error={error} onLogin={authenticate} onRegister={register} onLine={authenticateWithLine} />;
+    return <AuthScreen loading={loading} error={error} onLogin={authenticate} onRegister={register} onLine={authenticateWithLine} onX={authenticateWithX} />;
   }
 
   return (
@@ -1149,7 +1175,7 @@ export default function App() {
   );
 }
 
-function AuthScreen({ loading, error, onLogin, onRegister, onLine }: { loading: boolean; error: string; onLogin: (email: string, password: string, role?: "host" | "guest" | null) => Promise<void>; onRegister: (input: { email: string; password: string; displayName: string; birthDate: string; gender: string }) => Promise<void>; onLine: (input?: { displayName: string; birthDate: string; gender: string }) => Promise<void> }) {
+function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX }: { loading: boolean; error: string; onLogin: (email: string, password: string, role?: "host" | "guest" | null) => Promise<void>; onRegister: (input: { email: string; password: string; displayName: string; birthDate: string; gender: string }) => Promise<void>; onLine: (input?: { displayName: string; birthDate: string; gender: string }) => Promise<void>; onX: () => Promise<void> }) {
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -1226,13 +1252,13 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine }: { loading: 
             <Text style={styles.authDividerText}>または</Text>
             <View style={styles.authDividerLine} />
           </View>
-          {(["Google", "Apple", "LINE", "電話番号"] as const).map((provider) => (
+          {(["Google", "Apple", "X", "LINE", "電話番号"] as const).map((provider) => (
             <Pressable
               key={provider}
               style={styles.providerButton}
-              onPress={() => provider === "LINE" ? void onLine() : setProviderNote(`${provider}認証は公開テスト開始時に利用できます。`)}
+              onPress={() => provider === "LINE" ? void onLine() : provider === "X" ? void onX() : setProviderNote(`${provider}認証は公開テスト開始時に利用できます。`)}
             >
-              <Text style={styles.providerMark}>{provider === "Google" ? "G" : provider === "Apple" ? "●" : provider === "LINE" ? "L" : "☎"}</Text>
+              <Text style={styles.providerMark}>{provider === "Google" ? "G" : provider === "Apple" ? "●" : provider === "X" ? "X" : provider === "LINE" ? "L" : "☎"}</Text>
               <Text style={styles.providerButtonText}>{provider}{mode === "register" ? "でアカウント作成" : "でログイン"}</Text>
             </Pressable>
           ))}

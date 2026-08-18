@@ -90,8 +90,7 @@ describe('authentication and profile', () => {
     await expect(auth.xAuthorizeUrl('https://evil.example/app.html')).rejects.toThrow('Xログインの戻り先が正しくありません');
     const authorizeUrl=await auth.xAuthorizeUrl(webReturnTo);const state=new URL(authorizeUrl).searchParams.get('state');expect(state).toBeTruthy();expect(new URL(authorizeUrl).searchParams.get('code_challenge_method')).toBe('S256');expect(new URL(authorizeUrl).searchParams.get('lang')).toBe('ja');
     const redirect=await auth.xCallback('x-authorization-code',state!);expect(redirect.startsWith(`${webReturnTo}?provider=x&ticket=`)).toBe(true);const ticket=new URL(redirect).searchParams.get('ticket');expect(ticket).toBeTruthy();
-    const needsProfile=await request(app.getHttpServer()).post('/auth/x/redeem').send({ticket}).expect(200);expect(needsProfile.body.registrationRequired).toBe(true);
-    const registered=await request(app.getHttpServer()).post('/auth/x/redeem').send({ticket,birthDate:'1990-01-01',displayName:'X User',gender:'UNDISCLOSED'}).expect(200);expect(registered.body.user.displayName).toBe('X User');
+    const registered=await request(app.getHttpServer()).post('/auth/x/redeem').send({ticket}).expect(200);expect(registered.body.user.displayName).toBe('X User');expect(registered.body.user.birthDate).toBeNull();
     await request(app.getHttpServer()).post('/auth/x/redeem').send({ticket,birthDate:'1990-01-01'}).expect(401);
     await expect(auth.xCallback('x-authorization-code',state!)).rejects.toThrow('Xログイン情報を確認できませんでした');
   },15_000);

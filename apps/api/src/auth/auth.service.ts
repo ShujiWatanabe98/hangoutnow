@@ -227,17 +227,15 @@ export class AuthService {
     return `${stateRow.displayName}${stateRow.displayName.includes('?') ? '&' : '?'}provider=x&ticket=${encodeURIComponent(ticket)}`;
   }
 
-  async redeemXLogin(input: XRedeemDto): Promise<AuthResponse | { registrationRequired: true; displayName: string | null }> {
+  async redeemXLogin(input: XRedeemDto): Promise<AuthResponse> {
     const row = await this.repository.findOAuthLoginTicket(this.tokenHash(input.ticket));
     if (!row || row.provider !== 'X' || row.usedAt || row.expiresAt <= new Date()) throw new UnauthorizedException('Xログインの有効期限が切れました。もう一度お試しください');
     let user = row.userId ? await this.repository.findUserById(row.userId) : await this.repository.findOAuthIdentity('X', row.subject);
     if (!user) {
-      if (!input.birthDate) return { registrationRequired: true, displayName: row.displayName };
-      if (!this.isAdult(input.birthDate)) throw new BadRequestException('18歳以上の方のみ登録できます');
-      const displayName = (input.displayName || row.displayName || '').trim();
-      if (!displayName) throw new BadRequestException('表示名を入力してください');
+      if (input.birthDate && !this.isAdult(input.birthDate)) throw new BadRequestException('18歳以上の方のみ登録できます');
+      const displayName = (input.displayName || row.displayName || 'Xユーザー').trim();
       const subjectKey = createHash('sha256').update(row.subject).digest('hex').slice(0, 32);
-      user = await this.repository.createUser({ email: `x.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: new Date(`${input.birthDate}T00:00:00.000Z`), gender: input.gender });
+      user = await this.repository.createUser({ email: `x.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: input.birthDate ? new Date(`${input.birthDate}T00:00:00.000Z`) : null, gender: input.gender });
       await this.repository.createOAuthIdentity('X', row.subject, user.id);
       user = await this.applyRegistrationPhotos(user, input.profilePhotos??(input.profilePhoto?[input.profilePhoto]:[]));
     }
