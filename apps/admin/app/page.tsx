@@ -12,7 +12,7 @@ type PushOverview = { paused:boolean;updatedAt:string|null;registeredTokens:numb
 const API=process.env.NEXT_PUBLIC_API_URL??'https://hangoutnow-api.onrender.com';
 const labels:Record<keyof Weights,string>={baseScore:'基準スコア',activityMatch:'活動一致',activityMiss:'活動不一致',areaMatch:'エリア一致',areaMiss:'エリア不一致',timeMatch:'時間一致',timeMiss:'時間不一致',groupMatch:'人数一致',ageMatch:'年齢一致',ageMiss:'年齢不一致',languageMatch:'言語一致',safetyPenalty:'安全措置1件の減点'};
 const funnelLabels:Record<string,string>={HANGOUT_VIEWED:'詳細閲覧',JOIN_REQUESTED:'参加申請',JOIN_ACCEPTED:'承認',HANGOUT_CREATED:'募集作成',HANGOUT_COMPLETED:'開催完了'};
-const reasonLabels:Record<string,string>={TIME_MISMATCH:'時間が合わない',AREA_MISMATCH:'エリアが合わない',ACTIVITY_MISMATCH:'活動が合わない',AGE_MISMATCH:'年齢条件',GROUP_SIZE_MISMATCH:'人数条件',BUDGET_MISMATCH:'予算条件',OTHER:'その他'};
+const reasonLabels:Record<string,string>={TIME:'時間が合わない',DISTANCE:'距離が合わない',FULL:'満員',BUDGET:'予算が合わない',CONDITIONS:'参加条件が合わない',OTHER:'その他'};
 
 function Bars({items,color='#176b48'}:{items:Array<{label:string;value:number}>;color?:string}){const max=Math.max(1,...items.map(item=>item.value));return <div style={{display:'grid',gap:10}}>{items.map(item=><div key={item.label} style={{display:'grid',gridTemplateColumns:'120px 1fr 54px',alignItems:'center',gap:10}}><small>{item.label}</small><div style={{height:12,borderRadius:999,background:'#e7ece8',overflow:'hidden'}}><div style={{width:`${Math.max(item.value>0?3:0,item.value/max*100)}%`,height:'100%',borderRadius:999,background:color}}/></div><b style={{textAlign:'right'}}>{item.value}</b></div>)}</div>}
 
