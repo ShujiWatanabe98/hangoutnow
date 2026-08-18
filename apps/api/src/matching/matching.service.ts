@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { FunnelEventType, Gender, HangoutStatus, JoinRequestStatus, ModerationActionType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+export { MATCHING_ALGORITHM_VERSION } from './matching-version';
 
 export interface MatchCandidate {
   id: string;

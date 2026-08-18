@@ -3,6 +3,7 @@ import { FunnelEventType, MatchOutcome } from '@prisma/client';
 import { v7 as uuidv7 } from 'uuid';
 import { PrismaService } from '../prisma/prisma.service';
 import { SaveMatchFeedbackDto, TrackFunnelEventDto } from './analytics.dto';
+import { MATCHING_ALGORITHM_VERSION } from '../matching/matching-version';
 
 const HANGOUT_REQUIRED = new Set<FunnelEventType>([
   FunnelEventType.HANGOUT_VIEWED,
@@ -41,8 +42,8 @@ export class AnalyticsService {
     if (!exists) throw new BadRequestException('Unknown hangoutId');
     return this.db.matchFeedback.upsert({
       where: { userId_hangoutId: { userId, hangoutId: input.hangoutId } },
-      create: { id: uuidv7(), userId, hangoutId: input.hangoutId, outcome: input.outcome, reason: input.reason },
-      update: { outcome: input.outcome, reason: input.reason ?? null },
+      create: { id: uuidv7(), userId, hangoutId: input.hangoutId, outcome: input.outcome, reason: input.reason, algorithmVersion: MATCHING_ALGORITHM_VERSION },
+      update: { outcome: input.outcome, reason: input.reason ?? null, algorithmVersion: MATCHING_ALGORITHM_VERSION },
       select: { hangoutId: true, outcome: true, reason: true, updatedAt: true },
     });
   }

@@ -5,6 +5,7 @@ import { AnalyticsService } from '../src/analytics/analytics.service';
 import { TrackFunnelEventDto } from '../src/analytics/analytics.dto';
 import { CreateHangoutDto } from '../src/hangouts/hangout.dto';
 import type { PrismaService } from '../src/prisma/prisma.service';
+import { MATCHING_ALGORITHM_VERSION } from '../src/matching/matching-version';
 
 describe('Shinjuku/Shibuya launch constraints and funnel events', () => {
   const pipe = new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true });
@@ -53,5 +54,10 @@ describe('Shinjuku/Shibuya launch constraints and funnel events', () => {
     await expect(analytics.saveMatchFeedback('user-id', { hangoutId: '01900000-0000-7000-8000-000000000001', outcome: MatchOutcome.NOT_MATCHED })).rejects.toMatchObject({ status: 400 });
     await analytics.saveMatchFeedback('user-id', { hangoutId: '01900000-0000-7000-8000-000000000001', outcome: MatchOutcome.NOT_MATCHED, reason: MatchDeclineReason.TIME });
     expect(upsert).toHaveBeenCalledOnce();
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({ algorithmVersion: MATCHING_ALGORITHM_VERSION }),
+      update: expect.objectContaining({ algorithmVersion: MATCHING_ALGORITHM_VERSION }),
+      select: expect.not.objectContaining({ algorithmVersion: true }),
+    }));
   });
 });
