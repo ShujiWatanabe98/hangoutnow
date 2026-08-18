@@ -26,19 +26,6 @@ let unreadNotifications=0;
 let realtimeSocket=null;
 if (new URLSearchParams(location.search).has('resetAuth')) { localStorage.removeItem(SESSION_STORAGE_KEY); session = null; }
 
-const profileInterestObserver=new MutationObserver(()=>{
-  const input=document.querySelector('.profile-editor-sheet #edit-interests');
-  if(!input||input.dataset.optionsReady==='true')return;
-  input.dataset.optionsReady='true';
-  const picker=document.createElement('div');
-  picker.className='interest-picker profile-interest-picker';
-  const selectedValues=new Set((session.user.interests||[]).filter(value=>INTEREST_OPTIONS.includes(value)));
-  const render=()=>{picker.innerHTML=INTEREST_OPTIONS.map(value=>`<button type="button" class="${selectedValues.has(value)?'chosen':''}" data-profile-interest="${value}">${value}</button>`).join('');picker.querySelectorAll('[data-profile-interest]').forEach(button=>button.onclick=()=>{const value=button.dataset.profileInterest;if(selectedValues.has(value))selectedValues.delete(value);else if(selectedValues.size<20)selectedValues.add(value);render()})};
-  render();
-  input.insertAdjacentElement('beforebegin',picker);
-});
-profileInterestObserver.observe(document.body,{childList:true,subtree:true});
-
 const hangoutImageObserver=new MutationObserver(()=>{
   document.querySelectorAll('#hangout-image,#edit-image').forEach(input=>{input.accept='image/*'});
   const input=document.querySelector('.host-menu-screen #edit-image');

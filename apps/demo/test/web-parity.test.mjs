@@ -65,6 +65,16 @@ test('profile remains behind talk while returning with the back animation', asyn
   assert.match(portraits, /\.profile-screen\.profile-behind-chat\{pointer-events:none\}\.chat-phone\{z-index:42\}/);
 });
 
+test('profile interest choices are unique and rendered by one implementation', async () => {
+  const application = await readFile(new URL('app.js', publicDirectory), 'utf8');
+  const optionsSource = application.match(/const INTEREST_OPTIONS=\[([^\]]+)\]/)?.[1] ?? '';
+  const options = [...optionsSource.matchAll(/'([^']+)'/g)].map((match) => match[1]);
+
+  assert.ok(options.length > 0);
+  assert.equal(new Set(options).size, options.length, 'interest option labels must be unique');
+  assert.ok(!application.includes('profileInterestObserver'), 'legacy interest picker must not render a duplicate button set');
+});
+
 test('retired web and mobile implementations do not return', async () => {
   const [application, portraits, requests, mobile] = await Promise.all([
     readFile(new URL('app.js', publicDirectory), 'utf8'),
