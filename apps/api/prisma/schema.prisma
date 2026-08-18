@@ -56,6 +56,7 @@ model User {
   profilePhotos  String[]       @default([]) @map("profile_photos")
   phoneNumber    String?        @unique @map("phone_number")
   notificationsEnabled Boolean @default(true) @map("notifications_enabled")
+  disabledNotificationTypes String[] @default([]) @map("disabled_notification_types")
   accountStatus  AccountStatus @default(ACTIVE) @map("account_status")
   createdAt      DateTime       @default(now()) @map("created_at")
   updatedAt      DateTime       @updatedAt @map("updated_at")
@@ -125,9 +126,50 @@ model PushToken {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveries PushDelivery[]
 
   @@index([userId])
   @@map("push_tokens")
+}
+
+enum PushDeliveryStatus {
+  QUEUED
+  ACCEPTED
+  DELIVERED
+  ERROR
+}
+
+model PushDelivery {
+  id               String             @id @db.Uuid
+  userId           String             @map("user_id") @db.Uuid
+  notificationId   String?            @map("notification_id") @db.Uuid
+  pushTokenId      String?            @map("push_token_id") @db.Uuid
+  token            String
+  platform         String
+  status           PushDeliveryStatus @default(QUEUED)
+  ticketId         String?            @map("ticket_id")
+  errorCode        String?            @map("error_code")
+  attempts         Int                @default(0)
+  nextAttemptAt    DateTime           @default(now()) @map("next_attempt_at")
+  receiptCheckedAt DateTime?          @map("receipt_checked_at")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+  notification     Notification?      @relation(fields: [notificationId], references: [id], onDelete: SetNull)
+  pushToken        PushToken?         @relation(fields: [pushTokenId], references: [id], onDelete: SetNull)
+
+  @@index([status, nextAttemptAt])
+  @@index([ticketId, receiptCheckedAt])
+  @@index([userId, createdAt])
+  @@map("push_deliveries")
+}
+
+model NotificationControl {
+  id        String   @id
+  paused    Boolean  @default(false)
+  updatedBy String?  @map("updated_by")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("notification_controls")
 }
 
 model UserStamp {
@@ -153,6 +195,7 @@ model Notification {
   readAt    DateTime? @map("read_at")
   createdAt DateTime @default(now()) @map("created_at")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pushDeliveries PushDelivery[]
 
   @@index([userId, readAt, createdAt])
   @@map("notifications")

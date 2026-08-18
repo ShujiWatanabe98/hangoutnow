@@ -13,5 +13,5 @@ export class NotificationController {
   @Post(':id/read') @HttpCode(204) async read(@Req() request: AuthenticatedRequest, @Param('id') id: string) { await this.service.markRead(request.userId, id); }
   @Post('read-all') @HttpCode(204) async all(@Req() request: AuthenticatedRequest) { await this.service.markAllRead(request.userId); }
   @Delete() @HttpCode(204) async deleteAll(@Req() request: AuthenticatedRequest) { await this.service.deleteAll(request.userId); }
-  @Patch('settings') settings(@Req() request: AuthenticatedRequest, @Body() body: NotificationSettingsDto) { return this.service.settings(request.userId, body.enabled); }
+  @Patch('settings') settings(@Req() request: AuthenticatedRequest, @Body() body: NotificationSettingsDto) { return this.service.settings(request.userId, body.enabled, body.disabledTypes); }
 }

@@ -17,6 +17,8 @@ import { ReportAdminController, SafetyController } from './safety/safety.control
 import { SafetyService } from './safety/safety.service';
 import { NotificationController } from './notifications/notification.controller';
 import { NotificationService } from './notifications/notification.service';
+import { NotificationAdminController } from './notifications/notification-admin.controller';
+import { NotificationAdminService } from './notifications/notification-admin.service';
 import { RealtimeGateway } from './notifications/realtime.gateway';
 import { SmsVerificationProvider } from './auth/sms-verification.provider';
 import { ImageStorageService } from './storage/image-storage.service';
@@ -40,7 +42,7 @@ import { MatchingAdminService } from './matching/matching-admin.service';
       return { secret };
     },
   }), ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }])],
-  controllers: [HealthController, AuthController, UsersController, HangoutController, JoinRequestController, ChatController, DirectChatController, DemoController, SafetyController, ReportAdminController, MatchingAdminController, NotificationController, AnalyticsController, MatchFeedbackController, NewsletterController],
-  providers: [PrismaService, HangoutService, MatchingService, MatchingAdminService, ChatService, DemoService, HostStatusService, SafetyService, NotificationService, AnalyticsService, NewsletterService, NewsletterEmailService, RealtimeGateway, SmsVerificationProvider, ImageStorageService, PrismaAuthRepository, { provide: AuthRepository, useExisting: PrismaAuthRepository }, AuthService, AccessTokenGuard, { provide: APP_GUARD, useClass: ThrottlerGuard }],
+  controllers: [HealthController, AuthController, UsersController, HangoutController, JoinRequestController, ChatController, DirectChatController, DemoController, SafetyController, ReportAdminController, MatchingAdminController, NotificationAdminController, NotificationController, AnalyticsController, MatchFeedbackController, NewsletterController],
+  providers: [PrismaService, HangoutService, MatchingService, MatchingAdminService, ChatService, DemoService, HostStatusService, SafetyService, NotificationService, NotificationAdminService, AnalyticsService, NewsletterService, NewsletterEmailService, RealtimeGateway, SmsVerificationProvider, ImageStorageService, PrismaAuthRepository, { provide: AuthRepository, useExisting: PrismaAuthRepository }, AuthService, AccessTokenGuard, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}
