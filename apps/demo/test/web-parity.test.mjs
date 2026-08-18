@@ -51,11 +51,12 @@ test('profile editor saves privacy-safe matching preferences', async () => {
   for (const contract of ['edit-preferred-areas', 'edit-preferred-activities', 'edit-preferred-age-min', 'data-preferred-gender', 'edit-activity-time-slots', 'edit-participation-urgency', 'edit-max-travel-minutes', 'edit-preferred-group-sizes', 'edit-budget-min', 'edit-budget-max', 'edit-matching-consent', 'matchingDataConsent']) {
     assert.ok(application.includes(contract), `missing matching preference contract: ${contract}`);
   }
-  for (const tapContract of ['data-match-area', 'data-match-activity', 'data-match-age-min', 'data-match-time', 'data-match-day', 'data-match-urgency', 'data-match-travel', 'data-match-group', 'data-match-budget-min', 'data-match-social-style', 'data-match-goal', 'data-match-alcohol', 'data-match-smoking', 'data-match-first-time']) {
+  for (const tapContract of ['data-match-area', 'data-match-activity', 'data-match-age-min', 'data-match-time', 'data-match-day', 'data-match-urgency', 'data-match-travel', 'data-match-group', 'data-match-budget-min', 'data-match-social-style', 'data-match-goal', 'data-match-alcohol', 'data-match-smoking', 'data-match-first-time', 'data-match-avoid', 'data-match-flexibility', 'edit-behavior-learning']) {
     assert.ok(application.includes(tapContract), `matching preference must be tappable: ${tapContract}`);
   }
   for (const label of ['朝', '昼', '夕方', '夜', '深夜', '月', '火', '水', '木', '金', '土', '日']) assert.ok(application.includes(label), `missing quick choice: ${label}`);
   for (const field of ['socialStyles', 'participationGoals', 'firstTimePreferences', 'alcoholPreference', 'smokingPreference']) assert.ok(application.includes(field), `missing social matching field: ${field}`);
+  for (const field of ['avoidPreferences', 'scheduleFlexibility', 'behaviorLearningEnabled', "trackBehavior('DISCOVERY_VIEWED')", "trackBehavior('HANGOUT_VIEWED'"]) assert.ok(application.includes(field), `missing behavior matching field: ${field}`);
   assert.match(application, /正確なGPS位置は保存しません/);
   assert.match(application, /function showMatchFeedbackDialog/);
   assert.match(application, /\/analytics\/match-feedback/);

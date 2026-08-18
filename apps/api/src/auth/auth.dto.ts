@@ -51,6 +51,9 @@ export class UpdateProfileDto {
   @IsOptional() @IsArray() @ArrayMaxSize(4) @IsString({ each: true }) @MaxLength(40, { each: true }) firstTimePreferences?: string[];
   @IsOptional() @IsEnum(AlcoholPreference) alcoholPreference?: AlcoholPreference | null;
   @IsOptional() @IsEnum(SmokingPreference) smokingPreference?: SmokingPreference | null;
+  @IsOptional() @IsArray() @ArrayMaxSize(7) @IsString({ each: true }) @MaxLength(40, { each: true }) avoidPreferences?: string[];
+  @IsOptional() @IsArray() @ArrayMaxSize(5) @IsString({ each: true }) @MaxLength(40, { each: true }) scheduleFlexibility?: string[];
+  @IsOptional() @IsBoolean() behaviorLearningEnabled?: boolean;
 }
 
 export class RequestPhoneVerificationDto { @IsString() @Matches(/^\+[1-9]\d{7,14}$/) phone!: string; }

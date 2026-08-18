@@ -46,6 +46,9 @@ model User {
   firstTimePreferences String[]   @default([]) @map("first_time_preferences")
   alcoholPreference String?       @map("alcohol_preference")
   smokingPreference String?       @map("smoking_preference")
+  avoidPreferences  String[]      @default([]) @map("avoid_preferences")
+  scheduleFlexibility String[]    @default([]) @map("schedule_flexibility")
+  behaviorLearningEnabled Boolean @default(false) @map("behavior_learning_enabled")
   verification   VerificationStatus @default(UNVERIFIED)
   /// S3-compatible object URL in production. Never persist profile image bytes or base64 data URLs in production.
   profilePhoto   String?        @map("profile_photo") @db.Text

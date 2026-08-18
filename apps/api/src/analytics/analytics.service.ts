@@ -20,6 +20,8 @@ export class AnalyticsService {
     if (HANGOUT_REQUIRED.has(input.eventType) && !input.hangoutId) {
       throw new BadRequestException('hangoutId is required for this event type');
     }
+    const consent = await this.db.user.findUnique({ where: { id: userId }, select: { matchingDataConsent: true, behaviorLearningEnabled: true } });
+    if (!consent?.matchingDataConsent || !consent.behaviorLearningEnabled) return { tracked: false };
     if (input.hangoutId) {
       const exists = await this.db.hangout.findUnique({ where: { id: input.hangoutId }, select: { id: true } });
       if (!exists) throw new BadRequestException('Unknown hangoutId');

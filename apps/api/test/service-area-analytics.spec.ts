@@ -26,11 +26,19 @@ describe('Shinjuku/Shibuya launch constraints and funnel events', () => {
 
   it('requires a Hangout id for downstream funnel events and persists valid events', async () => {
     const create = vi.fn().mockResolvedValue({ id: 'event-id', eventType: FunnelEventType.HANGOUT_VIEWED, createdAt: new Date() });
-    const db = { hangout: { findUnique: vi.fn().mockResolvedValue({ id: '01900000-0000-7000-8000-000000000001' }) }, funnelEvent: { create } } as unknown as PrismaService;
+    const db = { user: { findUnique: vi.fn().mockResolvedValue({ matchingDataConsent: true, behaviorLearningEnabled: true }) }, hangout: { findUnique: vi.fn().mockResolvedValue({ id: '01900000-0000-7000-8000-000000000001' }) }, funnelEvent: { create } } as unknown as PrismaService;
     const analytics = new AnalyticsService(db);
     await expect(analytics.track('user-id', { eventType: FunnelEventType.HANGOUT_VIEWED })).rejects.toMatchObject({ status: 400 });
     await analytics.track('user-id', { eventType: FunnelEventType.HANGOUT_VIEWED, hangoutId: '01900000-0000-7000-8000-000000000001' });
     expect(create).toHaveBeenCalledOnce();
+  });
+
+  it('does not record behavior before the user opts in', async () => {
+    const create = vi.fn();
+    const db = { user: { findUnique: vi.fn().mockResolvedValue({ matchingDataConsent: true, behaviorLearningEnabled: false }) }, funnelEvent: { create } } as unknown as PrismaService;
+    const result = await new AnalyticsService(db).track('user-id', { eventType: FunnelEventType.DISCOVERY_VIEWED });
+    expect(result).toEqual({ tracked: false });
+    expect(create).not.toHaveBeenCalled();
   });
 
   it('validates event names and UUIDs at the API boundary', async () => {

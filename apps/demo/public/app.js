@@ -27,12 +27,15 @@ const MATCH_BUDGET_OPTIONS=[[0,1000,'〜1,000円'],[1000,3000,'1,000〜3,000円'
 const MATCH_SOCIAL_STYLE_OPTIONS=['静かに話したい','ワイワイ楽しみたい','初対面でも積極的','少人数でじっくり','聞き役が多い'];
 const MATCH_GOAL_OPTIONS=['趣味仲間','友達づくり','暇つぶし','情報交換','運動習慣','食事・飲み','新しい体験'];
 const MATCH_FIRST_TIME_OPTIONS=['初参加歓迎','ひとり参加が安心','常連が多くてもOK','主催者から話しかけてほしい'];
+const MATCH_AVOID_OPTIONS=['大人数','飲酒中心','深夜','屋外','激しい運動','写真撮影','営業・勧誘'];
+const MATCH_FLEXIBILITY_OPTIONS=['時間厳守','多少の遅刻は許容','途中参加OK','途中退出OK','急な予定変更OK'];
 let session = JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY) || 'null');
 let demoRole = IS_PRODUCTION ? null : localStorage.getItem(DEMO_ROLE_STORAGE_KEY);
 const areas={新宿:{latitude:35.6901,longitude:139.7005},渋谷:{latitude:35.6580,longitude:139.7016}};
 let userLocation=saved?.userLocation||null;
 let unreadNotifications=0;
 let realtimeSocket=null;
+const behaviorEventsSent=new Set();
 if (new URLSearchParams(location.search).has('resetAuth')) { localStorage.removeItem(SESSION_STORAGE_KEY); session = null; }
 
 const hangoutImageObserver=new MutationObserver(()=>{
@@ -108,12 +111,20 @@ function showPageLoadingOverlay(label='読み込んでいます'){
 }
 
 async function api(path, options = {}) {
+  if(path==='/users/me'&&options.method==='PATCH'&&document.querySelector('.profile-editor-sheet')&&typeof options.body==='string'){
+    const editor=document.querySelector('.profile-editor-sheet');const payload=JSON.parse(options.body);
+    payload.avoidPreferences=[...editor.querySelectorAll('[data-match-avoid].chosen')].map(button=>button.dataset.matchAvoid);
+    payload.scheduleFlexibility=[...editor.querySelectorAll('[data-match-flexibility].chosen')].map(button=>button.dataset.matchFlexibility);
+    payload.behaviorLearningEnabled=editor.querySelector('#edit-behavior-learning')?.checked===true;
+    options={...options,body:JSON.stringify(payload)};
+  }
   const response = await fetch(`${API_URL}${path}`, { ...options, headers: { 'content-type': 'application/json', ...(session?.accessToken ? { authorization: `Bearer ${session.accessToken}` } : {}), ...options.headers } });
   if(response.status===401&&session?.refreshToken&&!options._retried){const refreshed=await fetch(`${API_URL}/auth/refresh`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({refreshToken:session.refreshToken})});if(refreshed.ok){session=await refreshed.json();saveSession();connectRealtime();return api(path,{...options,_retried:true})}localStorage.removeItem(SESSION_STORAGE_KEY);session=null;authScreen();throw new Error('セッションの有効期限が切れました')}
   const data = response.status === 204 ? null : await response.json().catch(() => null);
   if (!response.ok) throw new Error(Array.isArray(data?.message) ? data.message[0] : data?.message || 'APIへ接続できませんでした');
   return data;
 }
+async function trackBehavior(eventType,hangoutId){if(!session?.user?.matchingDataConsent||!session.user.behaviorLearningEnabled)return;const key=`${eventType}:${hangoutId||''}`;if(behaviorEventsSent.has(key))return;behaviorEventsSent.add(key);try{await api('/analytics/events',{method:'POST',body:JSON.stringify({eventType,...(hangoutId?{hangoutId}:{})})})}catch{behaviorEventsSent.delete(key)}}
 function hangoutView(h, index = 0) {
   return { id:h.id, hostUserId:h.hostUserId, status:h.status, startAt:h.startAt, icon:{FOOD:'🍜',RUNNING:'🏃',CAFE:'☕',MOTORCYCLE:'🏍️',WALKING:'🚶'}[h.category]||'✨', title:h.title, time:timeLabel(h.startAt), place:h.locationName, imageUrl:h.imageUrl, meetingPlaceName:h.meetingPlaceName, meetingAddress:h.meetingAddress, navigationUrl:h.navigationUrl, latitude:h.latitude,longitude:h.longitude,publicLatitude:h.publicLatitude,publicLongitude:h.publicLongitude,locationPrecision:h.locationPrecision,distanceKm:h.distanceKm,current:h.participantCount, max:h.maxParticipants, hostMaleCount:h.hostMaleCount, hostFemaleCount:h.hostFemaleCount, hostParticipantCount:h.hostParticipantCount, acceptedParticipants:h.acceptedParticipants||[], genderRestriction:h.genderRestriction, maxAge:h.maxAge, host:h.host.displayName, hostPhoto:h.host.profilePhoto, hostPhotos:h.host.profilePhotos||[], hostStatus:h.host.hostStatus, verified:h.host.verification==='PHONE_VERIFIED', rating:h.host.hostStatus?.hostAverageRating?`主催評価 ★ ${h.host.hostStatus.hostAverageRating}`:'主催評価なし', match:Math.max(70,94-index*5), photo:index%4, desc:h.description||'', hot:timeLabel(h.startAt)==='30分後', myJoinStatus:h.myJoinStatus, hearted:h.hearted, heartCount:h.heartCount||0 };
 }
@@ -122,6 +133,7 @@ async function loadHangouts() {
   const query=userLocation?`?latitude=${userLocation.latitude}&longitude=${userLocation.longitude}&radiusKm=50`:'';
   const rows = await api(`/hangouts${query}`);
   hangouts.splice(0, hangouts.length, ...rows.map(hangoutView));
+  void trackBehavior('DISCOVERY_VIEWED');
 }
 function timeLabel(startAt){const minutes=Math.max(0,Math.round((new Date(startAt)-Date.now())/60000));return minutes<=45?'30分後':minutes<=90?'1時間後':'3時間後'}
 function countdownLabel(startAt){const seconds=Math.max(0,Math.ceil((new Date(startAt)-Date.now())/1000));if(seconds===0)return'開始時刻です';const hours=String(Math.floor(seconds/3600)).padStart(2,'0');const minutes=String(Math.floor(seconds%3600/60)).padStart(2,'0');const rest=String(seconds%60).padStart(2,'0');return`開始まで ${hours}:${minutes}:${rest}`}
@@ -250,6 +262,7 @@ async function detail(id, sourceScreen = null, options = {}) {
       return;
     }
   }
+  void trackBehavior('HANGOUT_VIEWED',h.id);
   const requested = ['PENDING','ACCEPTED','WAITLISTED'].includes(h.myJoinStatus);
   const mine=h.hostUserId===session.user.id||h.host===session.user.displayName;
   let requests=[];
@@ -602,11 +615,14 @@ function showProfileEditor(){
     <div class="matching-field"><b>お酒</b><div class="match-choice-grid">${[['NONE','飲まない'],['SOMETIMES','少し飲む'],['YES','飲む']].map(([value,label])=>chip('data-match-alcohol',value,label,session.user.alcoholPreference===value)).join('')}</div><input id="edit-alcohol-preference" type="hidden" value="${session.user.alcoholPreference||''}"></div>
     <div class="matching-field"><b>喫煙環境</b><div class="match-choice-grid">${[['NON_SMOKING','禁煙希望'],['SEPARATED','分煙希望'],['NO_PREFERENCE','気にしない']].map(([value,label])=>chip('data-match-smoking',value,label,session.user.smokingPreference===value)).join('')}</div><input id="edit-smoking-preference" type="hidden" value="${session.user.smokingPreference||''}"></div>
     <div class="matching-field"><b>初参加への配慮</b><small>安心して参加するために必要なこと</small><div class="match-choice-grid match-choice-grid-wide">${MATCH_FIRST_TIME_OPTIONS.map(value=>chip('data-match-first-time',value,value,(session.user.firstTimePreferences||[]).includes(value))).join('')}</div></div>
+    <div class="matching-field"><b>苦手・避けたい条件</b><small>おすすめから優先的に外します</small><div class="match-choice-grid match-choice-grid-wide">${MATCH_AVOID_OPTIONS.map(value=>chip('data-match-avoid',value,value,(session.user.avoidPreferences||[]).includes(value))).join('')}</div></div>
+    <div class="matching-field"><b>予定の柔軟性</b><small>参加しやすい進行を選択</small><div class="match-choice-grid match-choice-grid-wide">${MATCH_FLEXIBILITY_OPTIONS.map(value=>chip('data-match-flexibility',value,value,(session.user.scheduleFlexibility||[]).includes(value))).join('')}</div></div>
+    <label class="matching-consent behavior-learning"><input id="edit-behavior-learning" type="checkbox" ${session.user.behaviorLearningEnabled?'checked':''}> <span><b>アプリ内行動からおすすめを改善</b><small>閲覧した募集、ハート、参加、評価を使います。正確な位置やトーク内容は学習に使いません。</small></span></label>
     <label class="matching-consent"><input id="edit-matching-consent" type="checkbox" ${session.user.matchingDataConsent?'checked':''}> この情報とアプリ内の閲覧・参加履歴を、マッチング改善に利用することに同意します</label></div>`);
   sheet.querySelectorAll('[data-preferred-gender]').forEach(button=>button.onclick=()=>button.classList.toggle('chosen'));
   const toggleChoices=selector=>sheet.querySelectorAll(selector).forEach(button=>button.onclick=()=>button.classList.toggle('chosen'));
   const singleChoice=(selector,onChange)=>sheet.querySelectorAll(selector).forEach(button=>button.onclick=()=>{const wasChosen=button.classList.contains('chosen');sheet.querySelectorAll(selector).forEach(item=>item.classList.remove('chosen'));if(!wasChosen)button.classList.add('chosen');onChange(wasChosen?null:button)});
-  toggleChoices('[data-match-area]');toggleChoices('[data-match-activity]');toggleChoices('[data-match-time]');toggleChoices('[data-match-day]');toggleChoices('[data-match-group]');toggleChoices('[data-match-social-style]');toggleChoices('[data-match-goal]');toggleChoices('[data-match-first-time]');
+  toggleChoices('[data-match-area]');toggleChoices('[data-match-activity]');toggleChoices('[data-match-time]');toggleChoices('[data-match-day]');toggleChoices('[data-match-group]');toggleChoices('[data-match-social-style]');toggleChoices('[data-match-goal]');toggleChoices('[data-match-first-time]');toggleChoices('[data-match-avoid]');toggleChoices('[data-match-flexibility]');
   singleChoice('[data-match-age-min]',button=>{sheet.querySelector('#edit-preferred-age-min').value=button?.dataset.matchAgeMin||'';sheet.querySelector('#edit-preferred-age-max').value=button?.dataset.matchAgeMax||''});
   singleChoice('[data-match-urgency]',button=>{sheet.querySelector('#edit-participation-urgency').value=button?.dataset.matchUrgency||''});
   singleChoice('[data-match-travel]',button=>{sheet.querySelector('#edit-max-travel-minutes').value=button?.dataset.matchTravel||''});
