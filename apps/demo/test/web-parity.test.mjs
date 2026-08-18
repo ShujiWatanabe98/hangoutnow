@@ -121,7 +121,10 @@ test('profile Hangouts show loading immediately and return to the preserved prof
   assert.match(application, /if\(returnToProfile\)sheet\.classList\.add\('profile-origin'\)/);
   assert.match(application, /returnToProfile\?'プロフィールに戻る':'ホームに戻る'/);
   assert.match(application, /if\(returnToProfile\)\{sourceScreen\.classList\.remove\('profile-behind-hangout'\);activeScreen='profileScreen'\}else home\(\)/);
-  assert.match(requests, /\.profile-hangout-loading\{z-index:42;align-items:center\}/);
+  assert.match(application, /showPageLoadingOverlay\('プロフィールを読み込んでいます'\)/);
+  assert.match(application, /showPageLoadingOverlay\('トークを読み込んでいます'\)/);
+  assert.match(application, /showPageLoadingOverlay\('メッセージを読み込んでいます'\)/);
+  assert.match(requests, /\.sheet\.profile-hangout-loading,\.sheet\.page-loading-overlay\{z-index:42;align-items:center;background:transparent;cursor:progress\}/);
   assert.match(requests, /\.hangout-detail-sheet\.profile-origin\{z-index:42\}/);
 });
 

@@ -91,6 +91,12 @@ function transitionHangoutConversation(workspace,opening,duration=320){
 function connectRealtime(){if(!session)return;if(typeof io==='undefined'){if(!document.querySelector('#socket-client')){const script=document.createElement('script');script.id='socket-client';script.src=`${API_URL}/socket.io/socket.io.js`;script.onload=connectRealtime;document.head.append(script)}return}realtimeSocket?.disconnect();realtimeSocket=io(API_URL,{auth:{token:session.accessToken},reconnection:true,reconnectionAttempts:Infinity,reconnectionDelay:800,reconnectionDelayMax:8000});realtimeSocket.on('connect',()=>{document.body.classList.remove('realtime-offline');loadNotificationCount()});realtimeSocket.on('disconnect',()=>document.body.classList.add('realtime-offline'));realtimeSocket.on('notification',async(item)=>{unreadNotifications+=1;renderBadge();toast(item.title);if(document.visibilityState==='hidden'&&Notification.permission==='granted')new Notification(item.title,{body:item.body});if(activeScreen==='chatScreen'&&['CHAT_MESSAGE','DIRECT_MESSAGE'].includes(item.type))await chatScreen()});realtimeSocket.on('notifications:changed',loadNotificationCount)}
 async function loadNotificationCount(){try{const data=await api('/notifications');unreadNotifications=data.unreadCount;renderBadge();return data}catch{return null}}
 function renderBadge(){const badge=document.querySelector('.notification-badge');if(badge){badge.textContent=unreadNotifications>99?'99+':String(unreadNotifications);badge.classList.toggle('hidden',!unreadNotifications)}}
+function showPageLoadingOverlay(label='読み込んでいます'){
+  document.querySelector('.page-loading-overlay')?.remove();
+  document.body.insertAdjacentHTML('beforeend',`<div class="sheet page-loading-overlay" role="status" aria-live="polite"><section><span></span><b>${safeText(label)}</b></section></div>`);
+  const overlay=document.querySelector('.page-loading-overlay');
+  return()=>overlay?.remove();
+}
 
 async function api(path, options = {}) {
   const response = await fetch(`${API_URL}${path}`, { ...options, headers: { 'content-type': 'application/json', ...(session?.accessToken ? { authorization: `Bearer ${session.accessToken}` } : {}), ...options.headers } });
@@ -412,7 +418,8 @@ async function chatScreen(sourceScreen = null) {
   const returnToProfile=Boolean(sourceScreen?.classList.contains('profile-screen'));
   if(returnToProfile)sourceScreen.classList.add('profile-behind-chat');
   activeScreen = 'chatScreen';
-  let groups=[],directs=[];try{[groups,directs]=await Promise.all([api('/chat-rooms'),api('/direct-chats')])}catch(error){toast(error.message)}
+  const closeLoading=showPageLoadingOverlay('トークを読み込んでいます');
+  let groups=[],directs=[];try{[groups,directs]=await Promise.all([api('/chat-rooms'),api('/direct-chats')])}catch(error){toast(error.message)}finally{closeLoading()}
   const roomTime=room=>new Date(room.lastMessage?.createdAt||room.updatedAt||room.createdAt||0).getTime();
   const talks=[...groups.map((room,index)=>({room,index,kind:'group'})),...directs.map((room,index)=>({room,index,kind:'direct'}))].sort((a,b)=>roomTime(b.room)-roomTime(a.room));
   const talkRows=talks.map(({room,index,kind},visualIndex)=>{const direct=kind==='direct';const title=direct?room.otherUser.displayName:room.hangout.title;const person=direct?room.otherUser:room.hangout.host;return `<button class="chat-row talk-row" data-room-index="${index}" data-kind="${kind}"><span class="mini ${portraitClass(visualIndex%4)}"${photoStyle(person.profilePhoto)}></span><span><b>${safeText(title)}</b><small>${safeText(room.lastMessage?.body||(direct?'1対1でメッセージを送りましょう':'グループにメッセージを送りましょう'))}</small></span><span class="talk-meta"><time>${room.lastMessage?.createdAt?new Date(room.lastMessage.createdAt).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}):''}</time><em>${direct?'1対1':'グループ'}</em></span></button>`}).join('');
@@ -441,7 +448,8 @@ function messageContent(body){return body?.startsWith('__STAMP__')?'<span class=
 
 async function openChat(room) {
   const kind=room.type==='DIRECT'?'direct':'group';const base=kind==='direct'?'/direct-chats':'/chat-rooms';
-  let messages=[];try{messages=await api(`${base}/${room.id}/messages`)}catch(error){toast(error.message);return}
+  const closeLoading=showPageLoadingOverlay('メッセージを読み込んでいます');
+  let messages=[];try{messages=await api(`${base}/${room.id}/messages`)}catch(error){toast(error.message);return}finally{closeLoading()}
   const title=kind==='direct'?room.otherUser.displayName:room.hangout.title;const photo=kind==='direct'?room.otherUser.profilePhoto:room.hangout.host.profilePhoto;
   const conversation=document.querySelector('#chat-conversation');const workspace=document.querySelector('.chat-workspace,.hangout-flow');
   conversation.innerHTML=`<header class="chat-conversation-head"><button class="chat-back brand-back" type="button" aria-label="トーク一覧に戻る"><span></span></button><span class="conversation-avatar"${photoStyle(photo)}>${photo?'':safeText(title).slice(0,1)}</span><div><h2>${safeText(title)}</h2><small>${kind==='direct'?'1対1':room.hangout.status==='FINISHED'?'終了・評価待ち':'グループ ・ '+room.members.length+'人'}　<span>● オンライン</span></small></div></header><div class="messages">${messages.map((m)=>{const mine=m.senderUserId===session.user.id;return `<div class="message-line ${mine?'mine':''}">${mine?'':`<span class="message-avatar"${photoStyle(m.sender.profilePhoto)}>${m.sender.profilePhoto?'':safeText(m.sender.displayName).slice(0,1)}</span>`}<div class="bubble-wrap"><small>${safeText(m.sender.displayName)}</small><div class="bubble">${messageContent(m.body)}</div><time>${new Date(m.createdAt).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})}</time></div>${mine?`<span class="message-avatar"${photoStyle(m.sender.profilePhoto||session.user.profilePhoto)}>${m.sender.profilePhoto||session.user.profilePhoto?'':safeText(m.sender.displayName).slice(0,1)}</span>`:''}</div>`}).join('')||'<div class="empty">最初のメッセージを送ってみましょう。</div>'}</div><div class="conversation-actions">${kind==='group'?'<div class="quick"><button>向かっています</button><button>少し遅れます</button><button>到着しました</button></div>':''}<div class="composer"><input placeholder="メッセージを入力" maxlength="1000"><button class="chat-send-button" aria-label="メッセージを送信"><span>↑</span></button></div></div>`;
@@ -512,9 +520,10 @@ function showProfilePhoto(profilePhoto,displayName,extraClass='',initialIndex=0)
 
 async function profileScreen({animate=true}={}) {
   activeScreen = 'profileScreen';
+  const closeLoading=showPageLoadingOverlay('プロフィールを読み込んでいます');
   const hosted=hangouts.filter((h)=>h.hostUserId===session.user.id).length;
   const verified=session.user.verificationStatus==='PHONE_VERIFIED';
-  let hostStatus=null;let activity={hosted:[],participated:[],hearted:[]};try{[hostStatus,activity]=await Promise.all([api('/users/me/host-status'),api('/hangouts/mine/activity')])}catch(error){toast(error.message)}
+  let hostStatus=null;let activity={hosted:[],participated:[],hearted:[]};try{[hostStatus,activity]=await Promise.all([api('/users/me/host-status'),api('/hangouts/mine/activity')])}catch(error){toast(error.message)}finally{closeLoading()}
   document.querySelector('.profile-screen')?.remove();
   document.body.insertAdjacentHTML('beforeend',`<div class="profile-screen"><header class="host-menu-header"><button class="brand-back" type="button" aria-label="ホームに戻る"><span></span></button><div><small>アカウント</small><b>プロフィール</b></div><span></span></header><main class="profile-screen-content"><section class="profile">${profilePhotoTrio(session.user,session.user.displayName)}<h1>${safeText(session.user.displayName)}</h1><button class="profile-chat-button" id="profile-chat"><span>●</span>トーク</button><div class="verified ${verified?'':'unverified'}">${verified?'✓ 電話番号確認済み':'電話番号未確認'}</div><p>${safeText(session.user.bio||'自己紹介を登録しましょう。')}</p><button class="primary profile-edit-button" id="edit-profile">プロフィールを編集</button><div class="stats"><div><b>—</b><span>主催評価</span></div><div><b>—</b><span>参加評価</span></div><div><b>${joined.size}</b><span>参加</span></div><div><b>${hosted}</b><span>主催</span></div></div><h2>興味のあること</h2><div class="tags">${(session.user.interests||[]).map(i=>`<span>${safeText(i)}</span>`).join('')||'<span>未登録</span>'}</div><div class="safety">🛡️ 募集を作るには、顔が分かるプロフィール写真と電話番号確認が必要です。</div></section></main></div>`);
   const screen=document.querySelector('.profile-screen');
