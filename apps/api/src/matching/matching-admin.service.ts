@@ -20,14 +20,17 @@ export class MatchingAdminService {
   }
 
   async dashboard() {
-    const [configs, users, hangouts, completed, feedback, ratings, reports] = await Promise.all([
+    const [configs, users, hangouts, completed, feedback, ratings, reports, funnel, ratingDistribution, declineReasons] = await Promise.all([
       this.db.matchingAlgorithmConfig.findMany({ orderBy: { createdAt: 'desc' }, take: 30 }),
       this.db.user.count(), this.db.hangout.count(), this.db.hangout.count({ where: { status: 'FINISHED' } }),
       this.db.matchFeedback.groupBy({ by: ['algorithmVersion', 'outcome'], _count: { _all: true } }),
       this.db.hangoutRating.aggregate({ _avg: { score: true }, _count: { score: true } }),
       this.db.report.count(),
+      this.db.funnelEvent.groupBy({ by: ['eventType'], _count: { _all: true } }),
+      this.db.hangoutRating.groupBy({ by: ['score'], _count: { _all: true }, orderBy: { score: 'asc' } }),
+      this.db.matchFeedback.groupBy({ by: ['reason'], where: { outcome: 'NOT_MATCHED', reason: { not: null } }, _count: { _all: true } }),
     ]);
-    return { activeVersion: configs.find(item => item.status === MatchingAlgorithmStatus.ACTIVE)?.version ?? MATCHING_ALGORITHM_VERSION, defaults: DEFAULT_MATCHING_WEIGHTS, metrics: { users, hangouts, completed, averageRating: ratings._avg.score, ratingCount: ratings._count.score, reports }, feedback, configs };
+    return { activeVersion: configs.find(item => item.status === MatchingAlgorithmStatus.ACTIVE)?.version ?? MATCHING_ALGORITHM_VERSION, defaults: DEFAULT_MATCHING_WEIGHTS, metrics: { users, hangouts, completed, averageRating: ratings._avg.score, ratingCount: ratings._count.score, reports }, feedback, funnel, ratingDistribution, declineReasons, configs };
   }
 
   create(adminId: string, input: CreateMatchingConfigDto) {
