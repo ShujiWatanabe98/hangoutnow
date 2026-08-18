@@ -68,6 +68,20 @@ test('profile editor saves privacy-safe matching preferences', async () => {
   assert.match(mobile, /\/analytics\/match-feedback/);
 });
 
+test('native talk notifications display and open the addressed room', async () => {
+  const [mobile, notifications, chat] = await Promise.all([
+    readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../../api/src/notifications/notification.service.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../../api/src/chat/chat.service.ts', import.meta.url), 'utf8'),
+  ]);
+  for (const contract of ['Notifications.setNotificationHandler', 'shouldShowBanner: true', 'shouldPlaySound: true', 'addNotificationResponseReceivedListener', 'getLastNotificationResponseAsync', 'openChatNotification(link)', 'group-chat:', 'direct-chat:']) {
+    assert.ok(mobile.includes(contract), `missing native push notification contract: ${contract}`);
+  }
+  assert.match(notifications, /sound: 'default'/);
+  assert.match(chat, /'CHAT_MESSAGE'/);
+  assert.match(chat, /'DIRECT_MESSAGE'/);
+});
+
 test('demo authentication is not rolled back by optional initial data loading', async () => {
   const application = await readFile(new URL('app.js', publicDirectory), 'utf8');
   const loginStart = application.indexOf('async function demoLogin');

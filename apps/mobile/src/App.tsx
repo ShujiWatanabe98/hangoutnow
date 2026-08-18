@@ -32,6 +32,14 @@ const X_REDIRECT_URI = "hangoutnow://auth/x";
 const GOOGLE_REDIRECT_URI = "hangoutnow://auth/google";
 const APPLE_REDIRECT_URI = "hangoutnow://auth/apple";
 WebBrowser.maybeCompleteAuthSession();
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 const INTEREST_OPTIONS = ["カフェ", "ラーメン", "ランニング", "飲み会", "ダーツ", "バー", "ごはん", "カラオケ", "英会話", "シーシャ", "スイーツ", "映画"] as const;
 const SOCIAL_STYLE_OPTIONS = ["静かに話したい", "ワイワイ楽しみたい", "初対面でも積極的", "少人数でじっくり", "聞き役が多い"] as const;
 const PARTICIPATION_GOAL_OPTIONS = ["趣味仲間", "友達づくり", "暇つぶし", "情報交換", "運動習慣", "食事・飲み", "新しい体験"] as const;
@@ -282,6 +290,7 @@ export default function App() {
   const [selectedHangout, setSelectedHangout] = useState<Hangout | null>(null);
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
   const [notificationInbox, setNotificationInbox] = useState<NotificationInbox>({ items: [], unreadCount: 0, enabled: true });
+  const handledNotificationResponseId = useRef<string | null>(null);
 
   const request = useCallback(
     async <T,>(path: string, options: RequestInit = {}): Promise<T> => {
@@ -359,6 +368,32 @@ export default function App() {
     if (!session) return;
     setNotificationInbox(await request<NotificationInbox>("/notifications"));
   }, [request, session]);
+
+  const openChatNotification = useCallback(async (link: string) => {
+    const prefix = link.startsWith("group-chat:") ? "group-chat:" : link.startsWith("direct-chat:") ? "direct-chat:" : null;
+    if (!prefix) return;
+    const roomId = link.slice(prefix.length);
+    if (!roomId) return;
+    try {
+      const nextRooms = await loadRooms();
+      const room = nextRooms.find((item) => item.id === roomId && (prefix === "direct-chat:" ? item.type === "DIRECT" : item.type === "GROUP"));
+      if (!room) return;
+      const base = room.type === "DIRECT" ? "/direct-chats" : "/chat-rooms";
+      const [nextMessages, inbox] = await Promise.all([
+        request<Message[]>(`${base}/${room.id}/messages`),
+        request<NotificationInbox>("/notifications"),
+      ]);
+      const unread = inbox.items.filter((item) => !item.readAt && item.link === link);
+      await Promise.all(unread.map((item) => request(`/notifications/${item.id}/read`, { method: "POST" })));
+      setSelectedRoom(room);
+      setMessages(nextMessages);
+      setUnreadByRoom((current) => ({ ...current, [room.id]: 0 }));
+      setScreen("chat");
+      await loadNotifications();
+    } catch {
+      Alert.alert("トークを開けませんでした", "通信状態を確認して、トーク一覧からもう一度お試しください。");
+    }
+  }, [loadNotifications, loadRooms, request]);
 
   const refreshCurrent = useCallback(async () => {
     setRefreshing(true);
@@ -439,6 +474,25 @@ export default function App() {
       active = false;
     };
   }, [request, session?.user.id]);
+
+  useEffect(() => {
+    if (!session || Platform.OS === "web" || !Device.isDevice) return;
+    const handleResponse = (response: Notifications.NotificationResponse) => {
+      const identifier = response.notification.request.identifier;
+      if (handledNotificationResponseId.current === identifier) return;
+      const link = response.notification.request.content.data?.link;
+      if (typeof link !== "string") return;
+      handledNotificationResponseId.current = identifier;
+      void openChatNotification(link);
+    };
+    const subscription = Notifications.addNotificationResponseReceivedListener(handleResponse);
+    void Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (!response) return;
+      handleResponse(response);
+      void Notifications.clearLastNotificationResponseAsync();
+    });
+    return () => subscription.remove();
+  }, [openChatNotification, session?.user.id]);
 
   useEffect(() => {
     if (!session) return;
