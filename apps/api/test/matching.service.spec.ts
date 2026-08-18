@@ -1,0 +1,33 @@
+import { Gender } from '@prisma/client';
+import { describe, expect, it } from 'vitest';
+import { calculateMatchScore, MatchCandidate } from '../src/matching/matching.service';
+
+const now = new Date('2026-08-18T09:00:00+09:00');
+const candidate: MatchCandidate = {
+  id: 'hangout-1', hostUserId: 'host-1', category: 'CAFE', serviceArea: 'SHINJUKU',
+  publicLocationName: '新宿駅周辺', title: '新宿のカフェで交流', startAt: new Date('2026-08-18T19:00:00+09:00'),
+  maxParticipants: 4, host: { gender: Gender.FEMALE, birthDate: new Date('1996-01-01') },
+};
+const profile = {
+  preferredAreas: ['新宿'], preferredActivities: ['カフェ'], preferredAgeMin: 20, preferredAgeMax: 40,
+  preferredGenders: [Gender.FEMALE], activityTimeSlots: ['NIGHT', 'TUE'], participationUrgency: 'TODAY',
+  preferredGroupSizes: [4], matchingDataConsent: true, behaviorLearningEnabled: true,
+};
+
+describe('private matching score', () => {
+  it('raises the score for declared preferences and matching behavior', () => {
+    const neutral = calculateMatchScore({ ...profile, preferredAreas: [], preferredActivities: [], preferredAgeMin: null, preferredAgeMax: null, preferredGenders: [], activityTimeSlots: [], participationUrgency: null, preferredGroupSizes: [], behaviorLearningEnabled: false }, candidate, [], now);
+    const matched = calculateMatchScore(profile, candidate, [{ category: 'CAFE', serviceArea: 'SHINJUKU', strength: 2 }], now);
+    expect(matched).toBeGreaterThan(neutral);
+    expect(matched).toBeLessThanOrEqual(99);
+  });
+
+  it('does not personalize without matching-data consent', () => {
+    expect(calculateMatchScore({ ...profile, matchingDataConsent: false }, candidate, [{ category: 'CAFE', serviceArea: 'SHINJUKU', strength: 50 }], now)).toBe(70);
+  });
+
+  it('ignores behavior when behavior learning is disabled', () => {
+    const disabled = { ...profile, behaviorLearningEnabled: false };
+    expect(calculateMatchScore(disabled, candidate, [], now)).toBe(calculateMatchScore(disabled, candidate, [{ category: 'CAFE', serviceArea: 'SHINJUKU', strength: 50 }], now));
+  });
+});

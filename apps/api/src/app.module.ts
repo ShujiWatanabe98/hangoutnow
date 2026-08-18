@@ -28,6 +28,7 @@ import { AnalyticsService } from './analytics/analytics.service';
 import { NewsletterController } from './newsletter/newsletter.controller';
 import { NewsletterService } from './newsletter/newsletter.service';
 import { NewsletterEmailService } from './newsletter/newsletter-email.service';
+import { MatchingService } from './matching/matching.service';
 
 @Module({
   imports: [JwtModule.registerAsync({
@@ -38,6 +39,6 @@ import { NewsletterEmailService } from './newsletter/newsletter-email.service';
     },
   }), ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }])],
   controllers: [HealthController, AuthController, UsersController, HangoutController, JoinRequestController, ChatController, DirectChatController, DemoController, SafetyController, ReportAdminController, NotificationController, AnalyticsController, MatchFeedbackController, NewsletterController],
-  providers: [PrismaService, HangoutService, ChatService, DemoService, HostStatusService, SafetyService, NotificationService, AnalyticsService, NewsletterService, NewsletterEmailService, RealtimeGateway, SmsVerificationProvider, ImageStorageService, PrismaAuthRepository, { provide: AuthRepository, useExisting: PrismaAuthRepository }, AuthService, AccessTokenGuard, { provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [PrismaService, HangoutService, MatchingService, ChatService, DemoService, HostStatusService, SafetyService, NotificationService, AnalyticsService, NewsletterService, NewsletterEmailService, RealtimeGateway, SmsVerificationProvider, ImageStorageService, PrismaAuthRepository, { provide: AuthRepository, useExisting: PrismaAuthRepository }, AuthService, AccessTokenGuard, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}
