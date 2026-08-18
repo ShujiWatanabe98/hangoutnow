@@ -137,7 +137,11 @@ test('completed Hangout ratings have a persistent completion action that removes
   assert.match(application, /class="primary hangout-rating-complete" data-finish-ratings>評価完了<\/button>/);
   assert.match(application, /document\.querySelectorAll\('\.hangout-rating-sheet'\)\.forEach\(screen=>screen\.remove\(\)\)/);
   assert.match(application, /document\.querySelector\('\.hangout-detail-sheet'\)\?\.remove\(\);home\(\)/);
-  assert.match(portraits, /\.hangout-rating-complete\{position:sticky;bottom:0;z-index:2/);
+  assert.match(application, /h\.status==='FINISHED'&&\(mine\|\|h\.myJoinStatus==='ACCEPTED'\)/);
+  assert.match(application, /data-detail-finish-ratings>評価完了<\/button>/);
+  assert.match(application, /detailRatingComplete\.onclick=returnFromDetail/);
+  assert.match(portraits, /\.hangout-rating-sheet>\.panel\{display:flex;flex-direction:column;overflow:hidden\}/);
+  assert.match(portraits, /\.hangout-rating-complete,\.detail-rating-complete\{flex:0 0 auto;width:100%/);
 });
 
 test('profile ends with a logout action that clears the session', async () => {
