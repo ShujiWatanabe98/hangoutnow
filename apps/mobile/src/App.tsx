@@ -1943,12 +1943,12 @@ function PhoneVerificationScreen({ onBack, onVerify }: { onBack: () => void; onV
 }
 
 function RatingScreen({ user, room, onRate, onDone }: { user: User; room: GroupRoom; onRate: (hangoutId: string, userId: string, score: number) => void; onDone: () => void }) {
-  const members = room.members.filter((member) => member.id !== user.id);
+  const members = room.members.filter((member) => member.id !== user.id && !member.myRatingScore);
   return (
     <ScrollView contentContainerStyle={styles.ratingScreen}>
       <Text style={styles.eyebrow}>Hangoutを終了しました</Text>
       <Text style={styles.ratingScreenTitle}>参加メンバーを評価</Text>
-      <Text style={styles.ratingScreenDescription}>一緒に過ごしたメンバーを★1〜5で評価してください。評価は後から変更できます。</Text>
+      <Text style={styles.ratingScreenDescription}>一緒に過ごしたメンバーを★1〜5で評価してください。送信後は変更できません。</Text>
       {members.map((member) => (
         <View key={member.id} style={styles.ratingScreenCard}>
           <View style={styles.ratingScreenPerson}>
@@ -2011,7 +2011,7 @@ function ChatScreen({ user, rooms, selectedRoom, messages, messageBody, sending,
         {selectedRoom.type === "GROUP" && selectedRoom.hangout.status === "FINISHED" && (
           <View style={styles.ratingActions}>
             {selectedRoom.members
-              .filter((member) => member.id !== user.id)
+              .filter((member) => member.id !== user.id && !member.myRatingScore)
               .map((member) => (
                 <View key={member.id} style={styles.memberRating}>
                   <Text style={styles.memberRatingName}>

@@ -246,12 +246,13 @@ class MemorySocialDb {
   };
 
   readonly hangoutRating = {
-    upsert: async (query: { where: { hangoutId_raterUserId_ratedUserId: { hangoutId: string; raterUserId: string; ratedUserId: string } }; create: TestRating; update: { score: number } }) => {
+    findUnique: async (query: { where: { hangoutId_raterUserId_ratedUserId: { hangoutId: string; raterUserId: string; ratedUserId: string } } }) => {
       const key = query.where.hangoutId_raterUserId_ratedUserId;
-      const existing = this.ratings.find((item) => item.hangoutId === key.hangoutId && item.raterUserId === key.raterUserId && item.ratedUserId === key.ratedUserId);
-      if (existing) { existing.score = query.update.score; return existing; }
-      this.ratings.push(query.create);
-      return query.create;
+      return this.ratings.find((item) => item.hangoutId === key.hangoutId && item.raterUserId === key.raterUserId && item.ratedUserId === key.ratedUserId) ?? null;
+    },
+    create: async (query: { data: TestRating }) => {
+      this.ratings.push(query.data);
+      return query.data;
     },
   };
 
@@ -538,6 +539,7 @@ describe('social journey safety boundaries', () => {
     await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/ratings`).set(auth('host')).send({ ratedUserId: 'guest', score: 4 }).expect(201);
     await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/ratings`).set(auth('guest')).send({ ratedUserId: 'host', score: 5 }).expect(201);
     await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/ratings`).set(auth('guest')).send({ ratedUserId: 'waiter', score: 3 }).expect(201);
+    await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/ratings`).set(auth('host')).send({ ratedUserId: 'guest', score: 1 }).expect(409);
     expect(db.ratings).toEqual([
       expect.objectContaining({ raterUserId: 'host', ratedUserId: 'guest', score: 4 }),
       expect.objectContaining({ raterUserId: 'guest', ratedUserId: 'host', score: 5 }),
