@@ -47,6 +47,12 @@ const FIRST_TIME_OPTIONS = ["初参加歓迎", "ひとり参加が安心", "常�
 const AVOID_OPTIONS = ["大人数", "飲酒中心", "深夜", "屋外", "激しい運動", "写真撮影", "営業・勧誘"] as const;
 const FLEXIBILITY_OPTIONS = ["時間厳守", "多少の遅れは許容", "途中参加OK", "途中退出OK", "急な予定変更OK"] as const;
 const LANGUAGE_OPTIONS = [["JAPANESE", "日本語"], ["ENGLISH", "英語"], ["KOREAN", "韓国語"], ["CHINESE", "中国語"]] as const;
+const MATCH_AREA_OPTIONS = ["新宿", "渋谷", "池袋", "東京", "品川", "上野", "横浜"] as const;
+const MATCH_TIME_OPTIONS = ["朝", "昼", "夕方", "夜", "深夜"] as const;
+const MATCH_DAY_OPTIONS = ["月", "火", "水", "木", "金", "土", "日"] as const;
+const MATCH_TRAVEL_OPTIONS = [[15, "15分"], [30, "30分"], [45, "45分"], [60, "1時間"], [90, "1時間半"]] as const;
+const MATCH_GROUP_OPTIONS = [[2, "2人"], [4, "3〜4人"], [6, "5〜6人"], [10, "7〜10人"]] as const;
+const MATCH_BUDGET_OPTIONS = [[0, 1000, "〜1,000円"], [1000, 3000, "1,000〜3,000円"], [3000, 5000, "3,000〜5,000円"], [5000, 10000, "5,000〜10,000円"], [10000, 100000, "10,000円〜"]] as const;
 
 type User = {
   id: string;
@@ -1457,21 +1463,15 @@ function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, d
       {demoRole && <View style={styles.demoJourney}><Text style={styles.demoJourneyTitle}>デモ：マミの飲み企画</Text><Text style={styles.demoJourneyText}>1. 主催者は30代女性のマミ{`\n`}2. 20代男性のマサヤは承認済み{`\n`}3. 30代女性のマドカはHangoutを検索中{`\n`}4. マドカが途中参加を申請{`\n`}5. 承認後はグループトークで会話</Text><Text style={styles.demoJourneyHint}>「マミと新宿で気軽に飲もう」を開いて試せます。</Text></View>}
       <View style={styles.hero}>
         <Text style={styles.eyebrow}>{locationLabel === "エリア未設定" ? user.homeArea || locationLabel : locationLabel}</Text>
-        <Text style={styles.heroTitle}>今から{`\n`}何する？</Text>
-        <View style={styles.areaRow}>
-          {(["新宿", "渋谷"] as const).map((area) => (
-            <Pressable key={area} style={[styles.areaButton, selectedArea === area && styles.areaButtonOn]} onPress={() => onArea(area)}>
-              <Text style={[styles.areaText, selectedArea === area && styles.areaTextOn]}>{area}</Text>
-            </Pressable>
-          ))}
-        </View>
+        <Text style={styles.heroTitle}>今から何する？</Text>
+        <Pressable style={styles.createButton} onPress={onCreate}>
+          <Text style={styles.primaryText}>Hangoutを作る</Text>
+        </Pressable>
         <View style={styles.homeActions}>
           <Pressable style={styles.locationButton} onPress={onLocation}>
-            <Text style={styles.locationText}>現在地から近い順</Text>
+            <Text style={styles.locationText}>現在地を使う</Text>
           </Pressable>
-          <Pressable style={styles.createButton} onPress={onCreate}>
-            <Text style={styles.primaryText}>Hangoutを作る</Text>
-          </Pressable>
+          <View style={styles.homeAreaPicker}>{(["新宿", "渋谷"] as const).map((area) => <Pressable key={area} style={[styles.homeAreaChoice, selectedArea === area && styles.homeAreaChoiceOn]} onPress={() => onArea(area)}><Text style={[styles.homeAreaChoiceText, selectedArea === area && styles.homeAreaChoiceTextOn]}>{area}</Text></Pressable>)}</View>
         </View>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
@@ -1479,7 +1479,7 @@ function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, d
       </ScrollView>
       <View style={styles.sectionHead}>
         <Text style={styles.sectionTitle}>近くのHangout</Text>
-        <View style={styles.sectionHeadActions}><Text style={styles.muted}>{visibleHangouts.length}件・おすすめ順</Text><Pressable style={styles.homeMapButton} onPress={onMap} accessibilityRole="button" accessibilityLabel="近くのHangoutをマップで表示"><Text style={styles.homeMapButtonText}>マップ</Text></Pressable></View>
+        <View style={styles.sectionHeadActions}><Text style={styles.muted}>{visibleHangouts.length}件・おすすめ順</Text><Pressable style={styles.homeMapButton} onPress={onMap} accessibilityRole="button" accessibilityLabel="近くのHangoutをマップで表示"><View style={styles.homeMapPin}><View style={styles.homeMapPinCenter} /></View></Pressable></View>
       </View>
       {visibleHangouts.map((hangout) => (
         <Pressable key={hangout.id} style={styles.card} onPress={() => onOpen(hangout)}>
@@ -2252,6 +2252,7 @@ function NotificationScreen({ inbox, refreshing, onBack, onRefresh, onEnabled, o
 function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout, onPhone, onPhoto, onSave, onDelete, onLogout }: { user: User; hostStatus: HostStatus | null; activity: ProfileActivity; demo: boolean; onChat: () => void; onOpenHangout: (id: string) => void; onPhone: () => void; onPhoto: (index: number) => void; onSave: (input: UpdateProfileInput) => Promise<void>; onDelete: () => void; onLogout: () => void }) {
   const white = hostStatus?.tier === "WHITE";
   const [editing, setEditing] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
   const [displayName, setDisplayName] = useState(user.displayName);
   const [homeArea, setHomeArea] = useState(user.homeArea ?? "");
   const [bio, setBio] = useState(user.bio ?? "");
@@ -2294,6 +2295,10 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
     setSelectedInterests([...new Set(next)].slice(0, 20));
   };
   const parseList = (value: string) => [...new Set(value.split(/[、,]/).map((item) => item.trim()).filter(Boolean))];
+  const toggleCsvChoice = (value: string, current: string, update: (next: string) => void) => {
+    const values = parseList(current);
+    update((values.includes(value) ? values.filter((item) => item !== value) : [...values, value]).join("、"));
+  };
   const togglePreferredGender = (value: string) => setPreferredGenders((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value].slice(0, 4));
   const toggleChoice = (value: string, current: string[], update: (values: string[]) => void, limit: number) => update(current.includes(value) ? current.filter((item) => item !== value) : [...current, value].slice(0, limit));
   const choiceGrid = (options: readonly string[], current: string[], update: (values: string[]) => void, limit: number) => (
@@ -2310,6 +2315,7 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
     const maximumBudget = budgetMax ? Number(budgetMax) : null;
     if (ageMin !== null && ageMax !== null && ageMin > ageMax) return Alert.alert("希望年齢を確認してください", "下限は上限以下にしてください。");
     if (minimumBudget !== null && maximumBudget !== null && minimumBudget > maximumBudget) return Alert.alert("予算を確認してください", "下限は上限以下にしてください。");
+    setProfileSaving(true);
     try {
       await onSave({
         displayName: name, homeArea: homeArea.trim() || null, bio: bio.trim() || null, interests: values, gender,
@@ -2326,8 +2332,16 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
       Alert.alert("保存しました", "プロフィールを更新しました。");
     } catch {
       Alert.alert("更新できませんでした", "入力内容を確認してもう一度お試しください。");
+    } finally {
+      setProfileSaving(false);
     }
   };
+  const selectedPreferredAreas = parseList(preferredAreas).filter((value) => (MATCH_AREA_OPTIONS as readonly string[]).includes(value));
+  const customPreferredAreas = parseList(preferredAreas).filter((value) => !(MATCH_AREA_OPTIONS as readonly string[]).includes(value)).join("、");
+  const selectedPreferredActivities = parseList(preferredActivities).filter((value) => (INTEREST_OPTIONS as readonly string[]).includes(value));
+  const customPreferredActivities = parseList(preferredActivities).filter((value) => !(INTEREST_OPTIONS as readonly string[]).includes(value)).join("、");
+  const selectedActivitySlots = parseList(activityTimeSlots);
+  const selectedGroupSizes = parseList(preferredGroupSizes).map(Number);
   return (
     <ScrollView contentContainerStyle={styles.profile}>
       <View style={styles.profilePhotoTrio}>{[user.profilePhotos?.[1],user.profilePhotos?.[0]||user.profilePhoto,user.profilePhotos?.[2]].map((photo,index)=>photo?<Pressable key={`${photo}-${index}`} onPress={() => setPhotoViewerIndex(index === 0 ? 1 : index === 1 ? 0 : 2)} accessibilityLabel="プロフィール画像を拡大"><Image source={{uri:photo}} style={index===1?styles.avatar:styles.avatarSide}/></Pressable>:<View key={`empty-${index}`} style={index===1?styles.avatarFallback:styles.avatarSideFallback}><Text style={styles.avatarText}>{index===1?"☺":"＋"}</Text></View>)}</View>
@@ -2402,7 +2416,7 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
       </Pressable>
       <Modal visible={editing} animationType="slide" onRequestClose={() => void save()}>
         <SafeAreaView style={styles.profileEditorPage}>
-          <View style={styles.profileEditorHeader}><Pressable style={styles.profileEditorBackButton} hitSlop={8} onPress={() => setEditing(false)} accessibilityRole="button" accessibilityLabel="編集をやめてプロフィールに戻る"><View style={styles.backChevron} /></Pressable><Text style={styles.profileEditorTitle}>プロフィールを編集</Text><View style={styles.profileEditorHeaderSpacer} /></View>
+          <View style={styles.profileEditorHeader}><Pressable disabled={profileSaving} style={styles.profileEditorBackButton} hitSlop={8} onPress={() => void save()} accessibilityRole="button" accessibilityLabel="保存してプロフィールに戻る">{profileSaving ? <ActivityIndicator size="small" color="#176b48" /> : <View style={styles.backChevron} />}</Pressable><View style={styles.profileEditorHeading}><Text style={styles.profileEditorEyebrow}>アカウント</Text><Text style={styles.profileEditorTitle}>プロフィールを編集</Text></View><View style={styles.profileEditorHeaderSpacer} /></View>
           <ScrollView contentContainerStyle={styles.profileEditorForm} keyboardShouldPersistTaps="handled">
             <Text style={styles.profileEditorLabel}>プロフィール画像（最大3枚）</Text><View style={styles.profilePhotoTrio}>{[1,0,2].map((photoIndex,position)=>{const photo=user.profilePhotos?.[photoIndex]||(photoIndex===0?user.profilePhoto:undefined);return <Pressable key={photoIndex} onPress={()=>onPhoto(photoIndex)} accessibilityLabel={`${photoIndex+1}枚目の画像を選ぶ`}>{photo?<Image source={{uri:photo}} style={position===1?styles.avatar:styles.avatarSide}/>:<View style={position===1?styles.avatarFallback:styles.avatarSideFallback}><Text style={styles.avatarText}>{position===1?"☺":"＋"}</Text></View>}</Pressable>})}</View><Text style={styles.profileEditorHint}>丸い画像をタップして入れ替えます。中央がメイン画像です。</Text>
             <Text style={styles.profileEditorLabel}>表示名</Text><TextInput style={styles.profileEditorInput} value={displayName} onChangeText={setDisplayName} maxLength={40} />
@@ -2416,17 +2430,17 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
             <View style={styles.matchingPreferences}>
               <Text style={styles.matchingTitle}>マッチング設定</Text>
               <Text style={styles.profileEditorHint}>入力は任意です。位置は市区・駅などのおおまかなエリアだけを保存し、正確なGPS位置は保存しません。</Text>
-              <Text style={styles.profileEditorLabel}>希望エリア</Text><TextInput style={styles.profileEditorInput} value={preferredAreas} onChangeText={setPreferredAreas} maxLength={300} placeholder="例：新宿、渋谷" />
-              <Text style={styles.profileEditorLabel}>希望する活動</Text><TextInput style={styles.profileEditorInput} value={preferredActivities} onChangeText={setPreferredActivities} maxLength={500} placeholder="例：カフェ、ランニング" />
-              <Text style={styles.profileEditorLabel}>希望年齢</Text><View style={styles.matchingRangeRow}><TextInput style={[styles.profileEditorInput, styles.matchingRangeInput]} value={preferredAgeMin} onChangeText={setPreferredAgeMin} keyboardType="number-pad" placeholder="下限" maxLength={3} /><Text style={styles.matchingRangeSeparator}>〜</Text><TextInput style={[styles.profileEditorInput, styles.matchingRangeInput]} value={preferredAgeMax} onChangeText={setPreferredAgeMax} keyboardType="number-pad" placeholder="上限" maxLength={3} /></View>
+              <Text style={styles.profileEditorLabel}>希望エリア</Text><Text style={styles.profileEditorHint}>よく行く場所を選択</Text><View style={styles.matchChoiceGrid}>{MATCH_AREA_OPTIONS.map((value) => { const selected = selectedPreferredAreas.includes(value); return <Pressable key={value} style={[styles.matchChoice, selected && styles.matchChoiceSelected]} onPress={() => toggleCsvChoice(value, preferredAreas, setPreferredAreas)}><Text style={[styles.matchChoiceText, selected && styles.matchChoiceTextSelected]}>{value}</Text></Pressable>; })}</View><TextInput style={[styles.profileEditorInput, styles.matchCustomInput]} value={customPreferredAreas} onChangeText={(value) => setPreferredAreas([...selectedPreferredAreas, ...parseList(value)].join("、"))} maxLength={300} placeholder="ほかのエリアを追加（例：吉祥寺）" />
+              <Text style={styles.profileEditorLabel}>希望する活動</Text><Text style={styles.profileEditorHint}>興味があるものを選択</Text><View style={styles.matchChoiceGrid}>{INTEREST_OPTIONS.map((value) => { const selected = selectedPreferredActivities.includes(value); return <Pressable key={value} style={[styles.matchChoice, selected && styles.matchChoiceSelected]} onPress={() => toggleCsvChoice(value, preferredActivities, setPreferredActivities)}><Text style={[styles.matchChoiceText, selected && styles.matchChoiceTextSelected]}>{value}</Text></Pressable>; })}</View><TextInput style={[styles.profileEditorInput, styles.matchCustomInput]} value={customPreferredActivities} onChangeText={(value) => setPreferredActivities([...selectedPreferredActivities, ...parseList(value)].join("、"))} maxLength={500} placeholder="ほかの活動を追加" />
+              <Text style={styles.profileEditorLabel}>希望年齢</Text><View style={styles.matchChoiceGridWide}>{([["", "", "指定なし"], ["18", "29", "20代まで"], ["20", "39", "20〜30代"], ["30", "49", "30〜40代"], ["40", "69", "40代以上"]] as const).map(([min, max, label]) => { const selected = preferredAgeMin === min && preferredAgeMax === max; return <Pressable key={label} style={[styles.matchChoice, selected && styles.matchChoiceSelected]} onPress={() => { setPreferredAgeMin(min); setPreferredAgeMax(max); }}><Text style={[styles.matchChoiceText, selected && styles.matchChoiceTextSelected]}>{label}</Text></Pressable>; })}</View>
               <Text style={styles.profileEditorLabel}>希望する相手</Text><View style={styles.profileGenderOptions}>{[["MALE", "男性"], ["FEMALE", "女性"], ["OTHER", "その他"], ["UNDISCLOSED", "指定なし"]].map(([value, label]) => { const selected = preferredGenders.includes(value); return <Pressable key={value} style={[styles.profileGenderOption, selected && styles.profileGenderOptionSelected]} onPress={() => togglePreferredGender(value)}><Text style={selected ? styles.profileGenderOptionTextSelected : styles.profileGenderOptionText}>{label}</Text></Pressable>; })}</View>
               <Text style={styles.profileEditorLabel}>言語</Text><Text style={styles.profileEditorHint}>会話に使いたい言語を複数選択できます</Text>{choiceGrid(LANGUAGE_OPTIONS.map(([, label]) => label), preferredLanguages.map((value) => LANGUAGE_OPTIONS.find(([key]) => key === value)?.[1] ?? value), (labels) => setPreferredLanguages(labels.map((label) => LANGUAGE_OPTIONS.find(([, optionLabel]) => optionLabel === label)?.[0] ?? label)), 4)}
               <Text style={styles.profileEditorLabel}>雰囲気・交流スタイル</Text><Text style={styles.profileEditorHint}>自分に合う過ごし方を選択</Text>{choiceGrid(SOCIAL_STYLE_OPTIONS, socialStyles, setSocialStyles, 5)}
-              <Text style={styles.profileEditorLabel}>活動しやすい時間</Text><TextInput style={styles.profileEditorInput} value={activityTimeSlots} onChangeText={setActivityTimeSlots} maxLength={200} placeholder="例：平日夜、土日昼" />
+              <Text style={styles.profileEditorLabel}>活動しやすい時間</Text><Text style={styles.matchChoiceSubtitle}>時間帯</Text><View style={styles.matchChoiceGrid}>{MATCH_TIME_OPTIONS.map((value) => { const selected = selectedActivitySlots.includes(value); return <Pressable key={value} style={[styles.matchChoice, selected && styles.matchChoiceSelected]} onPress={() => toggleCsvChoice(value, activityTimeSlots, setActivityTimeSlots)}><Text style={[styles.matchChoiceText, selected && styles.matchChoiceTextSelected]}>{value}</Text></Pressable>; })}</View><Text style={styles.matchChoiceSubtitle}>曜日</Text><View style={styles.matchWeekGrid}>{MATCH_DAY_OPTIONS.map((value) => { const selected = selectedActivitySlots.includes(value); return <Pressable key={value} style={[styles.matchChoice, styles.matchWeekChoice, selected && styles.matchChoiceSelected]} onPress={() => toggleCsvChoice(value, activityTimeSlots, setActivityTimeSlots)}><Text style={[styles.matchChoiceText, selected && styles.matchChoiceTextSelected]}>{value}</Text></Pressable>; })}</View>
               <Text style={styles.profileEditorLabel}>参加したい時期</Text><View style={styles.interestOptionGrid}>{([[null, "未設定"], ["NOW", "今すぐ"], ["TODAY", "今日"], ["THIS_WEEK", "今週"], ["WEEKEND", "週末"], ["FLEXIBLE", "いつでも"]] as const).map(([value, label]) => <Pressable key={label} style={[styles.interestOption, participationUrgency === value && styles.interestOptionSelected]} onPress={() => setParticipationUrgency(value)}><Text style={[styles.interestOptionText, participationUrgency === value && styles.interestOptionTextSelected]}>{label}</Text></Pressable>)}</View>
-              <Text style={styles.profileEditorLabel}>移動できる時間（分）</Text><TextInput style={styles.profileEditorInput} value={maxTravelMinutes} onChangeText={setMaxTravelMinutes} keyboardType="number-pad" maxLength={3} placeholder="例：30" />
-              <Text style={styles.profileEditorLabel}>希望人数</Text><TextInput style={styles.profileEditorInput} value={preferredGroupSizes} onChangeText={setPreferredGroupSizes} maxLength={40} placeholder="例：2、4、6" />
-              <Text style={styles.profileEditorLabel}>予算（円）</Text><View style={styles.matchingRangeRow}><TextInput style={[styles.profileEditorInput, styles.matchingRangeInput]} value={budgetMin} onChangeText={setBudgetMin} keyboardType="number-pad" placeholder="下限" maxLength={6} /><Text style={styles.matchingRangeSeparator}>〜</Text><TextInput style={[styles.profileEditorInput, styles.matchingRangeInput]} value={budgetMax} onChangeText={setBudgetMax} keyboardType="number-pad" placeholder="上限" maxLength={6} /></View>
+              <Text style={styles.profileEditorLabel}>移動できる時間</Text><View style={styles.matchChoiceGrid}>{MATCH_TRAVEL_OPTIONS.map(([value, label]) => { const selected = maxTravelMinutes === String(value); return <Pressable key={value} style={[styles.matchChoice, selected && styles.matchChoiceSelected]} onPress={() => setMaxTravelMinutes(selected ? "" : String(value))}><Text style={[styles.matchChoiceText, selected && styles.matchChoiceTextSelected]}>{label}</Text></Pressable>; })}</View>
+              <Text style={styles.profileEditorLabel}>希望人数</Text><Text style={styles.profileEditorHint}>複数選択できます</Text><View style={styles.matchChoiceGrid}>{MATCH_GROUP_OPTIONS.map(([value, label]) => { const selected = selectedGroupSizes.includes(value); return <Pressable key={value} style={[styles.matchChoice, selected && styles.matchChoiceSelected]} onPress={() => toggleCsvChoice(String(value), preferredGroupSizes, setPreferredGroupSizes)}><Text style={[styles.matchChoiceText, selected && styles.matchChoiceTextSelected]}>{label}</Text></Pressable>; })}</View>
+              <Text style={styles.profileEditorLabel}>1回の予算</Text><View style={styles.matchChoiceGridWide}>{MATCH_BUDGET_OPTIONS.map(([min, max, label]) => { const selected = budgetMin === String(min) && budgetMax === String(max); return <Pressable key={label} style={[styles.matchChoice, selected && styles.matchChoiceSelected]} onPress={() => { setBudgetMin(selected ? "" : String(min)); setBudgetMax(selected ? "" : String(max)); }}><Text style={[styles.matchChoiceText, selected && styles.matchChoiceTextSelected]}>{label}</Text></Pressable>; })}</View>
               <Text style={styles.profileEditorLabel}>参加目的</Text>{choiceGrid(PARTICIPATION_GOAL_OPTIONS, participationGoals, setParticipationGoals, 7)}
               <Text style={styles.profileEditorLabel}>飲酒</Text><View style={styles.interestOptionGrid}>{([[null, "指定なし"], ["AVOID", "飲まない場を希望"], ["OK", "どちらでも"], ["PREFER", "飲酒ありを希望"]] as const).map(([value,label]) => <Pressable key={label} style={[styles.interestOption, alcoholPreference === value && styles.interestOptionSelected]} onPress={() => setAlcoholPreference(value)}><Text style={[styles.interestOptionText, alcoholPreference === value && styles.interestOptionTextSelected]}>{label}</Text></Pressable>)}</View>
               <Text style={styles.profileEditorLabel}>喫煙</Text><View style={styles.interestOptionGrid}>{([[null, "指定なし"], ["AVOID", "禁煙を希望"], ["OK", "どちらでも"]] as const).map(([value,label]) => <Pressable key={label} style={[styles.interestOption, smokingPreference === value && styles.interestOptionSelected]} onPress={() => setSmokingPreference(value)}><Text style={[styles.interestOptionText, smokingPreference === value && styles.interestOptionTextSelected]}>{label}</Text></Pressable>)}</View>
@@ -2698,16 +2712,17 @@ const styles = StyleSheet.create({
   registrationPhotoRow: { marginTop: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9 },
   registrationPhotoMain: { width: 70, height: 70, borderRadius: 35, backgroundColor: "#dfe6df" },
   registrationPhoto: { width: 52, height: 52, borderRadius: 26, backgroundColor: "#dfe6df" },
-  hero: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 },
+  hero: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 6 },
   eyebrow: { color: "#176b48", fontSize: 12, fontWeight: "900" },
   heroTitle: {
-    fontSize: 35,
-    lineHeight: 39,
+    fontSize: 34,
+    lineHeight: 40,
     fontWeight: "900",
     color: "#17221d",
     marginTop: 6,
   },
   locationButton: {
+    flex: 1,
     alignSelf: "flex-start",
     minHeight: 44,
     justifyContent: "center",
@@ -2728,27 +2743,29 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { fontSize: 19, fontWeight: "900" },
   sectionHeadActions: { flexDirection: "row", alignItems: "center", gap: 9 },
-  homeMapButton: { minHeight: 36, justifyContent: "center", paddingHorizontal: 11, borderRadius: 11, borderWidth: 1, borderColor: "#cfd8d0", backgroundColor: "#fff" },
-  homeMapButtonText: { color: "#176b48", fontSize: 10, fontWeight: "900" },
+  homeMapButton: { width: 42, height: 42, alignItems: "center", justifyContent: "center", borderRadius: 13, borderWidth: 1, borderColor: "#dfe5df", backgroundColor: "#fff" },
+  homeMapPin: { width: 17, height: 17, borderRadius: 9, borderBottomRightRadius: 2, backgroundColor: "#ec5b54", transform: [{ rotate: "45deg" }], alignItems: "center", justifyContent: "center" },
+  homeMapPinCenter: { width: 5, height: 5, borderRadius: 3, backgroundColor: "#fff" },
   muted: { fontSize: 12, color: "#6d766f", marginTop: 3 },
   card: {
     backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "#e3e7df",
-    borderRadius: 20,
+    borderRadius: 22,
     padding: 16,
     marginHorizontal: 14,
     marginBottom: 12,
     overflow: "hidden",
   },
   activityPhoto: {
-    height: 142,
+    width: "auto",
+    aspectRatio: 32 / 9,
     marginHorizontal: -16,
     marginTop: -16,
     marginBottom: 14,
     backgroundColor: "#dfe6df",
   },
-  heartButton: { position: "absolute", zIndex: 2, top: 10, left: 10, minWidth: 58, height: 38, paddingHorizontal: 10, borderRadius: 19, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, backgroundColor: "#ffffffee" },
+  heartButton: { position: "absolute", zIndex: 2, top: 12, left: 12, minWidth: 58, height: 38, paddingHorizontal: 10, borderRadius: 19, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, backgroundColor: "#ffffffee" },
   heartButtonOn: { backgroundColor: "#fff0f2" },
   heartIcon: { color: "#5d6861", fontSize: 22, fontWeight: "900" },
   heartIconOn: { color: "#e34f68" },
@@ -2781,8 +2798,8 @@ const styles = StyleSheet.create({
   status: {
     position: "absolute",
     zIndex: 2,
-    top: 10,
-    right: 10,
+    top: 12,
+    right: 12,
     fontSize: 10,
     fontWeight: "900",
     color: "#176b48",
@@ -2818,14 +2835,20 @@ const styles = StyleSheet.create({
   areaButtonOn: { backgroundColor: "#176b48" },
   areaText: { fontSize: 12, fontWeight: "900", color: "#59635c" },
   areaTextOn: { color: "#fff" },
-  homeActions: { flexDirection: "row", gap: 8, marginTop: 10 },
+  homeActions: { flexDirection: "row", gap: 8, marginTop: 12 },
+  homeAreaPicker: { flex: 1, minHeight: 42, flexDirection: "row", padding: 3, borderRadius: 13, borderWidth: 1, borderColor: "#dfe5df", backgroundColor: "#fff" },
+  homeAreaChoice: { flex: 1, alignItems: "center", justifyContent: "center", borderRadius: 9 },
+  homeAreaChoiceOn: { backgroundColor: "#edf2ed" },
+  homeAreaChoiceText: { color: "#687169", fontSize: 11, fontWeight: "800" },
+  homeAreaChoiceTextOn: { color: "#17221d", fontWeight: "900" },
   createButton: {
     backgroundColor: "#176b48",
-    minHeight: 40,
+    width: "100%",
+    minHeight: 50,
     justifyContent: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 15,
   },
   detailLink: { fontSize: 11, color: "#176b48", fontWeight: "900" },
   formPage: { padding: 20, paddingBottom: 60, backgroundColor: "#f7f8f3" },
@@ -3302,6 +3325,8 @@ const styles = StyleSheet.create({
   profileEditorBackButton: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: "#f7faf7", borderWidth: 1, borderColor: "#dce5df" },
   profileEditorHeaderSpacer: { width: 44, height: 44 },
   profileEditorTitle: { fontSize: 16, fontWeight: "900", color: "#17221d" },
+  profileEditorHeading: { alignItems: "center" },
+  profileEditorEyebrow: { color: "#687169", fontSize: 9, fontWeight: "800", marginBottom: 2 },
   profileEditorCancel: { color: "#687169", fontSize: 13, fontWeight: "700" },
   profileEditorSave: { color: "#176b48", fontSize: 13, fontWeight: "900" },
   profileEditorForm: { padding: 22, paddingBottom: 48 },
@@ -3323,6 +3348,16 @@ const styles = StyleSheet.create({
   profileGenderOptionTextSelected: { color: "#176b48", fontSize: 12, fontWeight: "900" },
   matchingPreferences: { marginTop: 22, padding: 16, borderWidth: 1, borderColor: "#dfe5df", borderRadius: 18, backgroundColor: "#f8faf7" },
   matchingTitle: { color: "#17221d", fontSize: 18, fontWeight: "900" },
+  matchChoiceGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 },
+  matchChoiceGridWide: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 },
+  matchWeekGrid: { flexDirection: "row", gap: 5, marginTop: 8 },
+  matchChoice: { minHeight: 44, minWidth: "30%", flexGrow: 1, flexBasis: "30%", alignItems: "center", justifyContent: "center", paddingHorizontal: 7, paddingVertical: 8, borderWidth: 1, borderColor: "#d9dfd9", borderRadius: 13, backgroundColor: "#fff" },
+  matchWeekChoice: { minWidth: 0, flexBasis: 0, paddingHorizontal: 1 },
+  matchChoiceSelected: { borderColor: "#176b48", backgroundColor: "#d9ff68" },
+  matchChoiceText: { color: "#344039", fontSize: 12, fontWeight: "800", textAlign: "center" },
+  matchChoiceTextSelected: { color: "#17221d" },
+  matchChoiceSubtitle: { marginTop: 13, color: "#59625c", fontSize: 12, fontWeight: "800" },
+  matchCustomInput: { marginTop: 9, backgroundColor: "#fafbf9" },
   matchingRangeRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   matchingRangeInput: { flex: 1 },
   matchingRangeSeparator: { color: "#687169", fontWeight: "800" },
@@ -3471,8 +3506,8 @@ const styles = StyleSheet.create({
   demoJourneyText: { color: "#fff", fontSize: 12, lineHeight: 20 },
   demoJourneyHint: { color: "#cad2cc", fontSize: 10, marginTop: 8 },
   filterRow: { gap: 8, paddingHorizontal: 16, paddingBottom: 13 },
-  filterPill: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, backgroundColor: "#e8ece6" },
-  filterPillOn: { backgroundColor: "#176b48" },
+  filterPill: { minHeight: 42, justifyContent: "center", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, borderWidth: 1, borderColor: "#dfe5df", backgroundColor: "#fff" },
+  filterPillOn: { backgroundColor: "#17221d", borderColor: "#17221d" },
   filterPillText: { color: "#59635c", fontSize: 12, fontWeight: "800" },
   filterPillTextOn: { color: "#fff" },
   notificationScreen: { flex: 1, backgroundColor: "#f7f8f3" },

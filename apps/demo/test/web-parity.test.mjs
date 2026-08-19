@@ -266,7 +266,16 @@ test('native screens include the latest production profile, notification, talk, 
   assert.doesNotMatch(mobile, /style=\{styles\.authPhoto\}/);
   assert.doesNotMatch(mobile, /SecureStore\.getItemAsync\(SESSION_KEY\)/);
   assert.match(mobile, /profileEditorBackButton: \{ width: 44, height: 44/);
-  assert.match(mobile, /onPress=\{\(\) => setEditing\(false\)\} accessibilityRole="button" accessibilityLabel="編集をやめてプロフィールに戻る"/);
+  assert.match(mobile, /onPress=\{\(\) => void save\(\)\} accessibilityRole="button" accessibilityLabel="保存してプロフィールに戻る"/);
+  assert.match(mobile, /MATCH_AREA_OPTIONS\.map/);
+  assert.match(mobile, /MATCH_TIME_OPTIONS\.map/);
+  assert.match(mobile, /MATCH_BUDGET_OPTIONS\.map/);
+  assert.match(mobile, /<Text style=\{styles\.heroTitle\}>今から何する？<\/Text>/);
+  assert.match(mobile, /<Pressable style=\{styles\.createButton\} onPress=\{onCreate\}>[\s\S]*?<View style=\{styles\.homeActions\}>/);
+  assert.match(mobile, /createButton: \{[\s\S]*?width: "100%",[\s\S]*?minHeight: 50/);
+  assert.match(mobile, /activityPhoto: \{[\s\S]*?aspectRatio: 32 \/ 9/);
+  assert.match(mobile, /filterPillOn: \{ backgroundColor: "#17221d"/);
+  assert.match(mobile, /styles\.homeMapPin/);
   assert.match(mobile, /Appleでログイン（準備中）/);
   assert.match(mobile, /xProviderButton/);
   for (const message of ['向かっています', '少し遅れます', '到着しました']) assert.ok(mobile.includes(message));
