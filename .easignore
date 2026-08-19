@@ -1,0 +1,23 @@
+node_modules/
+.env
+.env.*
+!.env.example
+dist/
+.next/
+.expo/
+.expo-export-check/
+coverage/
+tmp/
+*.log
+appleappkey.txt
+render.txt
+
+# Never upload local credentials or recovery material to EAS Build.
+/downloadkey/
+
+# Local-only files and generated verification artifacts.
+/app.json
+/docker-compose.yml
+/.expo-export-check*/
+/apps/mobile/.expo-export-check*/
+/apps/admin/*.tsbuildinfo
