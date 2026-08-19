@@ -42,8 +42,12 @@ const includesLoose = (values: string[], ...targets: string[]) => values.some(va
 function slotKeys(date: Date) {
   const japanTime = new Date(date.getTime() + 9 * 3_600_000);
   const hour = japanTime.getUTCHours();
-  const time = hour < 6 ? 'LATE_NIGHT' : hour < 11 ? 'MORNING' : hour < 15 ? 'DAYTIME' : hour < 19 ? 'EVENING' : hour < 24 ? 'NIGHT' : 'LATE_NIGHT';
-  return [time, ['SUN','MON','TUE','WED','THU','FRI','SAT'][japanTime.getUTCDay()]!];
+  const time = hour < 6 ? ['LATE_NIGHT', '深夜'] : hour < 11 ? ['MORNING', '朝'] : hour < 15 ? ['DAYTIME', '昼'] : hour < 19 ? ['EVENING', '夕方'] : ['NIGHT', '夜'];
+  const dayIndex = japanTime.getUTCDay();
+  const day = [
+    ['SUN', '日'], ['MON', '月'], ['TUE', '火'], ['WED', '水'], ['THU', '木'], ['FRI', '金'], ['SAT', '土'],
+  ][dayIndex]!;
+  return [...time, ...day];
 }
 
 function age(birthDate?: Date | null) {

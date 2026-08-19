@@ -23,6 +23,12 @@ describe('private matching score', () => {
     expect(matched).toBeLessThanOrEqual(99);
   });
 
+  it('matches the Japanese time and weekday values saved by the current settings UI', () => {
+    const englishScore = calculateMatchScore(profile, candidate, [], now);
+    const japaneseScore = calculateMatchScore({ ...profile, activityTimeSlots: ['夜', '火'] }, candidate, [], now);
+    expect(japaneseScore).toBe(englishScore);
+  });
+
   it('does not personalize without matching-data consent', () => {
     expect(calculateMatchScore({ ...profile, matchingDataConsent: false }, candidate, [{ category: 'CAFE', serviceArea: 'SHINJUKU', strength: 50 }], now)).toBe(70);
   });

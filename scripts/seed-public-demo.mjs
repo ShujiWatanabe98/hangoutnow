@@ -38,25 +38,67 @@ const imageByCategory = {
 const accounts = {
   host: {
     email: process.env.HANGOUTNOW_DEMO_HOST_EMAIL || 'demo-host@hangoutnow.example',
-    displayName: 'サヤカ（デモ主催者）',
+    displayName: 'サヤカ',
     phone: '+819011110001',
     birthDate: '1989-04-12',
     gender: 'FEMALE',
     homeArea: '新宿',
-    interests: ['ツーリング', 'バイク', 'グルメ'],
-    bio: '休日はバイクで景色のいい道を走る女性ライダーです。安全第一のツーリングを企画しています。',
+    interests: ['飲み会', 'ごはん', 'カフェ', '映画'],
+    bio: '新宿を中心に、初参加でも話しやすい少人数の食事会やカフェ会を企画しています。無理なく楽しめる雰囲気を大切にしています。',
     profilePhotos: hostPhotos,
+    matchingPreferences: {
+      preferredAreas: ['新宿', '渋谷'],
+      preferredActivities: ['飲み会', 'ごはん', 'カフェ', '映画'],
+      preferredAgeMin: 25,
+      preferredAgeMax: 45,
+      preferredGenders: [],
+      activityTimeSlots: ['夕方', '夜', '金', '土'],
+      participationUrgency: 'THIS_WEEK',
+      maxTravelMinutes: 30,
+      preferredGroupSizes: [4, 6],
+      budgetMin: 3000,
+      budgetMax: 5000,
+      socialStyles: ['初対面でも積極的', '少人数でじっくり'],
+      participationGoals: ['友達づくり', '食事・飲み', '新しい体験'],
+      firstTimePreferences: ['初参加歓迎', '主催者から話しかけてほしい'],
+      alcoholPreference: 'SOMETIMES',
+      smokingPreference: 'NON_SMOKING',
+      avoidPreferences: ['深夜', '営業・勧誘'],
+      scheduleFlexibility: ['多少の遅れは許容', '途中参加OK'],
+      preferredLanguages: ['JAPANESE', 'ENGLISH'],
+    },
   },
   guest: {
     email: process.env.HANGOUTNOW_DEMO_GUEST_EMAIL || 'demo-guest@hangoutnow.example',
-    displayName: 'マドカ（Hangoutを探しています）',
+    displayName: 'マドカ',
     phone: '+819011110002',
     birthDate: '1990-09-20',
     gender: 'FEMALE',
     homeArea: '渋谷',
-    interests: ['飲み会', 'カフェ', '映画'],
-    bio: '今日参加できる楽しいHangoutを探しています。公開デモ用の架空プロフィールです。',
+    interests: ['カフェ', '映画', 'スイーツ', '飲み会'],
+    bio: '渋谷や新宿で、カフェや映画の話をゆっくり楽しめるHangoutを探しています。ひとりでも参加しやすい少人数の集まりが好きです。',
     profilePhotos: guestPhotos,
+    matchingPreferences: {
+      preferredAreas: ['渋谷', '新宿'],
+      preferredActivities: ['カフェ', '映画', 'スイーツ', '飲み会'],
+      preferredAgeMin: 28,
+      preferredAgeMax: 42,
+      preferredGenders: [],
+      activityTimeSlots: ['昼', '夕方', '夜', '土', '日'],
+      participationUrgency: 'TODAY',
+      maxTravelMinutes: 45,
+      preferredGroupSizes: [2, 4],
+      budgetMin: 1000,
+      budgetMax: 3000,
+      socialStyles: ['少人数でじっくり', '聞き役が多い'],
+      participationGoals: ['友達づくり', '新しい体験', '食事・飲み'],
+      firstTimePreferences: ['ひとり参加が安心', '主催者から話しかけてほしい'],
+      alcoholPreference: 'SOMETIMES',
+      smokingPreference: 'NON_SMOKING',
+      avoidPreferences: ['大人数', '深夜', '営業・勧誘'],
+      scheduleFlexibility: ['途中参加OK', '途中退出OK'],
+      preferredLanguages: ['JAPANESE', 'KOREAN'],
+    },
   },
   masaya: {
     email: process.env.HANGOUTNOW_DEMO_MASAYA_EMAIL || 'demo-masaya@hangoutnow.example',
@@ -154,6 +196,28 @@ async function loginOrRegister(account) {
 
   const token = session.accessToken;
   let user = await call('/users/me', {}, token).then((result) => result.body);
+  const matchingPreferences = {
+    preferredAreas: [account.homeArea, account.homeArea === '新宿' ? '渋谷' : '新宿'],
+    preferredActivities: account.interests,
+    preferredAgeMin: 24,
+    preferredAgeMax: 45,
+    preferredGenders: [],
+    activityTimeSlots: ['夜', '土', '日'],
+    participationUrgency: 'THIS_WEEK',
+    maxTravelMinutes: 30,
+    preferredGroupSizes: [2, 4, 6],
+    budgetMin: 1000,
+    budgetMax: 5000,
+    socialStyles: ['初対面でも積極的'],
+    participationGoals: ['友達づくり'],
+    firstTimePreferences: ['初参加歓迎'],
+    alcoholPreference: 'SOMETIMES',
+    smokingPreference: 'NON_SMOKING',
+    avoidPreferences: ['営業・勧誘'],
+    scheduleFlexibility: ['途中参加OK'],
+    preferredLanguages: ['JAPANESE'],
+    ...account.matchingPreferences,
+  };
   user = await call('/users/me', {
     method: 'PATCH',
     body: JSON.stringify({
@@ -163,18 +227,9 @@ async function loginOrRegister(account) {
       bio: account.bio,
       homeArea: account.homeArea,
       interests: account.interests,
-      preferredAreas: [account.homeArea, account.homeArea === '新宿' ? '渋谷' : '新宿'],
-      preferredActivities: account.interests,
-      preferredAgeMin: 24,
-      preferredAgeMax: 45,
-      preferredGenders: [],
-      activityTimeSlots: ['平日夜', '土日昼'],
       matchingDataConsent: true,
-      participationUrgency: 'THIS_WEEK',
-      maxTravelMinutes: 30,
-      preferredGroupSizes: [2, 4, 6],
-      budgetMin: 1000,
-      budgetMax: 5000,
+      behaviorLearningEnabled: true,
+      ...matchingPreferences,
     }),
   }, token).then((result) => result.body);
 
@@ -320,6 +375,44 @@ for (const sample of samples) {
 }
 const hangout = seededHangouts[0];
 
+const weekHistory = await call('/demo/seed-week-history', { method: 'POST', body: '{}' }, host.token)
+  .then((result) => result.body);
+
+async function ensureHeart(account, item) {
+  const detail = await call(`/hangouts/${item.id}`, {}, account.token).then((result) => result.body);
+  if (!detail.hearted) await call(`/hangouts/${item.id}/heart`, { method: 'POST', body: '{}' }, account.token);
+}
+
+const cafeHangout = seededHangouts.find((item) => item.category === 'CAFE');
+const movieHangout = seededHangouts.find((item) => item.category === 'MOVIE');
+const runningHangout = seededHangouts.find((item) => item.category === 'RUNNING');
+const englishHangout = seededHangouts.find((item) => item.category === 'ENGLISH');
+if (!cafeHangout || !movieHangout || !runningHangout || !englishHangout) throw new Error('Matching behavior fixtures are incomplete');
+
+await ensureHeart(guest, cafeHangout);
+await ensureHeart(guest, movieHangout);
+await ensureHeart(host, cafeHangout);
+await ensureHeart(host, englishHangout);
+
+for (const [account, item] of [[guest, hangout], [guest, cafeHangout], [guest, movieHangout], [guest, runningHangout], [host, cafeHangout], [host, englishHangout]]) {
+  await call('/analytics/events', {
+    method: 'POST',
+    body: JSON.stringify({ eventType: 'HANGOUT_VIEWED', hangoutId: item.id }),
+  }, account.token);
+}
+await call('/analytics/match-feedback', {
+  method: 'POST',
+  body: JSON.stringify({ hangoutId: hangout.id, outcome: 'MATCHED' }),
+}, guest.token);
+await call('/analytics/match-feedback', {
+  method: 'POST',
+  body: JSON.stringify({ hangoutId: runningHangout.id, outcome: 'NOT_MATCHED', reason: 'CONDITIONS' }),
+}, guest.token);
+await call('/analytics/match-feedback', {
+  method: 'POST',
+  body: JSON.stringify({ hangoutId: cafeHangout.id, outcome: 'MATCHED' }),
+}, host.token);
+
 const guestView = await call(`/hangouts/${hangout.id}`, {}, masaya.token).then((result) => result.body);
 let joinStatus = guestView.myJoinStatus;
 if (!joinStatus) {
@@ -350,11 +443,19 @@ if (!messages.some((message) => message.body === 'こんにちは！デモトー
 process.stdout.write(`${JSON.stringify({
   ok: true,
   demoUrl,
-  host: { email: host.email, password, created: host.created },
-  guest: { email: guest.email, password, created: guest.created },
-  personas: [host, guest, masaya, kenta, aoi, rena].map((account) => ({ email: account.email, displayName: account.displayName, password, created: account.created })),
+  host: { email: host.email, displayName: host.displayName, created: host.created },
+  guest: { email: guest.email, displayName: guest.displayName, created: guest.created },
+  personas: [host, guest, masaya, kenta, aoi, rena].map((account) => ({ email: account.email, displayName: account.displayName, created: account.created })),
+  matchingProfiles: [host, guest].map((account) => ({
+    displayName: account.displayName,
+    homeArea: account.homeArea,
+    interests: account.interests,
+    preferences: account.matchingPreferences,
+  })),
   organizers: [host, kenta, aoi].map((account) => ({ id: account.id, displayName: account.displayName, created: account.created })),
   hangouts: seededHangouts.map((item) => ({ id: item.id, title: item.title, category: item.category })),
+  weekHistory: { days: weekHistory.days, mutualRating: weekHistory.mutualRating },
+  behaviorHistory: { viewed: 6, hearts: 4, matchFeedbacks: 3 },
   primaryHangout: { id: hangout.id, title: hangout.title, joinStatus, genderRestriction: 'ANY', maxAge: 39 },
   chat: { roomId: room.id, ready: true },
   walkthrough: [

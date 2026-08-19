@@ -47,7 +47,10 @@ export class DemoService {
           publicLocationName, locationName: `${publicLocationName}のデモ店舗`, maxParticipants: 4,
           hostMaleCount: 0, hostFemaleCount: 1, status: HangoutStatus.FINISHED,
           joinRequests: { create: { id: uuidv7(), userId: participant.id, message: '参加しました', status: JoinRequestStatus.ACCEPTED, attendanceStatus: AttendanceStatus.CONFIRMED, attendanceUpdatedAt: startAt } },
-          chatRoom: { create: { id: uuidv7() } },
+          chatRoom: { create: { id: uuidv7(), messages: { create: [
+            { id: uuidv7(), senderUserId: participant.id, body: '参加できるのを楽しみにしています。よろしくお願いします！' },
+            { id: uuidv7(), senderUserId: organizer.id, body: 'ありがとうございます。当日は気をつけてお越しください。' },
+          ] } } },
           ratings: { create: [
             { id: uuidv7(), raterUserId: organizer.id, ratedUserId: participant.id, score: 5 },
             { id: uuidv7(), raterUserId: participant.id, ratedUserId: organizer.id, score: 5 },
@@ -72,10 +75,18 @@ export class DemoService {
 
     const result = await this.db.$transaction(async (transaction: Prisma.TransactionClient) => {
       const demoUserIds = users.map((user) => user.id);
-      await transaction.message.deleteMany({ where: { room: { hangout: { isDemo: true } } } });
+      await transaction.message.deleteMany({ where: { OR: [
+        { senderUserId: { in: demoUserIds } },
+        { room: { hangout: { OR: [{ isDemo: true }, { hostUserId: { in: demoUserIds } }] } } },
+      ] } });
       await transaction.directMessage.deleteMany({ where: { directChat: { OR: [{ userOneId: { in: demoUserIds } }, { userTwoId: { in: demoUserIds } }] } } });
       await transaction.directChat.deleteMany({ where: { OR: [{ userOneId: { in: demoUserIds } }, { userTwoId: { in: demoUserIds } }] } });
-      await transaction.hangout.deleteMany({ where: { isDemo: true } });
+      await transaction.hangoutRating.deleteMany({ where: { OR: [{ raterUserId: { in: demoUserIds } }, { ratedUserId: { in: demoUserIds } }] } });
+      await transaction.matchFeedback.deleteMany({ where: { userId: { in: demoUserIds } } });
+      await transaction.hangoutHeart.deleteMany({ where: { userId: { in: demoUserIds } } });
+      await transaction.funnelEvent.deleteMany({ where: { userId: { in: demoUserIds } } });
+      await transaction.joinRequest.deleteMany({ where: { userId: { in: demoUserIds } } });
+      await transaction.hangout.deleteMany({ where: { OR: [{ isDemo: true }, { hostUserId: { in: demoUserIds } }] } });
       await transaction.notification.deleteMany({ where: { userId: { in: demoUserIds } } });
       const hangoutId = uuidv7();
       const hangout = await transaction.hangout.create({ data: {

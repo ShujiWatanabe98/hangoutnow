@@ -10,7 +10,9 @@ function setup(requesterIsDemo = true) {
   const transaction = {
     message: { deleteMany: vi.fn() }, directMessage: { deleteMany: vi.fn() },
     directChat: { deleteMany: vi.fn() }, hangout: { deleteMany: vi.fn(), create: vi.fn().mockResolvedValue({ id: 'new-hangout' }) },
-    notification: { deleteMany: vi.fn() }, joinRequest: { create: vi.fn() }, chatRoom: { create: vi.fn() },
+    hangoutRating: { deleteMany: vi.fn() }, matchFeedback: { deleteMany: vi.fn() }, hangoutHeart: { deleteMany: vi.fn() },
+    funnelEvent: { deleteMany: vi.fn() }, notification: { deleteMany: vi.fn() },
+    joinRequest: { deleteMany: vi.fn(), create: vi.fn() }, chatRoom: { create: vi.fn() },
   };
   const database = {
     user: { findMany: vi.fn().mockResolvedValue([host, guest, masaya]) },
@@ -34,9 +36,25 @@ describe('public demo reset boundary', () => {
     const { service, transaction, requesterId } = setup();
     const result = await service.reset(requesterId);
     expect(result).toMatchObject({ ok: true, hangoutId: 'new-hangout', status: 'READY' });
-    expect(transaction.message.deleteMany).toHaveBeenCalledWith({ where: { room: { hangout: { isDemo: true } } } });
+    expect(transaction.message.deleteMany).toHaveBeenCalledWith({ where: { OR: expect.arrayContaining([{ senderUserId: { in: [
+      '019ffb00-0000-7000-8000-000000000001',
+      '019ffb00-0000-7000-8000-000000000002',
+      '019ffb00-0000-7000-8000-000000000003',
+    ] } }]) } });
     expect(transaction.directMessage.deleteMany).toHaveBeenCalledOnce();
-    expect(transaction.hangout.deleteMany).toHaveBeenCalledWith({ where: { isDemo: true } });
+    expect(transaction.hangoutRating.deleteMany).toHaveBeenCalledOnce();
+    expect(transaction.matchFeedback.deleteMany).toHaveBeenCalledOnce();
+    expect(transaction.hangoutHeart.deleteMany).toHaveBeenCalledOnce();
+    expect(transaction.funnelEvent.deleteMany).toHaveBeenCalledOnce();
+    expect(transaction.joinRequest.deleteMany).toHaveBeenCalledOnce();
+    expect(transaction.hangout.deleteMany).toHaveBeenCalledWith({ where: { OR: [
+      { isDemo: true },
+      { hostUserId: { in: [
+        '019ffb00-0000-7000-8000-000000000001',
+        '019ffb00-0000-7000-8000-000000000002',
+        '019ffb00-0000-7000-8000-000000000003',
+      ] } },
+    ] } });
     expect(transaction.hangout.create).toHaveBeenCalledOnce();
     expect(transaction.joinRequest.create).toHaveBeenCalledWith({ data: expect.objectContaining({ userId: '019ffb00-0000-7000-8000-000000000003', status: 'ACCEPTED' }) });
   });
@@ -58,6 +76,10 @@ describe('public demo reset boundary', () => {
       expect(call[0].data).toMatchObject({
         status: 'FINISHED',
         ratings: { create: [expect.objectContaining({ score: 5 }), expect.objectContaining({ score: 5 })] },
+        chatRoom: { create: { messages: { create: [
+          expect.objectContaining({ body: expect.any(String) }),
+          expect.objectContaining({ body: expect.any(String) }),
+        ] } } },
       });
     }
   });
