@@ -235,7 +235,7 @@ const MAP_PIN_POSITIONS = [
   { bottom: "18%", right: "28%" },
   { bottom: "12%", left: "12%" },
 ] as const;
-type AuthMode = "login" | "register";
+type AuthMode = "welcome" | "login" | "register";
 function messageText(body: string) {
   return body.startsWith("__STAMP__") ? "過去のスタンプ" : body;
 }
@@ -268,6 +268,14 @@ async function readJson(response: Response): Promise<unknown> {
   return text ? JSON.parse(text) : null;
 }
 
+function normalizePhoneNumber(value: string): string {
+  const compact = value.trim().replace(/[\s()-]/g, "");
+  if (compact.startsWith("+")) return compact;
+  if (compact.startsWith("0")) return `+81${compact.slice(1)}`;
+  if (compact.startsWith("81")) return `+${compact}`;
+  return compact;
+}
+
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [screen, setScreen] = useState<Screen>("home");
@@ -284,7 +292,6 @@ export default function App() {
   const [demoRole, setDemoRole] = useState<"host" | "guest" | null>(null);
   const [unreadByRoom, setUnreadByRoom] = useState<Record<string, number>>({});
   const [realtimeOnline, setRealtimeOnline] = useState(false);
-  const [restoring, setRestoring] = useState(true);
   const [locationLabel, setLocationLabel] = useState("エリア未設定");
   const [coordinates, setCoordinates] = useState<{
     latitude: number;
@@ -295,6 +302,7 @@ export default function App() {
   const [selectedArea, setSelectedArea] = useState<AlphaArea>("新宿");
   const [selectedHangout, setSelectedHangout] = useState<Hangout | null>(null);
   const [detailReturnScreen, setDetailReturnScreen] = useState<"home" | "map" | "profile">("home");
+  const [chatReturnScreen, setChatReturnScreen] = useState<"home" | "profile" | "detail">("home");
   const [ratingReturnScreen, setRatingReturnScreen] = useState<"home" | "detail">("home");
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
   const [notificationInbox, setNotificationInbox] = useState<NotificationInbox>({ items: [], unreadCount: 0, enabled: true });
@@ -396,6 +404,7 @@ export default function App() {
       setSelectedRoom(room);
       setMessages(nextMessages);
       setUnreadByRoom((current) => ({ ...current, [room.id]: 0 }));
+      setChatReturnScreen("home");
       setScreen("chat");
       await loadNotifications();
     } catch {
@@ -431,35 +440,7 @@ export default function App() {
     if (session && screen === "home" && coordinates) void loadHome();
   }, [coordinates, loadHome, screen, session]);
 
-  useEffect(() => {
-    void (async () => {
-      try {
-        const raw = await SecureStore.getItemAsync(SESSION_KEY);
-        if (!raw) return;
-        const saved = JSON.parse(raw) as Session;
-        const refreshed = await fetch(`${API_URL}/auth/refresh`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ refreshToken: saved.refreshToken }),
-        });
-        if (!refreshed.ok) {
-          await SecureStore.deleteItemAsync(SESSION_KEY);
-          return;
-        }
-        const next = (await readJson(refreshed)) as Session;
-        setSession(next);
-        await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(next));
-      } catch {
-        await SecureStore.deleteItemAsync(SESSION_KEY);
-      } finally {
-        setRestoring(false);
-      }
-    })();
-  }, []);
-
-  useEffect(() => {
-    if (session) void SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(session));
-  }, [session]);
+  useEffect(() => { void SecureStore.deleteItemAsync(SESSION_KEY); }, []);
 
   useEffect(() => {
     if (!session || Platform.OS === "web" || !Device.isDevice) return;
@@ -577,7 +558,7 @@ export default function App() {
     }
   }
 
-  async function authenticateWithLine(input?: { displayName: string; birthDate: string; gender: string }) {
+  async function authenticateWithLine(input?: { displayName: string; birthDate: string; gender: string; profilePhotos?: string[] }) {
     setLoading(true);
     setError("");
     try {
@@ -634,7 +615,8 @@ export default function App() {
   }
 
   async function authenticateWithPhone(phone:string,code?:string,challengeToken?:string):Promise<{challengeToken?:string;demoCode?:string}>{
-    setLoading(true);setError("");try{const path=challengeToken?'/auth/phone/confirm':'/auth/phone/request';const response=await fetch(`${API_URL}${path}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(challengeToken?{phone,code,challengeToken}:{phone})});const data=await readJson(response) as Session|{challengeToken?:string;demoCode?:string;message?:string|string[]};if(!response.ok){const message='message'in data?data.message:null;throw new Error(Array.isArray(message)?message[0]:message||'電話番号認証に失敗しました')}if('accessToken'in data){setSession(data);setDemoRole(null);setScreen('home');return{}}return{challengeToken:data.challengeToken,demoCode:data.demoCode}}catch(cause){setError(cause instanceof Error?cause.message:'電話番号認証に失敗しました');throw cause}finally{setLoading(false)}
+    const normalizedPhone=normalizePhoneNumber(phone);
+    setLoading(true);setError("");try{const path=challengeToken?'/auth/phone/confirm':'/auth/phone/request';const response=await fetch(`${API_URL}${path}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(challengeToken?{phone:normalizedPhone,code,challengeToken}:{phone:normalizedPhone})});const data=await readJson(response) as Session|{challengeToken?:string;demoCode?:string;message?:string|string[]};if(!response.ok){const message='message'in data?data.message:null;throw new Error(Array.isArray(message)?message[0]:message||'電話番号認証に失敗しました')}if('accessToken'in data){setSession(data);setDemoRole(null);setScreen('profile');return{}}return{challengeToken:data.challengeToken,demoCode:data.demoCode}}catch(cause){setError(cause instanceof Error?cause.message:'電話番号認証に失敗しました');throw cause}finally{setLoading(false)}
   }
 
   async function joinHangout(hangout: Hangout, message: string) {
@@ -906,6 +888,7 @@ export default function App() {
         Alert.alert("トークを開始できません", "参加が承認されると、このHangoutのトークを利用できます。");
         return;
       }
+      setChatReturnScreen("detail");
       setScreen("chat");
       await openRoom(room);
     } finally {
@@ -1240,14 +1223,6 @@ export default function App() {
     }
   }
 
-  if (restoring)
-    return (
-      <SafeAreaView style={styles.restore}>
-        <ActivityIndicator color="#176b48" />
-        <Text style={styles.restoreText}>ログイン状態を確認しています…</Text>
-      </SafeAreaView>
-    );
-
   if (!session) {
     return <AuthScreen loading={loading} error={error} onLogin={authenticate} onRegister={register} onLine={authenticateWithLine} onX={authenticateWithX} onGoogle={()=>authenticateWithOAuth('google')} onApple={()=>authenticateWithOAuth('apple')} onPhone={authenticateWithPhone} />;
   }
@@ -1290,9 +1265,9 @@ export default function App() {
         {screen === "create" && <CreateHangoutScreen area={selectedArea} onBack={() => setScreen("home")} onSubmit={createHangout} />}
         {screen === "detail" && selectedHangout && <HangoutDetailScreen user={session.user} hangout={selectedHangout} requests={joinRequests} onBack={() => setScreen(detailReturnScreen)} onJoin={joinHangout} onChat={openHangoutChat} onRate={() => void openHangoutRating(selectedHangout.id)} onStart={startHangout} onFinish={confirmFinishHangout} onCancel={confirmCancelHangout} onEdit={updateHangout} onDecide={decideJoinRequest} onReport={confirmReportHost} onAttendance={updateAttendance} onMatchFeedback={submitMatchFeedback} />}
         {screen === "phone" && <PhoneVerificationScreen onBack={() => setScreen("profile")} onVerify={verifyPhone} />}
-        {screen === "chat" && <ChatScreen user={session.user} rooms={rooms} selectedRoom={selectedRoom} messages={messages} messageBody={messageBody} sending={sending} refreshing={refreshing} unreadByRoom={unreadByRoom} realtimeOnline={realtimeOnline} onRefresh={refreshCurrent} onOpen={openRoom} onRate={rateParticipant} onBack={() => selectedRoom ? setSelectedRoom(null) : setScreen("home")} onChangeBody={setMessageBody} onSend={sendMessage} />}
+        {screen === "chat" && <ChatScreen user={session.user} rooms={rooms} selectedRoom={selectedRoom} messages={messages} messageBody={messageBody} sending={sending} refreshing={refreshing} unreadByRoom={unreadByRoom} realtimeOnline={realtimeOnline} onRefresh={refreshCurrent} onOpen={openRoom} onRate={rateParticipant} onBack={() => selectedRoom ? setSelectedRoom(null) : setScreen(chatReturnScreen)} onChangeBody={setMessageBody} onSend={sendMessage} />}
         {screen === "rating" && ratingRoom && <RatingScreen user={session.user} room={ratingRoom} onRate={rateParticipant} onDone={() => { setRatingRoom(null); setScreen(ratingReturnScreen); }} />}
-        {screen === "profile" && <ProfileScreen user={session.user} hostStatus={hostStatus} activity={profileActivity} demo={!!demoRole} onChat={() => { setSelectedRoom(null); setScreen("chat"); }} onOpenHangout={(id) => void openHangout({ id })} onPhone={() => setScreen("phone")} onPhoto={chooseProfilePhoto} onSave={updateProfile} onDelete={confirmDeleteAccount} onLogout={logout} />}
+        {screen === "profile" && <ProfileScreen user={session.user} hostStatus={hostStatus} activity={profileActivity} demo={!!demoRole} onChat={() => { setSelectedRoom(null); setChatReturnScreen("profile"); setScreen("chat"); }} onOpenHangout={(id) => void openHangout({ id })} onPhone={() => setScreen("phone")} onPhoto={chooseProfilePhoto} onSave={updateProfile} onDelete={confirmDeleteAccount} onLogout={logout} />}
         {screen === "notifications" && <NotificationScreen inbox={notificationInbox} refreshing={refreshing} onBack={() => setScreen("home")} onRefresh={refreshCurrent} onEnabled={setNotificationEnabled} onRead={readNotification} onReadAll={readAllNotifications} onDelete={confirmDeleteNotifications} />}
       </View>
       {loading ? (
@@ -1304,8 +1279,8 @@ export default function App() {
   );
 }
 
-function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle, onApple, onPhone }: { loading: boolean; error: string; onLogin: (email: string, password: string, role?: "host" | "guest" | null) => Promise<void>; onRegister: (input: { email: string; password: string; displayName: string; birthDate: string; gender: string; profilePhotos?: string[] }) => Promise<void>; onLine: (input?: { displayName: string; birthDate: string; gender: string }) => Promise<void>; onX: () => Promise<void>; onGoogle:()=>Promise<void>;onApple:()=>Promise<void>;onPhone:(phone:string,code?:string,challengeToken?:string)=>Promise<{challengeToken?:string;demoCode?:string}> }) {
-  const [mode, setMode] = useState<AuthMode>("login");
+function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle, onApple, onPhone }: { loading: boolean; error: string; onLogin: (email: string, password: string, role?: "host" | "guest" | null) => Promise<void>; onRegister: (input: { email: string; password: string; displayName: string; birthDate: string; gender: string; profilePhotos?: string[] }) => Promise<void>; onLine: (input?: { displayName: string; birthDate: string; gender: string; profilePhotos?: string[] }) => Promise<void>; onX: () => Promise<void>; onGoogle:()=>Promise<void>;onApple:()=>Promise<void>;onPhone:(phone:string,code?:string,challengeToken?:string)=>Promise<{challengeToken?:string;demoCode?:string}> }) {
+  const [mode, setMode] = useState<AuthMode>("welcome");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -1313,7 +1288,7 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle
   const [gender, setGender] = useState("UNDISCLOSED");
   const [providerNote, setProviderNote] = useState("");
   const [registrationPhotos, setRegistrationPhotos] = useState<string[]>([]);
-  const [phone,setPhone]=useState("+81");const[phoneCode,setPhoneCode]=useState("");const[phoneChallenge,setPhoneChallenge]=useState<string|null>(null);
+  const [phone,setPhone]=useState("");const[phoneCode,setPhoneCode]=useState("");const[phoneChallenge,setPhoneChallenge]=useState<string|null>(null);
   const chooseRegistrationPhotos = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) return Alert.alert("写真へのアクセスが必要です");
@@ -1329,7 +1304,7 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle
           Hangout <Text style={styles.brandAccent}>Now</Text>
         </Text>
         <Image source={{ uri: ACTIVITY_PHOTO_URL }} style={styles.authPhoto} />
-        <View style={styles.demoCard}>
+        {mode === "welcome" && <View style={styles.demoCard}>
           <Text style={styles.demoPill}>公開デモ・すべて架空のデータです</Text>
           <Text style={styles.demoHeading}>役割を選んですぐに体験</Text>
           <Text style={styles.demoDescription}>登録や電話番号入力は必要ありません。</Text>
@@ -1343,7 +1318,25 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle
               <Text style={styles.roleHint}>検索・トーク</Text>
             </Pressable>
           </View>
-        </View>
+        </View>}
+        {mode === "welcome" ? (
+          <View style={styles.authChoiceCard}>
+            <Text style={styles.eyebrow}>利用方法を選んでください</Text>
+            <Text style={styles.authChoiceTitle}>Hangout Nowをはじめる</Text>
+            <Pressable style={styles.authLoginChoice} onPress={() => setMode("login")} accessibilityRole="button">
+              <Text style={styles.authLoginChoiceText}>ログイン</Text>
+              <Text style={styles.authChoiceHint}>登録済みのアカウントを使う</Text>
+            </Pressable>
+            <Pressable style={styles.authRegisterChoice} onPress={() => setMode("register")} accessibilityRole="button">
+              <Text style={styles.authRegisterChoiceText}>新しくアカウントを作る</Text>
+              <Text style={styles.authChoiceHint}>無料で登録する</Text>
+            </Pressable>
+          </View>
+        ) : <>
+        <Pressable style={styles.authBackButton} onPress={() => setMode("welcome")} accessibilityRole="button" accessibilityLabel="最初の画面に戻る">
+          <View style={styles.backChevron} />
+          <Text style={styles.authBackText}>最初の画面へ</Text>
+        </Pressable>
         <View style={styles.authCard}>
           <Text style={styles.eyebrow}>今から、誰かと。</Text>
           <Text style={styles.authTitle}>{mode === "login" ? "おかえりなさい" : "アカウントを作る"}</Text>
@@ -1399,16 +1392,17 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle
           {(["Google", "Apple", "X", "LINE", "電話番号"] as const).map((provider) => (
             <Pressable
               key={provider}
-              style={styles.providerButton}
-              onPress={() => provider === "LINE" ? void onLine() : provider === "X" ? void onX() : provider==="Google"?void onGoogle():provider==="Apple"?void onApple():setPhoneChallenge("")}
+              disabled={loading || provider === "Apple"}
+              style={[styles.providerButton, provider === "X" && styles.xProviderButton, provider === "Apple" && styles.providerButtonDisabled]}
+              onPress={() => provider === "LINE" ? void onLine(mode === "register" ? { displayName, birthDate, gender, ...(registrationPhotos.length ? { profilePhotos: registrationPhotos } : {}) } : undefined) : provider === "X" ? void onX() : provider==="Google"?void onGoogle():provider==="Apple"?void onApple():setPhoneChallenge("")}
             >
-              <Text style={styles.providerMark}>{provider === "Google" ? "G" : provider === "Apple" ? "●" : provider === "X" ? "X" : provider === "LINE" ? "L" : "☎"}</Text>
-              <Text style={styles.providerButtonText}>{provider}{mode === "register" ? "でアカウント作成" : "でログイン"}</Text>
+              <Text style={[styles.providerMark, provider === "X" && styles.xProviderText]}>{provider === "Google" ? "G" : provider === "Apple" ? "●" : provider === "X" ? "X" : provider === "LINE" ? "L" : "☎"}</Text>
+              <Text style={[styles.providerButtonText, provider === "X" && styles.xProviderText]}>{provider === "Apple" ? "Appleでログイン（準備中）" : `${provider}${mode === "register" ? "でアカウント作成" : "でログイン"}`}</Text>
             </Pressable>
           ))}
-          {phoneChallenge!==null?<View><Field label="電話番号（国番号から）" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />{phoneChallenge?<Field label="6桁の認証コード" value={phoneCode} onChangeText={setPhoneCode} keyboardType="number-pad" />:null}<Pressable disabled={loading} style={styles.primary} onPress={async()=>{try{const result=await onPhone(phone,phoneCode,phoneChallenge||undefined);if(result.challengeToken){setPhoneChallenge(result.challengeToken);setProviderNote(result.demoCode?`開発用コード：${result.demoCode}`:'SMSに認証コードを送信しました')}}catch{}}}><Text style={styles.primaryText}>{phoneChallenge?'アカウント作成・ログイン':'認証コードを送る'}</Text></Pressable></View>:null}
+          {phoneChallenge!==null?<View><Field label="携帯電話番号" value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="09012345678" />{phoneChallenge?<Field label="SMSで届いた6桁の認証コード" value={phoneCode} onChangeText={setPhoneCode} keyboardType="number-pad" maxLength={6} />:null}<Text style={styles.phoneHint}>日本の電話番号は090・080・070から入力できます。</Text><Pressable disabled={loading || !phone.trim() || Boolean(phoneChallenge && phoneCode.length !== 6)} style={[styles.primary, (loading || !phone.trim() || Boolean(phoneChallenge && phoneCode.length !== 6)) && styles.disabled]} onPress={async()=>{try{const result=await onPhone(phone,phoneCode,phoneChallenge||undefined);if(result.challengeToken){setPhoneChallenge(result.challengeToken);setProviderNote(result.demoCode?`開発用コード：${result.demoCode}`:'SMSに認証コードを送信しました')}}catch{}}}><Text style={styles.primaryText}>{phoneChallenge?'認証してアカウントを作る':'SMS認証コードを送る'}</Text></Pressable></View>:null}
           <Text style={styles.providerNote}>{providerNote}</Text>
-          <Pressable onPress={() => setMode(mode === "login" ? "register" : "login")}>
+          <Pressable style={styles.authSwitchButton} onPress={() => setMode(mode === "login" ? "register" : "login")}>
             <Text style={styles.authSwitch}>{mode === "login" ? "新しくアカウントを作る" : "アカウントをお持ちの方はログイン"}</Text>
           </Pressable>
           <Text style={styles.authAgreement}>登録により利用規約とプライバシーポリシーに同意します。</Text>
@@ -1419,6 +1413,7 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle
             <Pressable onPress={() => void Linking.openURL(`${WEBSITE_URL}/delete-account.html`)}><Text style={styles.authPolicyLink}>アカウント削除</Text></Pressable>
           </View>
         </View>
+        </>}
       </ScrollView>
     </SafeAreaView>
   );
@@ -2401,7 +2396,7 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
       </Pressable>
       <Modal visible={editing} animationType="slide" onRequestClose={() => void save()}>
         <SafeAreaView style={styles.profileEditorPage}>
-          <View style={styles.profileEditorHeader}><Pressable onPress={() => void save()} accessibilityLabel="プロフィールに戻る"><Text style={styles.profileEditorCancel}>‹</Text></Pressable><Text style={styles.profileEditorTitle}>プロフィールを編集</Text><View style={{ width: 24 }} /></View>
+          <View style={styles.profileEditorHeader}><Pressable style={styles.profileEditorBackButton} hitSlop={8} onPress={() => setEditing(false)} accessibilityRole="button" accessibilityLabel="編集をやめてプロフィールに戻る"><View style={styles.backChevron} /></Pressable><Text style={styles.profileEditorTitle}>プロフィールを編集</Text><View style={styles.profileEditorHeaderSpacer} /></View>
           <ScrollView contentContainerStyle={styles.profileEditorForm} keyboardShouldPersistTaps="handled">
             <Text style={styles.profileEditorLabel}>プロフィール画像（最大3枚）</Text><View style={styles.profilePhotoTrio}>{[1,0,2].map((photoIndex,position)=>{const photo=user.profilePhotos?.[photoIndex]||(photoIndex===0?user.profilePhoto:undefined);return <Pressable key={photoIndex} onPress={()=>onPhoto(photoIndex)} accessibilityLabel={`${photoIndex+1}枚目の画像を選ぶ`}>{photo?<Image source={{uri:photo}} style={position===1?styles.avatar:styles.avatarSide}/>:<View style={position===1?styles.avatarFallback:styles.avatarSideFallback}><Text style={styles.avatarText}>{position===1?"☺":"＋"}</Text></View>}</Pressable>})}</View><Text style={styles.profileEditorHint}>丸い画像をタップして入れ替えます。中央がメイン画像です。</Text>
             <Text style={styles.profileEditorLabel}>表示名</Text><TextInput style={styles.profileEditorInput} value={displayName} onChangeText={setDisplayName} maxLength={40} />
@@ -2619,6 +2614,15 @@ const styles = StyleSheet.create({
   roleTitle: { fontSize: 12, fontWeight: "900", color: "#17221d" },
   roleHint: { fontSize: 10, color: "#667069", marginTop: 3 },
   authCard: { backgroundColor: "#fff", padding: 20, borderRadius: 24 },
+  authChoiceCard: { backgroundColor: "#fff", padding: 20, borderRadius: 24, gap: 10 },
+  authChoiceTitle: { color: "#17221d", fontSize: 24, fontWeight: "900", marginBottom: 6 },
+  authLoginChoice: { minHeight: 62, justifyContent: "center", paddingHorizontal: 18, borderRadius: 16, backgroundColor: "#176b48" },
+  authLoginChoiceText: { color: "#fff", fontSize: 17, fontWeight: "900" },
+  authRegisterChoice: { minHeight: 62, justifyContent: "center", paddingHorizontal: 18, borderRadius: 16, backgroundColor: "#d9ff68", borderWidth: 2, borderColor: "#17221d" },
+  authRegisterChoiceText: { color: "#17221d", fontSize: 17, fontWeight: "900" },
+  authChoiceHint: { color: "#667069", fontSize: 10, fontWeight: "700", marginTop: 2 },
+  authBackButton: { alignSelf: "flex-start", minHeight: 44, flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10, paddingHorizontal: 12, borderRadius: 22, backgroundColor: "#fff", borderWidth: 1, borderColor: "#dce5df" },
+  authBackText: { color: "#176b48", fontSize: 12, fontWeight: "900" },
   authTitle: {
     fontSize: 27,
     fontWeight: "900",
@@ -2675,10 +2679,15 @@ const styles = StyleSheet.create({
   authDividerLine: { flex: 1, height: 1, backgroundColor: "#dce2dc" },
   authDividerText: { color: "#7a837d", fontSize: 12, fontWeight: "800" },
   providerButton: { minHeight: 48, marginBottom: 9, borderWidth: 1, borderColor: "#d8ded9", borderRadius: 14, backgroundColor: "#f8faf8", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9 },
+  xProviderButton: { minHeight: 54, backgroundColor: "#17221d", borderColor: "#17221d", shadowColor: "#17221d", shadowOpacity: 0.2, shadowRadius: 6, elevation: 2 },
+  xProviderText: { color: "#fff" },
+  providerButtonDisabled: { opacity: 0.55, backgroundColor: "#eef0ee" },
   providerMark: { width: 24, textAlign: "center", color: "#176b48", fontSize: 16, fontWeight: "900" },
   providerButtonText: { color: "#17221d", fontSize: 13, fontWeight: "900" },
   providerNote: { minHeight: 30, paddingTop: 7, color: "#59645d", fontSize: 11, textAlign: "center" },
-  authSwitch: { textAlign: "center", color: "#59635c", padding: 15 },
+  authSwitchButton: { minHeight: 52, alignItems: "center", justifyContent: "center", marginTop: 8, borderRadius: 15, borderWidth: 2, borderColor: "#176b48", backgroundColor: "#edf8f0" },
+  authSwitch: { textAlign: "center", color: "#176b48", fontSize: 15, fontWeight: "900", padding: 12 },
+  phoneHint: { color: "#59645d", fontSize: 10, marginTop: 7 },
   authAgreement: { marginTop: 16, color: "#737c75", fontSize: 10, textAlign: "center" },
   authPolicyLinks: { marginTop: 9, flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 13 },
   authPolicyLink: { color: "#176b48", fontSize: 10, fontWeight: "800", textDecorationLine: "underline" },
@@ -3286,6 +3295,8 @@ const styles = StyleSheet.create({
   profileChatButtonText: { color: "#176b48", fontSize: 16, fontWeight: "900" },
   profileEditorPage: { flex: 1, backgroundColor: "#f7f8f3" },
   profileEditorHeader: { minHeight: 58, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderColor: "#dfe5df", backgroundColor: "#fff" },
+  profileEditorBackButton: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: "#f7faf7", borderWidth: 1, borderColor: "#dce5df" },
+  profileEditorHeaderSpacer: { width: 44, height: 44 },
   profileEditorTitle: { fontSize: 16, fontWeight: "900", color: "#17221d" },
   profileEditorCancel: { color: "#687169", fontSize: 13, fontWeight: "700" },
   profileEditorSave: { color: "#176b48", fontSize: 13, fontWeight: "900" },

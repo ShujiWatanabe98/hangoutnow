@@ -108,7 +108,9 @@ test('social and phone authentication continue directly into account creation', 
   assert.match(application, /if\(provider==='電話番号'\)\{phoneAuthDialog\(\);return\}/);
   assert.match(application, /const input=null/);
   assert.match(application, /\/auth\/phone\/confirm/);
-  assert.match(mobile, /provider === "LINE" \? void onLine\(\) : provider === "X" \? void onX\(\)/);
+  assert.match(mobile, /provider === "LINE" \? void onLine\(mode === "register"/);
+  assert.match(mobile, /normalizePhoneNumber\(phone\)/);
+  assert.match(mobile, /SMSで届いた6桁の認証コード/);
   assert.match(mobile, /authenticateWithOAuth\(provider:"google"\|"apple"\)/);
   assert.match(mobile, /\/auth\/phone\/confirm/);
   assert.match(mobile, /\/auth\/x\/redeem/);
@@ -256,5 +258,13 @@ test('native screens include the latest production profile, notification, talk, 
   assert.match(mobile, /quickMessageRow: \{ alignItems: "center"/);
   assert.match(mobile, /quickMessageButton: \{ height: 28, alignSelf: "center"/);
   assert.match(mobile, /profileChatButton: \{[^\n]*width: "100%"[^\n]*backgroundColor: "#edf8f0"/);
+  assert.match(mobile, /setChatReturnScreen\("profile"\)/);
+  assert.match(mobile, /setScreen\(chatReturnScreen\)/);
+  assert.match(mobile, /useState<AuthMode>\("welcome"\)/);
+  assert.doesNotMatch(mobile, /SecureStore\.getItemAsync\(SESSION_KEY\)/);
+  assert.match(mobile, /profileEditorBackButton: \{ width: 44, height: 44/);
+  assert.match(mobile, /onPress=\{\(\) => setEditing\(false\)\} accessibilityRole="button" accessibilityLabel="編集をやめてプロフィールに戻る"/);
+  assert.match(mobile, /Appleでログイン（準備中）/);
+  assert.match(mobile, /xProviderButton/);
   for (const message of ['向かっています', '少し遅れます', '到着しました']) assert.ok(mobile.includes(message));
 });
