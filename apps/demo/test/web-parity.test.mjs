@@ -177,6 +177,16 @@ test('native Hangout creation matches the production full-screen flow', async ()
   assert.doesNotMatch(mobile, /<Text style=\{styles\.label\}>カテゴリ<\/Text>/);
 });
 
+test('native profile photo insertion never sends sparse arrays', async () => {
+  const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
+  assert.match(mobile, /existingPhotos=.*\.filter\(\(value\): value is string => Boolean\(value\)\)/);
+  assert.match(mobile, /const targetIndex=Math\.min\(index,profilePhotos\.length\)/);
+  assert.match(mobile, /if\(targetIndex===profilePhotos\.length\)profilePhotos\.push\(photo\)/);
+  assert.doesNotMatch(mobile, /profilePhotos\[index\]=photo/);
+  assert.match(mobile, /allowsEditing: true,[\s\S]*?aspect: \[1, 1\],[\s\S]*?quality: 0\.5/);
+  assert.match(mobile, /Alert\.alert\("画像を更新できませんでした", message\)/);
+});
+
 test('host deletion returns to profile and cancelled Hangouts stay out of hosted history', async () => {
   const application = await readFile(new URL('app.js', publicDirectory), 'utf8');
 

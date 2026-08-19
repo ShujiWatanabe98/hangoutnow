@@ -1146,7 +1146,9 @@ export default function App() {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
         allowsMultipleSelection: false,
-        quality: 0.65,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
         base64: true,
       });
       if (result.canceled) return;
@@ -1154,15 +1156,22 @@ export default function App() {
       if(!asset?.base64)throw new Error("写真を読み込めませんでした");
       const mediaType=asset.mimeType==="image/png"?"png":asset.mimeType==="image/webp"?"webp":"jpeg";
       const photo=`data:image/${mediaType};base64,${asset.base64}`;
-      const profilePhotos=[...(session?.user.profilePhotos??[])];
-      profilePhotos[index]=photo;
+      if (photo.length > 1_500_000) throw new Error("画像サイズが大きすぎます。別の写真を選ぶか、写真を小さく切り抜いてください");
+      const existingPhotos=(session?.user.profilePhotos?.length ? session.user.profilePhotos : session?.user.profilePhoto ? [session.user.profilePhoto] : []).filter((value): value is string => Boolean(value));
+      const profilePhotos=[...existingPhotos];
+      const targetIndex=Math.min(index,profilePhotos.length);
+      if(targetIndex===profilePhotos.length)profilePhotos.push(photo);
+      else profilePhotos[targetIndex]=photo;
       const user = await request<User>("/users/me", {
         method: "PATCH",
         body: JSON.stringify({ profilePhotos }),
       });
       setSession((current) => (current ? { ...current, user } : current));
+      Alert.alert("画像を更新しました", targetIndex === 0 ? "メイン画像を更新しました。" : `${targetIndex + 1}枚目の画像を更新しました。`);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "写真を更新できませんでした");
+      const message=cause instanceof Error ? cause.message : "写真を更新できませんでした";
+      setError(message);
+      Alert.alert("画像を更新できませんでした", message);
     } finally {
       setLoading(false);
     }
