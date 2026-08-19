@@ -245,6 +245,7 @@ type CreateHangoutInput = {
 type ProfileActivityItem = { id: string; title: string; status: string; startAt: string; imageUrl: string | null; category: string; publicLocationName: string };
 type ProfileActivity = { hosted: ProfileActivityItem[]; participated: ProfileActivityItem[]; hearted: ProfileActivityItem[] };
 type ReportReason = "HARASSMENT" | "SPAM" | "DANGEROUS" | "SEXUAL" | "SOLICITATION" | "FRAUD" | "HATE" | "IMPERSONATION" | "OTHER";
+type MatchFeedbackReason = "TIME" | "DISTANCE" | "FULL" | "BUDGET" | "CONDITIONS" | "OTHER";
 const AREA_COORDINATES: Record<AlphaArea, { latitude: number; longitude: number }> = {
   新宿: { latitude: 35.6909, longitude: 139.7003 },
   渋谷: { latitude: 35.658, longitude: 139.7016 },
@@ -302,6 +303,7 @@ export default function App() {
   const [ratingRoom, setRatingRoom] = useState<GroupRoom | null>(null);
   const [finishConfirmationId, setFinishConfirmationId] = useState<string | null>(null);
   const [reportingHangout, setReportingHangout] = useState<Hangout | null>(null);
+  const [matchFeedbackHangout, setMatchFeedbackHangout] = useState<Hangout | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageBody, setMessageBody] = useState("");
   const [loading, setLoading] = useState(false);
@@ -1198,25 +1200,16 @@ export default function App() {
   }
 
   function submitMatchFeedback(hangout: Hangout) {
-    const reasons = [
-      ["TIME", "時間が合わない"],
-      ["DISTANCE", "距離が遠い"],
-      ["FULL", "希望人数と違う"],
-      ["BUDGET", "予算が合わない"],
-      ["CONDITIONS", "参加条件が合わない"],
-      ["OTHER", "その他"],
-    ] as const;
-    Alert.alert("合わない理由", "次回のおすすめ改善にだけ利用します。", [
-      ...reasons.map(([reason, label]) => ({
-        text: label,
-        onPress: () => void request("/analytics/match-feedback", {
-          method: "POST",
-          body: JSON.stringify({ hangoutId: hangout.id, outcome: "NOT_MATCHED", reason }),
-        }).then(() => Alert.alert("送信しました", "おすすめ改善に反映しました。"))
-          .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "理由を送信できませんでした")),
-      })),
-      { text: "閉じる", style: "cancel" },
-    ]);
+    setMatchFeedbackHangout(hangout);
+  }
+  async function sendMatchFeedback(hangout: Hangout, reason: MatchFeedbackReason) {
+    try {
+      await request("/analytics/match-feedback", { method: "POST", body: JSON.stringify({ hangoutId: hangout.id, outcome: "NOT_MATCHED", reason }) });
+      setMatchFeedbackHangout(null);
+      Alert.alert("送信しました", "おすすめ改善に反映しました。");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "理由を送信できませんでした");
+    }
   }
 
   function confirmDeleteAccount() {
@@ -1294,6 +1287,7 @@ export default function App() {
         {screen === "notifications" && <NotificationScreen inbox={notificationInbox} refreshing={refreshing} onBack={() => setScreen("home")} onRefresh={refreshCurrent} onEnabled={setNotificationEnabled} onDeviceNotifications={() => void enableDeviceNotifications(true)} onRead={readNotification} onReadAll={readAllNotifications} onDelete={confirmDeleteNotifications} />}
         <FinishConfirmationModal hangoutId={finishConfirmationId} loading={loading} onClose={() => setFinishConfirmationId(null)} onConfirm={(id) => void finishHangout(id)} />
         <ReportHostModal hangout={reportingHangout} loading={loading} onClose={() => setReportingHangout(null)} onSubmit={(hangout, reason, details, blockUser) => void reportHost(hangout, reason, details, blockUser)} />
+        <MatchFeedbackModal hangout={matchFeedbackHangout} onClose={() => setMatchFeedbackHangout(null)} onSelect={sendMatchFeedback} />
       </KeyboardAvoidingView>
       {Platform.OS === "ios" && (
         <InputAccessoryView nativeID={IOS_KEYBOARD_ACCESSORY_ID}>
@@ -1537,10 +1531,10 @@ function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, d
             <View style={styles.cardCopy}>
               <Text style={styles.cardCategory}>{categoryLabel(hangout.category)}</Text>
               <Text style={styles.cardTitle}>{hangout.title}</Text>
-              <View style={styles.cardMetaRow}><CountdownText startAt={hangout.startAt} style={styles.muted} />{hangout.distanceKm != null && <Text style={styles.muted}>・ 約{hangout.distanceKm}km</Text>}</View>
+              <View style={styles.cardMetaRow}><CountdownText startAt={hangout.startAt} style={Math.max(0, new Date(hangout.startAt).getTime() - Date.now()) <= 45 * 60 * 1000 ? styles.hotCountdown : styles.muted} />{hangout.distanceKm != null && <Text style={styles.muted}>・ 約{hangout.distanceKm}km</Text>}</View>
               <Text style={styles.muted}>{hangout.publicLocationName || hangout.locationName}</Text>
               <Text style={styles.muted}>
-                参加 {hangout.participantCount} / {hangout.maxParticipants}人 ・ {conditionLabel(hangout)}
+                参加 {hangout.participantCount} / {hangout.maxParticipants}人 ・ {conditionLabel(hangout)}{hangout.distanceKm != null && hangout.distanceKm > 10 ? <Text style={styles.farBadge}> ・遠め</Text> : null}
               </Text>
             </View>
           </View>
@@ -1806,7 +1800,7 @@ function HangoutDetailScreen({ user, hangout, requests, ratingMembers, onBack, o
       </ScrollView>
       {hangout.status !== "FINISHED" && hangout.myJoinStatus !== "ACCEPTED" && <View style={styles.participantDetailFooter}>
         {!!ineligibleReason && !hasActiveRequest && <Text style={styles.eligibilityNote}>{ineligibleReason}</Text>}
-        <Pressable disabled={hasActiveRequest || !!ineligibleReason || hangout.status !== "OPEN"} style={[styles.participantJoinButton, (hasActiveRequest || !!ineligibleReason || hangout.status !== "OPEN") && styles.disabledButton]} onPress={() => setJoining(true)}><Text style={styles.primaryText}>{hangout.myJoinStatus === "PENDING" ? "申請中" : hangout.myJoinStatus === "WAITLISTED" ? "待機中" : ineligibleReason ? "参加条件の対象外" : "参加したい"}</Text></Pressable>
+        <Pressable disabled={hasActiveRequest || !!ineligibleReason || !["OPEN", "FULL", "STARTED"].includes(hangout.status)} style={[styles.participantJoinButton, (hasActiveRequest || !!ineligibleReason || !["OPEN", "FULL", "STARTED"].includes(hangout.status)) && styles.disabledButton]} onPress={() => setJoining(true)}><Text style={styles.primaryText}>{hangout.myJoinStatus === "PENDING" ? "申請中" : hangout.myJoinStatus === "WAITLISTED" ? "待機中" : ineligibleReason ? "参加条件の対象外" : "参加したい"}</Text></Pressable>
       </View>}
       <ApplicantProfileModal profile={selectedApplicant} onClose={() => setSelectedApplicant(null)} />
       <JoinRequestModal visible={joining} hangout={hangout} onClose={() => setJoining(false)} onSubmit={async (message) => { await onJoin(hangout, message); setJoining(false); }} />
@@ -1926,7 +1920,7 @@ function HangoutDetailScreen({ user, hangout, requests, ratingMembers, onBack, o
             <Text style={styles.primaryText}>申請中</Text>
           </Pressable>
         )}
-        {!isHost && !hangout.myJoinStatus && hangout.status === "OPEN" && (
+        {!isHost && !hangout.myJoinStatus && ["OPEN", "FULL", "STARTED"].includes(hangout.status) && (
           <Pressable disabled={!!ineligibleReason} style={[styles.primary, !!ineligibleReason && styles.disabledButton]} onPress={() => setJoining(true)}>
             <Text style={styles.primaryText}>{ineligibleReason || "参加したい"}</Text>
           </Pressable>
@@ -2009,6 +2003,7 @@ function HangoutDetailScreen({ user, hangout, requests, ratingMembers, onBack, o
 function JoinRequestModal({ visible, hangout, onClose, onSubmit }: { visible: boolean; hangout: Hangout; onClose: () => void; onSubmit: (message: string) => Promise<void> }) {
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  useEffect(() => { if (visible) { setMessage(""); setSubmitting(false); } }, [visible, hangout.id]);
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={styles.modalPage}>
@@ -2041,6 +2036,12 @@ function EditHangoutModal({ visible, hangout, onClose, onSave }: { visible: bool
   const [genderRestriction, setGenderRestriction] = useState<"ANY" | "MALE_ONLY" | "FEMALE_ONLY">(hangout.genderRestriction);
   const [maxAge, setMaxAge] = useState<number | null>(hangout.maxAge);
   const [imageUrl, setImageUrl] = useState(hangout.imageUrl ?? undefined);
+  useEffect(() => {
+    if (!visible) return;
+    setTitle(hangout.title); setDescription(hangout.description ?? ""); setPublicLocationName(hangout.publicLocationName ?? "");
+    setMeetingPlaceName(hangout.meetingPlaceName ?? ""); setMeetingAddress(hangout.meetingAddress ?? ""); setNavigationUrl(hangout.navigationUrl ?? "");
+    setGenderRestriction(hangout.genderRestriction); setMaxAge(hangout.maxAge); setImageUrl(hangout.imageUrl ?? undefined);
+  }, [visible, hangout.id, hangout.title, hangout.description, hangout.publicLocationName, hangout.meetingPlaceName, hangout.meetingAddress, hangout.navigationUrl, hangout.genderRestriction, hangout.maxAge, hangout.imageUrl]);
   const chooseImage = async (source: "camera" | "library") => {
     const permission = source === "camera" ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) return Alert.alert(source === "camera" ? "カメラへのアクセスが必要です" : "写真へのアクセスが必要です");
@@ -2230,6 +2231,15 @@ function ReportHostModal({ hangout, loading, onClose, onSubmit }: { hangout: Han
         <Pressable disabled={loading || !hangout} style={[styles.primary, loading && styles.disabled]} onPress={() => hangout && onSubmit(hangout, reason, details, blockUser)}><Text style={styles.primaryText}>{loading ? "送信しています…" : "通報する"}</Text></Pressable><Pressable disabled={loading} style={styles.secondary} onPress={onClose}><Text>キャンセル</Text></Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
+  </Modal>;
+}
+
+function MatchFeedbackModal({ hangout, onClose, onSelect }: { hangout: Hangout | null; onClose: () => void; onSelect: (hangout: Hangout, reason: MatchFeedbackReason) => Promise<void> }) {
+  const [sendingReason, setSendingReason] = useState<MatchFeedbackReason | null>(null);
+  useEffect(() => { if (hangout) setSendingReason(null); }, [hangout]);
+  const reasons: ReadonlyArray<[MatchFeedbackReason, string]> = [["TIME","時間が合わない"],["DISTANCE","距離が遠い"],["FULL","希望人数と違う"],["BUDGET","予算が合わない"],["CONDITIONS","参加条件が合わない"],["OTHER","その他"]];
+  return <Modal visible={hangout !== null} transparent animationType="slide" onRequestClose={onClose}>
+    <View style={styles.confirmSheetScreen}><Pressable style={styles.phoneSheetBackdrop} onPress={onClose} accessibilityLabel="合わない理由を閉じる" /><View style={styles.matchFeedbackSheet}><View style={styles.phoneSheetHandle} /><Text style={styles.confirmSheetTitle}>合わない理由</Text><Text style={styles.ratingScreenDescription}>次回のおすすめ改善にだけ利用します。</Text><View style={styles.matchFeedbackReasonGrid}>{reasons.map(([value,label]) => <Pressable key={value} disabled={sendingReason !== null} style={[styles.matchFeedbackReasonButton, sendingReason !== null && styles.disabled]} onPress={() => { if (!hangout) return; setSendingReason(value); void onSelect(hangout, value).finally(() => setSendingReason(null)); }}><Text style={styles.matchFeedbackReasonText}>{sendingReason === value ? "送信中…" : label}</Text></Pressable>)}</View><Pressable disabled={sendingReason !== null} style={styles.secondary} onPress={onClose}><Text>閉じる</Text></Pressable></View></View>
   </Modal>;
 }
 
@@ -2603,7 +2613,7 @@ function ProfileScreen({ user, hostStatus, activity, demo, onBack, onChat, onOpe
               {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={styles.profileActivityImage} /> : <View style={styles.profileActivityImageFallback}><Text>✨</Text></View>}
               <View style={styles.cardCopy}>
                 <Text style={styles.profileActivityTitle}>{item.title}</Text>
-                <Text style={styles.muted}>{new Date(item.startAt).toLocaleDateString('ja-JP')} ・ {item.status === 'FINISHED' ? '終了' : item.status === 'CANCELLED' ? '中止' : item.status === 'STARTED' ? 'Hangout中' : '募集中'}</Text>
+                <Text style={styles.muted}>{new Date(item.startAt).toLocaleDateString('ja-JP')} ・ {item.status === 'FINISHED' ? '終了' : item.status === 'CANCELLED' ? '中止' : item.status === 'STARTED' ? 'Hangout中' : item.status === 'FULL' ? '満員' : '募集中'}</Text>
               </View>
               <Text style={styles.profileActivityChevron}>›</Text>
             </Pressable>
@@ -2972,6 +2982,8 @@ const styles = StyleSheet.create({
   homeMapPin: { width: 17, height: 17, borderRadius: 9, borderBottomRightRadius: 2, backgroundColor: "#ec5b54", transform: [{ rotate: "45deg" }], alignItems: "center", justifyContent: "center" },
   homeMapPinCenter: { width: 5, height: 5, borderRadius: 3, backgroundColor: "#fff" },
   muted: { fontSize: 12, color: "#6d766f", marginTop: 3 },
+  hotCountdown: { fontSize: 12, color: "#d95a34", fontWeight: "900", marginTop: 3 },
+  farBadge: { color: "#b34b35", fontWeight: "900" },
   card: {
     backgroundColor: "#fff",
     borderWidth: 1,
@@ -3794,6 +3806,10 @@ const styles = StyleSheet.create({
   reportReasonText: { color: "#344039", fontSize: 12, fontWeight: "800" },
   reportBlockChoice: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 12, borderRadius: 14, backgroundColor: "#fff" },
   reportBlockText: { color: "#344039", fontWeight: "800" },
+  matchFeedbackSheet: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 26, borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: "#f7f8f3", gap: 12 },
+  matchFeedbackReasonGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  matchFeedbackReasonButton: { minHeight: 44, justifyContent: "center", paddingHorizontal: 14, borderRadius: 16, backgroundColor: "#eef1ed", borderWidth: 1, borderColor: "#dfe5df" },
+  matchFeedbackReasonText: { color: "#344039", fontSize: 12, fontWeight: "800" },
   ratingSheetScreen: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(18,30,24,0.35)" },
   ratingSheetPanel: { maxHeight: "94%", paddingTop: 10, borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: "#f7f8f3" },
   datePickerButton: { minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, borderRadius: 14, borderWidth: 1, borderColor: "#d8ded8", backgroundColor: "#fff" },

@@ -357,6 +357,18 @@ test('native profile camera, safety report, talk status, host tier, and demo lab
   assert.match(mobile, /blockUser,\s*\}\),/);
 });
 
+test('native waitlist, cancelled drafts, home urgency, activity status, and feedback match production', async () => {
+  const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
+
+  assert.equal((mobile.match(/\["OPEN", "FULL", "STARTED"\]\.includes\(hangout\.status\)/g) || []).length, 3);
+  assert.doesNotMatch(mobile, /hangout\.status !== "OPEN"/);
+  assert.match(mobile, /if \(visible\) \{ setMessage\(""\); setSubmitting\(false\); \}/);
+  assert.match(mobile, /if \(!visible\) return;[\s\S]*setTitle\(hangout\.title\)/);
+  for (const contract of ['・遠め', 'hotCountdown', "item.status === 'FULL' ? '満員'", 'MatchFeedbackModal', '次回のおすすめ改善にだけ利用します。']) {
+    assert.ok(mobile.includes(contract), `missing native current-production behavior: ${contract}`);
+  }
+});
+
 test('native Hangout creation offers every production image preset and native photo sources', async () => {
   const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
 
