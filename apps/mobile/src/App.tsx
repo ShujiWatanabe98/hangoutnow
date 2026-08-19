@@ -37,6 +37,7 @@ const HANGOUT_IMAGE_PRESETS = [
   { label: "映画", uri: `${WEBSITE_URL}/assets/hangout-movie.jpg`, category: "映画", title: "一緒に映画を観に行こう", description: "気になる映画を一緒に観て、終わったあとは感想を楽しく話しましょう。" },
 ] as const;
 const SESSION_KEY = "hangout-now-session";
+const MANUAL_AREA_KEY = "hangout-now-manual-area";
 const LINE_REDIRECT_URI = "hangoutnow://auth/line";
 const X_REDIRECT_URI = "hangoutnow://auth/x";
 const GOOGLE_REDIRECT_URI = "hangoutnow://auth/google";
@@ -250,7 +251,9 @@ const AREA_COORDINATES: Record<AlphaArea, { latitude: number; longitude: number 
   新宿: { latitude: 35.6909, longitude: 139.7003 },
   渋谷: { latitude: 35.658, longitude: 139.7016 },
 };
+const DEFAULT_MAP_COORDINATES = { latitude: 35.6762, longitude: 139.6993 };
 type AuthMode = "welcome" | "login" | "register";
+type LocationSource = "unset" | "manual" | "gps";
 type OAuthRegistrationInput = { displayName: string; birthDate: string; gender: string; profilePhotos?: string[] };
 function messageText(body: string) {
   return body.startsWith("__STAMP__") ? "過去のスタンプ" : body;
@@ -315,6 +318,7 @@ export default function App() {
   const [unreadByRoom, setUnreadByRoom] = useState<Record<string, number>>({});
   const [realtimeOnline, setRealtimeOnline] = useState(false);
   const [locationLabel, setLocationLabel] = useState("エリア未設定");
+  const [locationSource, setLocationSource] = useState<LocationSource>("unset");
   const [coordinates, setCoordinates] = useState<{
     latitude: number;
     longitude: number;
@@ -328,7 +332,18 @@ export default function App() {
   const [ratingReturnScreen, setRatingReturnScreen] = useState<"home" | "detail">("home");
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
   const [notificationInbox, setNotificationInbox] = useState<NotificationInbox>({ items: [], unreadCount: 0, enabled: true });
+  const [actionMessage, setActionMessage] = useState("");
   const handledNotificationResponseId = useRef<string | null>(null);
+  const actionMessageTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showActionMessage = useCallback((message: string) => {
+    if (actionMessageTimer.current) clearTimeout(actionMessageTimer.current);
+    setActionMessage(message);
+    actionMessageTimer.current = setTimeout(() => {
+      setActionMessage("");
+      actionMessageTimer.current = null;
+    }, 2200);
+  }, []);
 
   const request = useCallback(
     async <T,>(path: string, options: RequestInit = {}): Promise<T> => {
@@ -384,10 +399,11 @@ export default function App() {
       const update = (item: Hangout) => item.id === hangout.id ? { ...item, ...result } : item;
       setHangouts((current) => current.map(update));
       setSelectedHangout((current) => current ? update(current) : current);
+      showActionMessage(result.hearted ? "ハートを送りました" : "ハートを取り消しました");
     } catch {
       Alert.alert("ハートを送れませんでした", "通信状態を確認してもう一度お試しください。");
     }
-  }, [request]);
+  }, [request, showActionMessage]);
 
   const loadRooms = useCallback(async () => {
     if (!session) return [] as Room[];
@@ -462,8 +478,18 @@ export default function App() {
   }, [loadNotifications, session?.user.id]);
 
   useEffect(() => {
-    if (session && screen === "home" && coordinates) void loadHome();
-  }, [coordinates, loadHome, screen, session]);
+    void SecureStore.getItemAsync(MANUAL_AREA_KEY).then((storedArea) => {
+      if (storedArea !== "新宿" && storedArea !== "渋谷") return;
+      setSelectedArea(storedArea);
+      setCoordinates(AREA_COORDINATES[storedArea]);
+      setLocationLabel(storedArea);
+      setLocationSource("manual");
+    }).catch(() => undefined);
+  }, []);
+
+  useEffect(() => () => {
+    if (actionMessageTimer.current) clearTimeout(actionMessageTimer.current);
+  }, []);
 
   useEffect(() => { void SecureStore.deleteItemAsync(SESSION_KEY); }, []);
 
@@ -871,6 +897,8 @@ export default function App() {
     setSelectedArea(area);
     setCoordinates(next);
     setLocationLabel(area);
+    setLocationSource("manual");
+    void SecureStore.setItemAsync(MANUAL_AREA_KEY, area).catch(() => undefined);
     setLoading(true);
     setError("");
     try {
@@ -1139,7 +1167,9 @@ export default function App() {
       };
       setCoordinates(next);
       setLocationLabel("現在地周辺");
+      setLocationSource("gps");
       await loadHome(next);
+      showActionMessage("現在地から近い順に並べました");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "現在地を取得できませんでした");
     } finally {
@@ -1287,9 +1317,10 @@ export default function App() {
         </View>
       )}
       {error ? <Text style={styles.error}>{error}</Text> : null}
+      {actionMessage ? <View style={styles.actionToast} accessibilityLiveRegion="polite"><Text style={styles.actionToastText}>{actionMessage}</Text></View> : null}
       <KeyboardAvoidingView style={styles.content} behavior={Platform.OS === "ios" && screen !== "chat" ? "padding" : undefined} keyboardVerticalOffset={0}>
-        {screen === "home" && <HomeScreen user={session.user} hangouts={hangouts} refreshing={refreshing} locationLabel={locationLabel} selectedArea={selectedArea} demoRole={demoRole} onArea={chooseArea} onLocation={useCurrentLocation} onMap={() => setScreen("map")} onRefresh={refreshCurrent} onOpen={openHangout} onHeart={toggleHeart} onCreate={() => { if (!session.user.profilePhoto) { Alert.alert("プロフィール写真が必要です", "Hangoutを作る前に、顔が分かるプロフィール写真を登録してください。"); setScreen("profile"); return; } setScreen(session.user.verificationStatus === "PHONE_VERIFIED" ? "create" : "phone"); }} />}
-        {screen === "map" && <MapScreen hangouts={hangouts} coordinates={coordinates ?? AREA_COORDINATES[selectedArea]} onBack={() => setScreen("home")} onOpen={openHangout} />}
+        {screen === "home" && <HomeScreen user={session.user} hangouts={hangouts} refreshing={refreshing} locationLabel={locationLabel} locationSource={locationSource} selectedArea={selectedArea} demoRole={demoRole} onArea={chooseArea} onLocation={useCurrentLocation} onMap={() => setScreen("map")} onRefresh={refreshCurrent} onOpen={openHangout} onHeart={toggleHeart} onCreate={() => { if (!session.user.profilePhoto) { Alert.alert("プロフィール写真が必要です", "Hangoutを作る前に、顔が分かるプロフィール写真を登録してください。"); setScreen("profile"); return; } setScreen(session.user.verificationStatus === "PHONE_VERIFIED" ? "create" : "phone"); }} />}
+        {screen === "map" && <MapScreen hangouts={hangouts} coordinates={coordinates ?? DEFAULT_MAP_COORDINATES} onBack={() => setScreen("home")} onOpen={openHangout} />}
         {screen === "create" && <CreateHangoutScreen area={selectedArea} onBack={() => setScreen("home")} onSubmit={createHangout} />}
         {screen === "detail" && selectedHangout && <HangoutDetailScreen user={session.user} hangout={selectedHangout} requests={joinRequests} ratingMembers={rooms.find((room): room is GroupRoom => room.type === "GROUP" && room.hangout.id === selectedHangout.id)?.members ?? []} onBack={() => setScreen(detailReturnScreen)} onJoin={joinHangout} onChat={openHangoutChat} onRateMember={rateParticipant} onStart={startHangout} onFinish={confirmFinishHangout} onCancel={confirmCancelHangout} onEdit={updateHangout} onDecide={decideJoinRequest} onReport={confirmReportHost} onAttendance={updateAttendance} onMatchFeedback={submitMatchFeedback} />}
         {screen === "phone" && <PhoneVerificationScreen onBack={() => setScreen("profile")} onVerify={verifyPhone} />}
@@ -1507,7 +1538,7 @@ function CountdownText({ startAt, style }: { startAt: string; style?: object }) 
   return <Text style={style}>{label}</Text>;
 }
 
-function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, demoRole, onArea, onLocation, onMap, onRefresh, onOpen, onHeart, onCreate }: { user: User; hangouts: Hangout[]; refreshing: boolean; locationLabel: string; selectedArea: AlphaArea; demoRole: "host" | "guest" | null; onArea: (area: AlphaArea) => void; onLocation: () => void; onMap: () => void; onRefresh: () => void; onOpen: (hangout: Hangout) => void; onHeart: (hangout: Hangout) => void; onCreate: () => void }) {
+function HomeScreen({ user, hangouts, refreshing, locationLabel, locationSource, selectedArea, demoRole, onArea, onLocation, onMap, onRefresh, onOpen, onHeart, onCreate }: { user: User; hangouts: Hangout[]; refreshing: boolean; locationLabel: string; locationSource: LocationSource; selectedArea: AlphaArea; demoRole: "host" | "guest" | null; onArea: (area: AlphaArea) => void; onLocation: () => void; onMap: () => void; onRefresh: () => void; onOpen: (hangout: Hangout) => void; onHeart: (hangout: Hangout) => void; onCreate: () => void }) {
   const [filter, setFilter] = useState<"おすすめ" | "30分後" | "1時間後" | "3時間後">("おすすめ");
   const homeStateLabel = (hangout: Hangout) => hangout.hostUserId === user.id && ["OPEN", "FULL"].includes(hangout.status) ? "主催中" : stateLabel(hangout);
   const timeLabel = (startAt: string) => {
@@ -1525,7 +1556,7 @@ function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, d
     <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
       {demoRole && <View style={styles.demoJourney}><Text style={styles.demoJourneyTitle}>デモ：マミの飲み企画</Text><Text style={styles.demoJourneyText}>1. 主催者は30代女性のマミ{`\n`}2. 20代男性のマサヤは承認済み{`\n`}3. 30代女性のマドカはHangoutを検索中{`\n`}4. マドカが途中参加を申請{`\n`}5. 承認後はグループトークで会話</Text><Text style={styles.demoJourneyHint}>「マミと新宿で気軽に飲もう」を開いて試せます。</Text></View>}
       <View style={styles.hero}>
-        <Text style={styles.eyebrow}>{locationLabel === "エリア未設定" ? user.homeArea || locationLabel : locationLabel}</Text>
+        <Text style={styles.eyebrow}>{locationLabel}</Text>
         <Text style={styles.heroTitle}>今から何する？</Text>
         <Pressable style={styles.createButton} onPress={onCreate}>
           <Text style={styles.primaryText}>Hangoutを作る</Text>
@@ -1535,7 +1566,7 @@ function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, d
             <Text style={styles.locationText}>現在地を使う</Text>
           </Pressable>
           <Pressable style={styles.homeAreaPicker} onPress={chooseHomeArea} accessibilityRole="button" accessibilityLabel="エリアを選択">
-            <Text style={styles.homeAreaChoiceText}>{locationLabel === "エリア未設定" ? "エリアを選択" : selectedArea}</Text><Text style={styles.homeAreaChevron}>⌄</Text>
+            <Text style={styles.homeAreaChoiceText}>{locationSource === "manual" ? selectedArea : "エリアを選択"}</Text><Text style={styles.homeAreaChevron}>⌄</Text>
           </Pressable>
         </View>
       </View>
@@ -2624,6 +2655,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff0eb",
     color: "#a93622",
   },
+  actionToast: { position: "absolute", left: 24, right: 24, bottom: 78, zIndex: 50, alignItems: "center" },
+  actionToastText: { overflow: "hidden", paddingHorizontal: 16, paddingVertical: 11, borderRadius: 18, backgroundColor: "#17221d", color: "#fff", fontSize: 12, fontWeight: "800", textAlign: "center" },
   loading: {
     position: "absolute",
     top: 70,

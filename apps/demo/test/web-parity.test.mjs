@@ -516,3 +516,22 @@ test('native location, registration, and matching editor flows match production'
   const consent = mobile.indexOf('この設定情報をマッチング改善に利用することに同意します');
   assert.ok(behavior >= 0 && behavior < consent, 'behavior consent must precede matching-data consent');
 });
+
+test('native search location state and operation feedback match production safely', async () => {
+  const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
+
+  assert.match(mobile, /type LocationSource = "unset" \| "manual" \| "gps"/);
+  assert.match(mobile, /const MANUAL_AREA_KEY = "hangout-now-manual-area"/);
+  assert.match(mobile, /SecureStore\.setItemAsync\(MANUAL_AREA_KEY, area\)/);
+  assert.match(mobile, /SecureStore\.getItemAsync\(MANUAL_AREA_KEY\)/);
+  assert.doesNotMatch(mobile, /SecureStore\.setItemAsync\([^\n]*coordinates/);
+  assert.match(mobile, /setLocationSource\("manual"\)/);
+  assert.match(mobile, /setLocationSource\("gps"\)/);
+  assert.match(mobile, /locationSource === "manual" \? selectedArea : "エリアを選択"/);
+  assert.match(mobile, /<Text style=\{styles\.eyebrow\}>\{locationLabel\}<\/Text>/);
+  assert.match(mobile, /coordinates=\{coordinates \?\? DEFAULT_MAP_COORDINATES\}/);
+  assert.match(mobile, /DEFAULT_MAP_COORDINATES = \{ latitude: 35\.6762, longitude: 139\.6993 \}/);
+  assert.match(mobile, /showActionMessage\(result\.hearted \? "ハートを送りました" : "ハートを取り消しました"\)/);
+  assert.match(mobile, /showActionMessage\("現在地から近い順に並べました"\)/);
+  assert.match(mobile, /accessibilityLiveRegion="polite"/);
+});
