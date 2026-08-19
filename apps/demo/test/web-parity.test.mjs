@@ -439,6 +439,21 @@ test('native participant members, applicant profile, and chat heading match prod
   assert.doesNotMatch(mobile, />見送る<\/Text>/);
 });
 
+test('native profile context, finished ratings, chat copy, and empty interests match production', async () => {
+  const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
+
+  assert.match(mobile, /setSelectedApplicantTitle\("参加メンバープロフィール"\)/);
+  assert.match(mobile, /setSelectedApplicantTitle\("申請者プロフィール"\)/);
+  assert.match(mobile, /<Text style=\{styles\.applicantModalTitle\}>\{title\}<\/Text>/);
+  assert.match(mobile, /member\.id === hostUserId \? "主催者として評価" : "参加者として評価"/);
+  assert.match(mobile, /`グループ ・ \$\{selectedRoom\.members\.length\}人 ・ `/);
+  assert.match(mobile, /\{item\.sender\.displayName\}<\/Text>/);
+  assert.doesNotMatch(mobile, /mine \? "あなた" : item\.sender\.displayName/);
+  assert.match(mobile, /placeholder="メッセージを入力"/);
+  assert.match(mobile, /user\.interests\.length \? user\.interests\.map/);
+  assert.match(mobile, /<Text style=\{styles\.tag\}>未登録<\/Text>/);
+});
+
 test('native hosted and participated history opens the production finished Hangout flow', async () => {
   const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
 
