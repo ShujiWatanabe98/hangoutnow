@@ -405,3 +405,16 @@ test('native hosted and participated history opens the production finished Hango
   assert.match(mobile, /hangout\.status !== "FINISHED" && hangout\.myJoinStatus === "ACCEPTED"/);
   assert.match(mobile, /profileActivityCard: \{ width: "100%"[^\n]+borderWidth: 1/);
 });
+
+test('native notifications match the standalone production notification screen', async () => {
+  const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
+
+  assert.match(mobile, /demoRole && screen !== "notifications"/);
+  assert.match(mobile, /screen !== "create" && screen !== "notifications"/);
+  assert.match(mobile, /onDeviceNotifications=\{\(\) => void enableDeviceNotifications\(true\)\}/);
+  assert.match(mobile, /端末通知を許可/);
+  assert.match(mobile, /accessibilityRole="checkbox"/);
+  assert.match(mobile, /notificationActions: \{ flexDirection: "row"[^\n]+gap: 5/);
+  assert.match(mobile, /notificationItemUnread: \{ borderLeftWidth: 5, borderLeftColor: "#176b48", backgroundColor: "#f6fff8" \}/);
+  assert.doesNotMatch(mobile, /notificationDot/);
+});

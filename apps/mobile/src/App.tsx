@@ -458,27 +458,32 @@ export default function App() {
 
   useEffect(() => { void SecureStore.deleteItemAsync(SESSION_KEY); }, []);
 
-  useEffect(() => {
-    if (!session || Platform.OS === "web" || !Device.isDevice) return;
-    let active = true;
-    void (async () => {
+  const enableDeviceNotifications = useCallback(async (requestPermission: boolean) => {
+      if (Platform.OS === "web" || !Device.isDevice) {
+        if (requestPermission) Alert.alert("端末通知", "実機のiPhoneで通知を許可できます。");
+        return;
+      }
       const existing = await Notifications.getPermissionsAsync();
-      const permission = existing.status === "granted" ? existing : await Notifications.requestPermissionsAsync();
-      if (!active || permission.status !== "granted") return;
+      const permission = existing.status === "granted" ? existing : requestPermission ? await Notifications.requestPermissionsAsync() : existing;
+      if (permission.status !== "granted") {
+        if (requestPermission) Alert.alert("端末通知を許可できませんでした", "iPhoneの設定からHangout Nowの通知を許可してください。");
+        return;
+      }
       const projectId = Constants.expoConfig?.extra?.eas?.projectId;
       if (typeof projectId !== "string" || !projectId) return;
       const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
-      if (!active) return;
       await request("/notifications/push-token", {
         method: "POST",
         body: JSON.stringify({ token, platform: Platform.OS }),
       });
       await SecureStore.setItemAsync("hangout-now-push-token", token);
-    })().catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, [request, session?.user.id]);
+      if (requestPermission) Alert.alert("端末通知を許可しました", "Hangoutの更新をiPhoneで受け取れます。");
+  }, [request]);
+
+  useEffect(() => {
+    if (!session) return;
+    void enableDeviceNotifications(false).catch(() => undefined);
+  }, [enableDeviceNotifications, session?.user.id]);
 
   useEffect(() => {
     if (!session || Platform.OS === "web" || !Device.isDevice) return;
@@ -1255,7 +1260,7 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      {demoRole && !(screen === "chat" && selectedRoom) && (
+      {demoRole && screen !== "notifications" && !(screen === "chat" && selectedRoom) && (
         <View style={styles.demoBanner}>
           <View>
             <Text style={styles.demoTitle}>デモ：{demoRole === "host" ? "マミ（主催者）" : "マドカ（参加者）"}として体験中</Text>
@@ -1267,7 +1272,7 @@ export default function App() {
           </View>
         </View>
       )}
-      {screen !== "chat" && screen !== "detail" && screen !== "create" && (
+      {screen !== "chat" && screen !== "detail" && screen !== "create" && screen !== "notifications" && (
         <View style={styles.header}>
           <Text style={styles.brand}>
             Hangout <Text style={styles.brandAccent}>Now</Text>
@@ -1294,7 +1299,7 @@ export default function App() {
         {screen === "chat" && <ChatScreen user={session.user} rooms={rooms} selectedRoom={selectedRoom} messages={messages} messageBody={messageBody} sending={sending} refreshing={refreshing} unreadByRoom={unreadByRoom} realtimeOnline={realtimeOnline} onRefresh={refreshCurrent} onOpen={openRoom} onRate={rateParticipant} onBack={() => selectedRoom ? setSelectedRoom(null) : setScreen(chatReturnScreen)} onChangeBody={setMessageBody} onSend={sendMessage} />}
         {screen === "rating" && ratingRoom && <RatingScreen user={session.user} room={ratingRoom} onRate={rateParticipant} onDone={() => { setRatingRoom(null); setScreen(ratingReturnScreen); }} />}
         {screen === "profile" && <ProfileScreen user={session.user} hostStatus={hostStatus} activity={profileActivity} demo={!!demoRole} onChat={() => { setSelectedRoom(null); setChatReturnScreen("profile"); setScreen("chat"); }} onOpenHangout={(id) => void openHangout({ id })} onPhone={() => setScreen("phone")} onPhoto={chooseProfilePhoto} onSave={updateProfile} onDelete={confirmDeleteAccount} onLogout={logout} />}
-        {screen === "notifications" && <NotificationScreen inbox={notificationInbox} refreshing={refreshing} onBack={() => setScreen("home")} onRefresh={refreshCurrent} onEnabled={setNotificationEnabled} onRead={readNotification} onReadAll={readAllNotifications} onDelete={confirmDeleteNotifications} />}
+        {screen === "notifications" && <NotificationScreen inbox={notificationInbox} refreshing={refreshing} onBack={() => setScreen("home")} onRefresh={refreshCurrent} onEnabled={setNotificationEnabled} onDeviceNotifications={() => void enableDeviceNotifications(true)} onRead={readNotification} onReadAll={readAllNotifications} onDelete={confirmDeleteNotifications} />}
       </KeyboardAvoidingView>
       {Platform.OS === "ios" && (
         <InputAccessoryView nativeID={IOS_KEYBOARD_ACCESSORY_ID}>
@@ -2380,7 +2385,7 @@ function ChatScreen({ user, rooms, selectedRoom, messages, messageBody, sending,
   );
 }
 
-function NotificationScreen({ inbox, refreshing, onBack, onRefresh, onEnabled, onRead, onReadAll, onDelete }: { inbox: NotificationInbox; refreshing: boolean; onBack: () => void; onRefresh: () => void; onEnabled: (enabled: boolean) => void; onRead: (id: string) => void; onReadAll: () => void; onDelete: () => void }) {
+function NotificationScreen({ inbox, refreshing, onBack, onRefresh, onEnabled, onDeviceNotifications, onRead, onReadAll, onDelete }: { inbox: NotificationInbox; refreshing: boolean; onBack: () => void; onRefresh: () => void; onEnabled: (enabled: boolean) => void; onDeviceNotifications: () => void; onRead: (id: string) => void; onReadAll: () => void; onDelete: () => void }) {
   return (
     <View style={styles.notificationScreen}>
       <View style={styles.notificationHead}>
@@ -2390,16 +2395,18 @@ function NotificationScreen({ inbox, refreshing, onBack, onRefresh, onEnabled, o
       </View>
       <ScrollView contentContainerStyle={styles.notificationPage} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
       <View style={styles.notificationSettings}>
-        <View style={styles.notificationSettingCopy}><Text style={styles.notificationSettingTitle}>アプリ内通知を受け取る</Text><Text style={styles.muted}>申請・承認・トーク・Hangoutの更新をお知らせします。</Text></View>
-        <Pressable accessibilityRole="switch" accessibilityState={{ checked: inbox.enabled }} style={[styles.notificationToggle, inbox.enabled && styles.notificationToggleOn]} onPress={() => onEnabled(!inbox.enabled)}><View style={[styles.notificationToggleKnob, inbox.enabled && styles.notificationToggleKnobOn]} /></Pressable>
-      </View>
-      <View style={styles.notificationActions}>
-        <Pressable style={styles.readAllButton} onPress={onReadAll}><Text style={styles.readAllButtonText}>すべて既読</Text></Pressable>
-        <Pressable style={styles.deleteNotificationsButton} onPress={onDelete}><Text style={styles.deleteNotificationsText}>通知を削除</Text></Pressable>
+        <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: inbox.enabled }} style={styles.notificationSettingRow} onPress={() => onEnabled(!inbox.enabled)}>
+          <View style={[styles.notificationCheckbox, inbox.enabled && styles.notificationCheckboxOn]}><Text style={styles.notificationCheckmark}>{inbox.enabled ? "✓" : ""}</Text></View>
+          <Text style={styles.notificationSettingTitle}>アプリ内通知を受け取る</Text>
+        </Pressable>
+        <View style={styles.notificationActions}>
+          <Pressable style={styles.deviceNotificationsButton} onPress={onDeviceNotifications}><Text style={styles.deviceNotificationsText}>端末通知を許可</Text></Pressable>
+          <Pressable style={styles.readAllButton} onPress={onReadAll}><Text style={styles.readAllButtonText}>すべて既読</Text></Pressable>
+          <Pressable style={styles.deleteNotificationsButton} onPress={onDelete}><Text style={styles.deleteNotificationsText}>通知を削除</Text></Pressable>
+        </View>
       </View>
       {inbox.items.map((item) => (
         <Pressable key={item.id} style={[styles.notificationItem, !item.readAt && styles.notificationItemUnread]} onPress={() => onRead(item.id)}>
-          <View style={[styles.notificationDot, item.readAt && styles.notificationDotRead]} />
           <View style={styles.notificationItemCopy}><Text style={styles.notificationItemTitle}>{item.title}</Text><Text style={styles.notificationItemBody}>{item.body}</Text><Text style={styles.notificationItemTime}>{new Date(item.createdAt).toLocaleString("ja-JP")}</Text></View>
         </Pressable>
       ))}
@@ -3730,24 +3737,25 @@ const styles = StyleSheet.create({
   filterPillText: { color: "#59635c", fontSize: 12, fontWeight: "800" },
   filterPillTextOn: { color: "#fff" },
   notificationScreen: { flex: 1, backgroundColor: "#f7f8f3" },
-  notificationPage: { padding: 18, paddingBottom: 80, gap: 12 },
-  notificationHead: { minHeight: 64, flexDirection: "row", alignItems: "center", paddingHorizontal: 18, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#dfe5df", backgroundColor: "#fff" },
-  notificationHeadTitle: { flex: 1, alignItems: "center" },
+  notificationPage: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 80, gap: 8 },
+  notificationHead: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 20, paddingVertical: 14, backgroundColor: "#f7f8f3" },
+  notificationHeadTitle: { flex: 1, alignItems: "flex-start" },
   notificationHeadEyebrow: { color: "#176b48", fontSize: 10, fontWeight: "900" },
   notificationHeadText: { marginTop: 2, color: "#17221d", fontSize: 17, fontWeight: "900" },
   notificationHeadSpacer: { width: 42 },
-  notificationSettings: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, padding: 16, borderRadius: 18, backgroundColor: "#fff" },
-  notificationSettingCopy: { flex: 1, gap: 3 },
-  notificationSettingTitle: { color: "#17221d", fontSize: 14, fontWeight: "900" },
-  notificationToggle: { width: 48, height: 28, borderRadius: 14, padding: 3, backgroundColor: "#ccd3cd" },
-  notificationToggleOn: { backgroundColor: "#176b48" },
-  notificationToggleKnob: { width: 22, height: 22, borderRadius: 11, backgroundColor: "#fff" },
-  notificationToggleKnobOn: { transform: [{ translateX: 20 }] },
-  notificationActions: { flexDirection: "row", justifyContent: "flex-end", gap: 8 },
-  readAllButton: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 16, backgroundColor: "#e8f3e8" },
-  readAllButtonText: { color: "#176b48", fontSize: 11, fontWeight: "900" },
-  deleteNotificationsButton: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 16, backgroundColor: "#fff0eb" },
-  deleteNotificationsText: { color: "#a93622", fontSize: 11, fontWeight: "900" },
+  notificationSettings: { marginBottom: 6, padding: 14, borderRadius: 17, backgroundColor: "#fff" },
+  notificationSettingRow: { minHeight: 34, flexDirection: "row", alignItems: "center", gap: 9, marginBottom: 12 },
+  notificationSettingTitle: { color: "#17221d", fontSize: 13, fontWeight: "800" },
+  notificationCheckbox: { width: 22, height: 22, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#bfc8c1", borderRadius: 5, backgroundColor: "#fff" },
+  notificationCheckboxOn: { borderColor: "#176b48", backgroundColor: "#176b48" },
+  notificationCheckmark: { color: "#fff", fontSize: 14, fontWeight: "900" },
+  notificationActions: { flexDirection: "row", alignItems: "stretch", gap: 5 },
+  deviceNotificationsButton: { flex: 1, minHeight: 44, alignItems: "center", justifyContent: "center", paddingHorizontal: 5, borderWidth: 1, borderColor: "#dce2dc", borderRadius: 12, backgroundColor: "#fff" },
+  deviceNotificationsText: { color: "#17221d", fontSize: 10, fontWeight: "800", textAlign: "center" },
+  readAllButton: { flex: 1, minHeight: 44, alignItems: "center", justifyContent: "center", paddingHorizontal: 5, borderWidth: 1, borderColor: "#dce2dc", borderRadius: 12, backgroundColor: "#fff" },
+  readAllButtonText: { color: "#17221d", fontSize: 10, fontWeight: "800", textAlign: "center" },
+  deleteNotificationsButton: { flex: 1, minHeight: 44, alignItems: "center", justifyContent: "center", paddingHorizontal: 5, borderWidth: 1, borderColor: "#f0c7bf", borderRadius: 12, backgroundColor: "#fff3f0" },
+  deleteNotificationsText: { color: "#a53b2c", fontSize: 10, fontWeight: "800", textAlign: "center" },
   approvedMemberRow: { minHeight: 62, flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 8, borderBottomWidth: 1, borderColor: "#e7ebe6" },
   approvedMemberPhoto: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#dfe6df" },
   approvedMemberPhotoFallback: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: "#176b48" },
@@ -3761,10 +3769,8 @@ const styles = StyleSheet.create({
   photoViewerControl: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.18)" },
   photoViewerControlText: { color: "#fff", fontSize: 38, lineHeight: 42 },
   photoViewerCount: { color: "#fff", fontSize: 13, fontWeight: "800" },
-  notificationItem: { flexDirection: "row", gap: 11, padding: 15, borderRadius: 17, backgroundColor: "#fff", borderWidth: 1, borderColor: "#e5e9e4" },
-  notificationItemUnread: { backgroundColor: "#f3fbe2", borderColor: "#cce58a" },
-  notificationDot: { width: 9, height: 9, borderRadius: 5, marginTop: 5, backgroundColor: "#e05245" },
-  notificationDotRead: { backgroundColor: "#c7cec8" },
+  notificationItem: { width: "100%", padding: 13, borderRadius: 15, backgroundColor: "#fff", borderWidth: 1, borderColor: "#e3e7df" },
+  notificationItemUnread: { borderLeftWidth: 5, borderLeftColor: "#176b48", backgroundColor: "#f6fff8" },
   notificationItemCopy: { flex: 1, gap: 4 },
   notificationItemTitle: { color: "#17221d", fontSize: 13, fontWeight: "900" },
   notificationItemBody: { color: "#4f5a52", fontSize: 12, lineHeight: 18 },
