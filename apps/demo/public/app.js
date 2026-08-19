@@ -55,6 +55,25 @@ const buttonReliabilityObserver=new MutationObserver(()=>{
   document.querySelectorAll('button:not([type])').forEach(button=>{if(!button.closest('form'))button.type='button'});
 });
 buttonReliabilityObserver.observe(document.body,{childList:true,subtree:true});
+const BUTTON_REPEAT_GUARD_MS=900;
+const recentButtonActions=new WeakMap();
+document.addEventListener('click',event=>{
+  const button=event.target instanceof Element?event.target.closest('button'):null;
+  if(!button||button.disabled)return;
+  const now=performance.now();
+  const previousAction=recentButtonActions.get(button);
+  if(previousAction!==undefined&&now-previousAction<BUTTON_REPEAT_GUARD_MS){
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    button.classList.remove('button-pressed');
+    return;
+  }
+  recentButtonActions.set(button,now);
+},true);
+document.addEventListener('dblclick',event=>{
+  const button=event.target instanceof Element?event.target.closest('button'):null;
+  if(button)event.preventDefault();
+},true);
 document.addEventListener('pointerdown',event=>{const button=event.target.closest('button');if(button&&!button.disabled)button.classList.add('button-pressed')},{passive:true});
 document.addEventListener('pointerup',event=>event.target.closest('button')?.classList.remove('button-pressed'),{passive:true});
 document.addEventListener('pointercancel',event=>event.target.closest('button')?.classList.remove('button-pressed'),{passive:true});

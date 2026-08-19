@@ -195,6 +195,15 @@ test('web Hangout publishing gives immediate feedback and ignores repeated taps'
   assert.match(application, /catch\(error\)\{publishing=false;publishButton\.disabled=false;publishButton\.removeAttribute\('aria-busy'\);publishButton\.textContent='Hangout公開'/);
 });
 
+test('every web button has a shared rapid repeat guard', async () => {
+  const application = await readFile(new URL('app.js', publicDirectory), 'utf8');
+  assert.match(application, /const BUTTON_REPEAT_GUARD_MS=900/);
+  assert.match(application, /const recentButtonActions=new WeakMap\(\)/);
+  assert.match(application, /document\.addEventListener\('click',event=>\{/);
+  assert.match(application, /event\.stopImmediatePropagation\(\)/);
+  assert.match(application, /document\.addEventListener\('dblclick',event=>\{/);
+});
+
 test('native profile photo insertion never sends sparse arrays', async () => {
   const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
   assert.match(mobile, /existingPhotos=.*\.filter\(\(value\): value is string => Boolean\(value\)\)/);
