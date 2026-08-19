@@ -684,6 +684,7 @@ export default function App() {
       setSelectedHangout(detail);
       if (detail.hostUserId === session?.user.id) setJoinRequests(await request<JoinRequest[]>(`/hangouts/${detail.id}/requests`));
       else setJoinRequests([]);
+      if (detail.status === "FINISHED") await loadRooms();
       setScreen("detail");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "募集詳細を取得できませんでした");
@@ -1288,7 +1289,7 @@ export default function App() {
         {screen === "home" && <HomeScreen user={session.user} hangouts={hangouts} refreshing={refreshing} locationLabel={locationLabel} selectedArea={selectedArea} demoRole={demoRole} onArea={chooseArea} onLocation={useCurrentLocation} onMap={() => setScreen("map")} onRefresh={refreshCurrent} onOpen={openHangout} onHeart={toggleHeart} onCreate={() => { if (!session.user.profilePhoto) { Alert.alert("プロフィール写真が必要です", "Hangoutを作る前に、顔が分かるプロフィール写真を登録してください。"); setScreen("profile"); return; } setScreen(session.user.verificationStatus === "PHONE_VERIFIED" ? "create" : "phone"); }} />}
         {screen === "map" && <MapScreen hangouts={hangouts} coordinates={coordinates ?? AREA_COORDINATES[selectedArea]} onBack={() => setScreen("home")} onOpen={openHangout} />}
         {screen === "create" && <CreateHangoutScreen area={selectedArea} onBack={() => setScreen("home")} onSubmit={createHangout} />}
-        {screen === "detail" && selectedHangout && <HangoutDetailScreen user={session.user} hangout={selectedHangout} requests={joinRequests} onBack={() => setScreen(detailReturnScreen)} onJoin={joinHangout} onChat={openHangoutChat} onRate={() => void openHangoutRating(selectedHangout.id)} onStart={startHangout} onFinish={confirmFinishHangout} onCancel={confirmCancelHangout} onEdit={updateHangout} onDecide={decideJoinRequest} onReport={confirmReportHost} onAttendance={updateAttendance} onMatchFeedback={submitMatchFeedback} />}
+        {screen === "detail" && selectedHangout && <HangoutDetailScreen user={session.user} hangout={selectedHangout} requests={joinRequests} ratingMembers={rooms.find((room): room is GroupRoom => room.type === "GROUP" && room.hangout.id === selectedHangout.id)?.members ?? []} onBack={() => setScreen(detailReturnScreen)} onJoin={joinHangout} onChat={openHangoutChat} onRateMember={rateParticipant} onStart={startHangout} onFinish={confirmFinishHangout} onCancel={confirmCancelHangout} onEdit={updateHangout} onDecide={decideJoinRequest} onReport={confirmReportHost} onAttendance={updateAttendance} onMatchFeedback={submitMatchFeedback} />}
         {screen === "phone" && <PhoneVerificationScreen onBack={() => setScreen("profile")} onVerify={verifyPhone} />}
         {screen === "chat" && <ChatScreen user={session.user} rooms={rooms} selectedRoom={selectedRoom} messages={messages} messageBody={messageBody} sending={sending} refreshing={refreshing} unreadByRoom={unreadByRoom} realtimeOnline={realtimeOnline} onRefresh={refreshCurrent} onOpen={openRoom} onRate={rateParticipant} onBack={() => selectedRoom ? setSelectedRoom(null) : setScreen(chatReturnScreen)} onChangeBody={setMessageBody} onSend={sendMessage} />}
         {screen === "rating" && ratingRoom && <RatingScreen user={session.user} room={ratingRoom} onRate={rateParticipant} onDone={() => { setRatingRoom(null); setScreen(ratingReturnScreen); }} />}
@@ -1747,7 +1748,7 @@ function CreateHangoutScreen({ area, onBack, onSubmit }: { area: AlphaArea; onBa
   );
 }
 
-function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onChat, onRate, onStart, onFinish, onCancel, onEdit, onDecide, onReport, onAttendance, onMatchFeedback }: { user: User; hangout: Hangout; requests: JoinRequest[]; onBack: () => void; onJoin: (hangout: Hangout, message: string) => Promise<void>; onChat: (id: string) => void; onRate: () => void; onStart: (id: string) => void; onFinish: (id: string) => void; onCancel: (id: string) => void; onEdit: (hangoutId: string, input: Partial<CreateHangoutInput>) => Promise<void>; onDecide: (id: string, accept: boolean) => void; onReport: (hangout: Hangout) => void; onAttendance: (status: "CONFIRMED" | "CANCELLED") => void; onMatchFeedback: (hangout: Hangout) => void }) {
+function HangoutDetailScreen({ user, hangout, requests, ratingMembers, onBack, onJoin, onChat, onRateMember, onStart, onFinish, onCancel, onEdit, onDecide, onReport, onAttendance, onMatchFeedback }: { user: User; hangout: Hangout; requests: JoinRequest[]; ratingMembers: ChatMember[]; onBack: () => void; onJoin: (hangout: Hangout, message: string) => Promise<void>; onChat: (id: string) => void; onRateMember: (hangoutId: string, ratedUserId: string, score: number) => void; onStart: (id: string) => void; onFinish: (id: string) => void; onCancel: (id: string) => void; onEdit: (hangoutId: string, input: Partial<CreateHangoutInput>) => Promise<void>; onDecide: (id: string, accept: boolean) => void; onReport: (hangout: Hangout) => void; onAttendance: (status: "CONFIRMED" | "CANCELLED") => void; onMatchFeedback: (hangout: Hangout) => void }) {
   const isHost = hangout.hostUserId === user.id;
   const ineligibleReason = eligibilityReason(user, hangout);
   const [selectedApplicant, setSelectedApplicant] = useState<ApplicantProfile | null>(null);
@@ -1787,8 +1788,8 @@ function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onChat, 
           </View>
           {hangout.myJoinStatus === "ACCEPTED" && hangout.navigationUrl && <Pressable style={styles.participantNavigationButton} onPress={() => void Linking.openURL(hangout.navigationUrl!)}><Text style={styles.participantNavigationText}>地図アプリでナビ開始</Text></Pressable>}
           {hangout.distanceKm != null && hangout.distanceKm > 10 && <Text style={styles.distanceWarning}>移動距離が長めです。開始時刻に間に合うか確認してください。</Text>}
-          {hangout.status === "FINISHED" && hangout.myJoinStatus === "ACCEPTED" && <Pressable style={styles.finishButtonWide} onPress={onRate}><Text style={styles.primaryText}>主催者・参加者を評価</Text></Pressable>}
-          {hangout.myJoinStatus === "ACCEPTED" && <View style={styles.participantAttendancePanel}><Text style={styles.hostName}>{hangout.myAttendanceStatus === "CONFIRMED" ? "参加予定として回答済み" : "開始前の出欠確認"}</Text><Text style={styles.muted}>予定が変わった場合は早めにお知らせください。</Text><View style={styles.requestActions}><Pressable style={styles.rejectButton} onPress={() => onAttendance("CANCELLED")}><Text>キャンセル</Text></Pressable><Pressable style={styles.acceptButton} onPress={() => onAttendance("CONFIRMED")}><Text style={styles.primaryText}>参加する</Text></Pressable></View></View>}
+          {hangout.status === "FINISHED" && hangout.myJoinStatus === "ACCEPTED" && <InlineHangoutRatings userId={user.id} hangoutId={hangout.id} members={ratingMembers} onRate={onRateMember} onDone={onBack} />}
+          {hangout.status !== "FINISHED" && hangout.myJoinStatus === "ACCEPTED" && <View style={styles.participantAttendancePanel}><Text style={styles.hostName}>{hangout.myAttendanceStatus === "CONFIRMED" ? "参加予定として回答済み" : "開始前の出欠確認"}</Text><Text style={styles.muted}>予定が変わった場合は早めにお知らせください。</Text><View style={styles.requestActions}><Pressable style={styles.rejectButton} onPress={() => onAttendance("CANCELLED")}><Text>キャンセル</Text></Pressable><Pressable style={styles.acceptButton} onPress={() => onAttendance("CONFIRMED")}><Text style={styles.primaryText}>参加する</Text></Pressable></View></View>}
           {hangout.myJoinStatus === "WAITLISTED" && <View style={styles.participantAttendancePanel}><Text style={styles.hostName}>待機リストに登録済み</Text><Text style={styles.muted}>空席が出たら通知します。集合場所の詳細は承認後に表示されます。</Text></View>}
           {hangout.myJoinStatus === "ACCEPTED" && <View style={styles.participantMembersPanel}><Text style={styles.sectionTitle}>参加メンバー</Text><Text style={styles.muted}>主催者 1人</Text>{(hangout.acceptedParticipants ?? []).map((member) => <Pressable key={member.id} style={styles.approvedMemberRow} onPress={() => setSelectedApplicant(member)}><Text style={styles.hostName}>{member.displayName}</Text><Text style={styles.profileActivityChevron}>›</Text></Pressable>)}</View>}
           {!hasActiveRequest && user.matchingDataConsent && <View style={styles.matchFeedbackPanel}><Text style={styles.muted}>この募集が合わない場合</Text><Pressable style={styles.matchFeedbackButton} onPress={() => onMatchFeedback(hangout)}><Text style={styles.matchFeedbackButtonText}>合わない理由を送る</Text></Pressable></View>}
@@ -1831,8 +1832,8 @@ function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onChat, 
           </View>
           {!!hangout.navigationUrl && <Pressable style={styles.participantNavigationButton} onPress={() => void Linking.openURL(hangout.navigationUrl!)}><Text style={styles.participantNavigationText}>地図アプリでナビ開始</Text></Pressable>}
           <View style={styles.participantMembersPanel}><Text style={styles.sectionTitle}>参加メンバー</Text><Text style={styles.muted}>主催者 1人</Text>{(hangout.acceptedParticipants ?? []).map((member) => <Pressable key={member.id} style={styles.approvedMemberRow} onPress={() => setSelectedApplicant(member)} accessibilityLabel={`${member.displayName}のプロフィールを見る`}>{member.profilePhoto ? <Image source={{ uri: member.profilePhoto }} style={styles.approvedMemberPhoto} /> : <View style={styles.approvedMemberPhotoFallback}><Text style={styles.approvedMemberInitial}>{member.displayName.slice(0, 1)}</Text></View>}<View style={styles.cardCopy}><Text style={styles.hostName}>{member.displayName}</Text><Text style={styles.muted}>{member.verification === "PHONE_VERIFIED" ? "電話確認済み" : "本人確認前"}</Text></View><Text style={styles.profileActivityChevron}>›</Text></Pressable>)}{!hangout.acceptedParticipants?.length && <Text style={styles.empty}>承認済みの参加者はまだいません。</Text>}</View>
-          {hangout.status !== "FINISHED" && <View style={styles.hostRequestPanel}><View style={styles.hostRequestHeader}><View><Text style={styles.participantPanelLabel}>参加申請</Text><Text style={styles.hostRequestTitle}>参加したいメンバー</Text></View><Text style={styles.hostRequestBadge}>{requests.filter((item) => item.status === "PENDING").length}件の判断待ち</Text></View>{requests.map((item) => <View key={item.id} style={styles.hostRequestCard}><Pressable style={styles.hostRequestPerson} onPress={() => setSelectedApplicant(item.user)}>{item.user.profilePhoto ? <Image source={{ uri: item.user.profilePhoto }} style={styles.approvedMemberPhoto} /> : <View style={styles.approvedMemberPhotoFallback}><Text style={styles.approvedMemberInitial}>{item.user.displayName.slice(0, 1)}</Text></View>}<View style={styles.cardCopy}><Text style={styles.hostName}>{item.user.displayName}</Text><Text style={styles.muted}>{item.user.verification === "PHONE_VERIFIED" ? "✓ 電話確認済み" : "本人確認前"}</Text></View><Text style={styles.profileActivityChevron}>›</Text></Pressable><Text style={styles.hostRequestMessage}>{item.message || "メッセージなし"}</Text>{item.status === "PENDING" ? <View style={styles.requestActions}><Pressable style={styles.rejectButton} onPress={() => onDecide(item.id, false)}><Text>却下</Text></Pressable><Pressable style={styles.acceptButton} onPress={() => onDecide(item.id, true)}><Text style={styles.primaryText}>承認</Text></Pressable></View> : <Text style={styles.requestResult}>{item.status === "ACCEPTED" ? "承認済み" : item.status === "WAITLISTED" ? "待機中" : item.status === "REJECTED" ? "却下済み" : "キャンセル"}</Text>}</View>)}{!requests.length && <Text style={styles.empty}>参加申請はまだありません。</Text>}</View>}
-          {hangout.status === "FINISHED" && <Pressable style={styles.finishButtonWide} onPress={onRate}><Text style={styles.primaryText}>主催者・参加者を評価</Text></Pressable>}
+          {hangout.status === "FINISHED" && <InlineHangoutRatings userId={user.id} hangoutId={hangout.id} members={ratingMembers} onRate={onRateMember} onDone={onBack} />}
+          <View style={styles.hostRequestPanel}><View style={styles.hostRequestHeader}><View><Text style={styles.participantPanelLabel}>参加申請</Text><Text style={styles.hostRequestTitle}>参加したいメンバー</Text></View><Text style={styles.hostRequestBadge}>{requests.filter((item) => item.status === "PENDING").length}件の判断待ち</Text></View>{requests.map((item) => <View key={item.id} style={styles.hostRequestCard}><Pressable style={styles.hostRequestPerson} onPress={() => setSelectedApplicant(item.user)}>{item.user.profilePhoto ? <Image source={{ uri: item.user.profilePhoto }} style={styles.approvedMemberPhoto} /> : <View style={styles.approvedMemberPhotoFallback}><Text style={styles.approvedMemberInitial}>{item.user.displayName.slice(0, 1)}</Text></View>}<View style={styles.cardCopy}><Text style={styles.hostName}>{item.user.displayName}</Text><Text style={styles.muted}>{item.user.verification === "PHONE_VERIFIED" ? "✓ 電話確認済み" : "本人確認前"}</Text></View><Text style={styles.profileActivityChevron}>›</Text></Pressable><Text style={styles.hostRequestMessage}>{item.message || "メッセージなし"}</Text>{item.status === "PENDING" && hangout.status !== "FINISHED" ? <View style={styles.requestActions}><Pressable style={styles.rejectButton} onPress={() => onDecide(item.id, false)}><Text>却下</Text></Pressable><Pressable style={styles.acceptButton} onPress={() => onDecide(item.id, true)}><Text style={styles.primaryText}>承認</Text></Pressable></View> : <Text style={styles.requestResult}>{item.status === "ACCEPTED" ? "承認済み" : item.status === "WAITLISTED" ? "待機中" : item.status === "REJECTED" ? "却下済み" : "キャンセル"}</Text>}</View>)}{!requests.length && <Text style={styles.empty}>参加申請はまだありません。</Text>}</View>
           <View style={styles.hostOwnerActions}>
             {hangout.status !== "FINISHED" && <Pressable style={styles.editHangoutButton} onPress={() => setEditing(true)}><Text style={styles.editHangoutButtonText}>Hangout編集</Text></Pressable>}
             <Pressable style={styles.cancelHangoutButton} onPress={() => onCancel(hangout.id)}><Text style={styles.cancelHangoutButtonText}>Hangout削除</Text></Pressable>
@@ -1891,7 +1892,7 @@ function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onChat, 
             <Text style={styles.talkButtonWideText}>トーク</Text>
           </Pressable>
         )}
-        {hangout.status === "FINISHED" && (isHost || hangout.myJoinStatus === "ACCEPTED") && <Pressable style={styles.finishButtonWide} onPress={onRate}><Text style={styles.primaryText}>主催者・参加者を評価</Text></Pressable>}
+        {hangout.status === "FINISHED" && (isHost || hangout.myJoinStatus === "ACCEPTED") && <InlineHangoutRatings userId={user.id} hangoutId={hangout.id} members={ratingMembers} onRate={onRateMember} onDone={onBack} />}
         {!isHost && hangout.myJoinStatus === "ACCEPTED" && (
           <View style={styles.detailPanel}>
             <Text style={styles.hostName}>{hangout.myAttendanceStatus === "CONFIRMED" ? "参加予定として回答済み" : "開始前の出欠確認"}</Text>
@@ -2160,6 +2161,30 @@ function PhoneVerificationScreen({ onBack, onVerify }: { onBack: () => void; onV
   );
 }
 
+function InlineHangoutRatings({ userId, hangoutId, members, onRate, onDone }: { userId: string; hangoutId: string; members: ChatMember[]; onRate: (hangoutId: string, ratedUserId: string, score: number) => void; onDone: () => void }) {
+  const targets = members.filter((member) => member.id !== userId);
+  return (
+    <View style={styles.inlineRatingPanel}>
+      <Text style={styles.participantPanelLabel}>HANGOUT終了後</Text>
+      <Text style={styles.inlineRatingTitle}>主催者・参加者を評価</Text>
+      <Text style={styles.inlineRatingDescription}>一緒に過ごしたメンバーを★1〜5で評価できます。</Text>
+      {targets.map((member) => (
+        <View key={member.id} style={styles.inlineRatingCard}>
+          <View style={styles.ratingScreenPerson}>
+            {member.profilePhoto ? <Image source={{ uri: member.profilePhoto }} style={styles.headerAvatar} /> : <View style={styles.headerAvatarFallback}><Text style={styles.headerAvatarText}>{member.displayName.slice(0, 1)}</Text></View>}
+            <View><Text style={styles.memberRatingName}>{member.displayName}</Text><Text style={styles.muted}>{member.myRatingScore ? `評価済み ★${member.myRatingScore}` : "評価を選択してください"}</Text></View>
+          </View>
+          <View style={styles.scoreChoices}>
+            {[1, 2, 3, 4, 5].map((score) => <Pressable key={score} accessibilityRole="button" accessibilityLabel={`${member.displayName}を星${score}で評価`} style={[styles.scoreButton, member.myRatingScore === score && styles.scoreButtonOn]} onPress={() => onRate(hangoutId, member.id, score)}><Text style={[styles.scoreText, member.myRatingScore === score && styles.scoreTextOn]}>{score}★</Text></Pressable>)}
+          </View>
+        </View>
+      ))}
+      {!targets.length && <Text style={styles.empty}>評価するメンバーはいません。</Text>}
+      <Pressable style={styles.inlineRatingDone} onPress={onDone}><Text style={styles.primaryText}>評価完了</Text></Pressable>
+    </View>
+  );
+}
+
 function RatingScreen({ user, room, onRate, onDone }: { user: User; room: GroupRoom; onRate: (hangoutId: string, userId: string, score: number) => void; onDone: () => void }) {
   const members = room.members.filter((member) => member.id !== user.id && !member.myRatingScore);
   return (
@@ -2420,7 +2445,7 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
   const activeStatuses = new Set(["OPEN", "FULL", "STARTED"]);
   const activitySections = [
     ["主催中のHangout", activity.hosted.filter((item) => activeStatuses.has(item.status))],
-    ["主催したHangout", activity.hosted.filter((item) => !activeStatuses.has(item.status))],
+    ["主催したHangout", activity.hosted.filter((item) => item.status !== "CANCELLED" && !activeStatuses.has(item.status))],
     ["参加するHangout", activity.participated.filter((item) => activeStatuses.has(item.status))],
     ["参加したHangout", activity.participated.filter((item) => !activeStatuses.has(item.status))],
     ["ハートしたHangout", activity.hearted],
@@ -2806,9 +2831,9 @@ const styles = StyleSheet.create({
   partyCount: { flex: 1, gap: 7 },
   profileActivitySection: { width: "100%", marginTop: 22 },
   profileActivityHeading: { fontSize: 17, fontWeight: "900", color: "#17221d", marginBottom: 10 },
-  profileActivityCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#fff", borderRadius: 15, padding: 10, marginBottom: 8 },
-  profileActivityImage: { width: 58, height: 58, borderRadius: 12 },
-  profileActivityImageFallback: { width: 58, height: 58, borderRadius: 12, backgroundColor: "#eaf1e9", alignItems: "center", justifyContent: "center" },
+  profileActivityCard: { width: "100%", flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#fff", borderWidth: 1, borderColor: "#e3e7df", borderRadius: 15, padding: 10, marginBottom: 9 },
+  profileActivityImage: { width: 62, height: 58, borderRadius: 11, backgroundColor: "#eaf1e9" },
+  profileActivityImageFallback: { width: 62, height: 58, borderRadius: 11, backgroundColor: "#eaf1e9", alignItems: "center", justifyContent: "center" },
   profileActivityTitle: { fontWeight: "800", color: "#17221d" },
   profileActivityChevron: { color: "#8a938d", fontSize: 28, fontWeight: "500", marginLeft: 4 },
   authError: { color: "#bd3a28", fontSize: 12, marginTop: 8 },
@@ -3661,6 +3686,11 @@ const styles = StyleSheet.create({
   scoreText: { fontSize: 10, fontWeight: "900", color: "#b47715" },
   scoreTextOn: { color: "#fff" },
   ratingUnlockHint: { fontSize: 8, color: "#707a73", marginTop: 6 },
+  inlineRatingPanel: { marginTop: 18, padding: 16, borderWidth: 1, borderColor: "#dfe5df", borderRadius: 18, backgroundColor: "#f7f8f3" },
+  inlineRatingTitle: { marginTop: 5, color: "#17221d", fontSize: 18, fontWeight: "900" },
+  inlineRatingDescription: { marginTop: 7, marginBottom: 12, color: "#59635c", fontSize: 12, lineHeight: 18 },
+  inlineRatingCard: { marginBottom: 10, padding: 13, borderWidth: 1, borderColor: "#e3e7df", borderRadius: 15, backgroundColor: "#fff" },
+  inlineRatingDone: { minHeight: 50, alignItems: "center", justifyContent: "center", marginTop: 4, borderRadius: 15, backgroundColor: "#176b48" },
   talkListSummary: { paddingHorizontal: 18, paddingTop: 16, paddingBottom: 8, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   talkListTitle: { color: "#17221d", fontSize: 20, fontWeight: "900" },
   talkListCounts: { color: "#687169", fontSize: 10, fontWeight: "800" },

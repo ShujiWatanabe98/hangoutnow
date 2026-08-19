@@ -390,3 +390,18 @@ test('native applicant photos enlarge and dismiss with a downward swipe', async 
   assert.doesNotMatch(mobile, /photoViewerClose/);
   assert.doesNotMatch(mobile, /applicantCloseButton/);
 });
+
+test('native hosted and participated history opens the production finished Hangout flow', async () => {
+  const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
+
+  for (const heading of ['主催中のHangout', '主催したHangout', '参加するHangout', '参加したHangout', 'ハートしたHangout']) assert.ok(mobile.includes(heading));
+  assert.match(mobile, /item\.status !== "CANCELLED" && !activeStatuses\.has\(item\.status\)/);
+  assert.match(mobile, /if \(detail\.status === "FINISHED"\) await loadRooms\(\)/);
+  assert.match(mobile, /function InlineHangoutRatings/);
+  assert.match(mobile, /HANGOUT終了後/);
+  assert.match(mobile, /主催者・参加者を評価/);
+  assert.match(mobile, /一緒に過ごしたメンバーを★1〜5で評価できます/);
+  assert.match(mobile, />評価完了<\/Text>/);
+  assert.match(mobile, /hangout\.status !== "FINISHED" && hangout\.myJoinStatus === "ACCEPTED"/);
+  assert.match(mobile, /profileActivityCard: \{ width: "100%"[^\n]+borderWidth: 1/);
+});
