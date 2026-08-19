@@ -360,7 +360,7 @@ test('native profile camera, safety report, talk status, host tier, and demo lab
 test('native waitlist, cancelled drafts, home urgency, activity status, and feedback match production', async () => {
   const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
 
-  assert.equal((mobile.match(/\["OPEN", "FULL", "STARTED"\]\.includes\(hangout\.status\)/g) || []).length, 3);
+  assert.equal((mobile.match(/\["OPEN", "FULL", "STARTED"\]\.includes\(hangout\.status\)/g) || []).length, 2);
   assert.doesNotMatch(mobile, /hangout\.status !== "OPEN"/);
   assert.match(mobile, /if \(visible\) \{ setMessage\(""\); setSubmitting\(false\); \}/);
   assert.match(mobile, /if \(!visible\) return;[\s\S]*setTitle\(hangout\.title\)/);
@@ -422,6 +422,21 @@ test('native applicant photos enlarge and dismiss with a downward swipe', async 
   assert.match(mobile, /<Text style=\{styles\.photoViewerDismissHint\}>下にスライドして閉じる<\/Text>/);
   assert.doesNotMatch(mobile, /photoViewerClose/);
   assert.doesNotMatch(mobile, /applicantCloseButton/);
+});
+
+test('native participant members, applicant profile, and chat heading match production', async () => {
+  const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
+
+  assert.match(mobile, /member\.profilePhoto \? <Image/);
+  assert.match(mobile, /member\.gender === "MALE" \? "男性"/);
+  assert.match(mobile, /member\.verification === "PHONE_VERIFIED" \? "電話確認済み"/);
+  assert.match(mobile, /申請者プロフィール/);
+  assert.match(mobile, /applicantDetailLabel}>年齢/);
+  assert.match(mobile, /applicantDetailLabel}>活動エリア/);
+  assert.match(mobile, /新しいメッセージ順/);
+  assert.doesNotMatch(mobile, /会話から次の行動へ/);
+  assert.doesNotMatch(mobile, /contentContainerStyle=\{styles\.detailPage\}/);
+  assert.doesNotMatch(mobile, />見送る<\/Text>/);
 });
 
 test('native hosted and participated history opens the production finished Hangout flow', async () => {
