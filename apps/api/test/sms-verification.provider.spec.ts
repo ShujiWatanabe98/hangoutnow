@@ -28,4 +28,17 @@ describe('SmsVerificationProvider', () => {
     await expect(new SmsVerificationProvider().request('+819012345678'))
       .rejects.toThrow('携帯電話番号を確認してください');
   });
+
+  it('reports incomplete account compliance without exposing provider details', async () => {
+    process.env.TWILIO_ACCOUNT_SID = `AC${'1'.repeat(32)}`;
+    process.env.TWILIO_AUTH_TOKEN = '2'.repeat(32);
+    process.env.TWILIO_VERIFY_SERVICE_SID = `VA${'3'.repeat(32)}`;
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ code: 21608 }), {
+      status: 403,
+      headers: { 'content-type': 'application/json' },
+    })));
+
+    await expect(new SmsVerificationProvider().request('+819012345678'))
+      .rejects.toThrow('SMS認証は現在準備中です。しばらくしてからお試しください');
+  });
 });
