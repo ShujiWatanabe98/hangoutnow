@@ -572,6 +572,6 @@ test('talk and profile editor keep the same persistent back header as Hangout cr
 
   assert.match(mobile, /<View style=\{styles\.chatListPage\}>[\s\S]*?<View style=\{styles\.chatListHead\}>[\s\S]*?<ScrollView style=\{styles\.chatListScroll\}/);
   assert.match(mobile, /profileEditorHeader: \{ minHeight: 68, paddingHorizontal: 14/);
-  assert.match(portraits, /\.chat-page-title\{flex:0 0 auto;/);
+  assert.match(portraits, /\.chat-page-title,\.chat-conversation-head\{position:sticky;top:0;z-index:5;flex-shrink:0;background:#fff\}/);
   assert.match(portraits, /\.profile-editor-sheet\{display:grid;grid-template-rows:auto minmax\(0,1fr\)/);
 });

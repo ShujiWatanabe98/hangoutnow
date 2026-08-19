@@ -69,4 +69,5 @@ html[data-mode="production"] .card-photo{aspect-ratio:32/9}
 }
 
 /* Keep navigation available while the talk list scrolls, matching the create screen. */
-.chat-page-title{flex:0 0 auto;background:#fff;border-bottom:1px solid #dfe5df}
+.chat-page-title,.chat-conversation-head{position:sticky;top:0;z-index:5;flex-shrink:0;background:#fff}
+.chat-page-title{flex-basis:auto;border-bottom:1px solid #dfe5df}
