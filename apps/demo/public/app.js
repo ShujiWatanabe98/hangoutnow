@@ -17,13 +17,16 @@ const chats = saved?.chats || {};
 const API_URL = globalThis.HANGOUT_NOW_CONFIG?.apiUrl || 'http://localhost:3000';
 const DEMO_ACCOUNTS = globalThis.HANGOUT_NOW_CONFIG?.demoAccounts || null;
 const INTEREST_OPTIONS=['カフェ','ラーメン','ランニング','飲み会','ダーツ','バー','ごはん','カラオケ','英会話','シーシャ','スイーツ','映画'];
-const CATEGORY_LABELS={FOOD:'食事',DRINKING:'飲み会',WINE:'ワイン',BAR:'バー',IZAKAYA:'居酒屋',SUSHI:'寿司',YAKINIKU:'焼肉',DINNER:'ごはん',CAFE:'カフェ',SWEETS:'スイーツ',RUNNING:'ランニング',WALKING:'散歩',MOTORCYCLE:'ツーリング',YOGA:'ヨガ',CYCLING:'サイクリング',KARAOKE:'カラオケ',DARTS:'ダーツ',GAME:'ボードゲーム',MOVIE:'映画',SHISHA:'シーシャ',ENGLISH:'英会話'};
+const CATEGORY_LABELS={FOOD:'食事',DRINKING:'飲み会',WINE:'ワイン',BAR:'バー',IZAKAYA:'居酒屋',SUSHI:'寿司',YAKINIKU:'焼肉',DINNER:'ごはん',CAFE:'カフェ',SWEETS:'スイーツ',RUNNING:'ランニング',WALKING:'散歩',MOTORCYCLE:'ツーリング',YOGA:'ヨガ',CYCLING:'サイクリング',KARAOKE:'カラオケ',DARTS:'ダーツ',GAME:'ボードゲーム',MOVIE:'映画',BOWLING:'ボウリング',ARCADE:'ゲームセンター',ENGLISH:'英会話',SOCIAL:'交流会',SHISHA:'シーシャ',PICNIC:'ピクニック',SAUNA:'サウナ',NIGHT_VIEW:'夜景',WATERFRONT:'水辺',MUSIC:'音楽'};
 const HANGOUT_KEYWORD_GROUPS=[
   {id:'food',label:'ごはん',description:'ランチから夜ごはんまで気軽に集まろう',categories:['FOOD','SUSHI','YAKINIKU','DINNER']},
   {id:'drink',label:'飲み',description:'仕事帰りの一杯を一緒に楽しもう',categories:['DRINKING','WINE','BAR','IZAKAYA']},
-  {id:'cafe-sweets',label:'カフェ・スイーツ',description:'コーヒーや甘いものを囲んで話そう',categories:['CAFE','SWEETS','ENGLISH']},
+  {id:'cafe',label:'カフェ',description:'コーヒーを飲みながらゆっくり話そう',categories:['CAFE']},
+  {id:'sweets',label:'スイーツ',description:'甘いものを囲んで気軽に集まろう',categories:['SWEETS']},
   {id:'active-outdoor',label:'運動・アウトドア',description:'体を動かして自然に仲良くなろう',categories:['RUNNING','WALKING','MOTORCYCLE','YOGA','CYCLING']},
-  {id:'hobby-social',label:'趣味・交流',description:'好きなことをきっかけにつながろう',categories:['KARAOKE','DARTS','GAME','MOVIE','SHISHA','ENGLISH']},
+  {id:'play',label:'遊ぶ',description:'ゲームやカラオケで一緒に楽しもう',categories:['KARAOKE','DARTS','GAME','MOVIE','BOWLING','ARCADE']},
+  {id:'social',label:'交流',description:'初参加でも話しやすい仲間を見つけよう',categories:['ENGLISH','SOCIAL']},
+  {id:'chill',label:'チル',description:'急がずゆっくり同じ時間を過ごそう',categories:['SHISHA','PICNIC','SAUNA','NIGHT_VIEW','WATERFRONT','MUSIC']},
 ];
 const MATCH_AREA_OPTIONS=['新宿','渋谷','池袋','東京','品川','上野','横浜'];
 const MATCH_TIME_OPTIONS=['朝','昼','夕方','夜','深夜'];

@@ -129,12 +129,18 @@ test('web discovery groups Hangouts into six-item keyword mosaics', async () => 
   ]);
 
   assert.doesNotMatch(application, /activeFilter|data-filter/);
-  for (const keyword of ['ごはん', '飲み', 'カフェ・スイーツ', '運動・アウトドア', '趣味・交流']) {
+  for (const keyword of ['ごはん', '飲み', 'カフェ', 'スイーツ', '運動・アウトドア', '遊ぶ', '交流', 'チル']) {
     assert.ok(application.includes(keyword), `keyword section is missing: ${keyword}`);
   }
   assert.doesNotMatch(application, /label:'ごはん・飲み'/);
+  assert.doesNotMatch(application, /label:'カフェ・スイーツ'|label:'趣味・交流'/);
   assert.match(application, /id:'food',label:'ごはん'.+categories:\['FOOD','SUSHI','YAKINIKU','DINNER'\]/);
   assert.match(application, /id:'drink',label:'飲み'.+categories:\['DRINKING','WINE','BAR','IZAKAYA'\]/);
+  assert.match(application, /id:'cafe',label:'カフェ'.+categories:\['CAFE'\]/);
+  assert.match(application, /id:'sweets',label:'スイーツ'.+categories:\['SWEETS'\]/);
+  assert.match(application, /id:'play',label:'遊ぶ'.+categories:\['KARAOKE','DARTS','GAME','MOVIE','BOWLING','ARCADE'\]/);
+  assert.match(application, /id:'social',label:'交流'.+categories:\['ENGLISH','SOCIAL'\]/);
+  assert.match(application, /id:'chill',label:'チル'.+categories:\['SHISHA','PICNIC','SAUNA','NIGHT_VIEW','WATERFRONT','MUSIC'\]/);
   assert.match(application, /items\.slice\(0,6\)\.map\(keywordTile\)/);
   assert.match(application, /<article class="keyword-hangout-tile/);
   assert.match(application, /data-keyword-heart="\$\{safeText\(h\.id\)\}"/);
@@ -149,7 +155,7 @@ test('web discovery groups Hangouts into six-item keyword mosaics', async () => 
   assert.match(requests, /\.keyword-hangout-tile:nth-child\(6\)\{grid-column:3;grid-row:3\}/);
   assert.match(requests, /\.keyword-tile-heart\{position:absolute;z-index:4/);
   assert.match(requests, /\.keyword-tile-heart\.on\{background:#176b48;color:#fff\}/);
-  for (const demoTitle of ['朝のカフェでモーニング交流', 'パン屋さん巡りとコーヒー', '季節のパフェを食べよう', '公園でやさしい朝ヨガ', '都内をのんびりサイクリング', 'スパイスカレーを食べ比べ', '餃子を囲んで夜ごはん', 'クラフトビールを飲み比べ', '日本酒を少しずつ楽しむ会']) {
+  for (const demoTitle of ['古民家カフェでのんびり', 'テラスカフェで朝活', '夜カフェでゆっくり話そう', 'ふわふわパンケーキを食べよう', 'アフタヌーンティーで交流', '和菓子を少しずつ楽しむ会', '季節のジェラート巡り', 'みんなでボウリング', 'ゲームセンターで遊ぼう', '20代・30代のゆる交流会', 'ひとり参加歓迎のおしゃべり会', '読書好きの交流会', 'カメラ好きで集まろう', '地方出身者の交流会', '公園でゆるくピクニック', 'サウナでととのう会', '夜景を眺めながらのんびり', '川沿いで夕涼み', '音楽を聴きながらまったり']) {
     assert.ok(seed.includes(demoTitle), `demo Hangout is missing: ${demoTitle}`);
   }
 });

@@ -35,7 +35,7 @@ describe('public demo reset boundary', () => {
     process.env.DEMO_MODE = 'true';
     const { service, transaction, requesterId } = setup();
     const result = await service.reset(requesterId);
-    expect(result).toMatchObject({ ok: true, hangoutId: 'new-hangout', catalogSize: 29, status: 'READY' });
+    expect(result).toMatchObject({ ok: true, hangoutId: 'new-hangout', catalogSize: 48, status: 'READY' });
     expect(transaction.message.deleteMany).toHaveBeenCalledWith({ where: { OR: expect.arrayContaining([{ senderUserId: { in: [
       '019ffb00-0000-7000-8000-000000000001',
       '019ffb00-0000-7000-8000-000000000002',
@@ -55,12 +55,18 @@ describe('public demo reset boundary', () => {
         '019ffb00-0000-7000-8000-000000000003',
       ] } },
     ] } });
-    expect(transaction.hangout.create).toHaveBeenCalledTimes(29);
+    expect(transaction.hangout.create).toHaveBeenCalledTimes(48);
     const discoveryTitles = transaction.hangout.create.mock.calls.map((call) => call[0].data.title);
     const discoveryCategories = transaction.hangout.create.mock.calls.map((call) => call[0].data.category);
-    expect(new Set(discoveryTitles).size).toBe(29);
+    expect(new Set(discoveryTitles).size).toBe(48);
     expect(discoveryCategories.filter((category) => ['FOOD', 'SUSHI', 'YAKINIKU', 'DINNER'].includes(category))).toHaveLength(6);
     expect(discoveryCategories.filter((category) => ['DRINKING', 'WINE', 'BAR', 'IZAKAYA'].includes(category))).toHaveLength(6);
+    expect(discoveryCategories.filter((category) => category === 'CAFE')).toHaveLength(6);
+    expect(discoveryCategories.filter((category) => category === 'SWEETS')).toHaveLength(6);
+    expect(discoveryCategories.filter((category) => ['RUNNING', 'WALKING', 'MOTORCYCLE', 'YOGA', 'CYCLING'].includes(category))).toHaveLength(6);
+    expect(discoveryCategories.filter((category) => ['KARAOKE', 'DARTS', 'GAME', 'MOVIE', 'BOWLING', 'ARCADE'].includes(category))).toHaveLength(6);
+    expect(discoveryCategories.filter((category) => ['ENGLISH', 'SOCIAL'].includes(category))).toHaveLength(6);
+    expect(discoveryCategories.filter((category) => ['SHISHA', 'PICNIC', 'SAUNA', 'NIGHT_VIEW', 'WATERFRONT', 'MUSIC'].includes(category))).toHaveLength(6);
     expect(transaction.hangout.create.mock.calls.every((call) => call[0].data.isDemo === true)).toBe(true);
     expect(transaction.joinRequest.create).toHaveBeenCalledWith({ data: expect.objectContaining({ userId: '019ffb00-0000-7000-8000-000000000003', status: 'ACCEPTED' }) });
   });
