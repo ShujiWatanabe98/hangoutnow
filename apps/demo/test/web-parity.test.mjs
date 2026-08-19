@@ -589,8 +589,11 @@ test('web phone registration accepts ordinary Japanese mobile number input', asy
   const web = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
 
   assert.match(web, /function normalizeJapanesePhone\(value\)/);
+  assert.match(web, /value\.normalize\('NFKC'\)/);
   assert.match(web, /if\(\/\^0\\d\{9,10\}\$\/\.test\(compact\)\)return`\+81\$\{compact\.slice\(1\)\}`/);
   assert.match(web, /placeholder="09012345678"/);
+  assert.match(web, /id="auth-phone-help" role="status" aria-live="polite"/);
+  assert.ok(web.indexOf('id="auth-phone-help"') < web.indexOf('id="auth-phone-code-area"'), 'phone request errors must remain visible before the hidden code area');
   assert.match(web, /requestedPhone=phone/);
   assert.match(web, /phone:requestedPhone,code:sheet\.querySelector\('#phone-code'\)\.value\.trim\(\)/);
 });
@@ -610,6 +613,7 @@ test('native authentication prioritizes providers and profile SMS reports real r
   assert.ok(authenticationCard.indexOf('{providerSection}') < authenticationCard.indexOf('<Field label="メールアドレス"'), 'providers must appear before email authentication');
   assert.match(authenticationCard, /アカウントをお持ちの方はログイン/);
   assert.match(mobile, /const normalizedPhone = normalizePhoneNumber\(phone\)/);
+  assert.match(mobile, /value\.normalize\("NFKC"\)/);
   assert.match(mobile, /SMSに認証コードを送信しました/);
   assert.ok(!mobile.includes('Alert.alert("画像を更新しました"'), 'successful profile image selection must not show an alert');
 });

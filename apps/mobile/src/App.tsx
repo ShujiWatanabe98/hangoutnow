@@ -291,7 +291,7 @@ async function readJson(response: Response): Promise<unknown> {
 }
 
 function normalizePhoneNumber(value: string): string {
-  const compact = value.trim().replace(/[\s()-]/g, "");
+  const compact = value.normalize("NFKC").trim().replace(/[\s()（）\-‐‑‒–—―ー]/g, "");
   if (compact.startsWith("+")) return compact;
   if (compact.startsWith("0")) return `+81${compact.slice(1)}`;
   if (compact.startsWith("81")) return `+${compact}`;
