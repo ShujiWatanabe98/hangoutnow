@@ -261,6 +261,9 @@ test('native screens include the latest production profile, notification, talk, 
   assert.match(mobile, /setChatReturnScreen\("profile"\)/);
   assert.match(mobile, /setScreen\(chatReturnScreen\)/);
   assert.match(mobile, /useState<AuthMode>\("welcome"\)/);
+  assert.match(mobile, /styles\.authVisualCardRaised/);
+  assert.match(mobile, /authVisualCard: \{ width: 64, height: 64/);
+  assert.doesNotMatch(mobile, /style=\{styles\.authPhoto\}/);
   assert.doesNotMatch(mobile, /SecureStore\.getItemAsync\(SESSION_KEY\)/);
   assert.match(mobile, /profileEditorBackButton: \{ width: 44, height: 44/);
   assert.match(mobile, /onPress=\{\(\) => setEditing\(false\)\} accessibilityRole="button" accessibilityLabel="編集をやめてプロフィールに戻る"/);

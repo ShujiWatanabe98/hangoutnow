@@ -1303,7 +1303,13 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle
         <Text style={styles.authBrand}>
           Hangout <Text style={styles.brandAccent}>Now</Text>
         </Text>
-        <Image source={{ uri: ACTIVITY_PHOTO_URL }} style={styles.authPhoto} />
+        <View style={styles.authVisual}>
+          {[DEFAULT_HANGOUT_IMAGES.FOOD, DEFAULT_HANGOUT_IMAGES.RUNNING, DEFAULT_HANGOUT_IMAGES.CAFE].map((uri, index) => (
+            <View key={uri} style={[styles.authVisualCard, index === 1 && styles.authVisualCardRaised]}>
+              <Image source={{ uri }} style={styles.authVisualImage} resizeMode="cover" />
+            </View>
+          ))}
+        </View>
         {mode === "welcome" && <View style={styles.demoCard}>
           <Text style={styles.demoPill}>公開デモ・すべて架空のデータです</Text>
           <Text style={styles.demoHeading}>役割を選んですぐに体験</Text>
@@ -2561,19 +2567,17 @@ const styles = StyleSheet.create({
   mapResultHeadingCount: { color: "#176b48", fontSize: 12, fontWeight: "800" },
   mapResultCard: { flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 8, padding: 13, borderRadius: 16, backgroundColor: "#fff" },
   mapResultNumber: { width: 28, height: 28, borderRadius: 14, color: "#fff", backgroundColor: "#176b48", textAlign: "center", textAlignVertical: "center", fontSize: 11, fontWeight: "900" },
-  authPage: { padding: 24, paddingBottom: 50, backgroundColor: "#eef5eb" },
+  authPage: { paddingHorizontal: 20, paddingTop: 35, paddingBottom: 50, backgroundColor: "#eef5eb" },
   authBrand: {
     textAlign: "center",
     fontSize: 26,
     fontWeight: "900",
     marginTop: 8,
   },
-  authPhoto: {
-    width: "100%",
-    height: 120,
-    borderRadius: 22,
-    marginVertical: 20,
-  },
+  authVisual: { height: 110, flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 10 },
+  authVisualCard: { width: 64, height: 64, overflow: "hidden", borderRadius: 22, backgroundColor: "#fff", shadowColor: "#25372a", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.12, shadowRadius: 10, elevation: 4 },
+  authVisualCardRaised: { transform: [{ translateY: -18 }] },
+  authVisualImage: { width: "100%", height: "100%" },
   demoCard: {
     backgroundColor: "#17221d",
     borderRadius: 24,
@@ -2613,8 +2617,8 @@ const styles = StyleSheet.create({
   roleGuest: { backgroundColor: "#d9ff68" },
   roleTitle: { fontSize: 12, fontWeight: "900", color: "#17221d" },
   roleHint: { fontSize: 10, color: "#667069", marginTop: 3 },
-  authCard: { backgroundColor: "#fff", padding: 20, borderRadius: 24 },
-  authChoiceCard: { backgroundColor: "#fff", padding: 20, borderRadius: 24, gap: 10 },
+  authCard: { backgroundColor: "#fff", padding: 24, borderRadius: 26, shadowColor: "#25372a", shadowOffset: { width: 0, height: 14 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 4 },
+  authChoiceCard: { backgroundColor: "#fff", padding: 24, borderRadius: 26, gap: 10, shadowColor: "#25372a", shadowOffset: { width: 0, height: 14 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 4 },
   authChoiceTitle: { color: "#17221d", fontSize: 24, fontWeight: "900", marginBottom: 6 },
   authLoginChoice: { minHeight: 62, justifyContent: "center", paddingHorizontal: 18, borderRadius: 16, backgroundColor: "#176b48" },
   authLoginChoiceText: { color: "#fff", fontSize: 17, fontWeight: "900" },
