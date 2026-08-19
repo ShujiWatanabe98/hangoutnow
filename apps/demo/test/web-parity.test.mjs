@@ -335,3 +335,18 @@ test('native screens include the latest production profile, notification, talk, 
   assert.match(mobile, /xProviderButton/);
   for (const message of ['向かっています', '少し遅れます', '到着しました']) assert.ok(mobile.includes(message));
 });
+
+test('native Hangout creation offers every production image preset and native photo sources', async () => {
+  const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
+
+  for (const label of ['カフェ', 'ラーメン', 'ランニング', '飲み会', 'ダーツ', 'バー', 'ごはん', 'カラオケ', '英会話', 'シーシャ', 'スイーツ', '映画']) {
+    assert.match(mobile, new RegExp(`label: "${label}"`));
+  }
+  for (const asset of ['demo-cafe-hangout.jpg', 'demo-ramen-mami-v3.jpg', 'demo-running-hangout-v2.jpg', 'demo-drinking-hangout-v2.jpg', 'hangout-dartu.jpg', 'hangout-bar.jpg', 'hangout-gohan.jpg', 'hangout-karaoke.jpg', 'hangout-english.jpg', 'hangout-shisha.jpg', 'hangout-sweet.jpg', 'hangout-movie.jpg']) {
+    assert.ok(mobile.includes(asset), `missing production image preset: ${asset}`);
+  }
+  assert.match(mobile, /HANGOUT_IMAGE_PRESETS\.map\(\(preset\)/);
+  assert.match(mobile, /企画に近い画像を選んでください/);
+  assert.match(mobile, /launchCameraAsync\(pickerOptions\)/);
+  assert.match(mobile, /launchImageLibraryAsync\(pickerOptions\)/);
+});

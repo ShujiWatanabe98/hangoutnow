@@ -25,6 +25,14 @@ const HANGOUT_IMAGE_PRESETS = [
   { label: "ラーメン", uri: DEFAULT_HANGOUT_IMAGES.FOOD, category: "ラーメン", title: "新宿でラーメンを食べよう", description: "話題のラーメンを一緒に楽しみませんか？一人では入りづらい方も気軽にどうぞ！" },
   { label: "ランニング", uri: DEFAULT_HANGOUT_IMAGES.RUNNING, category: "ランニング", title: "新宿を気軽にランニングしよう", description: "会話できるゆっくりペースで走ります。初心者も経験者も一緒に楽しみましょう！" },
   { label: "飲み会", uri: DEFAULT_HANGOUT_IMAGES.DRINKING, category: "飲み会", title: "新宿で気軽に飲もう", description: "仕事帰りに楽しく乾杯しませんか？初参加の方も入りやすい気軽な飲み会です！" },
+  { label: "ダーツ", uri: `${WEBSITE_URL}/assets/hangout-dartu.jpg`, category: "ダーツ", title: "渋谷で気軽にダーツしよう", description: "初心者も経験者も歓迎！気軽にダーツを楽しみながら交流しましょう。" },
+  { label: "バー", uri: `${WEBSITE_URL}/assets/hangout-bar.jpg`, category: "バー", title: "落ち着いたバーで話そう", description: "静かなバーでゆっくり話しながら、楽しい時間を過ごしましょう。" },
+  { label: "ごはん", uri: `${WEBSITE_URL}/assets/hangout-gohan.jpg`, category: "ごはん", title: "新宿で一緒にごはんを食べよう", description: "ひとりでは入りにくいお店へ、みんなで気軽にごはんを食べに行きましょう。" },
+  { label: "カラオケ", uri: `${WEBSITE_URL}/assets/hangout-karaoke.jpg`, category: "カラオケ", title: "新宿でカラオケを楽しもう", description: "歌の上手さは関係なし！好きな曲を歌って、みんなで楽しく盛り上がりましょう。" },
+  { label: "英会話", uri: `${WEBSITE_URL}/assets/hangout-english.jpg`, category: "英会話", title: "初心者向け英会話カフェ", description: "間違えても大丈夫。カフェで気軽に英会話を練習しながら交流しましょう。" },
+  { label: "シーシャ", uri: `${WEBSITE_URL}/assets/hangout-shisha.jpg`, category: "シーシャ", title: "ゆったりシーシャを楽しもう", description: "落ち着いた空間でシーシャを楽しみながら、気軽におしゃべりしましょう。" },
+  { label: "スイーツ", uri: `${WEBSITE_URL}/assets/hangout-sweet.jpg`, category: "スイーツ", title: "話題のスイーツを食べに行こう", description: "気になっていたスイーツを一緒に楽しみながら、のんびり交流しましょう。" },
+  { label: "映画", uri: `${WEBSITE_URL}/assets/hangout-movie.jpg`, category: "映画", title: "一緒に映画を観に行こう", description: "気になる映画を一緒に観て、終わったあとは感想を楽しく話しましょう。" },
 ] as const;
 const SESSION_KEY = "hangout-now-session";
 const LINE_REDIRECT_URI = "hangoutnow://auth/line";
@@ -1604,19 +1612,24 @@ function CreateHangoutScreen({ area, onBack, onSubmit }: { area: AlphaArea; onBa
     setForm((current) => ({ ...current, [key]: value }));
     setErrors((current) => ({ ...current, [key]: undefined }));
   };
-  const chooseHangoutImage = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  const chooseHangoutImage = async (source: "library" | "camera") => {
+    const permission = source === "camera"
+      ? await ImagePicker.requestCameraPermissionsAsync()
+      : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert("写真へのアクセスが必要です", "Hangoutの画像を選ぶため、写真ライブラリへのアクセスを許可してください。");
+      Alert.alert("写真へのアクセスが必要です", source === "camera" ? "撮影するため、カメラへのアクセスを許可してください。" : "Hangoutの画像を選ぶため、写真ライブラリへのアクセスを許可してください。");
       return;
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
+    const pickerOptions: ImagePicker.ImagePickerOptions = {
       mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [16, 9],
       quality: 0.72,
       base64: true,
-    });
+    };
+    const result = source === "camera"
+      ? await ImagePicker.launchCameraAsync(pickerOptions)
+      : await ImagePicker.launchImageLibraryAsync(pickerOptions);
     if (result.canceled) return;
     const asset = result.assets[0];
     if (!asset?.base64) return;
@@ -1643,26 +1656,25 @@ function CreateHangoutScreen({ area, onBack, onSubmit }: { area: AlphaArea; onBa
       <ScrollView style={styles.createScroll} contentContainerStyle={styles.formPage} keyboardShouldPersistTaps="handled">
       {Object.keys(errors).length > 0 && <Text style={styles.validationMessage}>入力内容を確認してください。赤枠の項目を設定すると公開できます。</Text>}
       <Text style={styles.label}>Hangoutのイメージ写真</Text>
-      <Pressable style={styles.imagePickerButton} onPress={() => void chooseHangoutImage()}>
-        <Text style={styles.imagePickerButtonText}>{form.imageUrl ? "写真を変更" : "スマホの写真から追加"}</Text>
+      <Pressable style={styles.imagePickerButton} onPress={() => Alert.alert("画像を追加", "追加方法を選んでください。", [
+        { text: "写真ライブラリから選ぶ", onPress: () => void chooseHangoutImage("library") },
+        { text: "カメラで撮影", onPress: () => void chooseHangoutImage("camera") },
+        { text: "キャンセル", style: "cancel" },
+      ])}>
+        <Text style={styles.imagePickerButtonText}>{form.imageUrl ? "写真を変更" : "スマホの写真・カメラから追加"}</Text>
       </Pressable>
+      <Text style={styles.privacyText}>写真ライブラリまたはカメラから選べます。</Text>
       {form.imageUrl ? <Image source={{ uri: form.imageUrl }} style={styles.createImagePreview} resizeMode="cover" /> : null}
       <Text style={styles.label}>Hangout Nowの画像を使う</Text>
+      <Text style={styles.privacyText}>企画に近い画像を選んでください</Text>
       <View style={styles.providedImageGrid}>
-        {([
-          ["カフェ", DEFAULT_HANGOUT_IMAGES.CAFE],
-          ["ラーメン", DEFAULT_HANGOUT_IMAGES.FOOD],
-          ["ランニング", DEFAULT_HANGOUT_IMAGES.RUNNING],
-          ["飲み会", DEFAULT_HANGOUT_IMAGES.DRINKING],
-        ] as const).map(([label, uri]) => (
-          <Pressable key={label} style={[styles.providedImageChoice, form.imageUrl === uri && styles.providedImageChoiceOn]} onPress={() => {
-            const preset = HANGOUT_IMAGE_PRESETS.find((item) => item.uri === uri);
-            if (!preset) return;
+        {HANGOUT_IMAGE_PRESETS.map((preset) => (
+          <Pressable key={preset.label} style={[styles.providedImageChoice, form.imageUrl === preset.uri && styles.providedImageChoiceOn]} onPress={() => {
             setForm((current) => ({ ...current, imageUrl: preset.uri, category: preset.category, title: preset.title, description: preset.description }));
             setErrors((current) => ({ ...current, title: undefined }));
           }}>
-            <Image source={{ uri }} style={styles.providedImagePhoto} />
-            <Text style={styles.providedImageLabel}>{label}</Text>
+            <Image source={{ uri: preset.uri }} style={styles.providedImagePhoto} />
+            <Text style={styles.providedImageLabel}>{preset.label}</Text>
           </Pressable>
         ))}
       </View>
