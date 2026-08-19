@@ -1250,7 +1250,7 @@ export default function App() {
           </View>
         </View>
       )}
-      {screen !== "chat" && screen !== "detail" && (
+      {screen !== "chat" && screen !== "detail" && screen !== "create" && (
         <View style={styles.header}>
           <Text style={styles.brand}>
             Hangout <Text style={styles.brandAccent}>Now</Text>
@@ -1578,7 +1578,7 @@ function CreateHangoutScreen({ area, onBack, onSubmit }: { area: AlphaArea; onBa
   const [form, setForm] = useState<CreateHangoutInput>({
     title: "",
     description: "",
-    category: "ラーメン",
+    category: "CAFE",
     startInMinutes: 30,
     publicLocationName: `${area}駅周辺`,
     locationName: "",
@@ -1625,13 +1625,14 @@ function CreateHangoutScreen({ area, onBack, onSubmit }: { area: AlphaArea; onBa
     if (Object.keys(next).length === 0) onSubmit({ ...form, locationName: `${form.meetingPlaceName.trim()} ${form.meetingAddress.trim()}`.trim() });
   };
   return (
-    <ScrollView contentContainerStyle={styles.formPage}>
-      <Pressable onPress={onBack}>
-        <Text style={styles.backText}>‹ ホームへ</Text>
-      </Pressable>
-      <Text style={styles.pageTitle}>Hangoutを作る</Text>
+    <View style={styles.createPage}>
+      <View style={styles.createHeader}>
+        <Pressable style={styles.createBackButton} hitSlop={8} onPress={onBack} accessibilityRole="button" accessibilityLabel="ホームに戻る"><View style={styles.backChevron} /></Pressable>
+        <View style={styles.createHeaderHeading}><Text style={styles.createHeaderEyebrow}>新しい募集</Text><Text style={styles.createHeaderTitle}>Hangoutを作る</Text></View>
+        <View style={styles.createHeaderSpacer} />
+      </View>
+      <ScrollView style={styles.createScroll} contentContainerStyle={styles.formPage} keyboardShouldPersistTaps="handled">
       {Object.keys(errors).length > 0 && <Text style={styles.validationMessage}>入力内容を確認してください。赤枠の項目を設定すると公開できます。</Text>}
-      <Text style={styles.safetyNote}>安全のため集合場所は駅・店舗など公開された場所に限ります。店名・住所・正確な位置は承認された参加者だけに表示されます。</Text>
       <Text style={styles.label}>Hangoutのイメージ写真</Text>
       <Pressable style={styles.imagePickerButton} onPress={() => void chooseHangoutImage()}>
         <Text style={styles.imagePickerButtonText}>{form.imageUrl ? "写真を変更" : "スマホの写真から追加"}</Text>
@@ -1656,40 +1657,22 @@ function CreateHangoutScreen({ area, onBack, onSubmit }: { area: AlphaArea; onBa
           </Pressable>
         ))}
       </View>
-      <Text style={styles.label}>公開エリア（新宿・渋谷のみ）</Text>
-      <View style={styles.areaRow}>
-        {(["新宿", "渋谷"] as const).map((item) => (
-          <Pressable
-            key={item}
-            style={[styles.areaButton, form.area === item && styles.areaButtonOn]}
-            onPress={() =>
-              setForm((v) => ({
-                ...v,
-                area: item,
-                publicLocationName: `${item}駅周辺`,
-              }))
-            }
-          >
-            <Text style={[styles.areaText, form.area === item && styles.areaTextOn]}>{item}</Text>
-          </Pressable>
-        ))}
-      </View>
       <Text style={styles.label}>何する？</Text>
       <TextInput style={[styles.input, errors.title && styles.invalidInput]} value={form.title} onChangeText={(title) => update("title", title)} placeholder="例：30分後にラーメン" maxLength={80} />
       {errors.title && <Text style={styles.fieldError}>{errors.title}</Text>}
-      <Text style={styles.label}>カテゴリ</Text>
-      <View style={styles.choiceRow}>
-        {["ラーメン", "ウォーキング", "ランニング"].map((category) => (
-          <Pressable key={category} style={[styles.choice, form.category === category && styles.choiceOn]} onPress={() => setForm((v) => ({ ...v, category }))}>
-            <Text>{category}</Text>
-          </Pressable>
-        ))}
-      </View>
-      <Text style={styles.label}>開始まで</Text>
+      <Text style={styles.label}>いつ？</Text>
       <View style={styles.choiceRow}>
         {([30, 60, 180] as const).map((minutes) => (
           <Pressable key={minutes} style={[styles.choice, form.startInMinutes === minutes && styles.choiceOn]} onPress={() => setForm((v) => ({ ...v, startInMinutes: minutes }))}>
-            <Text>{minutes === 180 ? "3時間" : `${minutes}分`}</Text>
+            <Text style={styles.choiceText}>{minutes === 30 ? "⚡ 30分後" : minutes === 60 ? "🔥 1時間後" : "🕒 3時間後"}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <Text style={styles.label}>公開エリア（新宿・渋谷のみ）</Text>
+      <View style={styles.createAreaGrid}>
+        {(["新宿", "渋谷"] as const).map((item) => (
+          <Pressable key={item} style={[styles.createAreaChoice, form.area === item && styles.createAreaChoiceOn]} onPress={() => setForm((v) => ({ ...v, area: item, publicLocationName: `${item}駅周辺` }))}>
+            <Text style={[styles.createAreaChoiceText, form.area === item && styles.createAreaChoiceTextOn]}>{item}</Text>
           </Pressable>
         ))}
       </View>
@@ -1706,7 +1689,12 @@ function CreateHangoutScreen({ area, onBack, onSubmit }: { area: AlphaArea; onBa
         <TextInput style={[styles.input, errors.meetingAddress && styles.invalidInput]} value={form.meetingAddress} onChangeText={(value) => update("meetingAddress", value)} maxLength={200} />
         {errors.meetingAddress && <Text style={styles.fieldError}>{errors.meetingAddress}</Text>}
         <Text style={styles.label}>ナビアプリの共有URL（任意）</Text>
-        <TextInput style={styles.input} value={form.navigationUrl} onChangeText={(value) => update("navigationUrl", value)} autoCapitalize="none" keyboardType="url" maxLength={500} />
+        <TextInput style={styles.input} value={form.navigationUrl} onChangeText={(value) => update("navigationUrl", value)} autoCapitalize="none" keyboardType="url" maxLength={500} placeholder="Googleマップなどの共有URLを貼り付け" />
+        <View style={styles.createMapActions}>
+          <Pressable style={styles.createMapAction} onPress={() => void Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${form.meetingPlaceName} ${form.meetingAddress}`.trim() || form.publicLocationName)}`)}><Text style={styles.createMapActionText}>Googleマップで場所を検索</Text></Pressable>
+          <Pressable style={styles.createMapAction} onPress={() => update("navigationUrl", `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${form.meetingPlaceName} ${form.meetingAddress}`.trim() || form.publicLocationName)}`)}><Text style={styles.createMapActionText}>店名・住所からナビを設定</Text></Pressable>
+        </View>
+        <Text style={styles.createMapHelp}>ナビアプリで店名を検索し、共有URLを貼り付けるだけで設定できます。</Text>
       </View>
       <Text style={styles.label}>合計人数（主催者1人を含む）</Text>
       <View style={[styles.choiceRow, errors.maxParticipants && styles.invalidGroup]}>{[2, 3, 4, 5, 6, 7, 8].map((count) => <Pressable key={count} style={[styles.choice, form.maxParticipants === count && styles.choiceOn]} onPress={() => update("maxParticipants", count)}><Text>{count}人</Text></Pressable>)}</View>
@@ -1725,10 +1713,12 @@ function CreateHangoutScreen({ area, onBack, onSubmit }: { area: AlphaArea; onBa
       </View>
       <Text style={styles.label}>ひとこと</Text>
       <TextInput style={[styles.input, styles.multiline]} value={form.description} onChangeText={(description) => setForm((v) => ({ ...v, description }))} multiline maxLength={500} />
-      <Pressable style={styles.primary} onPress={publish}>
-        <Text style={styles.primaryText}>Hangout公開</Text>
-      </Pressable>
-    </ScrollView>
+      </ScrollView>
+      <View style={styles.createFooter}>
+        <Pressable style={styles.createCancelButton} onPress={onBack}><Text style={styles.createCancelText}>キャンセル</Text></Pressable>
+        <Pressable style={styles.createPublishButton} onPress={publish}><Text style={styles.primaryText}>Hangout公開</Text></Pressable>
+      </View>
+    </View>
   );
 }
 
@@ -2859,7 +2849,28 @@ const styles = StyleSheet.create({
     borderRadius: 15,
   },
   detailLink: { fontSize: 11, color: "#176b48", fontWeight: "900" },
-  formPage: { padding: 20, paddingBottom: 60, backgroundColor: "#f7f8f3" },
+  createPage: { flex: 1, backgroundColor: "#f7f8f3" },
+  createHeader: { minHeight: 68, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: "#dfe5df", backgroundColor: "#fff" },
+  createBackButton: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: "#f7faf7", borderWidth: 1, borderColor: "#dce5df" },
+  createHeaderHeading: { alignItems: "center" },
+  createHeaderEyebrow: { color: "#687169", fontSize: 10, fontWeight: "800", marginBottom: 2 },
+  createHeaderTitle: { color: "#17221d", fontSize: 17, fontWeight: "900" },
+  createHeaderSpacer: { width: 44, height: 44 },
+  createScroll: { flex: 1 },
+  formPage: { padding: 20, paddingBottom: 32, backgroundColor: "#f7f8f3" },
+  createFooter: { flexDirection: "row", gap: 12, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, borderTopWidth: 1, borderTopColor: "#dfe5df", backgroundColor: "#fff" },
+  createCancelButton: { flex: 1, minHeight: 52, alignItems: "center", justifyContent: "center", borderRadius: 16, borderWidth: 1, borderColor: "#d8e0da", backgroundColor: "#f7faf6" },
+  createCancelText: { color: "#536058", fontSize: 15, fontWeight: "800" },
+  createPublishButton: { flex: 1.4, minHeight: 52, alignItems: "center", justifyContent: "center", borderRadius: 16, backgroundColor: "#176b48" },
+  createAreaGrid: { flexDirection: "row", gap: 8 },
+  createAreaChoice: { flex: 1, minHeight: 46, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#dfe5df", borderRadius: 13, backgroundColor: "#fff" },
+  createAreaChoiceOn: { borderColor: "#176b48", backgroundColor: "#d9ff68" },
+  createAreaChoiceText: { color: "#59635c", fontSize: 13, fontWeight: "800" },
+  createAreaChoiceTextOn: { color: "#17221d", fontWeight: "900" },
+  createMapActions: { flexDirection: "row", gap: 8, marginTop: 10 },
+  createMapAction: { flex: 1, minHeight: 44, alignItems: "center", justifyContent: "center", paddingHorizontal: 7, borderWidth: 1, borderColor: "#176b48", borderRadius: 12, backgroundColor: "#fff" },
+  createMapActionText: { color: "#176b48", fontSize: 10, fontWeight: "800", textAlign: "center" },
+  createMapHelp: { marginTop: 7, color: "#657069", fontSize: 10, lineHeight: 15 },
   backText: { color: "#176b48", fontWeight: "900", marginBottom: 15 },
   safetyNote: {
     backgroundColor: "#e9f7ec",
@@ -2889,6 +2900,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#e7ece7",
   },
   choiceOn: { backgroundColor: "#d9ff68" },
+  choiceText: { color: "#17221d", fontSize: 12, fontWeight: "800", textAlign: "center" },
   multiline: { minHeight: 90, textAlignVertical: "top" },
   disabled: { opacity: 0.45 },
   detailPhoto: {

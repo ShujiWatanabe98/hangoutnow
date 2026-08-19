@@ -165,6 +165,18 @@ test('Hangout creation fixes the organizer to one person', async () => {
   assert.match(service, /const hostMaleCount=user\.gender===Gender\.FEMALE\?0:1;const hostFemaleCount=user\.gender===Gender\.FEMALE\?1:0/);
 });
 
+test('native Hangout creation matches the production full-screen flow', async () => {
+  const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
+  assert.match(mobile, /screen !== "chat" && screen !== "detail" && screen !== "create"/);
+  assert.match(mobile, /createHeaderEyebrow}>新しい募集/);
+  assert.match(mobile, /accessibilityLabel="ホームに戻る"/);
+  assert.match(mobile, /<Text style=\{styles\.label\}>何する？<\/Text>[\s\S]*?<Text style=\{styles\.label\}>いつ？<\/Text>[\s\S]*?<Text style=\{styles\.label\}>公開エリア（新宿・渋谷のみ）<\/Text>/);
+  for (const contract of ['承認後に表示する集合場所', 'Googleマップで場所を検索', '店名・住所からナビを設定', '合計人数（主催者1人を含む）', '参加できる性別', '年齢上限', 'ひとこと', 'キャンセル', 'Hangout公開']) assert.ok(mobile.includes(contract));
+  assert.match(mobile, /createFooter: \{ flexDirection: "row"/);
+  assert.doesNotMatch(mobile, /<Text style=\{styles\.backText\}>‹ ホームへ<\/Text>/);
+  assert.doesNotMatch(mobile, /<Text style=\{styles\.label\}>カテゴリ<\/Text>/);
+});
+
 test('host deletion returns to profile and cancelled Hangouts stay out of hosted history', async () => {
   const application = await readFile(new URL('app.js', publicDirectory), 'utf8');
 
