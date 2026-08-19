@@ -251,6 +251,7 @@ const AREA_COORDINATES: Record<AlphaArea, { latitude: number; longitude: number 
   渋谷: { latitude: 35.658, longitude: 139.7016 },
 };
 type AuthMode = "welcome" | "login" | "register";
+type OAuthRegistrationInput = { displayName: string; birthDate: string; gender: string; profilePhotos?: string[] };
 function messageText(body: string) {
   return body.startsWith("__STAMP__") ? "過去のスタンプ" : body;
 }
@@ -364,9 +365,10 @@ export default function App() {
     [session],
   );
 
-  const loadHome = useCallback(async () => {
+  const loadHome = useCallback(async (locationOverride?: { latitude: number; longitude: number } | null) => {
     if (!session) return;
-    const query = coordinates ? `?latitude=${coordinates.latitude}&longitude=${coordinates.longitude}&radiusKm=5` : "";
+    const activeCoordinates = locationOverride === undefined ? coordinates : locationOverride;
+    const query = activeCoordinates ? `?latitude=${activeCoordinates.latitude}&longitude=${activeCoordinates.longitude}&radiusKm=5` : "";
     setHangouts(await request<Hangout[]>(`/hangouts${query}`));
     if (session.user.matchingDataConsent && session.user.behaviorLearningEnabled) {
       void request("/analytics/events", {
@@ -586,7 +588,7 @@ export default function App() {
     }
   }
 
-  async function authenticateWithLine(input?: { displayName: string; birthDate: string; gender: string; profilePhotos?: string[] }) {
+  async function authenticateWithLine(input?: OAuthRegistrationInput) {
     setLoading(true);
     setError("");
     try {
@@ -596,8 +598,7 @@ export default function App() {
       const ticket = new URL(result.url).searchParams.get("ticket");
       if (!ticket) throw new Error("LINEログインの確認情報を取得できませんでした");
       const response = await fetch(`${API_URL}/auth/line/redeem`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ticket, ...input }) });
-      const data = await readJson(response) as Session | { registrationRequired?: boolean; message?: string | string[] };
-      if ("registrationRequired" in data && data.registrationRequired) throw new Error("初回のみ「アカウント作成」に切り替え、生年月日を入力してLINE登録してください");
+      const data = await readJson(response) as Session | { message?: string | string[] };
       if (!response.ok || !("accessToken" in data)) {
         const message = "message" in data ? data.message : null;
         throw new Error(Array.isArray(message) ? message[0] : message || "LINEログインに失敗しました");
@@ -612,7 +613,7 @@ export default function App() {
     }
   }
 
-  async function authenticateWithX() {
+  async function authenticateWithX(input?: OAuthRegistrationInput) {
     setLoading(true);
     setError("");
     try {
@@ -621,7 +622,7 @@ export default function App() {
       if (result.type !== "success" || !result.url) throw new Error("Xログインがキャンセルされました");
       const ticket = new URL(result.url).searchParams.get("ticket");
       if (!ticket) throw new Error("Xログインの確認情報を取得できませんでした");
-      const response = await fetch(`${API_URL}/auth/x/redeem`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ticket }) });
+      const response = await fetch(`${API_URL}/auth/x/redeem`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ticket, ...input }) });
       const data = await readJson(response) as Session | { message?: string | string[] };
       if (!response.ok || !("accessToken" in data)) {
         const message = "message" in data ? data.message : null;
@@ -637,9 +638,9 @@ export default function App() {
     }
   }
 
-  async function authenticateWithOAuth(provider:"google"|"apple") {
+  async function authenticateWithOAuth(provider:"google"|"apple", input?: OAuthRegistrationInput) {
     setLoading(true);setError("");
-    try{const redirectUri=provider==="google"?GOOGLE_REDIRECT_URI:APPLE_REDIRECT_URI;const label=provider==="google"?"Google":"Apple";const result=await WebBrowser.openAuthSessionAsync(`${API_URL}/auth/${provider}/start?returnTo=${encodeURIComponent(redirectUri)}`,redirectUri);if(result.type!=="success"||!result.url)throw new Error(`${label}ログインがキャンセルされました`);const ticket=new URL(result.url).searchParams.get("ticket");if(!ticket)throw new Error(`${label}ログインの確認情報を取得できませんでした`);const response=await fetch(`${API_URL}/auth/${provider}/redeem`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({ticket})});const data=await readJson(response) as Session|{message?:string|string[]};if(!response.ok||!("accessToken" in data)){const message="message" in data?data.message:null;throw new Error(Array.isArray(message)?message[0]:message||`${label}ログインに失敗しました`)}setSession(data);setDemoRole(null);setScreen("home")}catch(cause){setError(cause instanceof Error?cause.message:"ログインに失敗しました")}finally{setLoading(false)}
+    try{const redirectUri=provider==="google"?GOOGLE_REDIRECT_URI:APPLE_REDIRECT_URI;const label=provider==="google"?"Google":"Apple";const result=await WebBrowser.openAuthSessionAsync(`${API_URL}/auth/${provider}/start?returnTo=${encodeURIComponent(redirectUri)}`,redirectUri);if(result.type!=="success"||!result.url)throw new Error(`${label}ログインがキャンセルされました`);const ticket=new URL(result.url).searchParams.get("ticket");if(!ticket)throw new Error(`${label}ログインの確認情報を取得できませんでした`);const response=await fetch(`${API_URL}/auth/${provider}/redeem`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({ticket,...input})});const data=await readJson(response) as Session|{message?:string|string[]};if(!response.ok||!("accessToken" in data)){const message="message" in data?data.message:null;throw new Error(Array.isArray(message)?message[0]:message||`${label}ログインに失敗しました`)}setSession(data);setDemoRole(null);setScreen("home")}catch(cause){setError(cause instanceof Error?cause.message:"ログインに失敗しました")}finally{setLoading(false)}
   }
 
   async function authenticateWithPhone(phone:string,code?:string,challengeToken?:string):Promise<{challengeToken?:string;demoCode?:string}>{
@@ -865,10 +866,20 @@ export default function App() {
       setLoading(false);
     }
   }
-  function chooseArea(area: AlphaArea) {
+  async function chooseArea(area: AlphaArea) {
+    const next = AREA_COORDINATES[area];
     setSelectedArea(area);
-    setCoordinates(AREA_COORDINATES[area]);
+    setCoordinates(next);
     setLocationLabel(area);
+    setLoading(true);
+    setError("");
+    try {
+      await loadHome(next);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Hangoutを再取得できませんでした");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function openRoom(room: Room) {
@@ -1128,6 +1139,7 @@ export default function App() {
       };
       setCoordinates(next);
       setLocationLabel("現在地周辺");
+      await loadHome(next);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "現在地を取得できませんでした");
     } finally {
@@ -1240,7 +1252,7 @@ export default function App() {
   }
 
   if (!session) {
-    return <AuthScreen loading={loading} error={error} onLogin={authenticate} onRegister={register} onLine={authenticateWithLine} onX={authenticateWithX} onGoogle={()=>authenticateWithOAuth('google')} onApple={()=>authenticateWithOAuth('apple')} onPhone={authenticateWithPhone} />;
+    return <AuthScreen loading={loading} error={error} onLogin={authenticate} onRegister={register} onLine={authenticateWithLine} onX={authenticateWithX} onGoogle={(input)=>authenticateWithOAuth('google', input)} onApple={(input)=>authenticateWithOAuth('apple', input)} onPhone={authenticateWithPhone} />;
   }
 
   return (
@@ -1307,7 +1319,7 @@ export default function App() {
   );
 }
 
-function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle, onApple, onPhone }: { loading: boolean; error: string; onLogin: (email: string, password: string, role?: "host" | "guest" | null) => Promise<void>; onRegister: (input: { email: string; password: string; displayName: string; birthDate: string; gender: string; profilePhotos?: string[] }) => Promise<void>; onLine: (input?: { displayName: string; birthDate: string; gender: string; profilePhotos?: string[] }) => Promise<void>; onX: () => Promise<void>; onGoogle:()=>Promise<void>;onApple:()=>Promise<void>;onPhone:(phone:string,code?:string,challengeToken?:string)=>Promise<{challengeToken?:string;demoCode?:string}> }) {
+function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle, onApple, onPhone }: { loading: boolean; error: string; onLogin: (email: string, password: string, role?: "host" | "guest" | null) => Promise<void>; onRegister: (input: { email: string; password: string; displayName: string; birthDate: string; gender: string; profilePhotos?: string[] }) => Promise<void>; onLine: (input?: OAuthRegistrationInput) => Promise<void>; onX: (input?: OAuthRegistrationInput) => Promise<void>; onGoogle:(input?: OAuthRegistrationInput)=>Promise<void>;onApple:(input?: OAuthRegistrationInput)=>Promise<void>;onPhone:(phone:string,code?:string,challengeToken?:string)=>Promise<{challengeToken?:string;demoCode?:string}> }) {
   const [mode, setMode] = useState<AuthMode>("welcome");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -1316,8 +1328,34 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle
   const [birthDatePickerVisible, setBirthDatePickerVisible] = useState(false);
   const [gender, setGender] = useState("UNDISCLOSED");
   const [providerNote, setProviderNote] = useState("");
+  const [authInputError, setAuthInputError] = useState("");
   const [registrationPhotos, setRegistrationPhotos] = useState<string[]>([]);
   const [phone,setPhone]=useState("");const[phoneCode,setPhoneCode]=useState("");const[phoneChallenge,setPhoneChallenge]=useState<string|null>(null);
+  const resetProviderState = () => { setPhone(""); setPhoneCode(""); setPhoneChallenge(null); setProviderNote(""); };
+  const changeMode = (next: AuthMode) => { resetProviderState(); setAuthInputError(""); setMode(next); };
+  const registrationInput = (): OAuthRegistrationInput | null => {
+    if (!displayName.trim()) { setAuthInputError("表示名を入力してください。"); return null; }
+    if (!birthDate) { setAuthInputError("生年月日を入力してください。"); return null; }
+    setAuthInputError("");
+    return { displayName: displayName.trim(), birthDate, gender, ...(registrationPhotos.length ? { profilePhotos: registrationPhotos } : {}) };
+  };
+  const submitEmail = () => {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) { setAuthInputError("正しいメールアドレスを入力してください。"); return; }
+    if (password.length < 12) { setAuthInputError("パスワードは12文字以上で入力してください。"); return; }
+    if (mode === "login") { setAuthInputError(""); void onLogin(normalizedEmail, password); return; }
+    const input = registrationInput();
+    if (input) void onRegister({ email: normalizedEmail, password, ...input });
+  };
+  const submitProvider = (provider: "Google" | "Apple" | "X" | "LINE") => {
+    const input = mode === "register" ? registrationInput() : undefined;
+    if (mode === "register" && !input) return;
+    const providerInput = input ?? undefined;
+    if (provider === "LINE") void onLine(providerInput);
+    else if (provider === "X") void onX(providerInput);
+    else if (provider === "Google") void onGoogle(providerInput);
+    else void onApple(providerInput);
+  };
   const chooseRegistrationPhotos = async (source?: "camera" | "library") => {
     if (!source) return Alert.alert("プロフィール画像を追加", "追加方法を選んでください。", [
       { text: "カメラで撮影", onPress: () => void chooseRegistrationPhotos("camera") },
@@ -1364,17 +1402,17 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle
           <View style={styles.authChoiceCard}>
             <Text style={styles.eyebrow}>利用方法を選んでください</Text>
             <Text style={styles.authChoiceTitle}>Hangout Nowをはじめる</Text>
-            <Pressable style={styles.authLoginChoice} onPress={() => setMode("login")} accessibilityRole="button">
+            <Pressable style={styles.authLoginChoice} onPress={() => changeMode("login")} accessibilityRole="button">
               <Text style={styles.authLoginChoiceText}>ログイン</Text>
               <Text style={styles.authChoiceHint}>登録済みのアカウントを使う</Text>
             </Pressable>
-            <Pressable style={styles.authRegisterChoice} onPress={() => setMode("register")} accessibilityRole="button">
+            <Pressable style={styles.authRegisterChoice} onPress={() => changeMode("register")} accessibilityRole="button">
               <Text style={styles.authRegisterChoiceText}>新しくアカウントを作る</Text>
               <Text style={styles.authChoiceHint}>無料で登録する</Text>
             </Pressable>
           </View>
         ) : <>
-        <Pressable style={styles.authBackButton} onPress={() => setMode("welcome")} accessibilityRole="button" accessibilityLabel="最初の画面に戻る">
+        <Pressable style={styles.authBackButton} onPress={() => changeMode("welcome")} accessibilityRole="button" accessibilityLabel="最初の画面に戻る">
           <View style={styles.backChevron} />
           <Text style={styles.authBackText}>最初の画面へ</Text>
         </Pressable>
@@ -1391,7 +1429,7 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle
               <Text style={styles.label}>プロフィール画像（任意・3枚まで）</Text>
               <Pressable style={styles.imagePickerButton} onPress={() => void chooseRegistrationPhotos()}><Text style={styles.imagePickerButtonText}>プロフィール画像を選ぶ</Text></Pressable>
               {!!registrationPhotos.length && <View style={styles.registrationPhotoRow}>{registrationPhotos.map((photo, index) => <Image key={`${index}-${photo.length}`} source={{ uri: photo }} style={index === 0 ? styles.registrationPhotoMain : styles.registrationPhoto} />)}</View>}
-              <Text style={styles.profileEditorHint}>1枚目が中央のメイン画像になります。</Text>
+              <Text style={styles.profileEditorHint}>1枚目を中央のメイン画像、2・3枚目を左右に表示します。</Text>
               <Text style={styles.label}>性別</Text>
               <View style={styles.genderChoices}>
                 {[
@@ -1408,22 +1446,11 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle
             </>
           )}
           <Field label="パスワード" value={password} onChangeText={setPassword} secureTextEntry />
-          {error ? <Text style={styles.authError}>{error}</Text> : null}
+          {authInputError ? <Text style={styles.authError}>{authInputError}</Text> : error ? <Text style={styles.authError}>{error}</Text> : null}
           <Pressable
             disabled={loading}
             style={styles.primary}
-            onPress={() =>
-              mode === "login"
-                ? onLogin(email, password)
-                : onRegister({
-                    email,
-                    password,
-                    displayName,
-                    birthDate,
-                    gender,
-                    ...(registrationPhotos.length ? { profilePhotos: registrationPhotos } : {}),
-                  })
-            }
+            onPress={submitEmail}
           >
             <Text style={styles.primaryText}>{loading ? "接続中…" : mode === "login" ? "ログイン" : "無料で登録"}</Text>
           </Pressable>
@@ -1437,7 +1464,7 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle
               key={provider}
               disabled={loading}
               style={[styles.providerButton, provider === "X" && styles.xProviderButton]}
-              onPress={() => provider === "LINE" ? void onLine(mode === "register" ? { displayName, birthDate, gender, ...(registrationPhotos.length ? { profilePhotos: registrationPhotos } : {}) } : undefined) : provider === "X" ? void onX() : provider==="Google"?void onGoogle():provider==="Apple"?void onApple():setPhoneChallenge("")}
+              onPress={() => provider === "電話番号" ? (setAuthInputError(""), setPhoneCode(""), setProviderNote(""), setPhoneChallenge("")) : submitProvider(provider)}
             >
               <Text style={[styles.providerMark, provider === "X" && styles.xProviderText]}>{provider === "Google" ? "G" : provider === "Apple" ? "●" : provider === "X" ? "X" : provider === "LINE" ? "L" : "☎"}</Text>
               <Text style={[styles.providerButtonText, provider === "X" && styles.xProviderText]}>{`${provider}${mode === "register" ? "でアカウント作成" : "でログイン"}`}</Text>
@@ -1445,7 +1472,7 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle
           ))}
           {phoneChallenge!==null?<View><Field label="携帯電話番号" value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="09012345678" />{phoneChallenge?<Field label="SMSで届いた6桁の認証コード" value={phoneCode} onChangeText={setPhoneCode} keyboardType="number-pad" maxLength={6} />:null}<Text style={styles.phoneHint}>日本の電話番号は090・080・070から入力できます。</Text><Pressable disabled={loading || !phone.trim() || Boolean(phoneChallenge && phoneCode.length !== 6)} style={[styles.primary, (loading || !phone.trim() || Boolean(phoneChallenge && phoneCode.length !== 6)) && styles.disabled]} onPress={async()=>{try{const result=await onPhone(phone,phoneCode,phoneChallenge||undefined);if(result.challengeToken){setPhoneChallenge(result.challengeToken);setProviderNote(result.demoCode?`開発用コード：${result.demoCode}`:'SMSに認証コードを送信しました')}}catch{}}}><Text style={styles.primaryText}>{phoneChallenge?'アカウント作成・ログイン':'SMS認証コードを送る'}</Text></Pressable></View>:null}
           <Text style={styles.providerNote}>{providerNote}</Text>
-          <Pressable style={styles.authSwitchButton} onPress={() => setMode(mode === "login" ? "register" : "login")}>
+          <Pressable style={styles.authSwitchButton} onPress={() => changeMode(mode === "login" ? "register" : "login")}>
             <Text style={styles.authSwitch}>{mode === "login" ? "新しくアカウントを作る" : "アカウントをお持ちの方はログイン"}</Text>
           </Pressable>
           <Text style={styles.authAgreement}>登録により利用規約とプライバシーポリシーに同意します。</Text>
@@ -2516,26 +2543,27 @@ function ProfileScreen({ user, hostStatus, activity, demo, onBack, onChat, onOpe
             <Text style={styles.profileEditorLabel}>性別</Text><View style={styles.profileGenderOptions}>{[["UNDISCLOSED", "回答しない"], ["MALE", "男性"], ["FEMALE", "女性"], ["OTHER", "その他"]].map(([value, label]) => <Pressable key={value} style={[styles.profileGenderOption, gender === value && styles.profileGenderOptionSelected]} onPress={() => setGender(value)}><Text style={gender === value ? styles.profileGenderOptionTextSelected : styles.profileGenderOptionText}>{label}</Text></Pressable>)}</View>
             <View style={styles.matchingPreferences}>
               <Text style={styles.matchingTitle}>マッチング設定</Text>
+              <Text style={styles.profileEditorHint}>タップするだけ。複数選べる項目は、もう一度タップすると解除できます。</Text>
               <Text style={styles.profileEditorHint}>入力は任意です。位置は市区・駅などのおおまかなエリアだけを保存し、正確なGPS位置は保存しません。</Text>
               <Text style={styles.profileEditorLabel}>希望エリア</Text><Text style={styles.profileEditorHint}>よく行く場所を選択</Text><View style={styles.matchChoiceGrid}>{MATCH_AREA_OPTIONS.map((value) => { const selected = selectedPreferredAreas.includes(value); return <Pressable key={value} style={[styles.matchChoice, selected && styles.matchChoiceSelected]} onPress={() => toggleCsvChoice(value, preferredAreas, setPreferredAreas)}><Text style={[styles.matchChoiceText, selected && styles.matchChoiceTextSelected]}>{value}</Text></Pressable>; })}</View><AppTextInput style={[styles.profileEditorInput, styles.matchCustomInput]} value={customPreferredAreas} onChangeText={(value) => setPreferredAreas([...selectedPreferredAreas, ...parseList(value)].join("、"))} maxLength={300} placeholder="ほかのエリアを追加（例：吉祥寺）" />
               <Text style={styles.profileEditorLabel}>希望する活動</Text><Text style={styles.profileEditorHint}>興味があるものを選択</Text><View style={styles.matchChoiceGrid}>{INTEREST_OPTIONS.map((value) => { const selected = selectedPreferredActivities.includes(value); return <Pressable key={value} style={[styles.matchChoice, selected && styles.matchChoiceSelected]} onPress={() => toggleCsvChoice(value, preferredActivities, setPreferredActivities)}><Text style={[styles.matchChoiceText, selected && styles.matchChoiceTextSelected]}>{value}</Text></Pressable>; })}</View><AppTextInput style={[styles.profileEditorInput, styles.matchCustomInput]} value={customPreferredActivities} onChangeText={(value) => setPreferredActivities([...selectedPreferredActivities, ...parseList(value)].join("、"))} maxLength={500} placeholder="ほかの活動を追加" />
               <Text style={styles.profileEditorLabel}>希望年齢</Text><View style={styles.matchChoiceGridWide}>{([["", "", "こだわらない"], ["18", "24", "18〜24歳"], ["25", "29", "25〜29歳"], ["30", "39", "30代"], ["40", "49", "40代"], ["50", "100", "50歳〜"]] as const).map(([min, max, label]) => { const selected = preferredAgeMin === min && preferredAgeMax === max; return <Pressable key={label} style={[styles.matchChoice, selected && styles.matchChoiceSelected]} onPress={() => { setPreferredAgeMin(min); setPreferredAgeMax(max); }}><Text style={[styles.matchChoiceText, selected && styles.matchChoiceTextSelected]}>{label}</Text></Pressable>; })}</View>
               <Text style={styles.profileEditorLabel}>希望する相手</Text><View style={styles.profileGenderOptions}>{[["MALE", "男性"], ["FEMALE", "女性"], ["OTHER", "その他"], ["UNDISCLOSED", "指定なし"]].map(([value, label]) => { const selected = preferredGenders.includes(value); return <Pressable key={value} style={[styles.profileGenderOption, selected && styles.profileGenderOptionSelected]} onPress={() => togglePreferredGender(value)}><Text style={selected ? styles.profileGenderOptionTextSelected : styles.profileGenderOptionText}>{label}</Text></Pressable>; })}</View>
-              <Text style={styles.profileEditorLabel}>言語</Text><Text style={styles.profileEditorHint}>会話に使いたい言語を複数選択できます</Text>{choiceGrid(LANGUAGE_OPTIONS.map(([, label]) => label), preferredLanguages.map((value) => LANGUAGE_OPTIONS.find(([key]) => key === value)?.[1] ?? value), (labels) => setPreferredLanguages(labels.map((label) => LANGUAGE_OPTIONS.find(([, optionLabel]) => optionLabel === label)?.[0] ?? label)), 4)}
               <Text style={styles.profileEditorLabel}>雰囲気・交流スタイル</Text><Text style={styles.profileEditorHint}>自分に合う過ごし方を選択</Text>{choiceGrid(SOCIAL_STYLE_OPTIONS, socialStyles, setSocialStyles, 5)}
+              <Text style={styles.profileEditorLabel}>参加目的</Text>{choiceGrid(PARTICIPATION_GOAL_OPTIONS, participationGoals, setParticipationGoals, 7)}
+              <Text style={styles.profileEditorLabel}>言語</Text><Text style={styles.profileEditorHint}>会話に使いたい言語を複数選択できます</Text>{choiceGrid(LANGUAGE_OPTIONS.map(([, label]) => label), preferredLanguages.map((value) => LANGUAGE_OPTIONS.find(([key]) => key === value)?.[1] ?? value), (labels) => setPreferredLanguages(labels.map((label) => LANGUAGE_OPTIONS.find(([, optionLabel]) => optionLabel === label)?.[0] ?? label)), 4)}
               <Text style={styles.profileEditorLabel}>活動しやすい時間</Text><Text style={styles.matchChoiceSubtitle}>時間帯</Text><View style={styles.matchChoiceGrid}>{MATCH_TIME_OPTIONS.map((value) => { const selected = selectedActivitySlots.includes(value); return <Pressable key={value} style={[styles.matchChoice, selected && styles.matchChoiceSelected]} onPress={() => toggleCsvChoice(value, activityTimeSlots, setActivityTimeSlots)}><Text style={[styles.matchChoiceText, selected && styles.matchChoiceTextSelected]}>{value}</Text></Pressable>; })}</View><Text style={styles.matchChoiceSubtitle}>曜日</Text><View style={styles.matchWeekGrid}>{MATCH_DAY_OPTIONS.map((value) => { const selected = selectedActivitySlots.includes(value); return <Pressable key={value} style={[styles.matchChoice, styles.matchWeekChoice, selected && styles.matchChoiceSelected]} onPress={() => toggleCsvChoice(value, activityTimeSlots, setActivityTimeSlots)}><Text style={[styles.matchChoiceText, selected && styles.matchChoiceTextSelected]}>{value}</Text></Pressable>; })}</View>
               <Text style={styles.profileEditorLabel}>参加したい時期</Text><View style={styles.interestOptionGrid}>{([[null, "未設定"], ["NOW", "今すぐ"], ["TODAY", "今日"], ["THIS_WEEK", "今週"], ["WEEKEND", "週末"], ["FLEXIBLE", "いつでも"]] as const).map(([value, label]) => <Pressable key={label} style={[styles.interestOption, participationUrgency === value && styles.interestOptionSelected]} onPress={() => setParticipationUrgency(value)}><Text style={[styles.interestOptionText, participationUrgency === value && styles.interestOptionTextSelected]}>{label}</Text></Pressable>)}</View>
               <Text style={styles.profileEditorLabel}>移動できる時間</Text><View style={styles.matchChoiceGrid}>{MATCH_TRAVEL_OPTIONS.map(([value, label]) => { const selected = maxTravelMinutes === String(value); return <Pressable key={value} style={[styles.matchChoice, selected && styles.matchChoiceSelected]} onPress={() => setMaxTravelMinutes(selected ? "" : String(value))}><Text style={[styles.matchChoiceText, selected && styles.matchChoiceTextSelected]}>{label}</Text></Pressable>; })}</View>
               <Text style={styles.profileEditorLabel}>希望人数</Text><Text style={styles.profileEditorHint}>複数選択できます</Text><View style={styles.matchChoiceGrid}>{MATCH_GROUP_OPTIONS.map(([value, label]) => { const selected = selectedGroupSizes.includes(value); return <Pressable key={value} style={[styles.matchChoice, selected && styles.matchChoiceSelected]} onPress={() => toggleCsvChoice(String(value), preferredGroupSizes, setPreferredGroupSizes)}><Text style={[styles.matchChoiceText, selected && styles.matchChoiceTextSelected]}>{label}</Text></Pressable>; })}</View>
               <Text style={styles.profileEditorLabel}>1回の予算</Text><View style={styles.matchChoiceGridWide}>{MATCH_BUDGET_OPTIONS.map(([min, max, label]) => { const selected = budgetMin === String(min) && budgetMax === String(max); return <Pressable key={label} style={[styles.matchChoice, selected && styles.matchChoiceSelected]} onPress={() => { setBudgetMin(selected ? "" : String(min)); setBudgetMax(selected ? "" : String(max)); }}><Text style={[styles.matchChoiceText, selected && styles.matchChoiceTextSelected]}>{label}</Text></Pressable>; })}</View>
-              <Text style={styles.profileEditorLabel}>参加目的</Text>{choiceGrid(PARTICIPATION_GOAL_OPTIONS, participationGoals, setParticipationGoals, 7)}
               <Text style={styles.profileEditorLabel}>お酒</Text><View style={styles.interestOptionGrid}>{([["NONE", "飲まない"], ["SOMETIMES", "少し飲む"], ["YES", "飲む"]] as const).map(([value,label]) => <Pressable key={label} style={[styles.interestOption, alcoholPreference === value && styles.interestOptionSelected]} onPress={() => setAlcoholPreference(alcoholPreference === value ? null : value)}><Text style={[styles.interestOptionText, alcoholPreference === value && styles.interestOptionTextSelected]}>{label}</Text></Pressable>)}</View>
               <Text style={styles.profileEditorLabel}>喫煙環境</Text><View style={styles.interestOptionGrid}>{([["NON_SMOKING", "禁煙希望"], ["SEPARATED", "分煙希望"], ["NO_PREFERENCE", "気にしない"]] as const).map(([value,label]) => <Pressable key={label} style={[styles.interestOption, smokingPreference === value && styles.interestOptionSelected]} onPress={() => setSmokingPreference(smokingPreference === value ? null : value)}><Text style={[styles.interestOptionText, smokingPreference === value && styles.interestOptionTextSelected]}>{label}</Text></Pressable>)}</View>
               <Text style={styles.profileEditorLabel}>初参加への配慮</Text><Text style={styles.profileEditorHint}>安心して参加するために必要なこと</Text>{choiceGrid(FIRST_TIME_OPTIONS, firstTimePreferences, setFirstTimePreferences, 4)}
               <Text style={styles.profileEditorLabel}>苦手・避けたい条件</Text><Text style={styles.profileEditorHint}>おすすめから優先的に外します</Text>{choiceGrid(AVOID_OPTIONS, avoidPreferences, setAvoidPreferences, 7)}
               <Text style={styles.profileEditorLabel}>予定の柔軟性</Text>{choiceGrid(FLEXIBILITY_OPTIONS, scheduleFlexibility, setScheduleFlexibility, 5)}
-              <Pressable accessibilityRole="switch" accessibilityState={{ checked: matchingDataConsent }} style={[styles.matchingConsent, matchingDataConsent && styles.matchingConsentOn]} onPress={() => setMatchingDataConsent((value) => !value)}><View style={[styles.matchingCheckbox, matchingDataConsent && styles.matchingCheckboxOn]}><Text style={styles.matchingCheckmark}>{matchingDataConsent ? "✓" : ""}</Text></View><Text style={styles.matchingConsentText}>この設定情報をマッチング改善に利用することに同意します。正確なGPS位置やトーク内容は利用しません。</Text></Pressable>
               <Pressable accessibilityRole="switch" accessibilityState={{ checked: behaviorLearningEnabled }} style={[styles.matchingConsent, behaviorLearningEnabled && styles.matchingConsentOn]} onPress={() => setBehaviorLearningEnabled((value) => !value)}><View style={[styles.matchingCheckbox, behaviorLearningEnabled && styles.matchingCheckboxOn]}><Text style={styles.matchingCheckmark}>{behaviorLearningEnabled ? "✓" : ""}</Text></View><Text style={styles.matchingConsentText}>アプリ内行動からおすすめを改善します。閲覧した募集、ハート、参加、評価を使い、正確な位置やトーク内容は学習に使いません。</Text></Pressable>
+              <Pressable accessibilityRole="switch" accessibilityState={{ checked: matchingDataConsent }} style={[styles.matchingConsent, matchingDataConsent && styles.matchingConsentOn]} onPress={() => setMatchingDataConsent((value) => !value)}><View style={[styles.matchingCheckbox, matchingDataConsent && styles.matchingCheckboxOn]}><Text style={styles.matchingCheckmark}>{matchingDataConsent ? "✓" : ""}</Text></View><Text style={styles.matchingConsentText}>この設定情報をマッチング改善に利用することに同意します。正確なGPS位置やトーク内容は利用しません。</Text></Pressable>
             </View>
           </ScrollView>
           </KeyboardAvoidingView>

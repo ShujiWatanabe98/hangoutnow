@@ -116,10 +116,11 @@ test('social and phone authentication continue directly into account creation', 
   assert.match(application, /if\(provider==='電話番号'\)\{phoneAuthDialog\(\);return\}/);
   assert.match(application, /const input=null/);
   assert.match(application, /\/auth\/phone\/confirm/);
-  assert.match(mobile, /provider === "LINE" \? void onLine\(mode === "register"/);
+  assert.match(mobile, /const input = mode === "register" \? registrationInput\(\) : undefined/);
+  assert.match(mobile, /if \(provider === "LINE"\) void onLine\(providerInput\)/);
   assert.match(mobile, /normalizePhoneNumber\(phone\)/);
   assert.match(mobile, /SMSで届いた6桁の認証コード/);
-  assert.match(mobile, /authenticateWithOAuth\(provider:"google"\|"apple"\)/);
+  assert.match(mobile, /authenticateWithOAuth\(provider:"google"\|"apple", input\?: OAuthRegistrationInput\)/);
   assert.match(mobile, /\/auth\/phone\/confirm/);
   assert.match(mobile, /\/auth\/x\/redeem/);
   assert.match(application, /const result=await api\(`\/auth\/\$\{provider\}\/redeem`/);
@@ -491,4 +492,27 @@ test('native notifications match the standalone production notification screen',
   assert.match(mobile, /notificationActions: \{ flexDirection: "row"[^\n]+gap: 5/);
   assert.match(mobile, /notificationItemUnread: \{ borderLeftWidth: 5, borderLeftColor: "#176b48", backgroundColor: "#f6fff8" \}/);
   assert.doesNotMatch(mobile, /notificationDot/);
+});
+
+test('native location, registration, and matching editor flows match production', async () => {
+  const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
+
+  assert.match(mobile, /loadHome = useCallback\(async \(locationOverride\?/);
+  assert.ok((mobile.match(/await loadHome\(next\)/g) ?? []).length >= 2, 'area and GPS changes must reload nearby Hangouts');
+  assert.match(mobile, /authenticateWithX\(input\?: OAuthRegistrationInput\)/);
+  assert.match(mobile, /authenticateWithOAuth\(provider:"google"\|"apple", input\?: OAuthRegistrationInput\)/);
+  assert.ok((mobile.match(/JSON\.stringify\(\{\s*ticket,\s*\.\.\.input\s*\}\)/g) ?? []).length >= 2);
+  assert.match(mobile, /正しいメールアドレスを入力してください/);
+  assert.match(mobile, /パスワードは12文字以上で入力してください/);
+  assert.match(mobile, /const changeMode = \(next: AuthMode\) => \{ resetProviderState\(\)/);
+  assert.match(mobile, /1枚目を中央のメイン画像、2・3枚目を左右に表示します/);
+  assert.match(mobile, /タップするだけ。複数選べる項目は、もう一度タップすると解除できます/);
+
+  const social = mobile.indexOf('>雰囲気・交流スタイル<');
+  const goals = mobile.indexOf('>参加目的<', social);
+  const languages = mobile.indexOf('>言語<', goals);
+  assert.ok(social >= 0 && social < goals && goals < languages, 'matching fields must follow production order');
+  const behavior = mobile.indexOf('アプリ内行動からおすすめを改善します');
+  const consent = mobile.indexOf('この設定情報をマッチング改善に利用することに同意します');
+  assert.ok(behavior >= 0 && behavior < consent, 'behavior consent must precede matching-data consent');
 });
