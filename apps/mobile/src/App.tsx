@@ -1314,7 +1314,7 @@ export default function App() {
       {demoRole && screen !== "notifications" && !(screen === "chat" && selectedRoom) && (
         <View style={styles.demoBanner}>
           <View>
-            <Text style={styles.demoTitle}>デモ：{demoRole === "host" ? "マミ（主催者）" : "マドカ（参加者）"}として体験中</Text>
+            <Text style={styles.demoTitle}>デモ：{demoRole === "host" ? "サヤカ（主催者）" : "マドカ（参加者）"}として体験中</Text>
             <Text style={styles.demoHint}>{demoRole === "host" ? "作成・承認・終了・★1〜5評価を操作" : "参加申請・トーク・★1〜5評価を操作"}</Text>
           </View>
           <View style={styles.demoBannerActions}>
@@ -1461,7 +1461,7 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle
           <Text style={styles.demoDescription}>登録や電話番号入力は必要ありません。</Text>
           <View style={styles.demoRow}>
             <Pressable disabled={loading} style={styles.roleButton} onPress={() => onLogin("", "", "host")}>
-              <Text style={styles.roleTitle}>マミ（主催者）として見る</Text>
+              <Text style={styles.roleTitle}>サヤカ（主催者）として見る</Text>
               <Text style={styles.roleHint}>30代女性・飲み企画を管理</Text>
             </Pressable>
             <Pressable disabled={loading} style={[styles.roleButton, styles.roleGuest]} onPress={() => onLogin("", "", "guest")}>
@@ -1589,7 +1589,7 @@ function HomeScreen({ user, hangouts, refreshing, locationLabel, locationSource,
   ]);
   return (
     <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
-      {demoRole && <View style={styles.demoJourney}><Text style={styles.demoJourneyTitle}>デモ：マミの飲み企画</Text><Text style={styles.demoJourneyText}>1. 主催者は30代女性のマミ{`\n`}2. 20代男性のマサヤは承認済み{`\n`}3. 30代女性のマドカはHangoutを検索中{`\n`}4. マドカが途中参加を申請{`\n`}5. 承認後はグループトークで会話</Text><Text style={styles.demoJourneyHint}>「マミと新宿で気軽に飲もう」を開いて試せます。</Text></View>}
+      {demoRole && <View style={styles.demoJourney}><Text style={styles.demoJourneyTitle}>デモ：サヤカの飲み企画</Text><Text style={styles.demoJourneyText}>1. 主催者は30代女性のサヤカ{`\n`}2. 20代男性のマサヤは承認済み{`\n`}3. 30代女性のマドカはHangoutを検索中{`\n`}4. マドカが途中参加を申請{`\n`}5. 承認後はグループトークで会話</Text><Text style={styles.demoJourneyHint}>「サヤカと新宿で気軽に飲もう」を開いて試せます。</Text></View>}
       <View style={styles.hero}>
         <Text style={styles.eyebrow}>{locationLabel}</Text>
         <Text style={styles.heroTitle}>今から何する？</Text>

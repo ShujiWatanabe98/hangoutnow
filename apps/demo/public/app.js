@@ -145,7 +145,7 @@ setInterval(refreshCountdowns,1000);
 
 function authScreen(mode = 'login') {
   const register = mode === 'register';
-  const demoChoices = DEMO_ACCOUNTS ? `<section class="demo-entry"><span class="demo-label">公開デモ・すべて架空のデータです</span><h2>役割を選んですぐに体験</h2><p>登録や電話番号入力は必要ありません。</p><div class="demo-buttons"><button data-demo-role="host"><b>マミ（主催者）として見る</b><small>30代女性・飲み企画を管理</small></button><button data-demo-role="guest"><b>マドカ（参加者）として見る</b><small>30代女性・Hangoutを探す</small></button></div><div id="demo-error" class="auth-error"></div></section>` : '';
+  const demoChoices = DEMO_ACCOUNTS ? `<section class="demo-entry"><span class="demo-label">公開デモ・すべて架空のデータです</span><h2>役割を選んですぐに体験</h2><p>登録や電話番号入力は必要ありません。</p><div class="demo-buttons"><button data-demo-role="host"><b>サヤカ（主催者）として見る</b><small>30代女性・飲み企画を管理</small></button><button data-demo-role="guest"><b>マドカ（参加者）として見る</b><small>30代女性・Hangoutを探す</small></button></div><div id="demo-error" class="auth-error"></div></section>` : '';
   const providerAction = register ? 'でアカウント作成' : 'でログイン';
   const genderChoices = register ? `<label>性別</label><div class="auth-gender-choices">${[['UNDISCLOSED','回答しない'],['MALE','男性'],['FEMALE','女性'],['OTHER','その他']].map(([value,label])=>`<button type="button" data-auth-gender="${value}" class="${value==='UNDISCLOSED'?'chosen':''}">${label}</button>`).join('')}</div>` : '';
   const authDivider = '<div class="auth-divider"><span>または</span></div>';
@@ -219,7 +219,7 @@ async function demoLogin(role, button) {
 
 function shell(content, showFab = true) {
   const demoGuide=demoRole==='host'?'作成・承認・終了・★1〜5評価を操作':'参加申請・トーク・★1〜5評価を操作';
-  const demoBanner=demoRole?`<div class="demo-banner"><span><b>デモ：${demoRole==='host'?'マミ（主催者）':'マドカ（参加者）'}として体験中</b><small>${demoGuide}</small></span><div><button id="reset-demo">最初から</button><button id="switch-demo-role">役割切替</button></div></div>`:'';
+  const demoBanner=demoRole?`<div class="demo-banner"><span><b>デモ：${demoRole==='host'?'サヤカ（主催者）':'マドカ（参加者）'}として体験中</b><small>${demoGuide}</small></span><div><button id="reset-demo">最初から</button><button id="switch-demo-role">役割切替</button></div></div>`:'';
   app.innerHTML = `<main class="phone">${demoBanner}<header class="top"><div class="brand">Hangout <i>Now</i></div><div class="header-actions"><button class="notification-button" aria-label="通知"><span class="notification-mark"></span><span class="notification-badge ${unreadNotifications?'':'hidden'}">${unreadNotifications}</span></button><button class="profile-menu-button" aria-label="自分のプロフィールを表示"><span class="avatar"${photoStyle(session.user.profilePhoto)}>${session.user.profilePhoto?'':safeText(session.user.displayName).slice(0,1)}</span></button></div></header>${content}${showFab ? '<button class="fab" aria-label="Hangoutを作る">＋</button>' : ''}</main>`;
   const switchDemoRole=app.querySelector('#switch-demo-role');
   if(switchDemoRole)switchDemoRole.onclick=()=>{realtimeSocket?.disconnect();session=null;demoRole=null;localStorage.removeItem(SESSION_STORAGE_KEY);localStorage.removeItem(DEMO_ROLE_STORAGE_KEY);authScreen('login')};
@@ -234,7 +234,7 @@ function home() {
   activeScreen = 'home';
   const visible = activeFilter === 'おすすめ' ? hangouts : hangouts.filter((h) => h.time === activeFilter);
   const filters = [['おすすめ', 'おすすめ'], ['30分後', '30分後'], ['1時間後', '1時間後'], ['3時間後', '3時間後']];
-  const journey=demoRole?`<section class="demo-journey"><b>デモ：マミの飲み企画</b><ol><li>主催者は30代女性のマミ</li><li>20代男性のマサヤは承認済み</li><li>30代女性のマドカはHangoutを検索中</li><li>マドカが途中参加を申請</li><li>承認後はグループトークで会話</li></ol><small>「マミと新宿で気軽に飲もう」を開いて試せます。</small></section>`:'';
+  const journey=demoRole?`<section class="demo-journey"><b>デモ：サヤカの飲み企画</b><ol><li>主催者は30代女性のサヤカ</li><li>20代男性のマサヤは承認済み</li><li>30代女性のマドカはHangoutを検索中</li><li>マドカが途中参加を申請</li><li>承認後はグループトークで会話</li></ol><small>「サヤカと新宿で気軽に飲もう」を開いて試せます。</small></section>`:'';
   shell(`${journey}<section class="hero"><div class="eyebrow">${userLocation?.label||'エリア未設定'}</div><h1>今から何する？</h1><button id="create-hangout" class="create-hangout-button" type="button">Hangoutを作る</button><div class="location-tools"><button id="use-location">現在地を使う</button><select id="manual-area"><option value="">エリアを選択</option>${Object.keys(areas).map(a=>`<option ${userLocation?.label===a?'selected':''}>${a}</option>`).join('')}</select></div></section><div class="pills">${filters.map(([value, label]) => `<button class="pill ${activeFilter === value ? 'active' : ''}" data-filter="${value}">${label}</button>`).join('')}</div><div class="section-head"><h2>近くのHangout</h2><div class="section-head-actions"><span>${visible.length}件・距離順</span><button id="open-nearby-map" class="map-shortcut" type="button" aria-label="近くのHangoutをマップで表示"><span></span></button></div></div><section class="cards">${visible.length ? visible.map(card).join('') : '<div class="empty">この時間の募集はまだありません。<br>エリアを変更して探してみてください。</div>'}</section>`, false);
   document.querySelector('#create-hangout').onclick=showCreate;
   document.querySelector('#use-location').onclick=useCurrentLocation;

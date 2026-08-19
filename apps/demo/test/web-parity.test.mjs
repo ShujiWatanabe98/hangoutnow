@@ -361,7 +361,7 @@ test('native profile camera, safety report, talk status, host tier, and demo lab
 
   assert.match(mobile, /chooseProfilePhoto\(index: number, source\?: "camera" \| "library"\)/);
   assert.match(mobile, /chooseRegistrationPhotos = async \(source\?: "camera" \| "library"\)/);
-  for (const contract of ['プロフィール画像を追加', 'カメラで撮影', '写真ライブラリから選ぶ', 'ReportHostModal', '同時にブロック', '状況を入力してください（任意）', '終了・評価待ち', 'Hangout終了', '次のステータス：', '最高ステータスです', 'マミ（主催者）として見る', 'マドカ（参加者）として見る']) {
+  for (const contract of ['プロフィール画像を追加', 'カメラで撮影', '写真ライブラリから選ぶ', 'ReportHostModal', '同時にブロック', '状況を入力してください（任意）', '終了・評価待ち', 'Hangout終了', '次のステータス：', '最高ステータスです', 'サヤカ（主催者）として見る', 'マドカ（参加者）として見る']) {
     assert.ok(mobile.includes(contract), `missing current production mobile contract: ${contract}`);
   }
   assert.match(mobile, /blockUser,\s*\}\),/);

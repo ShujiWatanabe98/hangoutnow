@@ -17,7 +17,7 @@ export class DemoService {
     const host = users.find((user) => user.email === HOST_EMAIL);
     const guest = users.find((user) => user.email === GUEST_EMAIL);
     if (!host || !guest) throw new NotFoundException('Demo accounts are not ready');
-    if (![host.id, guest.id].includes(requesterId)) throw new ForbiddenException('Only Mami or Madoka can seed demo history');
+    if (![host.id, guest.id].includes(requesterId)) throw new ForbiddenException('Only public demo accounts can seed demo history');
 
     const activities = [
       ['新宿でカフェ巡り', 'CAFE', ServiceArea.SHINJUKU, '新宿駅周辺'],
@@ -43,7 +43,7 @@ export class DemoService {
         await transaction.hangout.create({ data: {
           id: hangoutId, hostUserId: organizer.id, title: `[1週間デモ] ${title}`,
           isDemo: true,
-          description: 'マミとマドカが参加した架空の過去Hangoutです。', category, serviceArea, startAt,
+          description: 'サヤカとマドカが参加した架空の過去Hangoutです。', category, serviceArea, startAt,
           publicLocationName, locationName: `${publicLocationName}のデモ店舗`, maxParticipants: 4,
           hostMaleCount: 0, hostFemaleCount: 1, status: HangoutStatus.FINISHED,
           joinRequests: { create: { id: uuidv7(), userId: participant.id, message: '参加しました', status: JoinRequestStatus.ACCEPTED, attendanceStatus: AttendanceStatus.CONFIRMED, attendanceUpdatedAt: startAt } },
@@ -79,7 +79,7 @@ export class DemoService {
       await transaction.notification.deleteMany({ where: { userId: { in: demoUserIds } } });
       const hangoutId = uuidv7();
       const hangout = await transaction.hangout.create({ data: {
-        id: hangoutId, hostUserId: host.id, title: 'マミと新宿で気軽に飲もう',
+        id: hangoutId, hostUserId: host.id, title: 'サヤカと新宿で気軽に飲もう',
         isDemo: true,
         imageUrl: 'https://hangoutnow-demo.onrender.com/assets/demo-drinking-hangout-v2.jpg',
         description: '仕事帰りに気軽に乾杯する、公開デモ用の架空の飲み会です。初参加も歓迎します。',

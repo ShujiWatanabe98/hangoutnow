@@ -63,11 +63,11 @@ describe('authentication and profile', () => {
   it('logs in both public demo roles through the dedicated endpoint', async () => {
     app = await createApp();
     const password = 'HangoutNow-Demo-2026!';
-    await request(app.getHttpServer()).post('/auth/register').send({ email: 'demo-host@hangoutnow.example', password, displayName: 'マミ', birthDate: '1990-01-01', gender: 'FEMALE' }).expect(201);
+    await request(app.getHttpServer()).post('/auth/register').send({ email: 'demo-host@hangoutnow.example', password, displayName: 'サヤカ', birthDate: '1990-01-01', gender: 'FEMALE' }).expect(201);
     await request(app.getHttpServer()).post('/auth/register').send({ email: 'demo-guest@hangoutnow.example', password, displayName: 'マドカ', birthDate: '1991-01-01', gender: 'FEMALE' }).expect(201);
     const host = await request(app.getHttpServer()).post('/auth/demo-login').send({ role: 'host' }).expect(200);
     const guest = await request(app.getHttpServer()).post('/auth/demo-login').send({ role: 'guest' }).expect(200);
-    expect(host.body.user.displayName).toBe('マミ');
+    expect(host.body.user.displayName).toBe('サヤカ');
     expect(guest.body.user.displayName).toBe('マドカ');
     await request(app.getHttpServer()).post('/auth/demo-login').send({ role: 'unknown' }).expect(400);
   });

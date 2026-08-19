@@ -38,7 +38,7 @@ const imageByCategory = {
 const accounts = {
   host: {
     email: process.env.HANGOUTNOW_DEMO_HOST_EMAIL || 'demo-host@hangoutnow.example',
-    displayName: 'マミ（デモ主催者）',
+    displayName: 'サヤカ（デモ主催者）',
     phone: '+819011110001',
     birthDate: '1989-04-12',
     gender: 'FEMALE',
@@ -206,7 +206,7 @@ const organizers = { host, kenta, aoi };
 const samples = [
   {
     organizer: 'host',
-    title: 'マミと新宿で気軽に飲もう',
+    title: 'サヤカと新宿で気軽に飲もう',
     imageUrl: drinkingPhoto,
     description: '仕事帰りに気軽に乾杯する、公開デモ用の架空の飲み会です。初参加も歓迎します。',
     category: 'DRINKING', serviceArea: 'SHINJUKU', startInMinutes: 60, publicLocationName: '新宿駅東口周辺（デモ）', locationName: 'デモ居酒屋 新宿店 東京都新宿区新宿3-1-1',
