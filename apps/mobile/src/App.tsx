@@ -301,6 +301,7 @@ export default function App() {
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [ratingRoom, setRatingRoom] = useState<GroupRoom | null>(null);
   const [finishConfirmationId, setFinishConfirmationId] = useState<string | null>(null);
+  const [reportingHangout, setReportingHangout] = useState<Hangout | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageBody, setMessageBody] = useState("");
   const [loading, setLoading] = useState(false);
@@ -810,28 +811,9 @@ export default function App() {
     }
   }
   function confirmReportHost(hangout: Hangout) {
-    const choose = (reason: ReportReason, label: string) =>
-      Alert.alert("通報してブロック", `${hangout.host.displayName}さんを「${label}」として運営へ通報し、今後お互いの募集とトークを非表示にします。`, [
-        { text: "キャンセル", style: "cancel" },
-        {
-          text: "通報してブロック",
-          style: "destructive",
-          onPress: () => void reportHost(hangout, reason, label),
-        },
-      ]);
-    Alert.alert("通報理由を選択", "緊急の危険がある場合は、アプリではなく警察・救急へ連絡してください。", [
-      {
-        text: "危険な行為",
-        onPress: () => choose("DANGEROUS", "危険な行為"),
-      },
-      {
-        text: "迷惑行為・その他",
-        onPress: () => choose("OTHER", "迷惑行為・その他"),
-      },
-      { text: "キャンセル", style: "cancel" },
-    ]);
+    setReportingHangout(hangout);
   }
-  async function reportHost(hangout: Hangout, reason: ReportReason, label: string) {
+  async function reportHost(hangout: Hangout, reason: ReportReason, details: string, blockUser: boolean) {
     setLoading(true);
     setError("");
     try {
@@ -841,14 +823,17 @@ export default function App() {
           targetUserId: hangout.hostUserId,
           hangoutId: hangout.id,
           reason,
-          details: `Hangout詳細画面から通報: ${label}`,
-          blockUser: true,
+          details: details.trim() || undefined,
+          blockUser,
         }),
       });
-      setHangouts((current) => current.filter((item) => item.hostUserId !== hangout.hostUserId));
-      setSelectedHangout(null);
-      setScreen("home");
-      Alert.alert("通報を受け付けました", "相手をブロックし、運営の確認対象に追加しました。");
+      setReportingHangout(null);
+      if (blockUser) {
+        setHangouts((current) => current.filter((item) => item.hostUserId !== hangout.hostUserId));
+        setSelectedHangout(null);
+        setScreen("home");
+      }
+      Alert.alert("通報を受け付けました", blockUser ? "相手をブロックし、運営の確認対象に追加しました。" : "運営の確認対象に追加しました。");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "通報を送信できませんでした");
     } finally {
@@ -1148,20 +1133,29 @@ export default function App() {
     }
   }
 
-  async function chooseProfilePhoto(index: number) {
+  async function chooseProfilePhoto(index: number, source?: "camera" | "library") {
+    if (!source) {
+      Alert.alert("プロフィール画像を追加", "追加方法を選んでください。", [
+        { text: "カメラで撮影", onPress: () => void chooseProfilePhoto(index, "camera") },
+        { text: "写真ライブラリから選ぶ", onPress: () => void chooseProfilePhoto(index, "library") },
+        { text: "キャンセル", style: "cancel" },
+      ]);
+      return;
+    }
     setLoading(true);
     setError("");
     try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) throw new Error("写真ライブラリへのアクセスを許可してください");
-      const result = await ImagePicker.launchImageLibraryAsync({
+      const permission = source === "camera" ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) throw new Error(source === "camera" ? "カメラへのアクセスを許可してください" : "写真ライブラリへのアクセスを許可してください");
+      const options: ImagePicker.ImagePickerOptions = {
         mediaTypes: ["images"],
         allowsMultipleSelection: false,
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.5,
         base64: true,
-      });
+      };
+      const result = source === "camera" ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
       if (result.canceled) return;
       const asset=result.assets[0];
       if(!asset?.base64)throw new Error("写真を読み込めませんでした");
@@ -1299,6 +1293,7 @@ export default function App() {
         {screen === "profile" && <ProfileScreen user={session.user} hostStatus={hostStatus} activity={profileActivity} demo={!!demoRole} onBack={() => setScreen("home")} onChat={() => { setSelectedRoom(null); setChatReturnScreen("profile"); setScreen("chat"); }} onOpenHangout={(id) => void openHangout({ id })} onPhone={() => setScreen("phone")} onPhoto={chooseProfilePhoto} onSave={updateProfile} onDelete={confirmDeleteAccount} onLogout={logout} />}
         {screen === "notifications" && <NotificationScreen inbox={notificationInbox} refreshing={refreshing} onBack={() => setScreen("home")} onRefresh={refreshCurrent} onEnabled={setNotificationEnabled} onDeviceNotifications={() => void enableDeviceNotifications(true)} onRead={readNotification} onReadAll={readAllNotifications} onDelete={confirmDeleteNotifications} />}
         <FinishConfirmationModal hangoutId={finishConfirmationId} loading={loading} onClose={() => setFinishConfirmationId(null)} onConfirm={(id) => void finishHangout(id)} />
+        <ReportHostModal hangout={reportingHangout} loading={loading} onClose={() => setReportingHangout(null)} onSubmit={(hangout, reason, details, blockUser) => void reportHost(hangout, reason, details, blockUser)} />
       </KeyboardAvoidingView>
       {Platform.OS === "ios" && (
         <InputAccessoryView nativeID={IOS_KEYBOARD_ACCESSORY_ID}>
@@ -1329,13 +1324,19 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle
   const [providerNote, setProviderNote] = useState("");
   const [registrationPhotos, setRegistrationPhotos] = useState<string[]>([]);
   const [phone,setPhone]=useState("");const[phoneCode,setPhoneCode]=useState("");const[phoneChallenge,setPhoneChallenge]=useState<string|null>(null);
-  const chooseRegistrationPhotos = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) return Alert.alert("写真へのアクセスが必要です");
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsMultipleSelection: true, selectionLimit: 3, quality: 0.65, base64: true });
+  const chooseRegistrationPhotos = async (source?: "camera" | "library") => {
+    if (!source) return Alert.alert("プロフィール画像を追加", "追加方法を選んでください。", [
+      { text: "カメラで撮影", onPress: () => void chooseRegistrationPhotos("camera") },
+      { text: "写真ライブラリから選ぶ", onPress: () => void chooseRegistrationPhotos("library") },
+      { text: "キャンセル", style: "cancel" },
+    ]);
+    const permission = source === "camera" ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) return Alert.alert(source === "camera" ? "カメラへのアクセスが必要です" : "写真へのアクセスが必要です");
+    const options: ImagePicker.ImagePickerOptions = { mediaTypes: ["images"], allowsMultipleSelection: source === "library", selectionLimit: source === "library" ? 3 : 1, quality: 0.65, base64: true };
+    const result = source === "camera" ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
     if (result.canceled) return;
     const photos = result.assets.flatMap((asset) => asset.base64 ? [`data:image/${asset.mimeType === "image/png" ? "png" : asset.mimeType === "image/webp" ? "webp" : "jpeg"};base64,${asset.base64}`] : []).slice(0, 3);
-    setRegistrationPhotos(photos);
+    setRegistrationPhotos((current) => source === "camera" ? [...current, ...photos].slice(0, 3) : photos);
   };
   return (
     <SafeAreaView style={styles.safe}>
@@ -1356,12 +1357,12 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle
           <Text style={styles.demoDescription}>登録や電話番号入力は必要ありません。</Text>
           <View style={styles.demoRow}>
             <Pressable disabled={loading} style={styles.roleButton} onPress={() => onLogin("", "", "host")}>
-              <Text style={styles.roleTitle}>主催者として見る</Text>
-              <Text style={styles.roleHint}>募集管理・承認</Text>
+              <Text style={styles.roleTitle}>マミ（主催者）として見る</Text>
+              <Text style={styles.roleHint}>30代女性・飲み企画を管理</Text>
             </Pressable>
             <Pressable disabled={loading} style={[styles.roleButton, styles.roleGuest]} onPress={() => onLogin("", "", "guest")}>
-              <Text style={styles.roleTitle}>参加者として見る</Text>
-              <Text style={styles.roleHint}>検索・トーク</Text>
+              <Text style={styles.roleTitle}>マドカ（参加者）として見る</Text>
+              <Text style={styles.roleHint}>30代女性・Hangoutを探す</Text>
             </Pressable>
           </View>
         </View>}
@@ -2213,6 +2214,25 @@ function FinishConfirmationModal({ hangoutId, loading, onClose, onConfirm }: { h
   </Modal>;
 }
 
+function ReportHostModal({ hangout, loading, onClose, onSubmit }: { hangout: Hangout | null; loading: boolean; onClose: () => void; onSubmit: (hangout: Hangout, reason: ReportReason, details: string, blockUser: boolean) => void }) {
+  const [reason, setReason] = useState<ReportReason>("HARASSMENT");
+  const [details, setDetails] = useState("");
+  const [blockUser, setBlockUser] = useState(true);
+  useEffect(() => { if (hangout) { setReason("HARASSMENT"); setDetails(""); setBlockUser(true); } }, [hangout]);
+  const reasons: ReadonlyArray<[ReportReason, string]> = [["HARASSMENT","迷惑行為"],["DANGEROUS","危険行為"],["SEXUAL","性的目的"],["SOLICITATION","勧誘・営業"],["FRAUD","詐欺"],["OTHER","その他"]];
+  return <Modal visible={hangout !== null} transparent animationType="slide" onRequestClose={onClose}>
+    <KeyboardAvoidingView style={styles.confirmSheetScreen} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <Pressable style={styles.phoneSheetBackdrop} onPress={onClose} accessibilityLabel="通報画面を閉じる" />
+      <ScrollView style={styles.reportSheetPanel} contentContainerStyle={styles.reportSheetContent} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive"><View style={styles.phoneSheetHandle} /><Text style={styles.confirmSheetTitle}>{hangout?.host.displayName ?? "主催者"}を通報</Text><Text style={styles.safetyNote}>緊急の危険がある場合は、アプリではなく警察・救急へ連絡してください。</Text>
+        <Text style={styles.label}>理由</Text><View style={styles.reportReasonGrid}>{reasons.map(([value,label]) => <Pressable key={value} style={[styles.reportReasonChoice, reason === value && styles.choiceOn]} onPress={() => setReason(value)}><Text style={styles.reportReasonText}>{label}</Text></Pressable>)}</View>
+        <Text style={styles.label}>詳細</Text><AppTextInput style={[styles.input, styles.multiline]} value={details} onChangeText={setDetails} multiline maxLength={500} placeholder="状況を入力してください（任意）" />
+        <Pressable accessibilityRole="switch" accessibilityState={{ checked: blockUser }} style={styles.reportBlockChoice} onPress={() => setBlockUser((value) => !value)}><View style={[styles.matchingCheckbox, blockUser && styles.matchingCheckboxOn]}><Text style={styles.matchingCheckmark}>{blockUser ? "✓" : ""}</Text></View><Text style={styles.reportBlockText}>同時にブロック</Text></Pressable>
+        <Pressable disabled={loading || !hangout} style={[styles.primary, loading && styles.disabled]} onPress={() => hangout && onSubmit(hangout, reason, details, blockUser)}><Text style={styles.primaryText}>{loading ? "送信しています…" : "通報する"}</Text></Pressable><Pressable disabled={loading} style={styles.secondary} onPress={onClose}><Text>キャンセル</Text></Pressable>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  </Modal>;
+}
+
 function RatingScreen({ user, room, onRate, onDone }: { user: User; room: GroupRoom; onRate: (hangoutId: string, userId: string, score: number) => void; onDone: () => void }) {
   const members = room.members.filter((member) => member.id !== user.id && !member.myRatingScore);
   return (
@@ -2254,6 +2274,7 @@ function ChatScreen({ user, rooms, selectedRoom, messages, messageBody, sending,
           minute: "2-digit",
         })
       : "";
+  const roomStatus = (room: GroupRoom) => room.hangout.status === "FINISHED" ? "Hangout終了" : room.hangout.status === "STARTED" ? "Hangout中" : room.hangout.status === "FULL" ? "満員" : "募集中";
   if (selectedRoom) {
     const headerPerson = selectedRoom.type === "DIRECT" ? selectedRoom.otherUser : selectedRoom.hangout.host;
     return (
@@ -2274,7 +2295,7 @@ function ChatScreen({ user, rooms, selectedRoom, messages, messageBody, sending,
               {selectedRoom.type === "DIRECT" ? selectedRoom.otherUser.displayName : selectedRoom.hangout.title}
             </Text>
             <Text style={styles.presence}>
-              {selectedRoom.type === "DIRECT" ? "1対1 ・ " : `グループ ・ ${selectedRoom.members.length}人 ・ `}
+              {selectedRoom.type === "DIRECT" ? "1対1 ・ " : selectedRoom.hangout.status === "FINISHED" ? "終了・評価待ち ・ " : `${roomStatus(selectedRoom)} ・ ${selectedRoom.members.length}人 ・ `}
               {realtimeOnline ? "● オンライン" : "○ 再接続中"}
             </Text>
           </View>
@@ -2390,6 +2411,7 @@ function ChatScreen({ user, rooms, selectedRoom, messages, messageBody, sending,
                 <Text style={styles.roomTitle} numberOfLines={1}>
                   {title}
                 </Text>
+                {room.type === "GROUP" && <Text style={styles.roomStatus}>{roomStatus(room)}</Text>}
                 <Text style={styles.roomType}>{room.type === "DIRECT" ? "1対1" : "グループ"}</Text>
                 <Text style={styles.roomTime}>{time(room.lastMessage?.createdAt)}</Text>
               </View>
@@ -2441,6 +2463,7 @@ function NotificationScreen({ inbox, refreshing, onBack, onRefresh, onEnabled, o
 
 function ProfileScreen({ user, hostStatus, activity, demo, onBack, onChat, onOpenHangout, onPhone, onPhoto, onSave, onDelete, onLogout }: { user: User; hostStatus: HostStatus | null; activity: ProfileActivity; demo: boolean; onBack: () => void; onChat: () => void; onOpenHangout: (id: string) => void; onPhone: () => void; onPhoto: (index: number) => void; onSave: (input: UpdateProfileInput) => Promise<void>; onDelete: () => void; onLogout: () => void }) {
   const white = hostStatus?.tier === "WHITE";
+  const nextTierLabel = hostStatus?.nextTier ? ({ BRONZE: "ブロンズ", SILVER: "シルバー", GOLD: "ゴールド", PLATINUM: "プラチナ", DIAMOND: "ダイアモンド", WHITE: "ホワイト" } as const)[hostStatus.nextTier] : null;
   const [editing, setEditing] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [displayName, setDisplayName] = useState(user.displayName);
@@ -2554,6 +2577,7 @@ function ProfileScreen({ user, hostStatus, activity, demo, onBack, onChat, onOpe
           <Text style={[styles.hostRankStats, white && styles.hostRankDark]}>
             開催完了 {hostStatus.completedHangouts}回 ・ 累計参加者 {hostStatus.totalParticipants}人{`\n`}主催評価 {hostStatus.hostAverageRating ?? "未評価"}（{hostStatus.hostRatingCount}件） ・ 参加評価 {hostStatus.participantAverageRating ?? "未評価"}（{hostStatus.participantRatingCount}件）{`\n`}中止率 {Math.round(hostStatus.cancellationRate * 100)}%
           </Text>
+          <Text style={[styles.hostRankNext, white && styles.hostRankDark]}>{nextTierLabel ? `次のステータス：${nextTierLabel}` : "最高ステータスです"}</Text>
         </View>
       )}
       <View style={styles.profileStats}>
@@ -3648,6 +3672,7 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   hostRankStats: { fontSize: 11, lineHeight: 18, color: "#fff", marginTop: 7 },
+  hostRankNext: { fontSize: 11, fontStyle: "italic", fontWeight: "900", color: "#d9ff68", marginTop: 8 },
   profileStats: { width: "100%", flexDirection: "row", borderRadius: 18, overflow: "hidden", backgroundColor: "#fff", borderWidth: 1, borderColor: "#e3e8e2", marginTop: 14 },
   profileStat: { flex: 1, alignItems: "center", paddingVertical: 13, borderRightWidth: 1, borderColor: "#edf0ec" },
   profileStatValue: { color: "#17221d", fontSize: 16, fontWeight: "900" },
@@ -3736,6 +3761,7 @@ const styles = StyleSheet.create({
   talkListTitle: { color: "#17221d", fontSize: 20, fontWeight: "900" },
   talkListCounts: { color: "#687169", fontSize: 10, fontWeight: "800" },
   roomType: { marginLeft: 6, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 8, overflow: "hidden", backgroundColor: "#e9f7ec", color: "#176b48", fontSize: 8, fontWeight: "900" },
+  roomStatus: { marginLeft: 6, color: "#687169", fontSize: 9, fontWeight: "800" },
   genderChoices: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   genderChoice: {
     paddingHorizontal: 10,
@@ -3761,6 +3787,13 @@ const styles = StyleSheet.create({
   confirmSheetScreen: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(18,30,24,0.42)" },
   confirmSheetPanel: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 28, borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: "#f7f8f3", gap: 12 },
   confirmSheetTitle: { color: "#17221d", fontSize: 24, lineHeight: 31, fontWeight: "900" },
+  reportSheetPanel: { maxHeight: "94%", borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: "#f7f8f3" },
+  reportSheetContent: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 24, gap: 10 },
+  reportReasonGrid: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
+  reportReasonChoice: { minHeight: 40, justifyContent: "center", paddingHorizontal: 12, borderRadius: 14, backgroundColor: "#eef1ed" },
+  reportReasonText: { color: "#344039", fontSize: 12, fontWeight: "800" },
+  reportBlockChoice: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 12, borderRadius: 14, backgroundColor: "#fff" },
+  reportBlockText: { color: "#344039", fontWeight: "800" },
   ratingSheetScreen: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(18,30,24,0.35)" },
   ratingSheetPanel: { maxHeight: "94%", paddingTop: 10, borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: "#f7f8f3" },
   datePickerButton: { minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, borderRadius: 14, borderWidth: 1, borderColor: "#d8ded8", backgroundColor: "#fff" },
