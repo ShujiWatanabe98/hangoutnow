@@ -193,7 +193,7 @@ test('native participant Hangout detail matches the production information flow'
   assert.match(mobile, /if \(!isHost\) return \(/);
   assert.match(mobile, /participantHeroPhoto/);
   assert.match(mobile, /participantState}>\{stateLabel\(hangout\)\}/);
-  assert.match(mobile, /<CountdownText startAt=\{hangout\.startAt\} style=\{styles\.participantTime\} \/><Text style=\{styles\.participantTime\}> ・ 相性/);
+  assert.match(mobile, /<HangoutTimeText hangout=\{hangout\} style=\{styles\.participantTime\} \/><Text style=\{styles\.participantTime\}> ・ 相性/);
   assert.match(mobile, /participantDescription/);
   assert.match(mobile, /participantPanelLabel}>参加条件/);
   for (const contract of ['集合場所　', '参加人数　', '主催者　', '承認前：概略エリアのみ表示', '参加したい', '参加条件の対象外', 'この募集の主催者を通報・ブロック']) assert.ok(mobile.includes(contract));
@@ -534,4 +534,24 @@ test('native search location state and operation feedback match production safel
   assert.match(mobile, /showActionMessage\(result\.hearted \? "ハートを送りました" : "ハートを取り消しました"\)/);
   assert.match(mobile, /showActionMessage\("現在地から近い順に並べました"\)/);
   assert.match(mobile, /accessibilityLiveRegion="polite"/);
+});
+
+test('native Hangout status and write actions remain consistent with production', async () => {
+  const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
+
+  assert.match(mobile, /function HangoutTimeText/);
+  assert.match(mobile, /hangout\.status === "STARTED"[^\n]+Hangout中/);
+  assert.match(mobile, /hangout\.status === "FINISHED" \|\| hangout\.status === "CANCELLED"/);
+  assert.ok((mobile.match(/<HangoutTimeText hangout=\{hangout\}/g) ?? []).length >= 4);
+  assert.match(mobile, /const confirmed = await request<Hangout>\(`\/hangouts\/\$\{hangout\.id\}`\)/);
+  assert.match(mobile, /\["PENDING", "WAITLISTED", "ACCEPTED"\]\.includes\(confirmed\.myJoinStatus/);
+  assert.match(mobile, /showActionMessage\(confirmed\.myJoinStatus === "WAITLISTED"/);
+  assert.match(mobile, /if \(!selectedHangout \|\| decidingRequest\) return/);
+  assert.match(mobile, /disabled=\{decidingRequest !== null\}/);
+  assert.match(mobile, /却下中…/);
+  assert.match(mobile, /承認中…/);
+  assert.match(mobile, /const \[saving, setSaving\] = useState\(false\)/);
+  assert.match(mobile, /disabled=\{saving\} style=\{\[styles\.editFooterSave/);
+  assert.match(mobile, /saving \? "保存中…" : "変更を保存"/);
+  for (const message of ['ひとこと付きで参加申請を送りました', '参加申請を承認しました', '参加申請を却下しました', 'Hangoutと写真を更新しました']) assert.ok(mobile.includes(message));
 });
