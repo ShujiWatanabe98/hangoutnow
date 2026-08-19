@@ -13,6 +13,7 @@
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
     "@ide/backoff": "^1.0.0",
+    "@react-native-community/datetimepicker": "8.4.4",
     "expo": "~54.0.37",
     "expo-device": "~8.0.10",
     "expo-image-picker": "~17.0.11",

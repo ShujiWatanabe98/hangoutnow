@@ -9,6 +9,7 @@ import * as WebBrowser from "expo-web-browser";
 import Constants from "expo-constants";
 import { ActivityIndicator, Alert, Animated, FlatList, Image, InputAccessoryView, Keyboard, KeyboardAvoidingView, Linking, Modal, PanResponder, Platform, Pressable, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { WebView } from "react-native-webview";
+import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 
 const API_URL = "https://hangoutnow-api.onrender.com";
 const WEBSITE_URL = "https://method-more.com";
@@ -299,6 +300,7 @@ export default function App() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [ratingRoom, setRatingRoom] = useState<GroupRoom | null>(null);
+  const [finishConfirmationId, setFinishConfirmationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageBody, setMessageBody] = useState("");
   const [loading, setLoading] = useState(false);
@@ -363,10 +365,12 @@ export default function App() {
     if (!session) return;
     const query = coordinates ? `?latitude=${coordinates.latitude}&longitude=${coordinates.longitude}&radiusKm=5` : "";
     setHangouts(await request<Hangout[]>(`/hangouts${query}`));
-    void request("/analytics/events", {
-      method: "POST",
-      body: JSON.stringify({ eventType: "DISCOVERY_VIEWED" }),
-    }).catch(() => undefined);
+    if (session.user.matchingDataConsent && session.user.behaviorLearningEnabled) {
+      void request("/analytics/events", {
+        method: "POST",
+        body: JSON.stringify({ eventType: "DISCOVERY_VIEWED" }),
+      }).catch(() => undefined);
+    }
   }, [coordinates, request, session]);
 
   const toggleHeart = useCallback(async (hangout: Hangout) => {
@@ -655,7 +659,7 @@ export default function App() {
         body: JSON.stringify({ message }),
       });
       applyJoinStatus(joinRequest.status);
-      void request("/analytics/events", {
+      if (session?.user.matchingDataConsent && session.user.behaviorLearningEnabled) void request("/analytics/events", {
         method: "POST",
         body: JSON.stringify({
           eventType: "JOIN_REQUESTED",
@@ -678,7 +682,7 @@ export default function App() {
     setError("");
     try {
       const detail = await request<Hangout>(`/hangouts/${hangout.id}`);
-      void request("/analytics/events", {
+      if (session?.user.matchingDataConsent && session.user.behaviorLearningEnabled) void request("/analytics/events", {
         method: "POST",
         body: JSON.stringify({
           eventType: "HANGOUT_VIEWED",
@@ -723,7 +727,7 @@ export default function App() {
           maxAge: input.maxAge,
         }),
       });
-      void request("/analytics/events", {
+      if (session?.user.matchingDataConsent && session.user.behaviorLearningEnabled) void request("/analytics/events", {
         method: "POST",
         body: JSON.stringify({
           eventType: "HANGOUT_CREATED",
@@ -936,20 +940,14 @@ export default function App() {
   }
 
   function confirmFinishHangout(hangoutId: string) {
-    Alert.alert("Hangoutを終了", "終了すると参加者を評価できるようになります。終了後は募集へ戻せません。", [
-      { text: "キャンセル", style: "cancel" },
-      {
-        text: "終了する",
-        style: "destructive",
-        onPress: () => void finishHangout(hangoutId),
-      },
-    ]);
+    setFinishConfirmationId(hangoutId);
   }
   async function finishHangout(hangoutId: string) {
     setLoading(true);
     setError("");
     try {
       await request(`/hangouts/${hangoutId}/finish`, { method: "POST" });
+      setFinishConfirmationId(null);
       setSelectedHangout(await request<Hangout>(`/hangouts/${hangoutId}`));
       const nextRooms = await loadRooms();
       const finishedRoom = nextRooms.find((room): room is GroupRoom => room.type === "GROUP" && room.hangout.id === hangoutId);
@@ -1272,7 +1270,7 @@ export default function App() {
           </View>
         </View>
       )}
-      {screen !== "chat" && screen !== "detail" && screen !== "create" && screen !== "notifications" && (
+      {screen !== "chat" && screen !== "detail" && screen !== "create" && screen !== "notifications" && screen !== "profile" && screen !== "phone" && screen !== "rating" && (
         <View style={styles.header}>
           <Text style={styles.brand}>
             Hangout <Text style={styles.brandAccent}>Now</Text>
@@ -1298,8 +1296,9 @@ export default function App() {
         {screen === "phone" && <PhoneVerificationScreen onBack={() => setScreen("profile")} onVerify={verifyPhone} />}
         {screen === "chat" && <ChatScreen user={session.user} rooms={rooms} selectedRoom={selectedRoom} messages={messages} messageBody={messageBody} sending={sending} refreshing={refreshing} unreadByRoom={unreadByRoom} realtimeOnline={realtimeOnline} onRefresh={refreshCurrent} onOpen={openRoom} onRate={rateParticipant} onBack={() => selectedRoom ? setSelectedRoom(null) : setScreen(chatReturnScreen)} onChangeBody={setMessageBody} onSend={sendMessage} />}
         {screen === "rating" && ratingRoom && <RatingScreen user={session.user} room={ratingRoom} onRate={rateParticipant} onDone={() => { setRatingRoom(null); setScreen(ratingReturnScreen); }} />}
-        {screen === "profile" && <ProfileScreen user={session.user} hostStatus={hostStatus} activity={profileActivity} demo={!!demoRole} onChat={() => { setSelectedRoom(null); setChatReturnScreen("profile"); setScreen("chat"); }} onOpenHangout={(id) => void openHangout({ id })} onPhone={() => setScreen("phone")} onPhoto={chooseProfilePhoto} onSave={updateProfile} onDelete={confirmDeleteAccount} onLogout={logout} />}
+        {screen === "profile" && <ProfileScreen user={session.user} hostStatus={hostStatus} activity={profileActivity} demo={!!demoRole} onBack={() => setScreen("home")} onChat={() => { setSelectedRoom(null); setChatReturnScreen("profile"); setScreen("chat"); }} onOpenHangout={(id) => void openHangout({ id })} onPhone={() => setScreen("phone")} onPhoto={chooseProfilePhoto} onSave={updateProfile} onDelete={confirmDeleteAccount} onLogout={logout} />}
         {screen === "notifications" && <NotificationScreen inbox={notificationInbox} refreshing={refreshing} onBack={() => setScreen("home")} onRefresh={refreshCurrent} onEnabled={setNotificationEnabled} onDeviceNotifications={() => void enableDeviceNotifications(true)} onRead={readNotification} onReadAll={readAllNotifications} onDelete={confirmDeleteNotifications} />}
+        <FinishConfirmationModal hangoutId={finishConfirmationId} loading={loading} onClose={() => setFinishConfirmationId(null)} onConfirm={(id) => void finishHangout(id)} />
       </KeyboardAvoidingView>
       {Platform.OS === "ios" && (
         <InputAccessoryView nativeID={IOS_KEYBOARD_ACCESSORY_ID}>
@@ -1325,6 +1324,7 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [birthDate, setBirthDate] = useState("1990-01-01");
+  const [birthDatePickerVisible, setBirthDatePickerVisible] = useState(false);
   const [gender, setGender] = useState("UNDISCLOSED");
   const [providerNote, setProviderNote] = useState("");
   const [registrationPhotos, setRegistrationPhotos] = useState<string[]>([]);
@@ -1390,7 +1390,9 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle
           {mode === "register" && (
             <>
               <Field label="表示名" value={displayName} onChangeText={setDisplayName} />
-              <Field label="生年月日" value={birthDate} onChangeText={setBirthDate} />
+              <Text style={styles.label}>生年月日</Text>
+              <Pressable style={styles.datePickerButton} onPress={() => setBirthDatePickerVisible(true)} accessibilityRole="button" accessibilityLabel={`生年月日 ${birthDate}`}><Text style={styles.datePickerButtonText}>{new Date(`${birthDate}T00:00:00`).toLocaleDateString("ja-JP")}</Text><Text style={styles.datePickerChevron}>›</Text></Pressable>
+              <Modal visible={birthDatePickerVisible} transparent animationType="fade" onRequestClose={() => setBirthDatePickerVisible(false)}><View style={styles.datePickerModal}><Pressable style={styles.phoneSheetBackdrop} onPress={() => setBirthDatePickerVisible(false)} /><View style={styles.datePickerPanel}><Text style={styles.confirmSheetTitle}>生年月日を選択</Text><DateTimePicker value={new Date(`${birthDate}T00:00:00`)} mode="date" display={Platform.OS === "ios" ? "spinner" : "default"} maximumDate={new Date()} locale="ja-JP" onChange={(event: DateTimePickerEvent, date?: Date) => { if (event.type === "dismissed") return setBirthDatePickerVisible(false); if (date) { const year = date.getFullYear(); const month = String(date.getMonth() + 1).padStart(2, "0"); const day = String(date.getDate()).padStart(2, "0"); setBirthDate(`${year}-${month}-${day}`); if (Platform.OS !== "ios") setBirthDatePickerVisible(false); } }} /><Pressable style={styles.primary} onPress={() => setBirthDatePickerVisible(false)}><Text style={styles.primaryText}>決定</Text></Pressable></View></View></Modal>
               <Text style={styles.label}>プロフィール画像（任意・3枚まで）</Text>
               <Pressable style={styles.imagePickerButton} onPress={() => void chooseRegistrationPhotos()}><Text style={styles.imagePickerButtonText}>プロフィール画像を選ぶ</Text></Pressable>
               {!!registrationPhotos.length && <View style={styles.registrationPhotoRow}>{registrationPhotos.map((photo, index) => <Image key={`${index}-${photo.length}`} source={{ uri: photo }} style={index === 0 ? styles.registrationPhotoMain : styles.registrationPhoto} />)}</View>}
@@ -1438,12 +1440,12 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle
           {(["Google", "Apple", "X", "LINE", "電話番号"] as const).map((provider) => (
             <Pressable
               key={provider}
-              disabled={loading || provider === "Apple"}
-              style={[styles.providerButton, provider === "X" && styles.xProviderButton, provider === "Apple" && styles.providerButtonDisabled]}
+              disabled={loading}
+              style={[styles.providerButton, provider === "X" && styles.xProviderButton]}
               onPress={() => provider === "LINE" ? void onLine(mode === "register" ? { displayName, birthDate, gender, ...(registrationPhotos.length ? { profilePhotos: registrationPhotos } : {}) } : undefined) : provider === "X" ? void onX() : provider==="Google"?void onGoogle():provider==="Apple"?void onApple():setPhoneChallenge("")}
             >
               <Text style={[styles.providerMark, provider === "X" && styles.xProviderText]}>{provider === "Google" ? "G" : provider === "Apple" ? "●" : provider === "X" ? "X" : provider === "LINE" ? "L" : "☎"}</Text>
-              <Text style={[styles.providerButtonText, provider === "X" && styles.xProviderText]}>{provider === "Apple" ? "Appleでログイン（準備中）" : `${provider}${mode === "register" ? "でアカウント作成" : "でログイン"}`}</Text>
+              <Text style={[styles.providerButtonText, provider === "X" && styles.xProviderText]}>{`${provider}${mode === "register" ? "でアカウント作成" : "でログイン"}`}</Text>
             </Pressable>
           ))}
           {phoneChallenge!==null?<View><Field label="携帯電話番号" value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="09012345678" />{phoneChallenge?<Field label="SMSで届いた6桁の認証コード" value={phoneCode} onChangeText={setPhoneCode} keyboardType="number-pad" maxLength={6} />:null}<Text style={styles.phoneHint}>日本の電話番号は090・080・070から入力できます。</Text><Pressable disabled={loading || !phone.trim() || Boolean(phoneChallenge && phoneCode.length !== 6)} style={[styles.primary, (loading || !phone.trim() || Boolean(phoneChallenge && phoneCode.length !== 6)) && styles.disabled]} onPress={async()=>{try{const result=await onPhone(phone,phoneCode,phoneChallenge||undefined);if(result.challengeToken){setPhoneChallenge(result.challengeToken);setProviderNote(result.demoCode?`開発用コード：${result.demoCode}`:'SMSに認証コードを送信しました')}}catch{}}}><Text style={styles.primaryText}>{phoneChallenge?'認証してアカウントを作る':'SMS認証コードを送る'}</Text></Pressable></View>:null}
@@ -2038,10 +2040,12 @@ function EditHangoutModal({ visible, hangout, onClose, onSave }: { visible: bool
   const [genderRestriction, setGenderRestriction] = useState<"ANY" | "MALE_ONLY" | "FEMALE_ONLY">(hangout.genderRestriction);
   const [maxAge, setMaxAge] = useState<number | null>(hangout.maxAge);
   const [imageUrl, setImageUrl] = useState(hangout.imageUrl ?? undefined);
-  const chooseImage = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) return Alert.alert("写真へのアクセスが必要です");
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [16, 9], quality: 0.72, base64: true });
+  const chooseImage = async (source: "camera" | "library") => {
+    const permission = source === "camera" ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) return Alert.alert(source === "camera" ? "カメラへのアクセスが必要です" : "写真へのアクセスが必要です");
+    const result = source === "camera"
+      ? await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [16, 9], quality: 0.72, base64: true })
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [16, 9], quality: 0.72, base64: true });
     const asset = result.canceled ? null : result.assets[0];
     if (!asset?.base64) return;
     const type = asset.mimeType === "image/png" ? "png" : asset.mimeType === "image/webp" ? "webp" : "jpeg";
@@ -2051,11 +2055,10 @@ function EditHangoutModal({ visible, hangout, onClose, onSave }: { visible: bool
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={styles.modalPage}>
         <KeyboardAvoidingView style={styles.modalKeyboardAvoider} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <ScrollView contentContainerStyle={styles.formPage} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
-          <Pressable onPress={onClose}><Text style={styles.backText}>‹ Hangout画面に戻る</Text></Pressable>
-          <Text style={styles.pageTitle}>Hangoutを編集</Text>
+        <View style={styles.editHangoutHeader}><Pressable style={styles.profileScreenBackButton} hitSlop={8} onPress={onClose} accessibilityRole="button" accessibilityLabel="Hangout画面に戻る"><View style={styles.backChevron} /></Pressable><View style={styles.profileScreenHeading}><Text style={styles.profileScreenEyebrow}>主催者メニュー</Text><Text style={styles.profileScreenTitle}>Hangoutを編集</Text></View><View style={styles.profileScreenHeaderSpacer} /></View>
+        <ScrollView contentContainerStyle={styles.editHangoutForm} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
           <Text style={styles.label}>Hangoutのイメージ写真</Text>
-          <Pressable style={styles.imagePickerButton} onPress={() => void chooseImage()}><Text style={styles.imagePickerButtonText}>写真を変更</Text></Pressable>
+          <View style={styles.editImageActions}><Pressable style={styles.imagePickerButton} onPress={() => void chooseImage("camera")}><Text style={styles.imagePickerButtonText}>カメラで撮る</Text></Pressable><Pressable style={styles.imagePickerButton} onPress={() => void chooseImage("library")}><Text style={styles.imagePickerButtonText}>写真から選ぶ</Text></Pressable></View>
           {imageUrl ? <Image source={{ uri: imageUrl }} style={styles.createImagePreview} /> : null}
           <Field label="タイトル" value={title} onChangeText={setTitle} maxLength={80} />
           <Field label="承認前に表示するエリア" value={publicLocationName} onChangeText={setPublicLocationName} maxLength={100} />
@@ -2068,9 +2071,8 @@ function EditHangoutModal({ visible, hangout, onClose, onSave }: { visible: bool
           <View style={styles.choiceRow}>{([[null,'制限なし'],[29,'20代まで'],[39,'30代まで'],[59,'50代まで']] as const).map(([value,label]) => <Pressable key={label} style={[styles.choice, maxAge === value && styles.choiceOn]} onPress={() => setMaxAge(value)}><Text>{label}</Text></Pressable>)}</View>
           <Text style={styles.label}>説明</Text>
           <AppTextInput style={[styles.input, styles.multiline]} value={description} onChangeText={setDescription} multiline maxLength={500} />
-          <Pressable style={styles.primary} onPress={() => void onSave({ title, description, imageUrl, publicLocationName, locationName: `${meetingPlaceName} ${meetingAddress}`.trim(), meetingPlaceName, meetingAddress, navigationUrl, genderRestriction, maxAge })}><Text style={styles.primaryText}>保存</Text></Pressable>
-          <Pressable style={styles.secondary} onPress={onClose}><Text>キャンセル</Text></Pressable>
         </ScrollView>
+        <View style={styles.editHangoutFooter}><Pressable style={styles.editFooterCancel} onPress={onClose}><Text style={styles.editFooterCancelText}>キャンセル</Text></Pressable><Pressable style={styles.editFooterSave} onPress={() => void onSave({ title, description, imageUrl, publicLocationName, locationName: `${meetingPlaceName} ${meetingAddress}`.trim(), meetingPlaceName, meetingAddress, navigationUrl, genderRestriction, maxAge })}><Text style={styles.primaryText}>変更を保存</Text></Pressable></View>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
@@ -2138,11 +2140,13 @@ function PhoneVerificationScreen({ onBack, onVerify }: { onBack: () => void; onV
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
   return (
-    <ScrollView contentContainerStyle={styles.formPage}>
-      <Pressable onPress={onBack}>
-        <Text style={styles.backText}>‹ 戻る</Text>
-      </Pressable>
-      <Text style={styles.pageTitle}>電話番号を確認</Text>
+    <View style={styles.phoneSheetScreen}>
+    <Pressable style={styles.phoneSheetBackdrop} onPress={onBack} accessibilityLabel="電話番号確認を閉じる" />
+    <View style={styles.phoneSheetPanel}>
+      <View style={styles.phoneSheetHandle} />
+      <ScrollView contentContainerStyle={styles.phoneSheetContent} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
+      <Text style={styles.profileScreenEyebrow}>本人確認</Text>
+      <Text style={styles.pageTitle}>電話番号確認</Text>
       <Text style={styles.safetyNote}>安全なコミュニティ運営のため、募集作成にはSMS確認が必要です。番号は他の利用者には公開されません。</Text>
       <Text style={styles.label}>電話番号（国番号付き）</Text>
       <AppTextInput style={styles.input} value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="+819012345678" />
@@ -2162,7 +2166,10 @@ function PhoneVerificationScreen({ onBack, onVerify }: { onBack: () => void; onV
       >
         <Text style={styles.primaryText}>{sent ? "確認して完了" : "SMSを送信"}</Text>
       </Pressable>
-    </ScrollView>
+      <Pressable style={styles.secondary} onPress={onBack}><Text>キャンセル</Text></Pressable>
+      </ScrollView>
+    </View>
+    </View>
   );
 }
 
@@ -2190,10 +2197,26 @@ function InlineHangoutRatings({ userId, hangoutId, members, onRate, onDone }: { 
   );
 }
 
+function FinishConfirmationModal({ hangoutId, loading, onClose, onConfirm }: { hangoutId: string | null; loading: boolean; onClose: () => void; onConfirm: (hangoutId: string) => void }) {
+  return <Modal visible={hangoutId !== null} transparent animationType="slide" onRequestClose={onClose}>
+    <View style={styles.confirmSheetScreen}>
+      <Pressable style={styles.phoneSheetBackdrop} onPress={onClose} accessibilityLabel="終了確認を閉じる" />
+      <View style={styles.confirmSheetPanel}>
+        <View style={styles.phoneSheetHandle} />
+        <Text style={styles.profileScreenEyebrow}>Hangoutを終了</Text>
+        <Text style={styles.confirmSheetTitle}>楽しい時間を過ごせましたか？</Text>
+        <Text style={styles.ratingScreenDescription}>終了すると参加者を★1〜5で評価できます。双方が★5の場合だけ1対1トークが解放されます。</Text>
+        <Pressable disabled={loading || hangoutId === null} style={[styles.primary, loading && styles.disabled]} onPress={() => hangoutId && onConfirm(hangoutId)}><Text style={styles.primaryText}>{loading ? "終了しています…" : "終了して評価へ進む"}</Text></Pressable>
+        <Pressable disabled={loading} style={styles.secondary} onPress={onClose}><Text>まだ終了しない</Text></Pressable>
+      </View>
+    </View>
+  </Modal>;
+}
+
 function RatingScreen({ user, room, onRate, onDone }: { user: User; room: GroupRoom; onRate: (hangoutId: string, userId: string, score: number) => void; onDone: () => void }) {
   const members = room.members.filter((member) => member.id !== user.id && !member.myRatingScore);
   return (
-    <ScrollView contentContainerStyle={styles.ratingScreen}>
+    <View style={styles.ratingSheetScreen}><View style={styles.ratingSheetPanel}><View style={styles.phoneSheetHandle} /><ScrollView contentContainerStyle={styles.ratingScreen}>
       <Text style={styles.eyebrow}>Hangoutを終了しました</Text>
       <Text style={styles.ratingScreenTitle}>参加メンバーを評価</Text>
       <Text style={styles.ratingScreenDescription}>一緒に過ごしたメンバーを★1〜5で評価してください。送信後は変更できません。</Text>
@@ -2218,7 +2241,7 @@ function RatingScreen({ user, room, onRate, onDone }: { user: User; room: GroupR
       ))}
       {!members.length && <Text style={styles.empty}>評価する参加メンバーはいません。</Text>}
       <Pressable style={styles.primary} onPress={onDone}><Text style={styles.primaryText}>評価を完了</Text></Pressable>
-    </ScrollView>
+    </ScrollView></View></View>
   );
 }
 
@@ -2416,7 +2439,7 @@ function NotificationScreen({ inbox, refreshing, onBack, onRefresh, onEnabled, o
   );
 }
 
-function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout, onPhone, onPhoto, onSave, onDelete, onLogout }: { user: User; hostStatus: HostStatus | null; activity: ProfileActivity; demo: boolean; onChat: () => void; onOpenHangout: (id: string) => void; onPhone: () => void; onPhoto: (index: number) => void; onSave: (input: UpdateProfileInput) => Promise<void>; onDelete: () => void; onLogout: () => void }) {
+function ProfileScreen({ user, hostStatus, activity, demo, onBack, onChat, onOpenHangout, onPhone, onPhoto, onSave, onDelete, onLogout }: { user: User; hostStatus: HostStatus | null; activity: ProfileActivity; demo: boolean; onBack: () => void; onChat: () => void; onOpenHangout: (id: string) => void; onPhone: () => void; onPhoto: (index: number) => void; onSave: (input: UpdateProfileInput) => Promise<void>; onDelete: () => void; onLogout: () => void }) {
   const white = hostStatus?.tier === "WHITE";
   const [editing, setEditing] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
@@ -2510,19 +2533,20 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
   const selectedActivitySlots = parseList(activityTimeSlots);
   const selectedGroupSizes = parseList(preferredGroupSizes).map(Number);
   return (
+    <View style={styles.profileScreen}>
+      <View style={styles.profileScreenHeader}>
+        <Pressable style={styles.profileScreenBackButton} hitSlop={8} onPress={onBack} accessibilityRole="button" accessibilityLabel="ホームに戻る"><View style={styles.backChevron} /></Pressable>
+        <View style={styles.profileScreenHeading}><Text style={styles.profileScreenEyebrow}>アカウント</Text><Text style={styles.profileScreenTitle}>プロフィール</Text></View>
+        <View style={styles.profileScreenHeaderSpacer} />
+      </View>
     <ScrollView contentContainerStyle={styles.profile}>
       <View style={styles.profilePhotoTrio}>{[user.profilePhotos?.[1],user.profilePhotos?.[0]||user.profilePhoto,user.profilePhotos?.[2]].map((photo,index)=>photo?<Pressable key={`${photo}-${index}`} onPress={() => setPhotoViewerIndex(index === 0 ? 1 : index === 1 ? 0 : 2)} accessibilityLabel="プロフィール画像を拡大"><Image source={{uri:photo}} style={index===1?styles.avatar:styles.avatarSide}/></Pressable>:<View key={`empty-${index}`} style={index===1?styles.avatarFallback:styles.avatarSideFallback}><Text style={styles.avatarText}>{index===1?"☺":"＋"}</Text></View>)}</View>
       <Text style={styles.profileName}>{user.displayName}</Text>
-      <Pressable style={styles.profileChatButton} onPress={onChat}>
-        <Text style={styles.profileChatButtonIcon}>●</Text>
-        <Text style={styles.profileChatButtonText}>トーク</Text>
-      </Pressable>
-      <Pressable style={styles.profileEditButton} onPress={() => setEditing(true)}>
-        <Text style={styles.profileEditButtonText}>プロフィールを編集</Text>
-      </Pressable>
-      <View>
+      <Pressable onPress={user.verificationStatus === "PHONE_VERIFIED" ? undefined : onPhone} accessibilityRole={user.verificationStatus === "PHONE_VERIFIED" ? "text" : "button"}>
         <Text style={[styles.verified, user.verificationStatus !== "PHONE_VERIFIED" && styles.unverified]}>{user.verificationStatus === "PHONE_VERIFIED" ? "✓ 電話番号確認済み" : "電話番号を確認する ›"}</Text>
-      </View>
+      </Pressable>
+      <Pressable style={styles.profileChatButton} onPress={onChat}><Text style={styles.profileChatButtonIcon}>●</Text><Text style={styles.profileChatButtonText}>トーク</Text></Pressable>
+      <Pressable style={styles.profileEditButton} onPress={() => setEditing(true)}><Text style={styles.profileEditButtonText}>プロフィールを編集</Text></Pressable>
       {hostStatus && (
         <View style={[styles.hostRankCard, white && styles.hostRankWhite]}>
           <Text style={[styles.hostRankCaption, white && styles.hostRankDark]}>主催者ステータス</Text>
@@ -2539,6 +2563,7 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
         <View style={styles.profileStat}><Text style={styles.profileStatValue}>{hostStatus?.completedHangouts ?? activity.hosted.filter((item) => item.status === "FINISHED").length}</Text><Text style={styles.profileStatLabel}>開催完了</Text></View>
       </View>
       <Text style={styles.bio}>{user.bio || "自己紹介を登録しましょう。"}</Text>
+      <Text style={styles.profileSectionTitle}>興味のあること</Text>
       <View style={styles.tags}>
         {user.interests.map((item) => (
           <Text key={item} style={styles.tag}>
@@ -2562,7 +2587,7 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
         </View>
       ))}
       <View style={styles.safety}>
-        <Text>🛡️ 相手を尊重し、公開場所で安全に会いましょう。</Text>
+        <Text>🛡️ 募集を作るには、顔が分かるプロフィール写真と電話番号確認が必要です。</Text>
       </View>
       <View style={styles.legalLinks}>
         <Pressable onPress={() => void Linking.openURL(`${WEBSITE_URL}/privacy.html`)}>
@@ -2624,6 +2649,7 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
       </Modal>
       <PhotoViewerModal photos={profilePhotos} index={photoViewerIndex} onIndex={setPhotoViewerIndex} onClose={() => setPhotoViewerIndex(null)} />
     </ScrollView>
+    </View>
   );
 }
 
@@ -2642,6 +2668,14 @@ const styles = StyleSheet.create({
   },
   restoreText: { color: "#5f6862", fontSize: 12 },
   content: { flex: 1 },
+  profileScreen: { flex: 1, backgroundColor: "#f7f8f3" },
+  profileScreenHeader: { minHeight: 72, flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingVertical: 14 },
+  profileScreenBackButton: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: "#fff", borderWidth: 1, borderColor: "#dfe5df" },
+  profileScreenHeading: { flex: 1, paddingHorizontal: 12 },
+  profileScreenEyebrow: { color: "#176b48", fontSize: 10, fontWeight: "900" },
+  profileScreenTitle: { marginTop: 2, color: "#17221d", fontSize: 17, fontWeight: "900" },
+  profileScreenHeaderSpacer: { width: 42 },
+  profileSectionTitle: { alignSelf: "stretch", marginTop: 8, color: "#17221d", fontSize: 18, fontWeight: "900" },
   header: {
     paddingHorizontal: 20,
     paddingVertical: 14,
@@ -3712,6 +3746,28 @@ const styles = StyleSheet.create({
   genderChoiceOn: { backgroundColor: "#d9ff68" },
   genderChoiceText: { fontSize: 11, fontWeight: "800" },
   modalPage: { flex: 1, backgroundColor: "#f4f1e8" },
+  editHangoutHeader: { minHeight: 72, flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingVertical: 14, backgroundColor: "#f7f8f3", borderBottomWidth: 1, borderBottomColor: "#e2e7e1" },
+  editHangoutForm: { paddingHorizontal: 20, paddingTop: 18, paddingBottom: 32, gap: 10 },
+  editImageActions: { flexDirection: "row", gap: 10 },
+  editHangoutFooter: { flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 10, backgroundColor: "#fff", borderTopWidth: 1, borderTopColor: "#dfe5df" },
+  editFooterCancel: { flex: 1, minHeight: 50, alignItems: "center", justifyContent: "center", borderRadius: 16, backgroundColor: "#e7ede7" },
+  editFooterCancelText: { color: "#344039", fontWeight: "900" },
+  editFooterSave: { flex: 1.4, minHeight: 50, alignItems: "center", justifyContent: "center", borderRadius: 16, backgroundColor: "#176b48" },
+  phoneSheetScreen: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(18,30,24,0.35)" },
+  phoneSheetBackdrop: { ...StyleSheet.absoluteFillObject },
+  phoneSheetPanel: { maxHeight: "88%", paddingTop: 10, borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: "#f7f8f3" },
+  phoneSheetHandle: { alignSelf: "center", width: 42, height: 5, marginBottom: 8, borderRadius: 3, backgroundColor: "#b7c0b9" },
+  phoneSheetContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24, gap: 10 },
+  confirmSheetScreen: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(18,30,24,0.42)" },
+  confirmSheetPanel: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 28, borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: "#f7f8f3", gap: 12 },
+  confirmSheetTitle: { color: "#17221d", fontSize: 24, lineHeight: 31, fontWeight: "900" },
+  ratingSheetScreen: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(18,30,24,0.35)" },
+  ratingSheetPanel: { maxHeight: "94%", paddingTop: 10, borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: "#f7f8f3" },
+  datePickerButton: { minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, borderRadius: 14, borderWidth: 1, borderColor: "#d8ded8", backgroundColor: "#fff" },
+  datePickerButtonText: { color: "#17221d", fontSize: 16, fontWeight: "700" },
+  datePickerChevron: { color: "#687169", fontSize: 24 },
+  datePickerModal: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(18,30,24,0.4)" },
+  datePickerPanel: { paddingHorizontal: 20, paddingTop: 22, paddingBottom: 28, borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: "#f7f8f3", gap: 12 },
   providedImageGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   providedImageChoice: { width: "47%", overflow: "hidden", borderWidth: 2, borderColor: "transparent", borderRadius: 16, backgroundColor: "#fff" },
   providedImageChoiceOn: { borderColor: "#176b48" },

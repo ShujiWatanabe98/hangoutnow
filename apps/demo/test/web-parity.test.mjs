@@ -331,9 +331,19 @@ test('native screens include the latest production profile, notification, talk, 
   assert.match(mobile, /activityPhoto: \{[\s\S]*?aspectRatio: 32 \/ 9/);
   assert.match(mobile, /filterPillOn: \{ backgroundColor: "#17221d"/);
   assert.match(mobile, /styles\.homeMapPin/);
-  assert.match(mobile, /Appleでログイン（準備中）/);
+  assert.doesNotMatch(mobile, /Appleでログイン（準備中）/);
+  assert.doesNotMatch(mobile, /provider === "Apple" && styles\.providerButtonDisabled/);
   assert.match(mobile, /xProviderButton/);
   for (const message of ['向かっています', '少し遅れます', '到着しました']) assert.ok(mobile.includes(message));
+});
+
+test('native privacy and remaining production screen parity are preserved', async () => {
+  const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
+
+  assert.equal((mobile.match(/matchingDataConsent && session(?:\?\.)?\.user\.behaviorLearningEnabled/g) || []).length, 4);
+  for (const contract of ['accessibilityLabel="ホームに戻る"', '>アカウント</Text>', '>プロフィール</Text>', '>興味のあること</Text>', '主催者メニュー', 'カメラで撮る', '写真から選ぶ', '変更を保存', '本人確認', '終了して評価へ進む', '楽しい時間を過ごせましたか？', 'DateTimePicker']) {
+    assert.ok(mobile.includes(contract), `missing native production contract: ${contract}`);
+  }
 });
 
 test('native Hangout creation offers every production image preset and native photo sources', async () => {
