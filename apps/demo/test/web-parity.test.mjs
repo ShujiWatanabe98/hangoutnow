@@ -200,6 +200,18 @@ test('native participant Hangout detail matches the production information flow'
   assert.match(mobile, /hangout\.myJoinStatus === "ACCEPTED" && <Pressable style=\{styles\.participantTalkButton\}/);
 });
 
+test('native host Hangout detail matches the production management flow', async () => {
+  const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
+  assert.match(mobile, /if \(isHost\) return \(/);
+  for (const contract of ['主催者：店名・住所・正確な位置を表示', '参加メンバー', '参加したいメンバー', '件の判断待ち', 'Hangout編集', 'Hangout削除', 'Hangout開始', 'Hangout終了']) assert.ok(mobile.includes(contract));
+  assert.match(mobile, /requests\.filter\(\(item\) => item\.status === "PENDING"\)\.length/);
+  assert.match(mobile, /onDecide\(item\.id, false\)/);
+  assert.match(mobile, /onDecide\(item\.id, true\)/);
+  assert.match(mobile, /disabled=\{!hangout\.acceptedParticipants\?\.length\}/);
+  assert.match(mobile, /参加メンバーを承認すると開始できます。/);
+  assert.match(mobile, /hostOwnerActions/);
+});
+
 test('host deletion returns to profile and cancelled Hangouts stay out of hosted history', async () => {
   const application = await readFile(new URL('app.js', publicDirectory), 'utf8');
 
