@@ -1,0 +1,33 @@
+.auth-providers [data-auth-provider="LINE"] {
+  min-height: 60px;
+  border-color: #06c755;
+  background: #f1fff6;
+  gap: 12px;
+}
+
+.auth-providers [data-auth-provider="LINE"] .provider-mark {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  font-size: 16px;
+}
+
+.provider-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+}
+
+.provider-copy b {
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.provider-copy small {
+  color: #52705f;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.3;
+}

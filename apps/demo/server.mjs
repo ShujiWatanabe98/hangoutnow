@@ -20,9 +20,10 @@ createServer(async (request, response) => {
   if(proxyApiUrl&&requestedPath.startsWith('/api/')){
     try{
       const body=request.method==='GET'||request.method==='HEAD'?undefined:await new Promise((resolve,reject)=>{const chunks=[];request.on('data',chunk=>chunks.push(chunk));request.on('end',()=>resolve(Buffer.concat(chunks)));request.on('error',reject)});
-      const upstream=await fetch(`${proxyApiUrl}${request.url.slice(4)}`,{method:request.method,headers:{...(request.headers.authorization?{authorization:request.headers.authorization}:{}),...(request.headers['content-type']?{'content-type':request.headers['content-type']}:{})},body});
+      const upstream=await fetch(`${proxyApiUrl}${request.url.slice(4)}`,{method:request.method,headers:{...(request.headers.authorization?{authorization:request.headers.authorization}:{}),...(request.headers['content-type']?{'content-type':request.headers['content-type']}:{})},body,redirect:'manual'});
       const responseBody=Buffer.from(await upstream.arrayBuffer());
-      response.writeHead(upstream.status,{'content-type':upstream.headers.get('content-type')||'application/json; charset=utf-8','cache-control':'no-store'});
+      const location=upstream.headers.get('location');
+      response.writeHead(upstream.status,{'content-type':upstream.headers.get('content-type')||'application/json; charset=utf-8','cache-control':'no-store',...(location?{location}:{})});
       response.end(responseBody);
     }catch{
       response.writeHead(502,{'content-type':'application/json; charset=utf-8'});

@@ -8,6 +8,14 @@ function assetVersion(html, asset) {
   return html.match(new RegExp(`${asset.replace('.', '\\.')}\\?v=([0-9-]+)`))?.[1];
 }
 
+test('OAuth redirects pass through the production web proxy', async () => {
+  const server = await readFile(new URL('../server.mjs', import.meta.url), 'utf8');
+
+  assert.match(server, /redirect:'manual'/);
+  assert.match(server, /upstream\.headers\.get\('location'\)/);
+  assert.match(server, /\.\.\.\(location\?\{location\}:\{\}\)/);
+});
+
 test('demo and production load the same application assets', async () => {
   const [demo, production] = await Promise.all([
     readFile(new URL('demo.html', publicDirectory), 'utf8'),
