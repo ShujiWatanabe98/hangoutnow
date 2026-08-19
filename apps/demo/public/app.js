@@ -260,10 +260,11 @@ function keywordGroup(keywordId){return HANGOUT_KEYWORD_GROUPS.find(group=>group
 function hangoutsForKeyword(group){return group?hangouts.filter(hangout=>group.categories.includes(hangout.category)):[]}
 function keywordTile(h,index){
   const state=hangoutState(h);const location=h.publicLocationName||h.place||'エリア未設定';const label=`${h.title}、${state}、${h.time}、${location}、相性${h.match}%`;
-  return `<button class="keyword-hangout-tile ${index===0?'featured':''}" type="button" data-keyword-hangout="${safeText(h.id)}" aria-label="${safeText(label)}"><span class="keyword-tile-photo ${hangoutPhotoClass(h)}"${photoStyle(h.imageUrl)}></span><span class="keyword-tile-status">${state}</span><span class="keyword-tile-match">${h.match}%</span><span class="keyword-tile-copy"><b>${safeText(h.title)}</b><small><span class="keyword-tile-time">${safeText(h.time)}</span> ・ ${safeText(location)}</small></span></button>`;
+  return `<article class="keyword-hangout-tile ${index===0?'featured':''}"><button class="keyword-tile-open" type="button" data-keyword-hangout="${safeText(h.id)}" aria-label="${safeText(label)}"><span class="keyword-tile-photo ${hangoutPhotoClass(h)}"${photoStyle(h.imageUrl)}></span><span class="keyword-tile-status">${state}</span><span class="keyword-tile-match">${h.match}%</span><span class="keyword-tile-copy"><b>${safeText(h.title)}</b><small><span class="keyword-tile-time">${safeText(h.time)}</span> ・ ${safeText(location)}</small></span></button><button class="keyword-tile-heart ${h.hearted?'on':''}" type="button" data-keyword-heart="${safeText(h.id)}" aria-label="${h.hearted?'ハートを取り消す':'ハートを送る'}"><b>${h.hearted?'♥':'♡'}</b><span>${h.heartCount||0}</span></button></article>`;
 }
+async function toggleHangoutHeart(button,hangoutId,refresh){if(button.disabled)return;button.disabled=true;try{const result=await api(`/hangouts/${hangoutId}/heart`,{method:'POST'});const hangout=hangouts.find(item=>String(item.id)===String(hangoutId));if(hangout)Object.assign(hangout,result);refresh();toast(result.hearted?'ハートを送りました':'ハートを取り消しました')}catch(error){button.disabled=false;toast(error.message)}}
 function bindFullHangoutCards(refresh,returnKeywordId){
-  document.querySelectorAll('[data-heart]').forEach(button=>button.onclick=async event=>{event.stopPropagation();button.disabled=true;try{const result=await api(`/hangouts/${button.dataset.heart}/heart`,{method:'POST'});const hangout=hangouts.find(item=>String(item.id)===button.dataset.heart);if(hangout)Object.assign(hangout,result);refresh();toast(result.hearted?'ハートを送りました':'ハートを取り消しました')}catch(error){button.disabled=false;toast(error.message)}});
+  document.querySelectorAll('[data-heart]').forEach(button=>button.onclick=event=>{event.stopPropagation();void toggleHangoutHeart(button,button.dataset.heart,refresh)});
   document.querySelectorAll('.card').forEach(cardElement=>cardElement.onclick=()=>detail(cardElement.dataset.id,null,returnKeywordId?{returnKeywordId}:{}));
 }
 function home() {
@@ -278,6 +279,7 @@ function home() {
   document.querySelector('#open-nearby-map').onclick=googleMapScreen;
   document.querySelectorAll('[data-keyword]').forEach(button=>button.onclick=()=>keywordHangoutList(button.dataset.keyword));
   document.querySelectorAll('[data-keyword-hangout]').forEach(button=>button.onclick=()=>detail(button.dataset.keywordHangout));
+  document.querySelectorAll('[data-keyword-heart]').forEach(button=>button.onclick=()=>void toggleHangoutHeart(button,button.dataset.keywordHeart,home));
   refreshCountdowns();
 }
 

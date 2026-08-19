@@ -136,6 +136,10 @@ test('web discovery groups Hangouts into six-item keyword mosaics', async () => 
   assert.match(application, /id:'food',label:'ごはん'.+categories:\['FOOD','SUSHI','YAKINIKU','DINNER'\]/);
   assert.match(application, /id:'drink',label:'飲み'.+categories:\['DRINKING','WINE','BAR','IZAKAYA'\]/);
   assert.match(application, /items\.slice\(0,6\)\.map\(keywordTile\)/);
+  assert.match(application, /<article class="keyword-hangout-tile/);
+  assert.match(application, /data-keyword-heart="\$\{safeText\(h\.id\)\}"/);
+  assert.match(application, /function toggleHangoutHeart\(button,hangoutId,refresh\)/);
+  assert.match(application, /toggleHangoutHeart\(button,button\.dataset\.keywordHeart,home\)/);
   assert.match(application, /data-keyword="\$\{group\.id\}"/);
   assert.match(application, /function keywordHangoutList\(keywordId\)/);
   assert.match(application, /bindFullHangoutCards\(\(\)=>keywordHangoutList\(keywordId\),keywordId\)/);
@@ -143,6 +147,8 @@ test('web discovery groups Hangouts into six-item keyword mosaics', async () => 
   assert.match(requests, /\.keyword-mosaic\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\);grid-template-rows:repeat\(3,92px\)/);
   assert.match(requests, /\.keyword-hangout-tile:first-child\{grid-column:1\/3;grid-row:1\/3/);
   assert.match(requests, /\.keyword-hangout-tile:nth-child\(6\)\{grid-column:3;grid-row:3\}/);
+  assert.match(requests, /\.keyword-tile-heart\{position:absolute;z-index:4/);
+  assert.match(requests, /\.keyword-tile-heart\.on\{background:#176b48;color:#fff\}/);
   for (const demoTitle of ['朝のカフェでモーニング交流', 'パン屋さん巡りとコーヒー', '季節のパフェを食べよう', '公園でやさしい朝ヨガ', '都内をのんびりサイクリング', 'スパイスカレーを食べ比べ', '餃子を囲んで夜ごはん', 'クラフトビールを飲み比べ', '日本酒を少しずつ楽しむ会']) {
     assert.ok(seed.includes(demoTitle), `demo Hangout is missing: ${demoTitle}`);
   }
