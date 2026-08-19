@@ -889,24 +889,26 @@ export default function App() {
     }
   }
   async function verifyPhone(phone: string, code?: string) {
+    const normalizedPhone = normalizePhoneNumber(phone);
     setLoading(true);
     setError("");
     try {
       if (!code) {
         await request("/users/me/phone/request", {
           method: "POST",
-          body: JSON.stringify({ phone }),
+          body: JSON.stringify({ phone: normalizedPhone }),
         });
         return;
       }
       const user = await request<User>("/users/me/phone/confirm", {
         method: "POST",
-        body: JSON.stringify({ phone, code }),
+        body: JSON.stringify({ phone: normalizedPhone, code }),
       });
       setSession((current) => (current ? { ...current, user } : current));
       setScreen("profile");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "電話番号を確認できませんでした");
+      throw cause;
     } finally {
       setLoading(false);
     }
@@ -1235,7 +1237,6 @@ export default function App() {
         body: JSON.stringify({ profilePhotos }),
       });
       setSession((current) => (current ? { ...current, user } : current));
-      Alert.alert("画像を更新しました", targetIndex === 0 ? "メイン画像を更新しました。" : `${targetIndex + 1}枚目の画像を更新しました。`);
     } catch (cause) {
       const message=cause instanceof Error ? cause.message : "写真を更新できませんでした";
       setError(message);
@@ -1402,13 +1403,10 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle
     if (input) void onRegister({ email: normalizedEmail, password, ...input });
   };
   const submitProvider = (provider: "Google" | "Apple" | "X" | "LINE") => {
-    const input = mode === "register" ? registrationInput() : undefined;
-    if (mode === "register" && !input) return;
-    const providerInput = input ?? undefined;
-    if (provider === "LINE") void onLine(providerInput);
-    else if (provider === "X") void onX(providerInput);
-    else if (provider === "Google") void onGoogle(providerInput);
-    else void onApple(providerInput);
+    if (provider === "LINE") void onLine();
+    else if (provider === "X") void onX();
+    else if (provider === "Google") void onGoogle();
+    else void onApple();
   };
   const chooseRegistrationPhotos = async (source?: "camera" | "library") => {
     if (!source) return Alert.alert("プロフィール画像を追加", "追加方法を選んでください。", [
@@ -1424,6 +1422,26 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle
     const photos = result.assets.flatMap((asset) => asset.base64 ? [`data:image/${asset.mimeType === "image/png" ? "png" : asset.mimeType === "image/webp" ? "webp" : "jpeg"};base64,${asset.base64}`] : []).slice(0, 3);
     setRegistrationPhotos((current) => source === "camera" ? [...current, ...photos].slice(0, 3) : photos);
   };
+  const authDivider = <View style={styles.authDividerRow}>
+    <View style={styles.authDividerLine} />
+    <Text style={styles.authDividerText}>または</Text>
+    <View style={styles.authDividerLine} />
+  </View>;
+  const providerSection = <>
+    {(["Google", "Apple", "X", "LINE", "電話番号"] as const).map((provider) => (
+      <Pressable
+        key={provider}
+        disabled={loading}
+        style={[styles.providerButton, provider === "X" && styles.xProviderButton]}
+        onPress={() => provider === "電話番号" ? (setAuthInputError(""), setPhoneCode(""), setProviderNote(""), setPhoneChallenge("")) : submitProvider(provider)}
+      >
+        <Text style={[styles.providerMark, provider === "X" && styles.xProviderText]}>{provider === "Google" ? "G" : provider === "Apple" ? "●" : provider === "X" ? "X" : provider === "LINE" ? "L" : "☎"}</Text>
+        <Text style={[styles.providerButtonText, provider === "X" && styles.xProviderText]}>{`${provider}${mode === "register" ? "でアカウント作成" : "でログイン"}`}</Text>
+      </Pressable>
+    ))}
+    {phoneChallenge!==null?<View><Field label="携帯電話番号" value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="09012345678" />{phoneChallenge?<Field label="SMSで届いた6桁の認証コード" value={phoneCode} onChangeText={setPhoneCode} keyboardType="number-pad" maxLength={6} />:null}<Text style={styles.phoneHint}>日本の電話番号は090・080・070から入力できます。</Text><Pressable disabled={loading || !phone.trim() || Boolean(phoneChallenge && phoneCode.length !== 6)} style={[styles.primary, (loading || !phone.trim() || Boolean(phoneChallenge && phoneCode.length !== 6)) && styles.disabled]} onPress={async()=>{try{const result=await onPhone(phone,phoneCode,phoneChallenge||undefined);if(result.challengeToken){setPhoneChallenge(result.challengeToken);setProviderNote(result.demoCode?`開発用コード：${result.demoCode}`:'SMSに認証コードを送信しました')}}catch{}}}><Text style={styles.primaryText}>{phoneChallenge?'アカウント作成・ログイン':'SMS認証コードを送る'}</Text></Pressable></View>:null}
+    <Text style={styles.providerNote}>{providerNote}</Text>
+  </>;
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.authPage} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
@@ -1473,6 +1491,12 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle
         <View style={styles.authCard}>
           <Text style={styles.eyebrow}>今から、誰かと。</Text>
           <Text style={styles.authTitle}>{mode === "login" ? "おかえりなさい" : "アカウントを作る"}</Text>
+          {mode === "register" ? <Pressable style={styles.authSwitchButton} onPress={() => changeMode("login")}>
+            <Text style={styles.authSwitch}>アカウントをお持ちの方はログイン</Text>
+          </Pressable> : null}
+          {mode === "register" ? authDivider : null}
+          {providerSection}
+          {authDivider}
           <Field label="メールアドレス" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
           {mode === "register" && (
             <>
@@ -1508,27 +1532,9 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle
           >
             <Text style={styles.primaryText}>{loading ? "接続中…" : mode === "login" ? "ログイン" : "無料で登録"}</Text>
           </Pressable>
-          <View style={styles.authDividerRow}>
-            <View style={styles.authDividerLine} />
-            <Text style={styles.authDividerText}>または</Text>
-            <View style={styles.authDividerLine} />
-          </View>
-          {(["Google", "Apple", "X", "LINE", "電話番号"] as const).map((provider) => (
-            <Pressable
-              key={provider}
-              disabled={loading}
-              style={[styles.providerButton, provider === "X" && styles.xProviderButton]}
-              onPress={() => provider === "電話番号" ? (setAuthInputError(""), setPhoneCode(""), setProviderNote(""), setPhoneChallenge("")) : submitProvider(provider)}
-            >
-              <Text style={[styles.providerMark, provider === "X" && styles.xProviderText]}>{provider === "Google" ? "G" : provider === "Apple" ? "●" : provider === "X" ? "X" : provider === "LINE" ? "L" : "☎"}</Text>
-              <Text style={[styles.providerButtonText, provider === "X" && styles.xProviderText]}>{`${provider}${mode === "register" ? "でアカウント作成" : "でログイン"}`}</Text>
-            </Pressable>
-          ))}
-          {phoneChallenge!==null?<View><Field label="携帯電話番号" value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="09012345678" />{phoneChallenge?<Field label="SMSで届いた6桁の認証コード" value={phoneCode} onChangeText={setPhoneCode} keyboardType="number-pad" maxLength={6} />:null}<Text style={styles.phoneHint}>日本の電話番号は090・080・070から入力できます。</Text><Pressable disabled={loading || !phone.trim() || Boolean(phoneChallenge && phoneCode.length !== 6)} style={[styles.primary, (loading || !phone.trim() || Boolean(phoneChallenge && phoneCode.length !== 6)) && styles.disabled]} onPress={async()=>{try{const result=await onPhone(phone,phoneCode,phoneChallenge||undefined);if(result.challengeToken){setPhoneChallenge(result.challengeToken);setProviderNote(result.demoCode?`開発用コード：${result.demoCode}`:'SMSに認証コードを送信しました')}}catch{}}}><Text style={styles.primaryText}>{phoneChallenge?'アカウント作成・ログイン':'SMS認証コードを送る'}</Text></Pressable></View>:null}
-          <Text style={styles.providerNote}>{providerNote}</Text>
-          <Pressable style={styles.authSwitchButton} onPress={() => changeMode(mode === "login" ? "register" : "login")}>
-            <Text style={styles.authSwitch}>{mode === "login" ? "新しくアカウントを作る" : "アカウントをお持ちの方はログイン"}</Text>
-          </Pressable>
+          {mode === "login" ? <Pressable style={styles.authSwitchButton} onPress={() => changeMode("register")}>
+            <Text style={styles.authSwitch}>新しくアカウントを作る</Text>
+          </Pressable> : null}
           <Text style={styles.authAgreement}>登録により利用規約とプライバシーポリシーに同意します。</Text>
           <View style={styles.authPolicyLinks}>
             <Pressable onPress={() => void Linking.openURL(`${WEBSITE_URL}/privacy.html`)}><Text style={styles.authPolicyLink}>プライバシー</Text></Pressable>
@@ -2087,9 +2093,10 @@ function PhotoViewerModal({ photos, index, onIndex, onClose }: { photos: string[
 }
 
 function PhoneVerificationScreen({ onBack, onVerify }: { onBack: () => void; onVerify: (phone: string, code?: string) => Promise<void> }) {
-  const [phone, setPhone] = useState("+81");
+  const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
+  const [message, setMessage] = useState("");
   return (
     <View style={styles.phoneSheetScreen}>
     <Pressable style={styles.phoneSheetBackdrop} onPress={onBack} accessibilityLabel="電話番号確認を閉じる" />
@@ -2099,8 +2106,9 @@ function PhoneVerificationScreen({ onBack, onVerify }: { onBack: () => void; onV
       <Text style={styles.profileScreenEyebrow}>本人確認</Text>
       <Text style={styles.pageTitle}>電話番号確認</Text>
       <Text style={styles.safetyNote}>安全なコミュニティ運営のため、募集作成にはSMS確認が必要です。番号は他の利用者には公開されません。</Text>
-      <Text style={styles.label}>電話番号（国番号付き）</Text>
-      <AppTextInput style={styles.input} value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="+819012345678" />
+      <Text style={styles.label}>携帯電話番号</Text>
+      <AppTextInput style={styles.input} value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="09012345678" />
+      <Text style={styles.phoneHint}>日本の電話番号は090・080・070から入力できます。</Text>
       {sent && (
         <>
           <Text style={styles.label}>6桁の確認コード</Text>
@@ -2108,15 +2116,24 @@ function PhoneVerificationScreen({ onBack, onVerify }: { onBack: () => void; onV
         </>
       )}
       <Pressable
-        style={styles.primary}
-        onPress={() =>
-          void onVerify(phone, sent ? code : undefined).then(() => {
-            if (!sent) setSent(true);
-          })
-        }
+        disabled={!phone.trim() || Boolean(sent && code.length !== 6)}
+        style={[styles.primary, (!phone.trim() || Boolean(sent && code.length !== 6)) && styles.disabled]}
+        onPress={() => void (async () => {
+          setMessage("");
+          try {
+            await onVerify(phone, sent ? code : undefined);
+            if (!sent) {
+              setSent(true);
+              setMessage("SMSに認証コードを送信しました");
+            }
+          } catch (cause) {
+            setMessage(cause instanceof Error ? cause.message : "電話番号を確認できませんでした");
+          }
+        })()}
       >
         <Text style={styles.primaryText}>{sent ? "確認して完了" : "SMSを送信"}</Text>
       </Pressable>
+      {message ? <Text style={styles.providerNote}>{message}</Text> : null}
       <Pressable style={styles.secondary} onPress={onBack}><Text>キャンセル</Text></Pressable>
       </ScrollView>
     </View>

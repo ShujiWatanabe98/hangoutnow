@@ -1,6 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
+import { validate } from 'class-validator';
 import sharp from 'sharp';
 import { describe, expect, it, vi } from 'vitest';
+import { CreateHangoutDto } from '../src/hangouts/hangout.dto';
 import { HangoutService } from '../src/hangouts/hangout.service';
 import type { HostStatusService } from '../src/host-status/host-status.service';
 import type { NotificationService } from '../src/notifications/notification.service';
@@ -11,6 +13,29 @@ function serviceWith(db: object) {
 }
 
 describe('Hangout image normalization', () => {
+  it('accepts a Hangout Now preset image URL in request validation', async () => {
+    const input = Object.assign(new CreateHangoutDto(), {
+      imageUrl: 'https://method-more.com/assets/demo-cafe-hangout.jpg',
+    });
+
+    const errors = await validate(input);
+    expect(errors.some((error) => error.property === 'imageUrl')).toBe(false);
+  });
+
+  it('keeps trusted preset images and rejects arbitrary remote images', async () => {
+    const update = vi.fn().mockImplementation(({ data }: { data: { imageUrl?: string } }) => Promise.resolve(data));
+    const service = serviceWith({
+      hangout: {
+        findUnique: vi.fn().mockResolvedValue({ id: 'hangout', hostUserId: 'host' }),
+        update,
+      },
+    });
+
+    const preset = 'https://method-more.com/assets/demo-cafe-hangout.jpg';
+    await expect(service.update('host', 'hangout', { imageUrl: preset })).resolves.toMatchObject({ imageUrl: preset });
+    await expect(service.update('host', 'hangout', { imageUrl: 'https://example.com/cafe.jpg' })).rejects.toBeInstanceOf(BadRequestException);
+  });
+
   it('converts an uploaded image to a 1200 x 675 JPEG before saving', async () => {
     const source = await sharp({
       create: { width: 400, height: 800, channels: 3, background: '#4f8f67' },

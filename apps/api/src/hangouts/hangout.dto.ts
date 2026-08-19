@@ -1,10 +1,12 @@
 import { AttendanceStatus, GenderRestriction, ServiceArea } from '@prisma/client';
 import { IsEnum, IsIn, IsInt, IsLatitude, IsLongitude, IsOptional, IsString, IsUrl, IsUUID, Matches, Max, MaxLength, Min, MinLength } from 'class-validator';
 
+const HANGOUT_IMAGE_PATTERN = /^(?:data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*|https:\/\/(?:method-more\.com|hangoutnow-demo\.onrender\.com)\/assets\/[A-Za-z0-9._-]+\.(?:jpe?g|png|webp))$/;
+
 export class CreateHangoutDto {
   @IsString() @MinLength(1) @MaxLength(80) title!: string;
   @IsOptional() @IsString() @MaxLength(500) description?: string;
-  @IsOptional() @IsString() @MaxLength(1_500_000) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/) imageUrl?: string;
+  @IsOptional() @IsString() @MaxLength(1_500_000) @Matches(HANGOUT_IMAGE_PATTERN) imageUrl?: string;
   @IsString() @MaxLength(30) category!: string;
   @IsEnum(ServiceArea) serviceArea!: ServiceArea;
   @IsIn([30, 60, 180]) startInMinutes!: number;
@@ -24,7 +26,7 @@ export class CreateHangoutDto {
 export class UpdateHangoutDto {
   @IsOptional() @IsString() @MinLength(1) @MaxLength(80) title?: string;
   @IsOptional() @IsString() @MaxLength(500) description?: string;
-  @IsOptional() @IsString() @MaxLength(1_500_000) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/) imageUrl?: string | null;
+  @IsOptional() @IsString() @MaxLength(1_500_000) @Matches(HANGOUT_IMAGE_PATTERN) imageUrl?: string | null;
   @IsOptional() @IsString() @MaxLength(100) locationName?: string;
   @IsOptional() @IsString() @MinLength(1) @MaxLength(100) meetingPlaceName?: string;
   @IsOptional() @IsString() @MinLength(1) @MaxLength(200) meetingAddress?: string;

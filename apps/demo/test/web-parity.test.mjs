@@ -124,8 +124,9 @@ test('social and phone authentication continue directly into account creation', 
   assert.match(application, /if\(provider==='電話番号'\)\{phoneAuthDialog\(\);return\}/);
   assert.match(application, /const input=null/);
   assert.match(application, /\/auth\/phone\/confirm/);
-  assert.match(mobile, /const input = mode === "register" \? registrationInput\(\) : undefined/);
-  assert.match(mobile, /if \(provider === "LINE"\) void onLine\(providerInput\)/);
+  assert.doesNotMatch(mobile, /const input = mode === "register" \? registrationInput\(\) : undefined/);
+  assert.match(mobile, /if \(provider === "LINE"\) void onLine\(\)/);
+  assert.match(mobile, /else if \(provider === "Google"\) void onGoogle\(\)/);
   assert.match(mobile, /normalizePhoneNumber\(phone\)/);
   assert.match(mobile, /SMSで届いた6桁の認証コード/);
   assert.match(mobile, /authenticateWithOAuth\(provider:"google"\|"apple", input\?: OAuthRegistrationInput\)/);
@@ -591,4 +592,15 @@ test('web phone registration accepts ordinary Japanese mobile number input', asy
   assert.match(web, /if\(\/\^0\\d\{9,10\}\$\/\.test\(compact\)\)return`\+81\$\{compact\.slice\(1\)\}`/);
   assert.match(web, /placeholder="09012345678"/);
   assert.match(web, /requestedPhone=phone/);
+});
+
+test('native authentication prioritizes providers and profile SMS reports real results', async () => {
+  const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
+  const authenticationCard = mobile.slice(mobile.indexOf('<Text style={styles.authTitle}'), mobile.indexOf('<Text style={styles.authAgreement}>'));
+
+  assert.ok(authenticationCard.indexOf('{providerSection}') < authenticationCard.indexOf('<Field label="メールアドレス"'), 'providers must appear before email authentication');
+  assert.match(authenticationCard, /アカウントをお持ちの方はログイン/);
+  assert.match(mobile, /const normalizedPhone = normalizePhoneNumber\(phone\)/);
+  assert.match(mobile, /SMSに認証コードを送信しました/);
+  assert.ok(!mobile.includes('Alert.alert("画像を更新しました"'), 'successful profile image selection must not show an alert');
 });
