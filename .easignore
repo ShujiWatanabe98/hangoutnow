@@ -13,11 +13,14 @@ appleappkey.txt
 render.txt
 
 # Never upload local credentials or recovery material to EAS Build.
-/downloadkey/
+/downloadkey
+/downloadkey/**
 
 # Local-only files and generated verification artifacts.
 /app.json
 /docker-compose.yml
-/.expo-export-check*/
-/apps/mobile/.expo-export-check*/
+/.expo-export-check*
+/.expo-export-check*/**
+/apps/mobile/.expo-export-check*
+/apps/mobile/.expo-export-check*/**
 /apps/admin/*.tsbuildinfo
