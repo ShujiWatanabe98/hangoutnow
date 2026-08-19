@@ -363,3 +363,17 @@ test('native map matches the production Google map and privacy-safe linked list'
   assert.match(mobile, /承認前は概略エリア、承認後だけ正確な集合地点をナビへ渡します/);
   for (const retiredMap of ['MAP_PIN_POSITIONS', 'styles.mapRoad', 'styles.mapYou', '近くのマップ', '現在地を更新']) assert.ok(!mobile.includes(retiredMap), `retired native map remains: ${retiredMap}`);
 });
+
+test('native iOS text entry always exposes a dismiss action and avoids the keyboard', async () => {
+  const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
+
+  assert.match(mobile, /InputAccessoryView nativeID=\{IOS_KEYBOARD_ACCESSORY_ID\}/);
+  assert.match(mobile, /accessibilityLabel="キーボードを閉じる"/);
+  assert.match(mobile, /<Text style=\{styles\.keyboardDoneText\}>完了<\/Text>/);
+  assert.match(mobile, /function AppTextInput/);
+  assert.match(mobile, /inputAccessoryViewID=\{props\.inputAccessoryViewID/);
+  assert.equal((mobile.match(/<TextInput/g) ?? []).length, 1, 'all rendered fields must use the shared keyboard-enabled input');
+  assert.match(mobile, /screen !== "chat" \? "padding" : undefined/);
+  assert.ok((mobile.match(/keyboardDismissMode="interactive"/g) ?? []).length >= 5);
+  assert.ok((mobile.match(/style=\{styles\.modalKeyboardAvoider\}/g) ?? []).length >= 3);
+});

@@ -7,7 +7,7 @@ import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import * as WebBrowser from "expo-web-browser";
 import Constants from "expo-constants";
-import { ActivityIndicator, Alert, FlatList, Image, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, FlatList, Image, InputAccessoryView, Keyboard, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { WebView } from "react-native-webview";
 
 const API_URL = "https://hangoutnow-api.onrender.com";
@@ -40,6 +40,7 @@ const LINE_REDIRECT_URI = "hangoutnow://auth/line";
 const X_REDIRECT_URI = "hangoutnow://auth/x";
 const GOOGLE_REDIRECT_URI = "hangoutnow://auth/google";
 const APPLE_REDIRECT_URI = "hangoutnow://auth/apple";
+const IOS_KEYBOARD_ACCESSORY_ID = "hangout-now-keyboard-actions";
 WebBrowser.maybeCompleteAuthSession();
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -49,6 +50,10 @@ Notifications.setNotificationHandler({
     shouldSetBadge: true,
   }),
 });
+
+function AppTextInput(props: React.ComponentProps<typeof TextInput>) {
+  return <TextInput {...props} inputAccessoryViewID={props.inputAccessoryViewID ?? (Platform.OS === "ios" ? IOS_KEYBOARD_ACCESSORY_ID : undefined)} />;
+}
 const INTEREST_OPTIONS = ["カフェ", "ラーメン", "ランニング", "飲み会", "ダーツ", "バー", "ごはん", "カラオケ", "英会話", "シーシャ", "スイーツ", "映画"] as const;
 const SOCIAL_STYLE_OPTIONS = ["静かに話したい", "ワイワイ楽しみたい", "初対面でも積極的", "少人数でじっくり", "聞き役が多い"] as const;
 const PARTICIPATION_GOAL_OPTIONS = ["趣味仲間", "友達づくり", "暇つぶし", "情報交換", "運動習慣", "食事・飲み", "新しい体験"] as const;
@@ -1279,7 +1284,7 @@ export default function App() {
         </View>
       )}
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      <View style={styles.content}>
+      <KeyboardAvoidingView style={styles.content} behavior={Platform.OS === "ios" && screen !== "chat" ? "padding" : undefined} keyboardVerticalOffset={0}>
         {screen === "home" && <HomeScreen user={session.user} hangouts={hangouts} refreshing={refreshing} locationLabel={locationLabel} selectedArea={selectedArea} demoRole={demoRole} onArea={chooseArea} onLocation={useCurrentLocation} onMap={() => setScreen("map")} onRefresh={refreshCurrent} onOpen={openHangout} onHeart={toggleHeart} onCreate={() => { if (!session.user.profilePhoto) { Alert.alert("プロフィール写真が必要です", "Hangoutを作る前に、顔が分かるプロフィール写真を登録してください。"); setScreen("profile"); return; } setScreen(session.user.verificationStatus === "PHONE_VERIFIED" ? "create" : "phone"); }} />}
         {screen === "map" && <MapScreen hangouts={hangouts} coordinates={coordinates ?? AREA_COORDINATES[selectedArea]} onBack={() => setScreen("home")} onOpen={openHangout} />}
         {screen === "create" && <CreateHangoutScreen area={selectedArea} onBack={() => setScreen("home")} onSubmit={createHangout} />}
@@ -1289,7 +1294,16 @@ export default function App() {
         {screen === "rating" && ratingRoom && <RatingScreen user={session.user} room={ratingRoom} onRate={rateParticipant} onDone={() => { setRatingRoom(null); setScreen(ratingReturnScreen); }} />}
         {screen === "profile" && <ProfileScreen user={session.user} hostStatus={hostStatus} activity={profileActivity} demo={!!demoRole} onChat={() => { setSelectedRoom(null); setChatReturnScreen("profile"); setScreen("chat"); }} onOpenHangout={(id) => void openHangout({ id })} onPhone={() => setScreen("phone")} onPhoto={chooseProfilePhoto} onSave={updateProfile} onDelete={confirmDeleteAccount} onLogout={logout} />}
         {screen === "notifications" && <NotificationScreen inbox={notificationInbox} refreshing={refreshing} onBack={() => setScreen("home")} onRefresh={refreshCurrent} onEnabled={setNotificationEnabled} onRead={readNotification} onReadAll={readAllNotifications} onDelete={confirmDeleteNotifications} />}
-      </View>
+      </KeyboardAvoidingView>
+      {Platform.OS === "ios" && (
+        <InputAccessoryView nativeID={IOS_KEYBOARD_ACCESSORY_ID}>
+          <View style={styles.keyboardAccessory}>
+            <Pressable style={styles.keyboardDoneButton} onPress={Keyboard.dismiss} accessibilityRole="button" accessibilityLabel="キーボードを閉じる">
+              <Text style={styles.keyboardDoneText}>完了</Text>
+            </Pressable>
+          </View>
+        </InputAccessoryView>
+      )}
       {loading ? (
         <View style={styles.loading}>
           <ActivityIndicator color="#d9ff68" />
@@ -1319,7 +1333,7 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle
   };
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.authPage} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={styles.authPage} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
         <Text style={styles.authBrand}>
           Hangout <Text style={styles.brandAccent}>Now</Text>
         </Text>
@@ -1450,7 +1464,7 @@ function Field(props: React.ComponentProps<typeof TextInput> & { label: string }
   return (
     <View>
       <Text style={styles.label}>{label}</Text>
-      <TextInput {...input} style={styles.input} placeholderTextColor="#8a918c" />
+      <AppTextInput {...input} style={styles.input} placeholderTextColor="#8a918c" />
     </View>
   );
 }
@@ -1643,7 +1657,7 @@ function CreateHangoutScreen({ area, onBack, onSubmit }: { area: AlphaArea; onBa
         <View style={styles.createHeaderHeading}><Text style={styles.createHeaderEyebrow}>新しい募集</Text><Text style={styles.createHeaderTitle}>Hangoutを作る</Text></View>
         <View style={styles.createHeaderSpacer} />
       </View>
-      <ScrollView style={styles.createScroll} contentContainerStyle={styles.formPage} keyboardShouldPersistTaps="handled">
+      <ScrollView style={styles.createScroll} contentContainerStyle={styles.formPage} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
       {Object.keys(errors).length > 0 && <Text style={styles.validationMessage}>入力内容を確認してください。赤枠の項目を設定すると公開できます。</Text>}
       <Text style={styles.label}>Hangoutのイメージ写真</Text>
       <Pressable style={styles.imagePickerButton} onPress={() => Alert.alert("画像を追加", "追加方法を選んでください。", [
@@ -1669,7 +1683,7 @@ function CreateHangoutScreen({ area, onBack, onSubmit }: { area: AlphaArea; onBa
         ))}
       </View>
       <Text style={styles.label}>何する？</Text>
-      <TextInput style={[styles.input, errors.title && styles.invalidInput]} value={form.title} onChangeText={(title) => update("title", title)} placeholder="例：30分後にラーメン" maxLength={80} />
+      <AppTextInput style={[styles.input, errors.title && styles.invalidInput]} value={form.title} onChangeText={(title) => update("title", title)} placeholder="例：30分後にラーメン" maxLength={80} />
       {errors.title && <Text style={styles.fieldError}>{errors.title}</Text>}
       <Text style={styles.label}>いつ？</Text>
       <View style={styles.choiceRow}>
@@ -1688,19 +1702,19 @@ function CreateHangoutScreen({ area, onBack, onSubmit }: { area: AlphaArea; onBa
         ))}
       </View>
       <Text style={styles.label}>承認前に表示するエリア</Text>
-      <TextInput style={[styles.input, errors.publicLocationName && styles.invalidInput]} value={form.publicLocationName} onChangeText={(value) => update("publicLocationName", value)} maxLength={100} />
+      <AppTextInput style={[styles.input, errors.publicLocationName && styles.invalidInput]} value={form.publicLocationName} onChangeText={(value) => update("publicLocationName", value)} maxLength={100} />
       {errors.publicLocationName && <Text style={styles.fieldError}>{errors.publicLocationName}</Text>}
       <View style={styles.privatePlaceBox}>
         <Text style={styles.privatePlaceTitle}>承認後に表示する集合場所</Text>
         <Text style={styles.privacyText}>店名・住所・ナビ情報は承認したメンバーだけに表示します。</Text>
         <Text style={styles.label}>店名</Text>
-        <TextInput style={[styles.input, errors.meetingPlaceName && styles.invalidInput]} value={form.meetingPlaceName} onChangeText={(value) => update("meetingPlaceName", value)} maxLength={100} />
+        <AppTextInput style={[styles.input, errors.meetingPlaceName && styles.invalidInput]} value={form.meetingPlaceName} onChangeText={(value) => update("meetingPlaceName", value)} maxLength={100} />
         {errors.meetingPlaceName && <Text style={styles.fieldError}>{errors.meetingPlaceName}</Text>}
         <Text style={styles.label}>住所</Text>
-        <TextInput style={[styles.input, errors.meetingAddress && styles.invalidInput]} value={form.meetingAddress} onChangeText={(value) => update("meetingAddress", value)} maxLength={200} />
+        <AppTextInput style={[styles.input, errors.meetingAddress && styles.invalidInput]} value={form.meetingAddress} onChangeText={(value) => update("meetingAddress", value)} maxLength={200} />
         {errors.meetingAddress && <Text style={styles.fieldError}>{errors.meetingAddress}</Text>}
         <Text style={styles.label}>ナビアプリの共有URL（任意）</Text>
-        <TextInput style={styles.input} value={form.navigationUrl} onChangeText={(value) => update("navigationUrl", value)} autoCapitalize="none" keyboardType="url" maxLength={500} placeholder="Googleマップなどの共有URLを貼り付け" />
+        <AppTextInput style={styles.input} value={form.navigationUrl} onChangeText={(value) => update("navigationUrl", value)} autoCapitalize="none" keyboardType="url" maxLength={500} placeholder="Googleマップなどの共有URLを貼り付け" />
         <View style={styles.createMapActions}>
           <Pressable style={styles.createMapAction} onPress={() => void Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${form.meetingPlaceName} ${form.meetingAddress}`.trim() || form.publicLocationName)}`)}><Text style={styles.createMapActionText}>Googleマップで場所を検索</Text></Pressable>
           <Pressable style={styles.createMapAction} onPress={() => update("navigationUrl", `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${form.meetingPlaceName} ${form.meetingAddress}`.trim() || form.publicLocationName)}`)}><Text style={styles.createMapActionText}>店名・住所からナビを設定</Text></Pressable>
@@ -1723,7 +1737,7 @@ function CreateHangoutScreen({ area, onBack, onSubmit }: { area: AlphaArea; onBa
         ))}
       </View>
       <Text style={styles.label}>ひとこと</Text>
-      <TextInput style={[styles.input, styles.multiline]} value={form.description} onChangeText={(description) => setForm((v) => ({ ...v, description }))} multiline maxLength={500} />
+      <AppTextInput style={[styles.input, styles.multiline]} value={form.description} onChangeText={(description) => setForm((v) => ({ ...v, description }))} multiline maxLength={500} />
       </ScrollView>
       <View style={styles.createFooter}>
         <Pressable style={styles.createCancelButton} onPress={onBack}><Text style={styles.createCancelText}>キャンセル</Text></Pressable>
@@ -1989,18 +2003,20 @@ function JoinRequestModal({ visible, hangout, onClose, onSubmit }: { visible: bo
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={styles.modalPage}>
-        <ScrollView contentContainerStyle={styles.formPage}>
+        <KeyboardAvoidingView style={styles.modalKeyboardAvoider} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <ScrollView contentContainerStyle={styles.formPage} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
           <Pressable onPress={onClose}><Text style={styles.backText}>‹ Hangoutに戻る</Text></Pressable>
           <Text style={styles.eyebrow}>参加申請</Text>
           <Text style={styles.pageTitle}>ひとこと添えて申請</Text>
           <Text style={styles.safetyNote}>{hangout.host.displayName}さんが参加可否を判断します。参加したい理由や当日の雰囲気が伝わるメッセージを書いてください。</Text>
           <Text style={styles.label}>主催者へのメッセージ</Text>
-          <TextInput style={[styles.input, styles.multiline]} value={message} onChangeText={setMessage} multiline maxLength={200} placeholder="例：カフェ巡りが好きです。初参加ですが、よろしくお願いします！" />
+          <AppTextInput style={[styles.input, styles.multiline]} value={message} onChangeText={setMessage} multiline maxLength={200} placeholder="例：カフェ巡りが好きです。初参加ですが、よろしくお願いします！" />
           <Text style={styles.characterCount}>{message.trim().length} / 200文字</Text>
           <Pressable disabled={!message.trim() || submitting} style={[styles.primary, (!message.trim() || submitting) && styles.disabledButton]} onPress={() => { setSubmitting(true); void onSubmit(message.trim()).finally(() => setSubmitting(false)); }}>
             <Text style={styles.primaryText}>{submitting ? "申請中…" : "この内容で参加申請する"}</Text>
           </Pressable>
         </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
   );
@@ -2028,7 +2044,8 @@ function EditHangoutModal({ visible, hangout, onClose, onSave }: { visible: bool
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={styles.modalPage}>
-        <ScrollView contentContainerStyle={styles.formPage}>
+        <KeyboardAvoidingView style={styles.modalKeyboardAvoider} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <ScrollView contentContainerStyle={styles.formPage} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
           <Pressable onPress={onClose}><Text style={styles.backText}>‹ Hangout画面に戻る</Text></Pressable>
           <Text style={styles.pageTitle}>Hangoutを編集</Text>
           <Text style={styles.label}>Hangoutのイメージ写真</Text>
@@ -2044,10 +2061,11 @@ function EditHangoutModal({ visible, hangout, onClose, onSave }: { visible: bool
           <Text style={styles.label}>年齢上限</Text>
           <View style={styles.choiceRow}>{([[null,'制限なし'],[29,'20代まで'],[39,'30代まで'],[59,'50代まで']] as const).map(([value,label]) => <Pressable key={label} style={[styles.choice, maxAge === value && styles.choiceOn]} onPress={() => setMaxAge(value)}><Text>{label}</Text></Pressable>)}</View>
           <Text style={styles.label}>説明</Text>
-          <TextInput style={[styles.input, styles.multiline]} value={description} onChangeText={setDescription} multiline maxLength={500} />
+          <AppTextInput style={[styles.input, styles.multiline]} value={description} onChangeText={setDescription} multiline maxLength={500} />
           <Pressable style={styles.primary} onPress={() => void onSave({ title, description, imageUrl, publicLocationName, locationName: `${meetingPlaceName} ${meetingAddress}`.trim(), meetingPlaceName, meetingAddress, navigationUrl, genderRestriction, maxAge })}><Text style={styles.primaryText}>保存</Text></Pressable>
           <Pressable style={styles.secondary} onPress={onClose}><Text>キャンセル</Text></Pressable>
         </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
   );
@@ -2106,11 +2124,11 @@ function PhoneVerificationScreen({ onBack, onVerify }: { onBack: () => void; onV
       <Text style={styles.pageTitle}>電話番号を確認</Text>
       <Text style={styles.safetyNote}>安全なコミュニティ運営のため、募集作成にはSMS確認が必要です。番号は他の利用者には公開されません。</Text>
       <Text style={styles.label}>電話番号（国番号付き）</Text>
-      <TextInput style={styles.input} value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="+819012345678" />
+      <AppTextInput style={styles.input} value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="+819012345678" />
       {sent && (
         <>
           <Text style={styles.label}>6桁の確認コード</Text>
-          <TextInput style={styles.input} value={code} onChangeText={setCode} keyboardType="number-pad" maxLength={6} />
+          <AppTextInput style={styles.input} value={code} onChangeText={setCode} keyboardType="number-pad" maxLength={6} />
         </>
       )}
       <Pressable
@@ -2261,7 +2279,7 @@ function ChatScreen({ user, rooms, selectedRoom, messages, messageBody, sending,
           </ScrollView>
         )}
         <View style={styles.composer}>
-          <TextInput style={styles.composerInput} value={messageBody} onChangeText={onChangeBody} placeholder="メッセージ" placeholderTextColor="#8a918c" multiline maxLength={1000} />
+          <AppTextInput style={styles.composerInput} value={messageBody} onChangeText={onChangeBody} placeholder="メッセージ" placeholderTextColor="#8a918c" multiline maxLength={1000} />
           <Pressable disabled={sending || !messageBody.trim()} style={[styles.sendButton, (sending || !messageBody.trim()) && styles.sendDisabled]} onPress={() => onSend()}>
             <Text style={styles.sendText}>{sending ? "…" : "↑"}</Text>
           </Pressable>
@@ -2518,22 +2536,23 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
       </Pressable>
       <Modal visible={editing} animationType="slide" onRequestClose={() => void save()}>
         <SafeAreaView style={styles.profileEditorPage}>
+          <KeyboardAvoidingView style={styles.modalKeyboardAvoider} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={styles.profileEditorHeader}><Pressable disabled={profileSaving} style={styles.profileEditorBackButton} hitSlop={8} onPress={() => void save()} accessibilityRole="button" accessibilityLabel="保存してプロフィールに戻る">{profileSaving ? <ActivityIndicator size="small" color="#176b48" /> : <View style={styles.backChevron} />}</Pressable><View style={styles.profileEditorHeading}><Text style={styles.profileEditorEyebrow}>アカウント</Text><Text style={styles.profileEditorTitle}>プロフィールを編集</Text></View><View style={styles.profileEditorHeaderSpacer} /></View>
-          <ScrollView contentContainerStyle={styles.profileEditorForm} keyboardShouldPersistTaps="handled">
+          <ScrollView contentContainerStyle={styles.profileEditorForm} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive">
             <Text style={styles.profileEditorLabel}>プロフィール画像（最大3枚）</Text><View style={styles.profilePhotoTrio}>{[1,0,2].map((photoIndex,position)=>{const photo=user.profilePhotos?.[photoIndex]||(photoIndex===0?user.profilePhoto:undefined);return <Pressable key={photoIndex} onPress={()=>onPhoto(photoIndex)} accessibilityLabel={`${photoIndex+1}枚目の画像を選ぶ`}>{photo?<Image source={{uri:photo}} style={position===1?styles.avatar:styles.avatarSide}/>:<View style={position===1?styles.avatarFallback:styles.avatarSideFallback}><Text style={styles.avatarText}>{position===1?"☺":"＋"}</Text></View>}</Pressable>})}</View><Text style={styles.profileEditorHint}>丸い画像をタップして入れ替えます。中央がメイン画像です。</Text>
-            <Text style={styles.profileEditorLabel}>表示名</Text><TextInput style={styles.profileEditorInput} value={displayName} onChangeText={setDisplayName} maxLength={40} />
+            <Text style={styles.profileEditorLabel}>表示名</Text><AppTextInput style={styles.profileEditorInput} value={displayName} onChangeText={setDisplayName} maxLength={40} />
             <Text style={styles.profileEditorLabel}>電話番号</Text><Pressable style={styles.profileEditorAction} onPress={() => { setEditing(false); onPhone(); }}><Text style={styles.profileEditorActionText}>{user.verificationStatus === "PHONE_VERIFIED" ? "電話番号を変更" : "電話番号を確認"}</Text></Pressable>
-            <Text style={styles.profileEditorLabel}>活動エリア</Text><TextInput style={styles.profileEditorInput} value={homeArea} onChangeText={setHomeArea} maxLength={80} placeholder="例：新宿・渋谷" />
-            <Text style={styles.profileEditorLabel}>自己紹介</Text><TextInput style={[styles.profileEditorInput, styles.profileEditorBio]} value={bio} onChangeText={setBio} maxLength={500} multiline textAlignVertical="top" placeholder="好きなことや参加したいHangoutを書きましょう" />
+            <Text style={styles.profileEditorLabel}>活動エリア</Text><AppTextInput style={styles.profileEditorInput} value={homeArea} onChangeText={setHomeArea} maxLength={80} placeholder="例：新宿・渋谷" />
+            <Text style={styles.profileEditorLabel}>自己紹介</Text><AppTextInput style={[styles.profileEditorInput, styles.profileEditorBio]} value={bio} onChangeText={setBio} maxLength={500} multiline textAlignVertical="top" placeholder="好きなことや参加したいHangoutを書きましょう" />
             <Text style={styles.profileEditorLabel}>興味のあること</Text>
             <View style={styles.interestOptionGrid}>{INTEREST_OPTIONS.map((interest) => { const selected = selectedInterests.includes(interest); return <Pressable key={interest} style={[styles.interestOption, selected && styles.interestOptionSelected]} onPress={() => toggleInterest(interest)}><Text style={[styles.interestOptionText, selected && styles.interestOptionTextSelected]}>{interest}</Text></Pressable>; })}</View>
-            <TextInput style={[styles.profileEditorInput, { marginTop: 10 }]} value={interests} onChangeText={setInterests} maxLength={300} placeholder="ボタンにない興味だけ入力" /><Text style={styles.profileEditorHint}>候補はタップして選択し、入力欄には候補にない言葉だけを記載します。</Text>
+            <AppTextInput style={[styles.profileEditorInput, { marginTop: 10 }]} value={interests} onChangeText={setInterests} maxLength={300} placeholder="ボタンにない興味だけ入力" /><Text style={styles.profileEditorHint}>候補はタップして選択し、入力欄には候補にない言葉だけを記載します。</Text>
             <Text style={styles.profileEditorLabel}>性別</Text><View style={styles.profileGenderOptions}>{[["UNDISCLOSED", "回答しない"], ["MALE", "男性"], ["FEMALE", "女性"], ["OTHER", "その他"]].map(([value, label]) => <Pressable key={value} style={[styles.profileGenderOption, gender === value && styles.profileGenderOptionSelected]} onPress={() => setGender(value)}><Text style={gender === value ? styles.profileGenderOptionTextSelected : styles.profileGenderOptionText}>{label}</Text></Pressable>)}</View>
             <View style={styles.matchingPreferences}>
               <Text style={styles.matchingTitle}>マッチング設定</Text>
               <Text style={styles.profileEditorHint}>入力は任意です。位置は市区・駅などのおおまかなエリアだけを保存し、正確なGPS位置は保存しません。</Text>
-              <Text style={styles.profileEditorLabel}>希望エリア</Text><Text style={styles.profileEditorHint}>よく行く場所を選択</Text><View style={styles.matchChoiceGrid}>{MATCH_AREA_OPTIONS.map((value) => { const selected = selectedPreferredAreas.includes(value); return <Pressable key={value} style={[styles.matchChoice, selected && styles.matchChoiceSelected]} onPress={() => toggleCsvChoice(value, preferredAreas, setPreferredAreas)}><Text style={[styles.matchChoiceText, selected && styles.matchChoiceTextSelected]}>{value}</Text></Pressable>; })}</View><TextInput style={[styles.profileEditorInput, styles.matchCustomInput]} value={customPreferredAreas} onChangeText={(value) => setPreferredAreas([...selectedPreferredAreas, ...parseList(value)].join("、"))} maxLength={300} placeholder="ほかのエリアを追加（例：吉祥寺）" />
-              <Text style={styles.profileEditorLabel}>希望する活動</Text><Text style={styles.profileEditorHint}>興味があるものを選択</Text><View style={styles.matchChoiceGrid}>{INTEREST_OPTIONS.map((value) => { const selected = selectedPreferredActivities.includes(value); return <Pressable key={value} style={[styles.matchChoice, selected && styles.matchChoiceSelected]} onPress={() => toggleCsvChoice(value, preferredActivities, setPreferredActivities)}><Text style={[styles.matchChoiceText, selected && styles.matchChoiceTextSelected]}>{value}</Text></Pressable>; })}</View><TextInput style={[styles.profileEditorInput, styles.matchCustomInput]} value={customPreferredActivities} onChangeText={(value) => setPreferredActivities([...selectedPreferredActivities, ...parseList(value)].join("、"))} maxLength={500} placeholder="ほかの活動を追加" />
+              <Text style={styles.profileEditorLabel}>希望エリア</Text><Text style={styles.profileEditorHint}>よく行く場所を選択</Text><View style={styles.matchChoiceGrid}>{MATCH_AREA_OPTIONS.map((value) => { const selected = selectedPreferredAreas.includes(value); return <Pressable key={value} style={[styles.matchChoice, selected && styles.matchChoiceSelected]} onPress={() => toggleCsvChoice(value, preferredAreas, setPreferredAreas)}><Text style={[styles.matchChoiceText, selected && styles.matchChoiceTextSelected]}>{value}</Text></Pressable>; })}</View><AppTextInput style={[styles.profileEditorInput, styles.matchCustomInput]} value={customPreferredAreas} onChangeText={(value) => setPreferredAreas([...selectedPreferredAreas, ...parseList(value)].join("、"))} maxLength={300} placeholder="ほかのエリアを追加（例：吉祥寺）" />
+              <Text style={styles.profileEditorLabel}>希望する活動</Text><Text style={styles.profileEditorHint}>興味があるものを選択</Text><View style={styles.matchChoiceGrid}>{INTEREST_OPTIONS.map((value) => { const selected = selectedPreferredActivities.includes(value); return <Pressable key={value} style={[styles.matchChoice, selected && styles.matchChoiceSelected]} onPress={() => toggleCsvChoice(value, preferredActivities, setPreferredActivities)}><Text style={[styles.matchChoiceText, selected && styles.matchChoiceTextSelected]}>{value}</Text></Pressable>; })}</View><AppTextInput style={[styles.profileEditorInput, styles.matchCustomInput]} value={customPreferredActivities} onChangeText={(value) => setPreferredActivities([...selectedPreferredActivities, ...parseList(value)].join("、"))} maxLength={500} placeholder="ほかの活動を追加" />
               <Text style={styles.profileEditorLabel}>希望年齢</Text><View style={styles.matchChoiceGridWide}>{([["", "", "指定なし"], ["18", "29", "20代まで"], ["20", "39", "20〜30代"], ["30", "49", "30〜40代"], ["40", "69", "40代以上"]] as const).map(([min, max, label]) => { const selected = preferredAgeMin === min && preferredAgeMax === max; return <Pressable key={label} style={[styles.matchChoice, selected && styles.matchChoiceSelected]} onPress={() => { setPreferredAgeMin(min); setPreferredAgeMax(max); }}><Text style={[styles.matchChoiceText, selected && styles.matchChoiceTextSelected]}>{label}</Text></Pressable>; })}</View>
               <Text style={styles.profileEditorLabel}>希望する相手</Text><View style={styles.profileGenderOptions}>{[["MALE", "男性"], ["FEMALE", "女性"], ["OTHER", "その他"], ["UNDISCLOSED", "指定なし"]].map(([value, label]) => { const selected = preferredGenders.includes(value); return <Pressable key={value} style={[styles.profileGenderOption, selected && styles.profileGenderOptionSelected]} onPress={() => togglePreferredGender(value)}><Text style={selected ? styles.profileGenderOptionTextSelected : styles.profileGenderOptionText}>{label}</Text></Pressable>; })}</View>
               <Text style={styles.profileEditorLabel}>言語</Text><Text style={styles.profileEditorHint}>会話に使いたい言語を複数選択できます</Text>{choiceGrid(LANGUAGE_OPTIONS.map(([, label]) => label), preferredLanguages.map((value) => LANGUAGE_OPTIONS.find(([key]) => key === value)?.[1] ?? value), (labels) => setPreferredLanguages(labels.map((label) => LANGUAGE_OPTIONS.find(([, optionLabel]) => optionLabel === label)?.[0] ?? label)), 4)}
@@ -2553,6 +2572,7 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
               <Pressable accessibilityRole="switch" accessibilityState={{ checked: behaviorLearningEnabled }} style={[styles.matchingConsent, behaviorLearningEnabled && styles.matchingConsentOn]} onPress={() => setBehaviorLearningEnabled((value) => !value)}><View style={[styles.matchingCheckbox, behaviorLearningEnabled && styles.matchingCheckboxOn]}><Text style={styles.matchingCheckmark}>{behaviorLearningEnabled ? "✓" : ""}</Text></View><Text style={styles.matchingConsentText}>アプリ内行動からおすすめを改善します。閲覧した募集、ハート、参加、評価を使い、正確な位置やトーク内容は学習に使いません。</Text></Pressable>
             </View>
           </ScrollView>
+          </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
       <Modal visible={photoViewerIndex !== null && profilePhotos.length > 0} transparent animationType="fade" onRequestClose={() => setPhotoViewerIndex(null)}>
@@ -2568,6 +2588,10 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#f7f8f3" },
+  keyboardAccessory: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", paddingHorizontal: 16, borderTopWidth: 1, borderTopColor: "#dce5df", backgroundColor: "#f8fbf6" },
+  keyboardDoneButton: { minWidth: 64, minHeight: 40, alignItems: "center", justifyContent: "center", paddingHorizontal: 12 },
+  keyboardDoneText: { color: "#176b48", fontSize: 16, fontWeight: "900" },
+  modalKeyboardAvoider: { flex: 1 },
   restore: {
     flex: 1,
     alignItems: "center",
