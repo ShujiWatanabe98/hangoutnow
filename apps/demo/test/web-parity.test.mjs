@@ -575,3 +575,12 @@ test('talk and profile editor keep the same persistent back header as Hangout cr
   assert.match(portraits, /\.chat-page-title,\.chat-conversation-head\{position:sticky;top:0;z-index:5;flex-shrink:0;background:#fff\}/);
   assert.match(portraits, /\.profile-editor-sheet\{display:grid;grid-template-rows:auto minmax\(0,1fr\)/);
 });
+
+test('web phone registration accepts ordinary Japanese mobile number input', async () => {
+  const web = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+
+  assert.match(web, /function normalizeJapanesePhone\(value\)/);
+  assert.match(web, /if\(\/\^0\\d\{9,10\}\$\/\.test\(compact\)\)return`\+81\$\{compact\.slice\(1\)\}`/);
+  assert.match(web, /placeholder="09012345678"/);
+  assert.match(web, /requestedPhone=phone/);
+});
