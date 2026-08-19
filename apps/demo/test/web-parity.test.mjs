@@ -454,6 +454,17 @@ test('native profile context, finished ratings, chat copy, and empty interests m
   assert.match(mobile, /<Text style=\{styles\.tag\}>未登録<\/Text>/);
 });
 
+test('native matching enums, age choices, time slots, and phone copy match production', async () => {
+  const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
+
+  for (const value of ['"NONE"', '"SOMETIMES"', '"YES"', '"NON_SMOKING"', '"SEPARATED"', '"NO_PREFERENCE"']) assert.ok(mobile.includes(value));
+  for (const retired of ['"AVOID" | "OK" | "PREFER"', '["AVOID", "飲まない場を希望"]', '["OK", "どちらでも"]']) assert.ok(!mobile.includes(retired));
+  for (const label of ['こだわらない', '18〜24歳', '25〜29歳', '30代', '40代', '50歳〜', '飲まない', '少し飲む', '飲む', '禁煙希望', '分煙希望', '気にしない']) assert.ok(mobile.includes(label));
+  assert.match(mobile, /activityTimeSlots: parseList\(activityTimeSlots\)\.slice\(0, 12\)/);
+  assert.match(mobile, /phoneChallenge\?'アカウント作成・ログイン':'SMS認証コードを送る'/);
+  assert.ok((mobile.match(/member\.gender === "MALE" \? "男性"/g) ?? []).length >= 2);
+});
+
 test('native hosted and participated history opens the production finished Hangout flow', async () => {
   const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
 
