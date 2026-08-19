@@ -7,7 +7,7 @@ import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import * as WebBrowser from "expo-web-browser";
 import Constants from "expo-constants";
-import { ActivityIndicator, Alert, FlatList, Image, InputAccessoryView, Keyboard, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Animated, FlatList, Image, InputAccessoryView, Keyboard, KeyboardAvoidingView, Linking, Modal, PanResponder, Platform, Pressable, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { WebView } from "react-native-webview";
 
 const API_URL = "https://hangoutnow-api.onrender.com";
@@ -2075,10 +2075,12 @@ function ApplicantProfileModal({ profile, onClose }: { profile: ApplicantProfile
   const [photoIndex, setPhotoIndex] = useState<number | null>(null);
   const photos = (profile?.profilePhotos?.length ? profile.profilePhotos : profile?.profilePhoto ? [profile.profilePhoto] : []).filter(Boolean);
   return (
-    <><Modal visible={profile !== null} transparent animationType="slide" onRequestClose={onClose}>
+    <><Modal visible={profile !== null} transparent={Platform.OS !== "ios"} presentationStyle={Platform.OS === "ios" ? "pageSheet" : "overFullScreen"} allowSwipeDismissal animationType="slide" onRequestClose={onClose}>
       <View style={styles.applicantModalBackdrop}>
         <View style={styles.applicantModalCard}>
+          <View style={styles.applicantSheetHandle} />
           <View style={styles.profilePhotoTrio}>{[profile?.profilePhotos?.[1],profile?.profilePhotos?.[0]||profile?.profilePhoto,profile?.profilePhotos?.[2]].map((photo,index)=>photo?<Pressable key={`${photo}-${index}`} onPress={() => setPhotoIndex(Math.max(0, photos.indexOf(photo)))} accessibilityLabel="プロフィール画像を拡大"><Image source={{uri:photo}} style={index===1?styles.applicantAvatar:styles.avatarSide}/></Pressable>:<View key={`applicant-empty-${index}`} style={index===1?styles.applicantAvatarFallback:styles.avatarSideFallback}><Text style={styles.applicantAvatarText}>{index===1?(profile?.displayName.slice(0,1)||"☺"):"＋"}</Text></View>)}</View>
+          {!!photos.length && <Text style={styles.applicantPhotoHint}>画像をタップすると大きく表示できます</Text>}
           <Text style={styles.applicantName}>{profile?.displayName}</Text>
           <Text style={styles.applicantMeta}>
             {profile?.age !== undefined ? `${profile.age}歳` : "年齢非公開"}{profile?.gender ? ` ・ ${profile.gender === "MALE" ? "男性" : profile.gender === "FEMALE" ? "女性" : "性別非公開"}` : ""}{profile?.homeArea ? ` ・ ${profile.homeArea}` : ""}
@@ -2093,9 +2095,7 @@ function ApplicantProfileModal({ profile, onClose }: { profile: ApplicantProfile
             ))}
           </View>
           <Text style={styles.applicantPrivacyNote}>申請の判断に必要な公開プロフィールのみ表示しています。</Text>
-          <Pressable style={styles.applicantCloseButton} onPress={onClose}>
-            <Text style={styles.primaryText}>閉じる</Text>
-          </Pressable>
+          <Text style={styles.applicantDismissHint}>下にスライドして閉じる</Text>
         </View>
       </View>
     </Modal><PhotoViewerModal photos={photos} index={photoIndex} onIndex={setPhotoIndex} onClose={() => setPhotoIndex(null)} /></>
@@ -2103,11 +2103,26 @@ function ApplicantProfileModal({ profile, onClose }: { profile: ApplicantProfile
 }
 
 function PhotoViewerModal({ photos, index, onIndex, onClose }: { photos: string[]; index: number | null; onIndex: (index: number | null) => void; onClose: () => void }) {
+  const translateY = useRef(new Animated.Value(0)).current;
+  useEffect(() => { if (index !== null) translateY.setValue(0); }, [index, translateY]);
+  const dismiss = () => Animated.timing(translateY, { toValue: 900, duration: 180, useNativeDriver: true }).start(onClose);
+  const panResponder = PanResponder.create({
+    onMoveShouldSetPanResponder: (_, gesture) => gesture.dy > 8 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+    onPanResponderMove: (_, gesture) => translateY.setValue(Math.max(0, gesture.dy)),
+    onPanResponderRelease: (_, gesture) => {
+      if (gesture.dy > 100 || gesture.vy > 1) dismiss();
+      else Animated.spring(translateY, { toValue: 0, useNativeDriver: true }).start();
+    },
+    onPanResponderTerminate: () => Animated.spring(translateY, { toValue: 0, useNativeDriver: true }).start(),
+  });
   return <Modal visible={index !== null && photos.length > 0} transparent animationType="fade" onRequestClose={onClose}>
     <View style={styles.photoViewerBackdrop}>
-      <Pressable style={styles.photoViewerClose} onPress={onClose} accessibilityLabel="画像を閉じる"><Text style={styles.photoViewerCloseText}>×</Text></Pressable>
-      {index !== null && photos[index] ? <Image source={{ uri: photos[index] }} style={styles.photoViewerImage} resizeMode="contain" /> : null}
-      {photos.length > 1 && <View style={styles.photoViewerControls}><Pressable style={styles.photoViewerControl} onPress={() => onIndex(index === null ? 0 : (index - 1 + photos.length) % photos.length)}><Text style={styles.photoViewerControlText}>‹</Text></Pressable><Text style={styles.photoViewerCount}>{(index ?? 0) + 1} / {photos.length}</Text><Pressable style={styles.photoViewerControl} onPress={() => onIndex(index === null ? 0 : (index + 1) % photos.length)}><Text style={styles.photoViewerControlText}>›</Text></Pressable></View>}
+      <Animated.View style={[styles.photoViewerSwipeContent, { transform: [{ translateY }] }]} {...panResponder.panHandlers}>
+        <View style={styles.photoViewerHandle} />
+        <Text style={styles.photoViewerDismissHint}>下にスライドして閉じる</Text>
+        {index !== null && photos[index] ? <Image source={{ uri: photos[index] }} style={styles.photoViewerImage} resizeMode="contain" /> : null}
+        {photos.length > 1 && <View style={styles.photoViewerControls}><Pressable style={styles.photoViewerControl} onPress={() => onIndex(index === null ? 0 : (index - 1 + photos.length) % photos.length)}><Text style={styles.photoViewerControlText}>‹</Text></Pressable><Text style={styles.photoViewerCount}>{(index ?? 0) + 1} / {photos.length}</Text><Pressable style={styles.photoViewerControl} onPress={() => onIndex(index === null ? 0 : (index + 1) % photos.length)}><Text style={styles.photoViewerControlText}>›</Text></Pressable></View>}
+      </Animated.View>
     </View>
   </Modal>;
 }
@@ -2575,13 +2590,7 @@ function ProfileScreen({ user, hostStatus, activity, demo, onChat, onOpenHangout
           </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
-      <Modal visible={photoViewerIndex !== null && profilePhotos.length > 0} transparent animationType="fade" onRequestClose={() => setPhotoViewerIndex(null)}>
-        <View style={styles.photoViewerBackdrop}>
-          <Pressable style={styles.photoViewerClose} onPress={() => setPhotoViewerIndex(null)} accessibilityLabel="画像を閉じる"><Text style={styles.photoViewerCloseText}>×</Text></Pressable>
-          {photoViewerIndex !== null && profilePhotos[photoViewerIndex] ? <Image source={{ uri: profilePhotos[photoViewerIndex] }} style={styles.photoViewerImage} resizeMode="contain" /> : null}
-          {profilePhotos.length > 1 && <View style={styles.photoViewerControls}><Pressable style={styles.photoViewerControl} onPress={() => setPhotoViewerIndex((current) => current === null ? 0 : (current - 1 + profilePhotos.length) % profilePhotos.length)}><Text style={styles.photoViewerControlText}>‹</Text></Pressable><Text style={styles.photoViewerCount}>{(photoViewerIndex ?? 0) + 1} / {profilePhotos.length}</Text><Pressable style={styles.photoViewerControl} onPress={() => setPhotoViewerIndex((current) => current === null ? 0 : (current + 1) % profilePhotos.length)}><Text style={styles.photoViewerControlText}>›</Text></Pressable></View>}
-        </View>
-      </Modal>
+      <PhotoViewerModal photos={profilePhotos} index={photoViewerIndex} onIndex={setPhotoViewerIndex} onClose={() => setPhotoViewerIndex(null)} />
     </ScrollView>
   );
 }
@@ -3133,6 +3142,8 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 28,
     backgroundColor: "#f7f8f3",
   },
+  applicantSheetHandle: { width: 42, height: 5, marginBottom: 18, borderRadius: 3, backgroundColor: "#b8c0ba" },
+  applicantPhotoHint: { marginTop: 9, color: "#176b48", fontSize: 10, fontWeight: "800" },
   applicantAvatar: {
     width: 92,
     height: 92,
@@ -3175,16 +3186,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     textAlign: "center",
   },
-  applicantCloseButton: {
-    width: "100%",
-    alignItems: "center",
-    marginTop: 18,
-    minHeight: 52,
-    justifyContent: "center",
-    paddingHorizontal: 18,
-    borderRadius: 17,
-    backgroundColor: "#176b48",
-  },
+  applicantDismissHint: { marginTop: 18, color: "#6d766f", fontSize: 11, fontWeight: "800" },
   requestActions: { flexDirection: "row", gap: 6 },
   rejectButton: {
     minHeight: 44,
@@ -3721,8 +3723,9 @@ const styles = StyleSheet.create({
   approvedMemberPhotoFallback: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: "#176b48" },
   approvedMemberInitial: { color: "#fff", fontWeight: "900" },
   photoViewerBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.92)", alignItems: "center", justifyContent: "center" },
-  photoViewerClose: { position: "absolute", top: 54, right: 22, zIndex: 2, width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.18)" },
-  photoViewerCloseText: { color: "#fff", fontSize: 30, lineHeight: 34 },
+  photoViewerSwipeContent: { width: "100%", height: "100%", alignItems: "center", justifyContent: "center" },
+  photoViewerHandle: { position: "absolute", top: 28, width: 44, height: 5, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.7)" },
+  photoViewerDismissHint: { position: "absolute", top: 43, color: "#fff", fontSize: 11, fontWeight: "800" },
   photoViewerImage: { width: "100%", height: "72%" },
   photoViewerControls: { position: "absolute", bottom: 54, flexDirection: "row", alignItems: "center", gap: 24 },
   photoViewerControl: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.18)" },

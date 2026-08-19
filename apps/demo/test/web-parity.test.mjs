@@ -377,3 +377,16 @@ test('native iOS text entry always exposes a dismiss action and avoids the keybo
   assert.ok((mobile.match(/keyboardDismissMode="interactive"/g) ?? []).length >= 5);
   assert.ok((mobile.match(/style=\{styles\.modalKeyboardAvoider\}/g) ?? []).length >= 3);
 });
+
+test('native applicant photos enlarge and dismiss with a downward swipe', async () => {
+  const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
+
+  assert.match(mobile, /accessibilityLabel="プロフィール画像を拡大"/);
+  assert.match(mobile, /allowSwipeDismissal animationType="slide"/);
+  assert.match(mobile, /画像をタップすると大きく表示できます/);
+  assert.match(mobile, /onMoveShouldSetPanResponder:[^\n]+gesture\.dy > 8/);
+  assert.match(mobile, /gesture\.dy > 100 \|\| gesture\.vy > 1/);
+  assert.match(mobile, /<Text style=\{styles\.photoViewerDismissHint\}>下にスライドして閉じる<\/Text>/);
+  assert.doesNotMatch(mobile, /photoViewerClose/);
+  assert.doesNotMatch(mobile, /applicantCloseButton/);
+});
