@@ -251,6 +251,9 @@ function stateLabel(hangout: Hangout) {
   if (hangout.status === "CANCELLED") return "中止";
   return hangout.myJoinStatus === "ACCEPTED" ? "承認済み" : hangout.myJoinStatus === "PENDING" ? "申請中" : hangout.myJoinStatus === "WAITLISTED" ? "待機中" : hangout.status === "FULL" ? "満員" : "募集中";
 }
+function categoryLabel(category: string) {
+  return ({ FOOD: "食事", RUNNING: "ランニング", CAFE: "カフェ", MOTORCYCLE: "ツーリング", WALKING: "散歩" } as Record<string, string>)[category] ?? category;
+}
 
 function hangoutImageUrl(hangout: Pick<Hangout, "imageUrl" | "category">) {
   return hangout.imageUrl || DEFAULT_HANGOUT_IMAGES[hangout.category] || ACTIVITY_PHOTO_URL;
@@ -1458,6 +1461,11 @@ function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, d
   };
   const visibleHangouts = filter === "おすすめ" ? hangouts : hangouts.filter((hangout) => timeLabel(hangout.startAt) === filter);
   const conditionLabel = (hangout: Hangout) => `${hangout.genderRestriction === "MALE_ONLY" ? "男性のみ" : hangout.genderRestriction === "FEMALE_ONLY" ? "女性のみ" : "だれでも"}${hangout.maxAge ? `・${hangout.maxAge === 29 ? "20代" : hangout.maxAge === 39 ? "30代" : "50代"}まで` : ""}`;
+  const chooseHomeArea = () => Alert.alert("エリアを選択", undefined, [
+    { text: "新宿", onPress: () => onArea("新宿") },
+    { text: "渋谷", onPress: () => onArea("渋谷") },
+    { text: "キャンセル", style: "cancel" },
+  ]);
   return (
     <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
       {demoRole && <View style={styles.demoJourney}><Text style={styles.demoJourneyTitle}>デモ：マミの飲み企画</Text><Text style={styles.demoJourneyText}>1. 主催者は30代女性のマミ{`\n`}2. 20代男性のマサヤは承認済み{`\n`}3. 30代女性のマドカはHangoutを検索中{`\n`}4. マドカが途中参加を申請{`\n`}5. 承認後はグループトークで会話</Text><Text style={styles.demoJourneyHint}>「マミと新宿で気軽に飲もう」を開いて試せます。</Text></View>}
@@ -1471,7 +1479,9 @@ function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, d
           <Pressable style={styles.locationButton} onPress={onLocation}>
             <Text style={styles.locationText}>現在地を使う</Text>
           </Pressable>
-          <View style={styles.homeAreaPicker}>{(["新宿", "渋谷"] as const).map((area) => <Pressable key={area} style={[styles.homeAreaChoice, selectedArea === area && styles.homeAreaChoiceOn]} onPress={() => onArea(area)}><Text style={[styles.homeAreaChoiceText, selectedArea === area && styles.homeAreaChoiceTextOn]}>{area}</Text></Pressable>)}</View>
+          <Pressable style={styles.homeAreaPicker} onPress={chooseHomeArea} accessibilityRole="button" accessibilityLabel="エリアを選択">
+            <Text style={styles.homeAreaChoiceText}>{locationLabel === "エリア未設定" ? "エリアを選択" : selectedArea}</Text><Text style={styles.homeAreaChevron}>⌄</Text>
+          </Pressable>
         </View>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
@@ -1479,7 +1489,7 @@ function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, d
       </ScrollView>
       <View style={styles.sectionHead}>
         <Text style={styles.sectionTitle}>近くのHangout</Text>
-        <View style={styles.sectionHeadActions}><Text style={styles.muted}>{visibleHangouts.length}件・おすすめ順</Text><Pressable style={styles.homeMapButton} onPress={onMap} accessibilityRole="button" accessibilityLabel="近くのHangoutをマップで表示"><View style={styles.homeMapPin}><View style={styles.homeMapPinCenter} /></View></Pressable></View>
+        <View style={styles.sectionHeadActions}><Text style={styles.muted}>{visibleHangouts.length}件・距離順</Text><Pressable style={styles.homeMapButton} onPress={onMap} accessibilityRole="button" accessibilityLabel="近くのHangoutをマップで表示"><View style={styles.homeMapPin}><View style={styles.homeMapPinCenter} /></View></Pressable></View>
       </View>
       {visibleHangouts.map((hangout) => (
         <Pressable key={hangout.id} style={styles.card} onPress={() => onOpen(hangout)}>
@@ -1491,7 +1501,7 @@ function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, d
           <Text style={styles.status}>{homeStateLabel(hangout)}</Text>
           <View style={styles.cardTop}>
             <View style={styles.cardCopy}>
-              <Text style={styles.cardCategory}>{hangout.category}</Text>
+              <Text style={styles.cardCategory}>{categoryLabel(hangout.category)}</Text>
               <Text style={styles.cardTitle}>{hangout.title}</Text>
               <View style={styles.cardMetaRow}><CountdownText startAt={hangout.startAt} style={styles.muted} />{hangout.distanceKm != null && <Text style={styles.muted}>・ 約{hangout.distanceKm}km</Text>}</View>
               <Text style={styles.muted}>{hangout.publicLocationName || hangout.locationName}</Text>
@@ -1508,7 +1518,7 @@ function HomeScreen({ user, hangouts, refreshing, locationLabel, selectedArea, d
                 <Text style={styles.hostTier}>{hangout.host.hostStatus?.label || "ホワイト"}{hangout.host.hostStatus?.hostAverageRating ? ` ・ 主催評価 ★ ${hangout.host.hostStatus.hostAverageRating}` : " ・ 主催評価なし"}</Text>
               </View>
             </View>
-            <View style={styles.cardMatchWrap}><Text style={styles.cardMatchLabel}>相性</Text><Text style={styles.cardMatchScore}>{Math.round(hangout.matchScore ?? 70)}%</Text></View>
+            <View style={styles.cardMatchWrap}><Text style={styles.cardMatchScore}>相性 {Math.round(hangout.matchScore ?? 70)}%</Text></View>
           </View>
         </Pressable>
       ))}
@@ -2789,12 +2799,12 @@ const styles = StyleSheet.create({
   hostName: { fontSize: 12, fontWeight: "700" },
   hostTier: { fontSize: 9, fontWeight: "900", color: "#8a6647", marginTop: 3 },
   cardHostRow: { flex: 1, flexDirection: "row", alignItems: "center", gap: 9, paddingRight: 8 },
-  cardHostPhoto: { width: 38, height: 38, borderRadius: 19, backgroundColor: "#dfe6df" },
-  cardHostFallback: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: "#e9f1e9" },
+  cardHostPhoto: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#dfe6df" },
+  cardHostFallback: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "#e9f1e9" },
   cardHostInitial: { color: "#176b48", fontWeight: "900" },
-  cardMatchWrap: { minWidth: 58, alignItems: "flex-end" },
+  cardMatchWrap: { minWidth: 66, alignItems: "center", justifyContent: "center", paddingHorizontal: 9, paddingVertical: 7, borderRadius: 10, backgroundColor: "#e9f7ec" },
   cardMatchLabel: { color: "#6d766f", fontSize: 9, fontWeight: "800" },
-  cardMatchScore: { color: "#176b48", fontSize: 19, fontWeight: "900" },
+  cardMatchScore: { color: "#176b48", fontSize: 12, fontWeight: "900" },
   status: {
     position: "absolute",
     zIndex: 2,
@@ -2836,11 +2846,9 @@ const styles = StyleSheet.create({
   areaText: { fontSize: 12, fontWeight: "900", color: "#59635c" },
   areaTextOn: { color: "#fff" },
   homeActions: { flexDirection: "row", gap: 8, marginTop: 12 },
-  homeAreaPicker: { flex: 1, minHeight: 42, flexDirection: "row", padding: 3, borderRadius: 13, borderWidth: 1, borderColor: "#dfe5df", backgroundColor: "#fff" },
-  homeAreaChoice: { flex: 1, alignItems: "center", justifyContent: "center", borderRadius: 9 },
-  homeAreaChoiceOn: { backgroundColor: "#edf2ed" },
-  homeAreaChoiceText: { color: "#687169", fontSize: 11, fontWeight: "800" },
-  homeAreaChoiceTextOn: { color: "#17221d", fontWeight: "900" },
+  homeAreaPicker: { flex: 1, minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 13, borderRadius: 12, borderWidth: 1, borderColor: "#e3e7df", backgroundColor: "#fff" },
+  homeAreaChoiceText: { color: "#17221d", fontSize: 11, fontWeight: "800" },
+  homeAreaChevron: { color: "#687169", fontSize: 16, fontWeight: "900" },
   createButton: {
     backgroundColor: "#176b48",
     width: "100%",
