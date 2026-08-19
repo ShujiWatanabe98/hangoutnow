@@ -297,6 +297,7 @@ export class AuthService {
     return this.publicUser(updated);
   }
   async requestPhoneVerification(userId: string, input: RequestPhoneVerificationDto, requestIp='unknown') {
+    if(process.env.NODE_ENV==='production'&&!this.sms.enabled)throw new ServiceUnavailableException('SMS認証は現在利用できません');
     const counts=await this.repository.phoneVerificationCounts(userId,input.phone,requestIp,new Date(Date.now()-24*60*60_000));
     if(counts.user>=5||counts.phone>=5||counts.ip>=20)throw new BadRequestException('本日の認証コード送信回数が上限に達しました');
     const latest=await this.repository.findPhoneVerification(userId,input.phone);

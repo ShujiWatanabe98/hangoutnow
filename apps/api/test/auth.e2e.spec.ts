@@ -157,6 +157,46 @@ describe('authentication and profile', () => {
     expect(verified.body.profilePhoto).toBe(photo);
   }, 15_000);
 
+  it('rejects phone code requests in production when Twilio Verify is unavailable', async () => {
+    const previousNodeEnv = process.env.NODE_ENV;
+    const previousTwilioAccountSid = process.env.TWILIO_ACCOUNT_SID;
+    const previousTwilioAuthToken = process.env.TWILIO_AUTH_TOKEN;
+    const previousTwilioVerifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
+    process.env.NODE_ENV = 'production';
+    delete process.env.TWILIO_ACCOUNT_SID;
+    delete process.env.TWILIO_AUTH_TOKEN;
+    delete process.env.TWILIO_VERIFY_SERVICE_SID;
+    try {
+      app = await createApp();
+      const unavailableMessage = 'SMS認証は現在利用できません';
+      await request(app.getHttpServer())
+        .post('/auth/phone/request')
+        .send({ phone: '+819012345680' })
+        .expect(503)
+        .expect(({ body }) => expect(body.message).toBe(unavailableMessage));
+
+      const registered = await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email: 'sms-unavailable@example.com', password: 'a-secure-password', displayName: 'SMS Unavailable', birthDate: '1990-01-01' })
+        .expect(201);
+      await request(app.getHttpServer())
+        .post('/users/me/phone/request')
+        .set('Authorization', `Bearer ${registered.body.accessToken as string}`)
+        .send({ phone: '+819012345680' })
+        .expect(503)
+        .expect(({ body }) => expect(body.message).toBe(unavailableMessage));
+    } finally {
+      if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = previousNodeEnv;
+      if (previousTwilioAccountSid === undefined) delete process.env.TWILIO_ACCOUNT_SID;
+      else process.env.TWILIO_ACCOUNT_SID = previousTwilioAccountSid;
+      if (previousTwilioAuthToken === undefined) delete process.env.TWILIO_AUTH_TOKEN;
+      else process.env.TWILIO_AUTH_TOKEN = previousTwilioAuthToken;
+      if (previousTwilioVerifyServiceSid === undefined) delete process.env.TWILIO_VERIFY_SERVICE_SID;
+      else process.env.TWILIO_VERIFY_SERVICE_SID = previousTwilioVerifyServiceSid;
+    }
+  }, 15_000);
+
   it('creates an account and logs in with a verified phone number',async()=>{
     app=await createApp();
     const requested=await request(app.getHttpServer()).post('/auth/phone/request').send({phone:'+819012345679'}).expect(201);
