@@ -252,7 +252,9 @@ test('native screens include the latest production profile, notification, talk, 
   assert.doesNotMatch(mobile, /\["home", "map", "chat", "profile"\]\.includes\(screen\)/);
   assert.doesNotMatch(mobile, /‹ 一覧へ/);
   assert.match(mobile, /detailHeaderTitle}>Hangout/);
-  assert.match(mobile, /quickMessageButton: \{ minHeight: 30/);
+  assert.match(mobile, /quickMessageScroller: \{ flexGrow: 0, flexShrink: 0, height: 42/);
+  assert.match(mobile, /quickMessageRow: \{ alignItems: "center"/);
+  assert.match(mobile, /quickMessageButton: \{ height: 28, alignSelf: "center"/);
   assert.match(mobile, /profileChatButton: \{[^\n]*width: "100%"[^\n]*backgroundColor: "#edf8f0"/);
   for (const message of ['向かっています', '少し遅れます', '到着しました']) assert.ok(mobile.includes(message));
 });

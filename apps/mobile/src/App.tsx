@@ -2114,6 +2114,7 @@ function ChatScreen({ user, rooms, selectedRoom, messages, messageBody, sending,
         )}
         <FlatList
           ref={listRef}
+          style={styles.messageListView}
           data={messages}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.messageList}
@@ -2148,7 +2149,7 @@ function ChatScreen({ user, rooms, selectedRoom, messages, messageBody, sending,
           ListEmptyComponent={<Text style={styles.empty}>最初のメッセージを送ってみましょう。</Text>}
         />
         {selectedRoom.type === "GROUP" && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickMessageRow}>
+          <ScrollView style={styles.quickMessageScroller} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickMessageRow}>
             {["向かっています", "少し遅れます", "到着しました"].map((body) => (
               <Pressable key={body} disabled={sending} style={styles.quickMessageButton} onPress={() => onSend(body)}>
                 <Text style={styles.quickMessageText}>{body}</Text>
@@ -3164,7 +3165,8 @@ const styles = StyleSheet.create({
   chatHeading: { flex: 1, paddingHorizontal: 10 },
   chatTitle: { fontSize: 16, fontWeight: "900", maxWidth: "100%" },
   presence: { fontSize: 9, color: "#176b48", marginTop: 2 },
-  messageList: { paddingHorizontal: 11, paddingTop: 14, paddingBottom: 16 },
+  messageListView: { flex: 1 },
+  messageList: { flexGrow: 1, paddingHorizontal: 11, paddingTop: 14, paddingBottom: 16 },
   messageRow: {
     flexDirection: "row",
     alignItems: "flex-end",
@@ -3217,8 +3219,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderColor: "#dfe4df",
   },
-  quickMessageRow: { gap: 6, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: "#fff", borderTopWidth: 1, borderColor: "#edf0eb" },
-  quickMessageButton: { minHeight: 30, justifyContent: "center", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: "#fff", borderWidth: 1, borderColor: "#dce5df" },
+  quickMessageScroller: { flexGrow: 0, flexShrink: 0, height: 42, backgroundColor: "#fff", borderTopWidth: 1, borderColor: "#edf0eb" },
+  quickMessageRow: { alignItems: "center", gap: 6, paddingHorizontal: 12 },
+  quickMessageButton: { height: 28, alignSelf: "center", justifyContent: "center", paddingHorizontal: 10, borderRadius: 14, backgroundColor: "#fff", borderWidth: 1, borderColor: "#dce5df" },
   quickMessageText: { color: "#176b48", fontSize: 10, fontWeight: "800" },
   composerInput: {
     flex: 1,
