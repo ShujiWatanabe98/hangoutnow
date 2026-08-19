@@ -67,3 +67,6 @@ html[data-mode="production"] .card-photo{aspect-ratio:32/9}
   .chat-workspace.with-hangout-rail.conversation-open .chat-sidebar{transform:translateX(-24%)!important}
   .chat-workspace.with-hangout-rail.conversation-open .chat-conversation{transform:translateX(0)!important}
 }
+
+/* Keep navigation available while the talk list scrolls, matching the create screen. */
+.chat-page-title{flex:0 0 auto;background:#fff;border-bottom:1px solid #dfe5df}

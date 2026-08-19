@@ -382,16 +382,18 @@ export default function App() {
   );
 
   const loadHome = useCallback(async (locationOverride?: { latitude: number; longitude: number } | null) => {
-    if (!session) return;
+    if (!session) return [] as Hangout[];
     const activeCoordinates = locationOverride === undefined ? coordinates : locationOverride;
     const query = activeCoordinates ? `?latitude=${activeCoordinates.latitude}&longitude=${activeCoordinates.longitude}&radiusKm=5` : "";
-    setHangouts(await request<Hangout[]>(`/hangouts${query}`));
+    const nextHangouts = await request<Hangout[]>(`/hangouts${query}`);
+    setHangouts(nextHangouts);
     if (session.user.matchingDataConsent && session.user.behaviorLearningEnabled) {
       void request("/analytics/events", {
         method: "POST",
         body: JSON.stringify({ eventType: "DISCOVERY_VIEWED" }),
       }).catch(() => undefined);
     }
+    return nextHangouts;
   }, [coordinates, request, session]);
 
   const toggleHeart = useCallback(async (hangout: Hangout) => {
@@ -1249,6 +1251,10 @@ export default function App() {
     try {
       const user = await request<User>("/users/me", { method: "PATCH", body: JSON.stringify(input) });
       setSession((current) => (current ? { ...current, user } : current));
+      const [nextHangouts, nextRooms] = await Promise.all([loadHome(), loadRooms()]);
+      setSelectedHangout((current) => current ? nextHangouts.find((hangout) => hangout.id === current.id) ?? current : current);
+      setSelectedRoom((current) => current ? nextRooms.find((room) => room.id === current.id) ?? current : current);
+      setRatingRoom((current) => current ? nextRooms.find((room): room is GroupRoom => room.type === "GROUP" && room.id === current.id) ?? current : current);
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "プロフィールを更新できませんでした";
       setError(message);
@@ -2331,7 +2337,7 @@ function ChatScreen({ user, rooms, selectedRoom, messages, messageBody, sending,
   }
   const visibleRooms = rooms;
   return (
-    <ScrollView style={styles.chatListPage} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+    <View style={styles.chatListPage}>
       <View style={styles.chatListHead}>
         <Pressable accessibilityRole="button" accessibilityLabel="ホームに戻る" onPress={onBack} style={styles.backButton}>
           <View style={styles.backChevron} />
@@ -2342,6 +2348,7 @@ function ChatScreen({ user, rooms, selectedRoom, messages, messageBody, sending,
         </View>
         <Text style={[styles.connectionBadge, realtimeOnline && styles.connectionOn]}>{realtimeOnline ? "リアルタイム" : "再接続中"}</Text>
       </View>
+      <ScrollView style={styles.chatListScroll} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
       <View style={styles.talkListSummary}>
         <Text style={styles.talkListTitle}>トーク</Text>
         <Text style={styles.talkListCounts}>1対1 {rooms.filter((room) => room.type === "DIRECT").length}　グループ {rooms.filter((room) => room.type === "GROUP").length}</Text>
@@ -2379,7 +2386,8 @@ function ChatScreen({ user, rooms, selectedRoom, messages, messageBody, sending,
         );
       })}
       {!visibleRooms.length && <Text style={styles.empty}>トークはまだありません。</Text>}
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -3286,6 +3294,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   chatListPage: { flex: 1, backgroundColor: "#f7f8f3" },
+  chatListScroll: { flex: 1 },
   pageEyebrow: {
     color: "#176b48",
     fontWeight: "900",
@@ -3568,7 +3577,7 @@ const styles = StyleSheet.create({
   profileChatButtonIcon: { color: "#176b48", fontSize: 10 },
   profileChatButtonText: { color: "#176b48", fontSize: 16, fontWeight: "900" },
   profileEditorPage: { flex: 1, backgroundColor: "#f7f8f3" },
-  profileEditorHeader: { minHeight: 58, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderColor: "#dfe5df", backgroundColor: "#fff" },
+  profileEditorHeader: { minHeight: 68, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderColor: "#dfe5df", backgroundColor: "#fff" },
   profileEditorBackButton: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: "#f7faf7", borderWidth: 1, borderColor: "#dce5df" },
   profileEditorHeaderSpacer: { width: 44, height: 44 },
   profileEditorTitle: { fontSize: 16, fontWeight: "900", color: "#17221d" },

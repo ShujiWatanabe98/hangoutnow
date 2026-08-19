@@ -555,3 +555,23 @@ test('native Hangout status and write actions remain consistent with production'
   assert.match(mobile, /saving \? "保存中…" : "変更を保存"/);
   for (const message of ['ひとこと付きで参加申請を送りました', '参加申請を承認しました', '参加申請を却下しました', 'Hangoutと写真を更新しました']) assert.ok(mobile.includes(message));
 });
+
+test('profile name changes refresh Hangout and talk display names', async () => {
+  const web = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+  const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
+
+  assert.match(web, /saveSession\(\);await loadHangouts\(\);await profileScreen/);
+  assert.match(mobile, /const \[nextHangouts, nextRooms\] = await Promise\.all\(\[loadHome\(\), loadRooms\(\)\]\)/);
+  assert.match(mobile, /setSelectedHangout\(\(current\) => current \? nextHangouts\.find/);
+  assert.match(mobile, /setSelectedRoom\(\(current\) => current \? nextRooms\.find/);
+});
+
+test('talk and profile editor keep the same persistent back header as Hangout creation', async () => {
+  const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
+  const portraits = await readFile(new URL('../public/portraits.css', import.meta.url), 'utf8');
+
+  assert.match(mobile, /<View style=\{styles\.chatListPage\}>[\s\S]*?<View style=\{styles\.chatListHead\}>[\s\S]*?<ScrollView style=\{styles\.chatListScroll\}/);
+  assert.match(mobile, /profileEditorHeader: \{ minHeight: 68, paddingHorizontal: 14/);
+  assert.match(portraits, /\.chat-page-title\{flex:0 0 auto;/);
+  assert.match(portraits, /\.profile-editor-sheet\{display:grid;grid-template-rows:auto minmax\(0,1fr\)/);
+});
