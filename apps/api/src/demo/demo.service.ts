@@ -1,11 +1,42 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { AttendanceStatus, HangoutStatus, JoinRequestStatus, Prisma, ServiceArea } from '@prisma/client';
+import { AttendanceStatus, GenderRestriction, HangoutStatus, JoinRequestStatus, Prisma, ServiceArea } from '@prisma/client';
 import { v7 as uuidv7 } from 'uuid';
 import { PrismaService } from '../prisma/prisma.service';
 
 const HOST_EMAIL = 'demo-host@hangoutnow.example';
 const GUEST_EMAIL = 'demo-guest@hangoutnow.example';
 const APPROVED_MEMBER_EMAIL = 'demo-masaya@hangoutnow.example';
+const KENTA_EMAIL = 'demo-kenta@hangoutnow.example';
+const AOI_EMAIL = 'demo-aoi@hangoutnow.example';
+const DEMO_ASSET_BASE = 'https://hangoutnow-demo.onrender.com/assets';
+type DemoDiscoveryTemplate = Readonly<{ title: string; category: string; serviceArea: ServiceArea; startInMinutes: number; imageAsset: string; organizerEmail: string }>;
+const DEMO_DISCOVERY_TEMPLATES: readonly DemoDiscoveryTemplate[] = [
+  { title: 'サヤカと新宿で気軽に飲もう', category: 'DRINKING', serviceArea: ServiceArea.SHINJUKU, startInMinutes: 60, imageAsset: 'hangout-nomikai.jpg', organizerEmail: HOST_EMAIL },
+  { title: '代々木公園をゆっくりランニング', category: 'RUNNING', serviceArea: ServiceArea.SHINJUKU, startInMinutes: 60, imageAsset: 'demo-running-hangout-v2.jpg', organizerEmail: AOI_EMAIL },
+  { title: '新宿で話題のラーメンを食べよう', category: 'FOOD', serviceArea: ServiceArea.SHINJUKU, startInMinutes: 30, imageAsset: 'hangout-ramen.jpg', organizerEmail: HOST_EMAIL },
+  { title: '夕方のショートツーリング', category: 'MOTORCYCLE', serviceArea: ServiceArea.SHIBUYA, startInMinutes: 180, imageAsset: 'hangout-bike.jpg', organizerEmail: KENTA_EMAIL },
+  { title: '渋谷のカフェでまったりしよう', category: 'CAFE', serviceArea: ServiceArea.SHIBUYA, startInMinutes: 60, imageAsset: 'hangout-coffee.jpg', organizerEmail: KENTA_EMAIL },
+  { title: '新宿でワインを楽しむ会', category: 'WINE', serviceArea: ServiceArea.SHINJUKU, startInMinutes: 60, imageAsset: 'hangout-bar.jpg', organizerEmail: HOST_EMAIL },
+  { title: '渋谷の落ち着いたバーへ', category: 'BAR', serviceArea: ServiceArea.SHIBUYA, startInMinutes: 180, imageAsset: 'hangout-bar.jpg', organizerEmail: KENTA_EMAIL },
+  { title: '新宿で気軽に居酒屋ごはん', category: 'IZAKAYA', serviceArea: ServiceArea.SHINJUKU, startInMinutes: 30, imageAsset: 'hangout-nomikai.jpg', organizerEmail: AOI_EMAIL },
+  { title: '寿司を食べながら交流会', category: 'SUSHI', serviceArea: ServiceArea.SHINJUKU, startInMinutes: 180, imageAsset: 'hangout-gohan.jpg', organizerEmail: HOST_EMAIL },
+  { title: '渋谷で焼肉を囲もう', category: 'YAKINIKU', serviceArea: ServiceArea.SHIBUYA, startInMinutes: 60, imageAsset: 'hangout-yakiniku.jpg', organizerEmail: KENTA_EMAIL },
+  { title: '話題のスイーツを食べよう', category: 'SWEETS', serviceArea: ServiceArea.SHIBUYA, startInMinutes: 60, imageAsset: 'hangout-sweet.jpg', organizerEmail: AOI_EMAIL },
+  { title: '新宿でカラオケ交流会', category: 'KARAOKE', serviceArea: ServiceArea.SHINJUKU, startInMinutes: 180, imageAsset: 'hangout-karaoke.jpg', organizerEmail: HOST_EMAIL },
+  { title: '渋谷でゆるくダーツ', category: 'DARTS', serviceArea: ServiceArea.SHIBUYA, startInMinutes: 30, imageAsset: 'hangout-dartu.jpg', organizerEmail: KENTA_EMAIL },
+  { title: 'ボードゲームで遊ぼう', category: 'GAME', serviceArea: ServiceArea.SHINJUKU, startInMinutes: 60, imageAsset: 'hangout-boardgame.jpg', organizerEmail: AOI_EMAIL },
+  { title: '映画の感想を話すカフェ会', category: 'MOVIE', serviceArea: ServiceArea.SHINJUKU, startInMinutes: 180, imageAsset: 'hangout-movie.jpg', organizerEmail: HOST_EMAIL },
+  { title: '渋谷でシーシャを楽しもう', category: 'SHISHA', serviceArea: ServiceArea.SHIBUYA, startInMinutes: 60, imageAsset: 'hangout-si-sha.jpg', organizerEmail: KENTA_EMAIL },
+  { title: '初心者向け英会話カフェ', category: 'ENGLISH', serviceArea: ServiceArea.SHIBUYA, startInMinutes: 30, imageAsset: 'hangout-english.jpg', organizerEmail: AOI_EMAIL },
+  { title: '新宿で夜ごはん仲間募集', category: 'DINNER', serviceArea: ServiceArea.SHINJUKU, startInMinutes: 60, imageAsset: 'hangout-gohan.jpg', organizerEmail: HOST_EMAIL },
+  { title: '渋谷をのんびり散歩', category: 'WALKING', serviceArea: ServiceArea.SHIBUYA, startInMinutes: 180, imageAsset: 'hangout-sanpo.jpg', organizerEmail: KENTA_EMAIL },
+  { title: '朝の新宿まち歩き', category: 'WALKING', serviceArea: ServiceArea.SHINJUKU, startInMinutes: 30, imageAsset: 'hangout-sanpo.jpg', organizerEmail: AOI_EMAIL },
+  { title: '朝のカフェでモーニング交流', category: 'CAFE', serviceArea: ServiceArea.SHINJUKU, startInMinutes: 60, imageAsset: 'hangout-coffee.jpg', organizerEmail: AOI_EMAIL },
+  { title: 'パン屋さん巡りとコーヒー', category: 'CAFE', serviceArea: ServiceArea.SHIBUYA, startInMinutes: 180, imageAsset: 'hangout-coffee.jpg', organizerEmail: KENTA_EMAIL },
+  { title: '季節のパフェを食べよう', category: 'SWEETS', serviceArea: ServiceArea.SHINJUKU, startInMinutes: 30, imageAsset: 'hangout-sweet.jpg', organizerEmail: HOST_EMAIL },
+  { title: '公園でやさしい朝ヨガ', category: 'YOGA', serviceArea: ServiceArea.SHINJUKU, startInMinutes: 60, imageAsset: 'demo-running-hangout-v2.jpg', organizerEmail: AOI_EMAIL },
+  { title: '都内をのんびりサイクリング', category: 'CYCLING', serviceArea: ServiceArea.SHIBUYA, startInMinutes: 180, imageAsset: 'hangout-bike.jpg', organizerEmail: KENTA_EMAIL },
+];
 
 @Injectable()
 export class DemoService {
@@ -88,21 +119,32 @@ export class DemoService {
       await transaction.joinRequest.deleteMany({ where: { userId: { in: demoUserIds } } });
       await transaction.hangout.deleteMany({ where: { OR: [{ isDemo: true }, { hostUserId: { in: demoUserIds } }] } });
       await transaction.notification.deleteMany({ where: { userId: { in: demoUserIds } } });
-      const hangoutId = uuidv7();
-      const hangout = await transaction.hangout.create({ data: {
-        id: hangoutId, hostUserId: host.id, title: 'サヤカと新宿で気軽に飲もう',
-        isDemo: true,
-        imageUrl: 'https://hangoutnow-demo.onrender.com/assets/demo-drinking-hangout-v2.jpg',
-        description: '仕事帰りに気軽に乾杯する、公開デモ用の架空の飲み会です。初参加も歓迎します。',
-        category: 'DRINKING', startAt: new Date(Date.now() + 60 * 60_000), publicLocationName: '新宿駅東口周辺（デモ）', locationName: 'デモ居酒屋 新宿店 東京都新宿区新宿3-1-1',
-        serviceArea: ServiceArea.SHINJUKU,
-        latitude: 35.6901, longitude: 139.7005, publicLatitude: 35.69, publicLongitude: 139.7,
-        maxParticipants: 4, hostMaleCount: 0, hostFemaleCount: 1, maxAge: 39, status: HangoutStatus.OPEN,
-      } });
-      await transaction.joinRequest.create({ data: { id: uuidv7(), hangoutId, userId: approvedMember.id, message: '仕事帰りに参加します。よろしくお願いします！', status: JoinRequestStatus.ACCEPTED, attendanceStatus: AttendanceStatus.CONFIRMED, attendanceUpdatedAt: new Date() } });
-      await transaction.chatRoom.create({ data: { id: uuidv7(), hangoutId } });
-      return hangout;
+      const usersByEmail = new Map(users.map((user) => [user.email, user]));
+      const createdHangouts = [];
+      for (const [index, template] of DEMO_DISCOVERY_TEMPLATES.entries()) {
+        const organizer = usersByEmail.get(template.organizerEmail) ?? host;
+        const shinjuku = template.serviceArea === ServiceArea.SHINJUKU;
+        const latitude = (shinjuku ? 35.6901 : 35.6580) + ((index % 5) - 2) * 0.001;
+        const longitude = (shinjuku ? 139.7005 : 139.7016) + ((index % 4) - 1) * 0.001;
+        const areaLabel = shinjuku ? '新宿' : '渋谷';
+        const hangout = await transaction.hangout.create({ data: {
+          id: uuidv7(), hostUserId: organizer.id, title: template.title, isDemo: true,
+          imageUrl: `${DEMO_ASSET_BASE}/${template.imageAsset}`,
+          description: `${template.title}。初参加歓迎の公開デモ用架空Hangoutです。`,
+          category: template.category, startAt: new Date(Date.now() + template.startInMinutes * 60_000),
+          publicLocationName: `${areaLabel}駅周辺（デモ）`, locationName: `デモ会場 ${areaLabel}${index + 1} 東京都${shinjuku ? '新宿区新宿3' : '渋谷区渋谷1'}-${(index % 8) + 1}-1`,
+          serviceArea: template.serviceArea, latitude, longitude,
+          publicLatitude: Math.round(latitude * 100) / 100, publicLongitude: Math.round(longitude * 100) / 100,
+          maxParticipants: 4 + (index % 3), hostMaleCount: organizer.email === KENTA_EMAIL ? 1 : 0, hostFemaleCount: organizer.email === KENTA_EMAIL ? 0 : 1,
+          genderRestriction: GenderRestriction.ANY, maxAge: index === 0 ? 39 : 59, status: HangoutStatus.OPEN,
+        } });
+        createdHangouts.push(hangout);
+      }
+      const primaryHangout = createdHangouts[0]!;
+      await transaction.joinRequest.create({ data: { id: uuidv7(), hangoutId: primaryHangout.id, userId: approvedMember.id, message: '仕事帰りに参加します。よろしくお願いします！', status: JoinRequestStatus.ACCEPTED, attendanceStatus: AttendanceStatus.CONFIRMED, attendanceUpdatedAt: new Date() } });
+      await transaction.chatRoom.create({ data: { id: uuidv7(), hangoutId: primaryHangout.id } });
+      return primaryHangout;
     });
-    return { ok: true, hangoutId: result.id, status: 'READY', next: requester.email === HOST_EMAIL ? 'CREATE_OR_WAIT_FOR_REQUEST' : 'SEND_JOIN_REQUEST' };
+    return { ok: true, hangoutId: result.id, catalogSize: DEMO_DISCOVERY_TEMPLATES.length, status: 'READY', next: requester.email === HOST_EMAIL ? 'CREATE_OR_WAIT_FOR_REQUEST' : 'SEND_JOIN_REQUEST' };
   }
 }

@@ -121,6 +121,30 @@ test('web Hangout cards are shorter without removing images or information', asy
   }
 });
 
+test('web discovery groups Hangouts into six-item keyword mosaics', async () => {
+  const [application, requests, seed] = await Promise.all([
+    readFile(new URL('app.js', publicDirectory), 'utf8'),
+    readFile(new URL('requests.css', publicDirectory), 'utf8'),
+    readFile(new URL('../../../scripts/seed-public-demo.mjs', import.meta.url), 'utf8'),
+  ]);
+
+  assert.doesNotMatch(application, /activeFilter|data-filter/);
+  for (const keyword of ['ごはん・飲み', 'カフェ・スイーツ', '運動・アウトドア', '趣味・交流']) {
+    assert.ok(application.includes(keyword), `keyword section is missing: ${keyword}`);
+  }
+  assert.match(application, /items\.slice\(0,6\)\.map\(keywordTile\)/);
+  assert.match(application, /data-keyword="\$\{group\.id\}"/);
+  assert.match(application, /function keywordHangoutList\(keywordId\)/);
+  assert.match(application, /bindFullHangoutCards\(\(\)=>keywordHangoutList\(keywordId\),keywordId\)/);
+  assert.match(application, /else if\(returnKeywordId\)keywordHangoutList\(returnKeywordId\)/);
+  assert.match(requests, /\.keyword-mosaic\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\);grid-template-rows:repeat\(3,92px\)/);
+  assert.match(requests, /\.keyword-hangout-tile:first-child\{grid-column:1\/3;grid-row:1\/3/);
+  assert.match(requests, /\.keyword-hangout-tile:nth-child\(6\)\{grid-column:3;grid-row:3\}/);
+  for (const demoTitle of ['朝のカフェでモーニング交流', 'パン屋さん巡りとコーヒー', '季節のパフェを食べよう', '公園でやさしい朝ヨガ', '都内をのんびりサイクリング']) {
+    assert.ok(seed.includes(demoTitle), `demo Hangout is missing: ${demoTitle}`);
+  }
+});
+
 test('demo authentication is not rolled back by optional initial data loading', async () => {
   const application = await readFile(new URL('app.js', publicDirectory), 'utf8');
   const loginStart = application.indexOf('async function demoLogin');
@@ -281,8 +305,8 @@ test('profile Hangouts show loading immediately and return to the preserved prof
 
   assert.match(application, /profile-hangout-loading[^;]+Hangoutを読み込んでいます/);
   assert.match(application, /if\(returnToProfile\)sheet\.classList\.add\('profile-origin'\)/);
-  assert.match(application, /returnToProfile\?'プロフィールに戻る':'ホームに戻る'/);
-  assert.match(application, /if\(returnToProfile\)\{sourceScreen\.classList\.remove\('profile-behind-hangout'\);activeScreen='profileScreen'\}else home\(\)/);
+  assert.match(application, /returnToProfile\?'プロフィールに戻る':returnKeywordId\?'キーワード一覧に戻る':'ホームに戻る'/);
+  assert.match(application, /if\(returnToProfile\)\{sourceScreen\.classList\.remove\('profile-behind-hangout'\);activeScreen='profileScreen'\}else if\(returnKeywordId\)keywordHangoutList\(returnKeywordId\);else home\(\)/);
   assert.match(application, /showPageLoadingOverlay\('プロフィールを読み込んでいます'\)/);
   assert.match(application, /showPageLoadingOverlay\('トークを読み込んでいます'\)/);
   assert.match(application, /showPageLoadingOverlay\('メッセージを読み込んでいます'\)/);

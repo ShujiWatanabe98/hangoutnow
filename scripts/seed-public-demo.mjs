@@ -23,6 +23,7 @@ const cafePhoto = hangoutPhoto('hangout-coffee.jpg');
 const touringPhoto = hangoutPhoto('hangout-bike.jpg');
 const drinkingPhoto = hangoutPhoto('hangout-nomikai.jpg');
 const imageByCategory = {
+  CAFE: cafePhoto,
   BAR: hangoutPhoto('hangout-bar.jpg'),
   IZAKAYA: drinkingPhoto,
   YAKINIKU: hangoutPhoto('hangout-yakiniku.jpg'),
@@ -33,6 +34,8 @@ const imageByCategory = {
   ENGLISH: hangoutPhoto('hangout-english.jpg'),
   DINNER: hangoutPhoto('hangout-gohan.jpg'),
   WALKING: hangoutPhoto('hangout-sanpo.jpg'),
+  YOGA: runningPhoto,
+  CYCLING: touringPhoto,
 };
 
 const accounts = {
@@ -218,20 +221,32 @@ async function loginOrRegister(account) {
     preferredLanguages: ['JAPANESE'],
     ...account.matchingPreferences,
   };
-  user = await call('/users/me', {
+  const profilePayload = {
+    displayName: account.displayName,
+    gender: account.gender,
+    profilePhotos: account.profilePhotos ?? (account.profilePhoto ? [account.profilePhoto] : []),
+    bio: account.bio,
+    homeArea: account.homeArea,
+    interests: account.interests,
+    matchingDataConsent: true,
+    behaviorLearningEnabled: true,
+    ...matchingPreferences,
+  };
+  let profileUpdate = await call('/users/me', {
     method: 'PATCH',
-    body: JSON.stringify({
-      displayName: account.displayName,
-      gender: account.gender,
-      profilePhotos: account.profilePhotos ?? (account.profilePhoto ? [account.profilePhoto] : []),
-      bio: account.bio,
-      homeArea: account.homeArea,
-      interests: account.interests,
-      matchingDataConsent: true,
-      behaviorLearningEnabled: true,
-      ...matchingPreferences,
-    }),
-  }, token).then((result) => result.body);
+    body: JSON.stringify(profilePayload),
+  }, token, [400]);
+  if (profileUpdate.status === 400) {
+    const unsupportedFields = ['behaviorLearningEnabled', 'socialStyles', 'participationGoals', 'firstTimePreferences', 'alcoholPreference', 'smokingPreference', 'avoidPreferences', 'scheduleFlexibility', 'preferredLanguages'];
+    const messages = Array.isArray(profileUpdate.body?.message) ? profileUpdate.body.message : [];
+    if (!unsupportedFields.some((field) => messages.includes(`property ${field} should not exist`))) {
+      throw new Error(`PATCH /users/me -> 400: ${JSON.stringify(profileUpdate.body)}`);
+    }
+    const compatiblePayload = { ...profilePayload };
+    for (const field of unsupportedFields) delete compatiblePayload[field];
+    profileUpdate = await call('/users/me', { method: 'PATCH', body: JSON.stringify(compatiblePayload) }, token);
+  }
+  user = profileUpdate.body;
 
   if (user.verificationStatus !== 'PHONE_VERIFIED') {
     const verification = await call('/users/me/phone/request', {
@@ -317,6 +332,11 @@ samples.push(...[
   ['host','新宿で夜ごはん仲間募集','DINNER','SHINJUKU',35.6950,139.7060,60],
   ['kenta','渋谷をのんびり散歩','WALKING','SHIBUYA',35.6540,139.6980,180],
   ['aoi','朝の新宿まち歩き','WALKING','SHINJUKU',35.6860,139.6970,30],
+  ['aoi','朝のカフェでモーニング交流','CAFE','SHINJUKU',35.6890,139.7010,60],
+  ['kenta','パン屋さん巡りとコーヒー','CAFE','SHIBUYA',35.6590,139.7030,180],
+  ['host','季節のパフェを食べよう','SWEETS','SHINJUKU',35.6910,139.6990,30],
+  ['aoi','公園でやさしい朝ヨガ','YOGA','SHINJUKU',35.6870,139.6950,60],
+  ['kenta','都内をのんびりサイクリング','CYCLING','SHIBUYA',35.6560,139.6970,180],
 ].map(([organizer,title,category,serviceArea,latitude,longitude,startInMinutes])=>({
   organizer,title,category,serviceArea,latitude,longitude,startInMinutes,imageUrl:imageByCategory[category],
   description:`${title}。初参加歓迎の公開デモ用架空Hangoutです。`,

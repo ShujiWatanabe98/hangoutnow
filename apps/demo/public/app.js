@@ -1,8 +1,8 @@
 const defaults = [
-  { id: 1, icon: '🍜', title: '新宿でラーメン食べよう', time: '30分後', place: '新宿駅東口・1.2km', current: 2, max: 4, host: 'ケンタ', rating: '★ 4.9', match: 94, hot: true, photo: 0, desc: '気になっていた煮干しラーメンへ。初参加も大歓迎です！' },
-  { id: 2, icon: '🏃', title: '代々木公園を軽くランニング', time: '1時間後', place: '代々木公園・2.4km', current: 3, max: 5, host: 'Miki', rating: '★ 4.8', match: 88, photo: 1, desc: '会話できるくらいのペースで5km走ります。' },
-  { id: 3, icon: '☕', title: '作業仲間募集・駅前カフェ', time: '3時間後', place: '渋谷駅・3.1km', current: 1, max: 3, host: 'Sora', rating: '★ 4.7', match: 81, photo: 2, desc: '各自作業しつつ、ときどき雑談しましょう。' },
-  { id: 4, icon: '🏍️', title: '夕方のショートツーリング', time: '3時間後', place: '世田谷・7.8km', current: 2, max: 4, host: 'Ryo', rating: '★ 5.0', match: 79, photo: 3, desc: '安全第一でゆっくり走ります。初心者歓迎。' },
+  { id: 1, category: 'FOOD', status: 'OPEN', imageUrl: '/assets/hangout-ramen.jpg', publicLocationName: '新宿駅東口周辺', icon: '🍜', title: '新宿でラーメン食べよう', time: '30分後', place: '新宿駅東口・1.2km', current: 2, max: 4, host: 'ケンタ', rating: '★ 4.9', match: 94, hot: true, photo: 0, desc: '気になっていた煮干しラーメンへ。初参加も大歓迎です！' },
+  { id: 2, category: 'RUNNING', status: 'OPEN', imageUrl: '/assets/demo-running-hangout-v2.jpg', publicLocationName: '代々木公園周辺', icon: '🏃', title: '代々木公園を軽くランニング', time: '1時間後', place: '代々木公園・2.4km', current: 3, max: 5, host: 'Miki', rating: '★ 4.8', match: 88, photo: 1, desc: '会話できるくらいのペースで5km走ります。' },
+  { id: 3, category: 'CAFE', status: 'OPEN', imageUrl: '/assets/hangout-coffee.jpg', publicLocationName: '渋谷駅周辺', icon: '☕', title: '作業仲間募集・駅前カフェ', time: '3時間後', place: '渋谷駅・3.1km', current: 1, max: 3, host: 'Sora', rating: '★ 4.7', match: 81, photo: 2, desc: '各自作業しつつ、ときどき雑談しましょう。' },
+  { id: 4, category: 'MOTORCYCLE', status: 'OPEN', imageUrl: '/assets/hangout-bike.jpg', publicLocationName: '世田谷周辺', icon: '🏍️', title: '夕方のショートツーリング', time: '3時間後', place: '世田谷・7.8km', current: 2, max: 4, host: 'Ryo', rating: '★ 5.0', match: 79, photo: 3, desc: '安全第一でゆっくり走ります。初心者歓迎。' },
 ];
 
 const IS_PRODUCTION = globalThis.HANGOUT_NOW_CONFIG?.production === true;
@@ -11,14 +11,19 @@ const DEMO_ROLE_STORAGE_KEY = 'hangout-now-demo-role';
 const saved = JSON.parse(localStorage.getItem('hangout-now-demo') || 'null');
 const hangouts = saved?.hangouts || defaults;
 const app = document.querySelector('#app');
-let activeFilter = 'おすすめ';
 let activeScreen = 'home';
 const joined = new Set(saved?.joined || []);
 const chats = saved?.chats || {};
 const API_URL = globalThis.HANGOUT_NOW_CONFIG?.apiUrl || 'http://localhost:3000';
 const DEMO_ACCOUNTS = globalThis.HANGOUT_NOW_CONFIG?.demoAccounts || null;
 const INTEREST_OPTIONS=['カフェ','ラーメン','ランニング','飲み会','ダーツ','バー','ごはん','カラオケ','英会話','シーシャ','スイーツ','映画'];
-const CATEGORY_LABELS={FOOD:'食事',RUNNING:'ランニング',CAFE:'カフェ',MOTORCYCLE:'ツーリング',WALKING:'散歩'};
+const CATEGORY_LABELS={FOOD:'食事',DRINKING:'飲み会',WINE:'ワイン',BAR:'バー',IZAKAYA:'居酒屋',SUSHI:'寿司',YAKINIKU:'焼肉',DINNER:'ごはん',CAFE:'カフェ',SWEETS:'スイーツ',RUNNING:'ランニング',WALKING:'散歩',MOTORCYCLE:'ツーリング',YOGA:'ヨガ',CYCLING:'サイクリング',KARAOKE:'カラオケ',DARTS:'ダーツ',GAME:'ボードゲーム',MOVIE:'映画',SHISHA:'シーシャ',ENGLISH:'英会話'};
+const HANGOUT_KEYWORD_GROUPS=[
+  {id:'food-drink',label:'ごはん・飲み',description:'気軽な食事から仕事帰りの一杯まで',categories:['FOOD','DRINKING','WINE','BAR','IZAKAYA','SUSHI','YAKINIKU','DINNER']},
+  {id:'cafe-sweets',label:'カフェ・スイーツ',description:'コーヒーや甘いものを囲んで話そう',categories:['CAFE','SWEETS','ENGLISH']},
+  {id:'active-outdoor',label:'運動・アウトドア',description:'体を動かして自然に仲良くなろう',categories:['RUNNING','WALKING','MOTORCYCLE','YOGA','CYCLING']},
+  {id:'hobby-social',label:'趣味・交流',description:'好きなことをきっかけにつながろう',categories:['KARAOKE','DARTS','GAME','MOVIE','SHISHA','ENGLISH']},
+];
 const MATCH_AREA_OPTIONS=['新宿','渋谷','池袋','東京','品川','上野','横浜'];
 const MATCH_TIME_OPTIONS=['朝','昼','夕方','夜','深夜'];
 const MATCH_DAY_OPTIONS=['月','火','水','木','金','土','日'];
@@ -159,7 +164,7 @@ async function loadHangouts() {
 }
 function timeLabel(startAt){const minutes=Math.max(0,Math.round((new Date(startAt)-Date.now())/60000));return minutes<=45?'30分後':minutes<=90?'1時間後':'3時間後'}
 function countdownLabel(startAt){const seconds=Math.max(0,Math.ceil((new Date(startAt)-Date.now())/1000));if(seconds===0)return'開始時刻です';const hours=String(Math.floor(seconds/3600)).padStart(2,'0');const minutes=String(Math.floor(seconds%3600/60)).padStart(2,'0');const rest=String(seconds%60).padStart(2,'0');return`開始まで ${hours}:${minutes}:${rest}`}
-function refreshCountdowns(){document.querySelectorAll('.card[data-id]').forEach(card=>{const hangout=hangouts.find(item=>String(item.id)===card.dataset.id);const label=card.querySelector('.card-body .meta span');if(hangout&&label)label.textContent=hangout.status==='STARTED'?'Hangout中':hangout.status==='FINISHED'?'終了':countdownLabel(hangout.startAt)});document.querySelectorAll('.hangout-detail-sheet[data-hangout-id]').forEach(sheet=>{const hangout=hangouts.find(item=>String(item.id)===sheet.dataset.hangoutId);const label=sheet.querySelector('.detail-time');if(hangout&&label)label.textContent=`${hangout.status==='STARTED'?'Hangout中':hangout.status==='FINISHED'?'終了':countdownLabel(hangout.startAt)} ・ 相性 ${hangout.match}%`})}
+function refreshCountdowns(){document.querySelectorAll('.card[data-id]').forEach(card=>{const hangout=hangouts.find(item=>String(item.id)===card.dataset.id);const label=card.querySelector('.card-body .meta span');if(hangout&&label)label.textContent=hangout.status==='STARTED'?'Hangout中':hangout.status==='FINISHED'?'終了':countdownLabel(hangout.startAt)});document.querySelectorAll('[data-keyword-hangout]').forEach(tile=>{const hangout=hangouts.find(item=>String(item.id)===tile.dataset.keywordHangout);const label=tile.querySelector('.keyword-tile-time');if(hangout&&label)label.textContent=hangout.status==='STARTED'?'Hangout中':hangout.status==='FINISHED'?'終了':countdownLabel(hangout.startAt)});document.querySelectorAll('.hangout-detail-sheet[data-hangout-id]').forEach(sheet=>{const hangout=hangouts.find(item=>String(item.id)===sheet.dataset.hangoutId);const label=sheet.querySelector('.detail-time');if(hangout&&label)label.textContent=`${hangout.status==='STARTED'?'Hangout中':hangout.status==='FINISHED'?'終了':countdownLabel(hangout.startAt)} ・ 相性 ${hangout.match}%`})}
 setInterval(refreshCountdowns,1000);
 
 function authScreen(mode = 'login') {
@@ -249,26 +254,42 @@ function shell(content, showFab = true) {
   app.querySelector('.profile-menu-button').onclick=profileScreen;
 }
 
+function hangoutState(h){return h.status==='STARTED'?'Hangout中':h.myJoinStatus==='PENDING'?'申請中':h.myJoinStatus==='WAITLISTED'?'待機中':h.myJoinStatus==='ACCEPTED'?'承認済み':h.status==='FULL'?'満員':'募集中'}
+function keywordGroup(keywordId){return HANGOUT_KEYWORD_GROUPS.find(group=>group.id===keywordId)}
+function hangoutsForKeyword(group){return group?hangouts.filter(hangout=>group.categories.includes(hangout.category)):[]}
+function keywordTile(h,index){
+  const state=hangoutState(h);const location=h.publicLocationName||h.place||'エリア未設定';const label=`${h.title}、${state}、${h.time}、${location}、相性${h.match}%`;
+  return `<button class="keyword-hangout-tile ${index===0?'featured':''}" type="button" data-keyword-hangout="${safeText(h.id)}" aria-label="${safeText(label)}"><span class="keyword-tile-photo ${hangoutPhotoClass(h)}"${photoStyle(h.imageUrl)}></span><span class="keyword-tile-status">${state}</span><span class="keyword-tile-match">${h.match}%</span><span class="keyword-tile-copy"><b>${safeText(h.title)}</b><small><span class="keyword-tile-time">${safeText(h.time)}</span> ・ ${safeText(location)}</small></span></button>`;
+}
+function bindFullHangoutCards(refresh,returnKeywordId){
+  document.querySelectorAll('[data-heart]').forEach(button=>button.onclick=async event=>{event.stopPropagation();button.disabled=true;try{const result=await api(`/hangouts/${button.dataset.heart}/heart`,{method:'POST'});const hangout=hangouts.find(item=>String(item.id)===button.dataset.heart);if(hangout)Object.assign(hangout,result);refresh();toast(result.hearted?'ハートを送りました':'ハートを取り消しました')}catch(error){button.disabled=false;toast(error.message)}});
+  document.querySelectorAll('.card').forEach(cardElement=>cardElement.onclick=()=>detail(cardElement.dataset.id,null,returnKeywordId?{returnKeywordId}:{}));
+}
 function home() {
   activeScreen = 'home';
-  const visible = activeFilter === 'おすすめ' ? hangouts : hangouts.filter((h) => h.time === activeFilter);
-  const filters = [['おすすめ', 'おすすめ'], ['30分後', '30分後'], ['1時間後', '1時間後'], ['3時間後', '3時間後']];
+  const groups=HANGOUT_KEYWORD_GROUPS.map(group=>({group,items:hangoutsForKeyword(group)})).filter(section=>section.items.length);
   const journey=demoRole?`<section class="demo-journey"><b>デモ：サヤカの飲み企画</b><ol><li>主催者は30代女性のサヤカ</li><li>20代男性のマサヤは承認済み</li><li>30代女性のマドカはHangoutを検索中</li><li>マドカが途中参加を申請</li><li>承認後はグループトークで会話</li></ol><small>「サヤカと新宿で気軽に飲もう」を開いて試せます。</small></section>`:'';
-  shell(`${journey}<section class="hero"><div class="eyebrow">${userLocation?.label||'エリア未設定'}</div><h1>今から何する？</h1><button id="create-hangout" class="create-hangout-button" type="button">Hangoutを作る</button><div class="location-tools"><button id="use-location">現在地を使う</button><select id="manual-area"><option value="">エリアを選択</option>${Object.keys(areas).map(a=>`<option ${userLocation?.label===a?'selected':''}>${a}</option>`).join('')}</select></div></section><div class="pills">${filters.map(([value, label]) => `<button class="pill ${activeFilter === value ? 'active' : ''}" data-filter="${value}">${label}</button>`).join('')}</div><div class="section-head"><h2>近くのHangout</h2><div class="section-head-actions"><span>${visible.length}件・距離順</span><button id="open-nearby-map" class="map-shortcut" type="button" aria-label="近くのHangoutをマップで表示"><span></span></button></div></div><section class="cards">${visible.length ? visible.map(card).join('') : '<div class="empty">この時間の募集はまだありません。<br>エリアを変更して探してみてください。</div>'}</section>`, false);
+  const keywordSections=groups.map(({group,items})=>`<section class="keyword-section" aria-labelledby="keyword-${group.id}"><button class="keyword-title" id="keyword-${group.id}" type="button" data-keyword="${group.id}"><span><b>${group.label}</b><small>${group.description}</small></span><i>すべて見る　›</i></button><div class="keyword-mosaic">${items.slice(0,6).map(keywordTile).join('')}</div></section>`).join('');
+  shell(`${journey}<section class="hero"><div class="eyebrow">${userLocation?.label||'エリア未設定'}</div><h1>今から何する？</h1><button id="create-hangout" class="create-hangout-button" type="button">Hangoutを作る</button><div class="location-tools"><button id="use-location">現在地を使う</button><select id="manual-area"><option value="">エリアを選択</option>${Object.keys(areas).map(a=>`<option ${userLocation?.label===a?'selected':''}>${a}</option>`).join('')}</select></div></section><section class="keyword-discovery"><header class="keyword-discovery-head"><div><small>キーワードから探す</small><h2>気分に合うHangout</h2></div><button id="open-nearby-map" class="map-shortcut" type="button" aria-label="近くのHangoutをマップで表示"><span></span></button></header>${keywordSections||'<div class="empty">近くのHangoutはまだありません。<br>エリアを変更して探してみてください。</div>'}</section>`, false);
   document.querySelector('#create-hangout').onclick=showCreate;
   document.querySelector('#use-location').onclick=useCurrentLocation;
   document.querySelector('#manual-area').onchange=async(event)=>{const name=event.target.value;if(!name)return;userLocation={...areas[name],label:name,source:'manual'};persist();await loadHangouts();home()};
   document.querySelector('#open-nearby-map').onclick=googleMapScreen;
-  document.querySelectorAll('[data-filter]').forEach((button) => button.onclick = () => { activeFilter = button.dataset.filter; home(); });
-  document.querySelectorAll('[data-heart]').forEach(button=>button.onclick=async event=>{event.stopPropagation();button.disabled=true;try{const result=await api(`/hangouts/${button.dataset.heart}/heart`,{method:'POST'});const hangout=hangouts.find(item=>item.id===button.dataset.heart);if(hangout)Object.assign(hangout,result);home();toast(result.hearted?'ハートを送りました':'ハートを取り消しました')}catch(error){button.disabled=false;toast(error.message)}});
-  document.querySelectorAll('.card').forEach((cardElement) => cardElement.onclick = () => detail(cardElement.dataset.id));
+  document.querySelectorAll('[data-keyword]').forEach(button=>button.onclick=()=>keywordHangoutList(button.dataset.keyword));
+  document.querySelectorAll('[data-keyword-hangout]').forEach(button=>button.onclick=()=>detail(button.dataset.keywordHangout));
   refreshCountdowns();
+}
+
+function keywordHangoutList(keywordId){
+  const group=keywordGroup(keywordId);if(!group){home();return}activeScreen='keyword';const items=hangoutsForKeyword(group);
+  shell(`<section class="page-title keyword-page-title"><button class="brand-back" id="keyword-home" type="button" aria-label="キーワード一覧に戻る"><span></span></button><div><div class="eyebrow">キーワード</div><h1>${group.label}</h1></div></section><div class="keyword-list-lead"><p>${group.description}</p><span>${items.length}件・おすすめ順</span></div><section class="cards keyword-list-cards">${items.length?items.map(card).join(''):'<div class="empty">このキーワードのHangoutはまだありません。</div>'}</section>`,false);
+  document.querySelector('#keyword-home').onclick=home;bindFullHangoutCards(()=>keywordHangoutList(keywordId),keywordId);refreshCountdowns();
 }
 
 function card(h) {
   const requested = ['PENDING','ACCEPTED','WAITLISTED'].includes(h.myJoinStatus);
   const conditions=`${{ANY:'だれでも',MALE_ONLY:'男性のみ',FEMALE_ONLY:'女性のみ'}[h.genderRestriction]||'だれでも'}${h.maxAge?`・${h.maxAge===29?'20代':h.maxAge===39?'30代':'50代'}まで`:''}`;
-  const state=h.status==='STARTED'?'Hangout中':h.myJoinStatus==='PENDING'?'申請中':h.myJoinStatus==='WAITLISTED'?'待機中':h.myJoinStatus==='ACCEPTED'?'承認済み':h.status==='FULL'?'満員':'募集中';
+  const state=hangoutState(h);
   return `<article class="card ${requested ? 'requested' : ''}" data-id="${h.id}"><div class="card-photo ${hangoutPhotoClass(h)}"${photoStyle(h.imageUrl)} role="img" aria-label="${safeText(h.title)}のイメージ写真"></div><button class="heart-button ${h.hearted?'on':''}" type="button" data-heart="${h.id}" aria-label="${h.hearted?'ハートを取り消す':'ハートを送る'}"><b>${h.hearted?'♥':'♡'}</b><span>${h.heartCount||0}</span></button><div class="card-status">${state}</div><div class="card-body"><div class="card-top"><div>${h.category?`<div class="card-category">${CATEGORY_LABELS[h.category]||safeText(h.category)}</div>`:''}<h3>${h.title}</h3><div class="meta"><span class="${h.hot ? 'hot' : ''}">${h.time}</span>${h.distanceKm!==null&&h.distanceKm!==undefined?` ・ ${h.distanceKm}km`:''}</div>${h.publicLocationName?`<div class="meta card-public-location">${safeText(h.publicLocationName)}</div>`:''}<div class="meta people" style="margin-top:5px">参加 ${h.current} / ${h.max}人 ・ ${conditions} ${h.distanceKm>10?'<b class="far">・遠め</b>':''}</div></div></div><div class="card-bottom"><div class="host"><span class="mini ${portraitClass(h.photo)}"${photoStyle(h.hostPhoto)} aria-label="${h.host}のプロフィール写真"></span><span>${h.host} ${h.verified?'・確認済み':''}<br><b class="host-tier tier-${(h.hostStatus?.tier||'WHITE').toLowerCase()}">${h.hostStatus?.label||'ホワイト'}</b> ・ ${h.rating}</span></div><span class="match">相性 ${h.match}%</span></div></div></article>`;
 }
 
@@ -278,10 +299,11 @@ async function useCurrentLocation(){if(!navigator.geolocation){toast('現在地�
 
 async function detail(id, sourceScreen = null, options = {}) {
   const returnToProfile=Boolean(sourceScreen?.classList.contains('profile-screen'));
+  const returnKeywordId=options.returnKeywordId;
   let profileLoading=null;
   if(returnToProfile){sourceScreen.classList.add('profile-behind-hangout');document.body.insertAdjacentHTML('beforeend','<div class="sheet profile-hangout-loading" role="status" aria-live="polite"><section><span></span><b>Hangoutを読み込んでいます</b></section></div>');profileLoading=document.querySelector('.profile-hangout-loading')}
   const returnAfterDeletion=async()=>{await loadHangouts();await profileScreen({animate:false})};
-  let h = hangouts.find((item) => item.id === id);
+  let h = hangouts.find((item) => String(item.id) === String(id));
   if (!h) {
     try {
       h = hangoutView(await api(`/hangouts/${id}`), hangouts.length);
@@ -319,10 +341,10 @@ async function detail(id, sourceScreen = null, options = {}) {
   if(animate)sheet.classList.remove('detail-open');
   if(!returnToProfile)sourceScreen?.remove();
   if(animate)requestAnimationFrame(()=>requestAnimationFrame(()=>sheet.classList.add('detail-open')));
-  sheet.querySelector('#close').setAttribute('aria-label',returnToProfile?'プロフィールに戻る':'ホームに戻る');
+  sheet.querySelector('#close').setAttribute('aria-label',returnToProfile?'プロフィールに戻る':returnKeywordId?'キーワード一覧に戻る':'ホームに戻る');
   const hero=sheet.querySelector('.hangout-hero-photo');if(h.imageUrl){hero.className='hangout-hero-photo custom-hangout-photo';hero.style.backgroundImage=`url('${h.imageUrl}')`}
   const hostPhoto=sheet.querySelector('.detail-photo');const openHostPhotos=()=>showProfilePhoto(userPhotos({profilePhoto:h.hostPhoto,profilePhotos:h.hostPhotos}),h.host);hostPhoto.onclick=openHostPhotos;hostPhoto.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();openHostPhotos()}};
-  const returnFromDetail=()=>{sheet.classList.remove('detail-open','conversation-open');sheet.classList.add('closing');setTimeout(()=>{sheet.remove();if(returnToProfile){sourceScreen.classList.remove('profile-behind-hangout');activeScreen='profileScreen'}else home()},240)};
+  const returnFromDetail=()=>{sheet.classList.remove('detail-open','conversation-open');sheet.classList.add('closing');setTimeout(()=>{sheet.remove();if(returnToProfile){sourceScreen.classList.remove('profile-behind-hangout');activeScreen='profileScreen'}else if(returnKeywordId)keywordHangoutList(returnKeywordId);else home()},240)};
   sheet.querySelector('#close').onclick = returnFromDetail;
   const detailRatingComplete=sheet.querySelector('[data-detail-finish-ratings]');if(detailRatingComplete)detailRatingComplete.onclick=returnFromDetail;
   const chatButton=sheet.querySelector('#open-flow-chat');if(chatButton){const conditionPanel=sheet.querySelector('.condition-panel');conditionPanel?.parentNode.insertBefore(chatButton,conditionPanel);chatButton.onclick=()=>openHangoutFlowChat(id)}
