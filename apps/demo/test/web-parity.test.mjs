@@ -350,3 +350,16 @@ test('native Hangout creation offers every production image preset and native ph
   assert.match(mobile, /launchCameraAsync\(pickerOptions\)/);
   assert.match(mobile, /launchImageLibraryAsync\(pickerOptions\)/);
 });
+
+test('native map matches the production Google map and privacy-safe linked list', async () => {
+  const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
+
+  assert.match(mobile, /import \{ WebView \} from "react-native-webview"/);
+  assert.match(mobile, /Googleマップ・概略位置/);
+  assert.match(mobile, /maps\.google\.com\/maps\?q=/);
+  assert.match(mobile, /const mappedHangouts = hangouts\.slice\(0, 8\)/);
+  assert.match(mobile, /source=\{\{ uri: hangoutImageUrl\(hangout\) \}\}/);
+  assert.match(mobile, /hangout\.publicLocationName \|\| "概略エリア"/);
+  assert.match(mobile, /承認前は概略エリア、承認後だけ正確な集合地点をナビへ渡します/);
+  for (const retiredMap of ['MAP_PIN_POSITIONS', 'styles.mapRoad', 'styles.mapYou', '近くのマップ', '現在地を更新']) assert.ok(!mobile.includes(retiredMap), `retired native map remains: ${retiredMap}`);
+});
