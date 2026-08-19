@@ -35,7 +35,7 @@ describe('public demo reset boundary', () => {
     process.env.DEMO_MODE = 'true';
     const { service, transaction, requesterId } = setup();
     const result = await service.reset(requesterId);
-    expect(result).toMatchObject({ ok: true, hangoutId: 'new-hangout', catalogSize: 25, status: 'READY' });
+    expect(result).toMatchObject({ ok: true, hangoutId: 'new-hangout', catalogSize: 29, status: 'READY' });
     expect(transaction.message.deleteMany).toHaveBeenCalledWith({ where: { OR: expect.arrayContaining([{ senderUserId: { in: [
       '019ffb00-0000-7000-8000-000000000001',
       '019ffb00-0000-7000-8000-000000000002',
@@ -55,9 +55,12 @@ describe('public demo reset boundary', () => {
         '019ffb00-0000-7000-8000-000000000003',
       ] } },
     ] } });
-    expect(transaction.hangout.create).toHaveBeenCalledTimes(25);
+    expect(transaction.hangout.create).toHaveBeenCalledTimes(29);
     const discoveryTitles = transaction.hangout.create.mock.calls.map((call) => call[0].data.title);
-    expect(new Set(discoveryTitles).size).toBe(25);
+    const discoveryCategories = transaction.hangout.create.mock.calls.map((call) => call[0].data.category);
+    expect(new Set(discoveryTitles).size).toBe(29);
+    expect(discoveryCategories.filter((category) => ['FOOD', 'SUSHI', 'YAKINIKU', 'DINNER'].includes(category))).toHaveLength(6);
+    expect(discoveryCategories.filter((category) => ['DRINKING', 'WINE', 'BAR', 'IZAKAYA'].includes(category))).toHaveLength(6);
     expect(transaction.hangout.create.mock.calls.every((call) => call[0].data.isDemo === true)).toBe(true);
     expect(transaction.joinRequest.create).toHaveBeenCalledWith({ data: expect.objectContaining({ userId: '019ffb00-0000-7000-8000-000000000003', status: 'ACCEPTED' }) });
   });

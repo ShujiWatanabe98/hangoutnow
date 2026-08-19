@@ -19,7 +19,8 @@ const DEMO_ACCOUNTS = globalThis.HANGOUT_NOW_CONFIG?.demoAccounts || null;
 const INTEREST_OPTIONS=['カフェ','ラーメン','ランニング','飲み会','ダーツ','バー','ごはん','カラオケ','英会話','シーシャ','スイーツ','映画'];
 const CATEGORY_LABELS={FOOD:'食事',DRINKING:'飲み会',WINE:'ワイン',BAR:'バー',IZAKAYA:'居酒屋',SUSHI:'寿司',YAKINIKU:'焼肉',DINNER:'ごはん',CAFE:'カフェ',SWEETS:'スイーツ',RUNNING:'ランニング',WALKING:'散歩',MOTORCYCLE:'ツーリング',YOGA:'ヨガ',CYCLING:'サイクリング',KARAOKE:'カラオケ',DARTS:'ダーツ',GAME:'ボードゲーム',MOVIE:'映画',SHISHA:'シーシャ',ENGLISH:'英会話'};
 const HANGOUT_KEYWORD_GROUPS=[
-  {id:'food-drink',label:'ごはん・飲み',description:'気軽な食事から仕事帰りの一杯まで',categories:['FOOD','DRINKING','WINE','BAR','IZAKAYA','SUSHI','YAKINIKU','DINNER']},
+  {id:'food',label:'ごはん',description:'ランチから夜ごはんまで気軽に集まろう',categories:['FOOD','SUSHI','YAKINIKU','DINNER']},
+  {id:'drink',label:'飲み',description:'仕事帰りの一杯を一緒に楽しもう',categories:['DRINKING','WINE','BAR','IZAKAYA']},
   {id:'cafe-sweets',label:'カフェ・スイーツ',description:'コーヒーや甘いものを囲んで話そう',categories:['CAFE','SWEETS','ENGLISH']},
   {id:'active-outdoor',label:'運動・アウトドア',description:'体を動かして自然に仲良くなろう',categories:['RUNNING','WALKING','MOTORCYCLE','YOGA','CYCLING']},
   {id:'hobby-social',label:'趣味・交流',description:'好きなことをきっかけにつながろう',categories:['KARAOKE','DARTS','GAME','MOVIE','SHISHA','ENGLISH']},

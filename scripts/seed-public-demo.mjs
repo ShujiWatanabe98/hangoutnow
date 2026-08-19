@@ -23,6 +23,9 @@ const cafePhoto = hangoutPhoto('hangout-coffee.jpg');
 const touringPhoto = hangoutPhoto('hangout-bike.jpg');
 const drinkingPhoto = hangoutPhoto('hangout-nomikai.jpg');
 const imageByCategory = {
+  FOOD: ramenPhoto,
+  DRINKING: drinkingPhoto,
+  WINE: hangoutPhoto('hangout-bar.jpg'),
   CAFE: cafePhoto,
   BAR: hangoutPhoto('hangout-bar.jpg'),
   IZAKAYA: drinkingPhoto,
@@ -330,6 +333,10 @@ samples.push(...[
   ['kenta','渋谷でシーシャを楽しもう','SHISHA','SHIBUYA',35.6550,139.7040,60],
   ['aoi','初心者向け英会話カフェ','ENGLISH','SHIBUYA',35.6610,139.7000,30],
   ['host','新宿で夜ごはん仲間募集','DINNER','SHINJUKU',35.6950,139.7060,60],
+  ['aoi','スパイスカレーを食べ比べ','FOOD','SHIBUYA',35.6585,139.7025,30],
+  ['kenta','餃子を囲んで夜ごはん','DINNER','SHINJUKU',35.6925,139.7055,180],
+  ['kenta','クラフトビールを飲み比べ','DRINKING','SHIBUYA',35.6575,139.7005,60],
+  ['aoi','日本酒を少しずつ楽しむ会','WINE','SHINJUKU',35.6905,139.7035,180],
   ['kenta','渋谷をのんびり散歩','WALKING','SHIBUYA',35.6540,139.6980,180],
   ['aoi','朝の新宿まち歩き','WALKING','SHINJUKU',35.6860,139.6970,30],
   ['aoi','朝のカフェでモーニング交流','CAFE','SHINJUKU',35.6890,139.7010,60],
@@ -449,10 +456,22 @@ if (!joinStatus) {
   joinStatus = 'ACCEPTED';
 }
 
-const rooms = await call('/chat-rooms', {}, masaya.token).then((result) => result.body);
-const room = rooms.find((item) => item.hangoutId === hangout.id);
-if (!room) throw new Error('Demo chat room was not created');
-const messages = await call(`/chat-rooms/${room.id}/messages`, {}, masaya.token).then((result) => result.body);
+let room = null;
+let messages = null;
+for (let attempt = 0; attempt < 3; attempt += 1) {
+  const rooms = await call('/chat-rooms', {}, masaya.token).then((result) => result.body);
+  const candidate = rooms.find((item) => item.hangoutId === hangout.id);
+  if (candidate) {
+    const result = await call(`/chat-rooms/${candidate.id}/messages`, {}, masaya.token, [404]);
+    if (result.status !== 404) {
+      room = candidate;
+      messages = result.body;
+      break;
+    }
+  }
+  await new Promise((resolve) => setTimeout(resolve, 400));
+}
+if (!room || !messages) throw new Error('Demo chat room was not created');
 if (!messages.some((message) => message.body === 'こんにちは！デモトークへようこそ。')) {
   await call(`/chat-rooms/${room.id}/messages`, {
     method: 'POST',
