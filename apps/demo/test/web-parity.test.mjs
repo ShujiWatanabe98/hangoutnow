@@ -105,6 +105,22 @@ test('native home exposes the current production recommendation cards', async ()
   assert.match(application, /class="meta card-public-location"/);
 });
 
+test('web Hangout cards are shorter without removing images or information', async () => {
+  const [application, portraits, requests] = await Promise.all([
+    readFile(new URL('app.js', publicDirectory), 'utf8'),
+    readFile(new URL('portraits.css', publicDirectory), 'utf8'),
+    readFile(new URL('requests.css', publicDirectory), 'utf8'),
+  ]);
+
+  assert.match(portraits, /\.card-photo\{width:100%;aspect-ratio:32\/9/);
+  assert.match(requests, /\.cards\{gap:10px\}\.card-body\{padding:12px 14px\}\.card-top\{padding-top:3px\}/);
+  assert.match(requests, /\.card h3\{margin-top:0;margin-bottom:2px\}/);
+  assert.match(requests, /\.card-public-location\{margin-top:2px\}\.card \.people\{margin-top:2px!important\}\.card-bottom\{margin-top:8px\}/);
+  for (const visibleInformation of ['card-category', 'card-public-location', 'meta people', 'host-tier', 'class="match"']) {
+    assert.ok(application.includes(visibleInformation), `Hangout card information is missing: ${visibleInformation}`);
+  }
+});
+
 test('demo authentication is not rolled back by optional initial data loading', async () => {
   const application = await readFile(new URL('app.js', publicDirectory), 'utf8');
   const loginStart = application.indexOf('async function demoLogin');
