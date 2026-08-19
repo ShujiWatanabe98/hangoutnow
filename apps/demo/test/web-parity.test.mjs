@@ -187,6 +187,14 @@ test('native Hangout creation matches the production full-screen flow', async ()
   assert.doesNotMatch(mobile, /<Text style=\{styles\.label\}>カテゴリ<\/Text>/);
 });
 
+test('web Hangout publishing gives immediate feedback and ignores repeated taps', async () => {
+  const application = await readFile(new URL('app.js', publicDirectory), 'utf8');
+  assert.match(application, /let publishing=false/);
+  assert.match(application, /publishButton\.onclick=async\(\)=>\{if\(publishing\)return/);
+  assert.match(application, /publishButton\.disabled=true;publishButton\.setAttribute\('aria-busy','true'\);publishButton\.textContent='公開しています…'/);
+  assert.match(application, /catch\(error\)\{publishing=false;publishButton\.disabled=false;publishButton\.removeAttribute\('aria-busy'\);publishButton\.textContent='Hangout公開'/);
+});
+
 test('native profile photo insertion never sends sparse arrays', async () => {
   const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
   assert.match(mobile, /existingPhotos=.*\.filter\(\(value\): value is string => Boolean\(value\)\)/);
