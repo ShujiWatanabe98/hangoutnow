@@ -592,6 +592,15 @@ test('web phone registration accepts ordinary Japanese mobile number input', asy
   assert.match(web, /if\(\/\^0\\d\{9,10\}\$\/\.test\(compact\)\)return`\+81\$\{compact\.slice\(1\)\}`/);
   assert.match(web, /placeholder="09012345678"/);
   assert.match(web, /requestedPhone=phone/);
+  assert.match(web, /phone:requestedPhone,code:sheet\.querySelector\('#phone-code'\)\.value\.trim\(\)/);
+});
+
+test('web authentication prioritizes providers and mirrors profile image feedback', async () => {
+  const web = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+
+  assert.match(web, /const authenticationChoices = register \? `\$\{switchAuth\}\$\{authDivider\}\$\{providerSection\}\$\{authDivider\}\$\{emailSection\}` : `\$\{providerSection\}\$\{authDivider\}\$\{emailSection\}\$\{switchAuth\}`/);
+  assert.match(web, /アカウントをお持ちの方はログイン/);
+  assert.ok(!web.includes("toast('新しい画像を表示しました')"), 'successful web profile image selection must not show a toast');
 });
 
 test('native authentication prioritizes providers and profile SMS reports real results', async () => {
