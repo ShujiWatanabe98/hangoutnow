@@ -187,6 +187,19 @@ test('native profile photo insertion never sends sparse arrays', async () => {
   assert.match(mobile, /Alert\.alert\("画像を更新できませんでした", message\)/);
 });
 
+test('native participant Hangout detail matches the production information flow', async () => {
+  const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
+  assert.match(mobile, /if \(!isHost\) return \(/);
+  assert.match(mobile, /participantHeroPhoto/);
+  assert.match(mobile, /participantState}>\{stateLabel\(hangout\)\}/);
+  assert.match(mobile, /<CountdownText startAt=\{hangout\.startAt\} style=\{styles\.participantTime\} \/><Text style=\{styles\.participantTime\}> ・ 相性/);
+  assert.match(mobile, /participantDescription/);
+  assert.match(mobile, /participantPanelLabel}>参加条件/);
+  for (const contract of ['集合場所　', '参加人数　', '主催者　', '承認前：概略エリアのみ表示', '参加したい', '参加条件の対象外', 'この募集の主催者を通報・ブロック']) assert.ok(mobile.includes(contract));
+  assert.match(mobile, /participantDetailFooter/);
+  assert.match(mobile, /hangout\.myJoinStatus === "ACCEPTED" && <Pressable style=\{styles\.participantTalkButton\}/);
+});
+
 test('host deletion returns to profile and cancelled Hangouts stay out of hosted history', async () => {
   const application = await readFile(new URL('app.js', publicDirectory), 'utf8');
 

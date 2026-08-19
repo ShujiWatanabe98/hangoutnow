@@ -1739,6 +1739,55 @@ function HangoutDetailScreen({ user, hangout, requests, onBack, onJoin, onChat, 
   const [editing, setEditing] = useState(false);
   const [hostPhotoIndex, setHostPhotoIndex] = useState<number | null>(null);
   const hostPhotos = (hangout.host.profilePhotos?.length ? hangout.host.profilePhotos : hangout.host.profilePhoto ? [hangout.host.profilePhoto] : []).filter(Boolean);
+  const hasActiveRequest = ["PENDING", "WAITLISTED", "ACCEPTED"].includes(hangout.myJoinStatus ?? "");
+  if (!isHost) return (
+    <View style={styles.participantDetailPage}>
+      <View style={styles.detailHeader}>
+        <Pressable style={styles.detailBackButton} onPress={onBack} accessibilityRole="button" accessibilityLabel="Hangout一覧に戻る"><View style={styles.backChevron} /></Pressable>
+        <Text style={styles.detailHeaderTitle}>Hangout</Text><View style={styles.detailHeaderSpacer} />
+      </View>
+      <ScrollView style={styles.detailScroll} contentContainerStyle={styles.participantDetailContent}>
+        <View style={styles.participantHeroWrap}>
+          <Image source={{ uri: hangoutImageUrl(hangout) }} style={styles.participantHeroPhoto} resizeMode="cover" />
+          <Text style={styles.participantState}>{stateLabel(hangout)}</Text>
+        </View>
+        <View style={styles.participantDetailBody}>
+          <View style={styles.participantHostRow}>
+            <Pressable disabled={!hostPhotos.length} onPress={() => setHostPhotoIndex(0)} accessibilityLabel={`${hangout.host.displayName}のプロフィール画像を見る`}>
+              {hangout.host.profilePhoto ? <Image source={{ uri: hangout.host.profilePhoto }} style={styles.detailHostPhoto} /> : <View style={styles.detailHostPhotoFallback}><Text style={styles.approvedMemberInitial}>{hangout.host.displayName.slice(0, 1)}</Text></View>}
+            </Pressable>
+            <View style={styles.cardCopy}><Text style={styles.participantHostName}>{hangout.host.displayName}</Text><Text style={styles.participantHostMeta}>{hangout.host.hostStatus?.hostAverageRating ? `主催評価 ★ ${hangout.host.hostStatus.hostAverageRating}` : "主催評価なし"}{hangout.host.verification === "PHONE_VERIFIED" ? " ・ 電話確認済み" : " ・ 本人確認前"}</Text></View>
+          </View>
+          <View style={styles.participantTimeRow}><CountdownText startAt={hangout.startAt} style={styles.participantTime} /><Text style={styles.participantTime}> ・ 相性 {Math.round(hangout.matchScore ?? 70)}%</Text></View>
+          <Text style={styles.participantTitle}>{hangout.title}</Text>
+          {!!hangout.description && <Text style={styles.participantDescription}>{hangout.description}</Text>}
+          {hangout.myJoinStatus === "ACCEPTED" && <Pressable style={styles.participantTalkButton} onPress={() => onChat(hangout.id)}><Text style={styles.participantTalkButtonText}>トーク</Text></Pressable>}
+          <View style={styles.participantConditionPanel}><Text style={styles.participantPanelLabel}>参加条件</Text><Text style={styles.participantConditionText}>{hangout.genderRestriction === "MALE_ONLY" ? "男性のみ" : hangout.genderRestriction === "FEMALE_ONLY" ? "女性のみ" : "だれでも"}{hangout.maxAge ? `・${hangout.maxAge === 29 ? "20代" : hangout.maxAge === 39 ? "30代" : "50代"}まで` : ""}</Text></View>
+          <View style={styles.participantInfoPanel}>
+            <Text style={styles.participantInfoText}><Text style={styles.participantInfoLabel}>集合場所　</Text>{hangout.locationName}{hangout.distanceKm != null ? `（約${hangout.distanceKm}km）` : ""}</Text>
+            <Text style={styles.participantInfoText}><Text style={styles.participantInfoLabel}>参加人数　</Text>{hangout.participantCount} / {hangout.maxParticipants}人</Text>
+            <Text style={styles.participantInfoText}><Text style={styles.participantInfoLabel}>主催者　</Text>{hangout.host.displayName}　{hangout.host.hostStatus?.hostAverageRating ? `主催評価 ★ ${hangout.host.hostStatus.hostAverageRating}` : "主催評価なし"}</Text>
+            <Text style={styles.participantPrivacyText}>{hangout.myJoinStatus === "ACCEPTED" ? "承認済み：店名・住所・正確な位置を表示" : "承認前：概略エリアのみ表示"}</Text>
+          </View>
+          {hangout.myJoinStatus === "ACCEPTED" && hangout.navigationUrl && <Pressable style={styles.participantNavigationButton} onPress={() => void Linking.openURL(hangout.navigationUrl!)}><Text style={styles.participantNavigationText}>地図アプリでナビ開始</Text></Pressable>}
+          {hangout.distanceKm != null && hangout.distanceKm > 10 && <Text style={styles.distanceWarning}>移動距離が長めです。開始時刻に間に合うか確認してください。</Text>}
+          {hangout.status === "FINISHED" && hangout.myJoinStatus === "ACCEPTED" && <Pressable style={styles.finishButtonWide} onPress={onRate}><Text style={styles.primaryText}>主催者・参加者を評価</Text></Pressable>}
+          {hangout.myJoinStatus === "ACCEPTED" && <View style={styles.participantAttendancePanel}><Text style={styles.hostName}>{hangout.myAttendanceStatus === "CONFIRMED" ? "参加予定として回答済み" : "開始前の出欠確認"}</Text><Text style={styles.muted}>予定が変わった場合は早めにお知らせください。</Text><View style={styles.requestActions}><Pressable style={styles.rejectButton} onPress={() => onAttendance("CANCELLED")}><Text>キャンセル</Text></Pressable><Pressable style={styles.acceptButton} onPress={() => onAttendance("CONFIRMED")}><Text style={styles.primaryText}>参加する</Text></Pressable></View></View>}
+          {hangout.myJoinStatus === "WAITLISTED" && <View style={styles.participantAttendancePanel}><Text style={styles.hostName}>待機リストに登録済み</Text><Text style={styles.muted}>空席が出たら通知します。集合場所の詳細は承認後に表示されます。</Text></View>}
+          {hangout.myJoinStatus === "ACCEPTED" && <View style={styles.participantMembersPanel}><Text style={styles.sectionTitle}>参加メンバー</Text><Text style={styles.muted}>主催者 1人</Text>{(hangout.acceptedParticipants ?? []).map((member) => <Pressable key={member.id} style={styles.approvedMemberRow} onPress={() => setSelectedApplicant(member)}><Text style={styles.hostName}>{member.displayName}</Text><Text style={styles.profileActivityChevron}>›</Text></Pressable>)}</View>}
+          {!hasActiveRequest && user.matchingDataConsent && <View style={styles.matchFeedbackPanel}><Text style={styles.muted}>この募集が合わない場合</Text><Pressable style={styles.matchFeedbackButton} onPress={() => onMatchFeedback(hangout)}><Text style={styles.matchFeedbackButtonText}>合わない理由を送る</Text></Pressable></View>}
+          <Pressable style={styles.reportButton} onPress={() => onReport(hangout)}><Text style={styles.reportText}>この募集の主催者を通報・ブロック</Text></Pressable>
+        </View>
+      </ScrollView>
+      {hangout.status !== "FINISHED" && hangout.myJoinStatus !== "ACCEPTED" && <View style={styles.participantDetailFooter}>
+        {!!ineligibleReason && !hasActiveRequest && <Text style={styles.eligibilityNote}>{ineligibleReason}</Text>}
+        <Pressable disabled={hasActiveRequest || !!ineligibleReason || hangout.status !== "OPEN"} style={[styles.participantJoinButton, (hasActiveRequest || !!ineligibleReason || hangout.status !== "OPEN") && styles.disabledButton]} onPress={() => setJoining(true)}><Text style={styles.primaryText}>{hangout.myJoinStatus === "PENDING" ? "申請中" : hangout.myJoinStatus === "WAITLISTED" ? "待機中" : ineligibleReason ? "参加条件の対象外" : "参加したい"}</Text></Pressable>
+      </View>}
+      <ApplicantProfileModal profile={selectedApplicant} onClose={() => setSelectedApplicant(null)} />
+      <JoinRequestModal visible={joining} hangout={hangout} onClose={() => setJoining(false)} onSubmit={async (message) => { await onJoin(hangout, message); setJoining(false); }} />
+      <PhotoViewerModal photos={hostPhotos} index={hostPhotoIndex} onIndex={setHostPhotoIndex} onClose={() => setHostPhotoIndex(null)} />
+    </View>
+  );
   return (
     <>
       <View style={styles.detailHeader}>
@@ -2923,6 +2972,35 @@ const styles = StyleSheet.create({
   detailBackButton: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: "#f7faf7", borderWidth: 1, borderColor: "#dce5df" },
   detailHeaderTitle: { color: "#17221d", fontSize: 17, fontWeight: "900" },
   detailHeaderSpacer: { width: 44, height: 44 },
+  participantDetailPage: { flex: 1, backgroundColor: "#fff" },
+  participantDetailContent: { paddingBottom: 32, backgroundColor: "#fff" },
+  participantHeroWrap: { position: "relative" },
+  participantHeroPhoto: { width: "100%", aspectRatio: 16 / 9, backgroundColor: "#dfe6df" },
+  participantState: { position: "absolute", right: 14, bottom: 12, overflow: "hidden", paddingHorizontal: 11, paddingVertical: 6, borderRadius: 999, backgroundColor: "#e9f7ec", color: "#176b48", fontSize: 11, fontWeight: "900" },
+  participantDetailBody: { paddingHorizontal: 20, paddingTop: 16 },
+  participantHostRow: { flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 14 },
+  participantHostName: { color: "#17221d", fontSize: 14, fontWeight: "900" },
+  participantHostMeta: { marginTop: 3, color: "#6d766f", fontSize: 11 },
+  participantTimeRow: { flexDirection: "row", alignItems: "center", marginBottom: 7 },
+  participantTime: { color: "#176b48", fontSize: 12, fontWeight: "900" },
+  participantTitle: { color: "#17221d", fontSize: 27, lineHeight: 33, fontWeight: "900" },
+  participantDescription: { marginTop: 10, color: "#4f5a53", fontSize: 14, lineHeight: 21 },
+  participantTalkButton: { minHeight: 50, alignItems: "center", justifyContent: "center", marginTop: 18, borderRadius: 15, backgroundColor: "#176b48" },
+  participantTalkButtonText: { color: "#fff", fontSize: 16, fontWeight: "900" },
+  participantConditionPanel: { marginTop: 18, padding: 14, borderRadius: 15, borderWidth: 1, borderColor: "#dfe5df", backgroundColor: "#f7f8f3" },
+  participantPanelLabel: { color: "#687169", fontSize: 10, fontWeight: "800" },
+  participantConditionText: { marginTop: 5, color: "#17221d", fontSize: 15, fontWeight: "900" },
+  participantInfoPanel: { marginTop: 14, padding: 15, borderRadius: 17, backgroundColor: "#f7f8f3", gap: 9 },
+  participantInfoText: { color: "#344039", fontSize: 13, lineHeight: 19 },
+  participantInfoLabel: { color: "#17221d", fontWeight: "900" },
+  participantPrivacyText: { marginTop: 3, color: "#176b48", fontSize: 11, fontWeight: "800" },
+  participantNavigationButton: { minHeight: 48, alignItems: "center", justifyContent: "center", marginTop: 12, borderWidth: 1, borderColor: "#b9d6c4", borderRadius: 14, backgroundColor: "#edf8f0" },
+  participantNavigationText: { color: "#176b48", fontSize: 14, fontWeight: "900" },
+  participantAttendancePanel: { marginTop: 14, padding: 15, borderRadius: 17, borderWidth: 1, borderColor: "#dfe5df", backgroundColor: "#fff" },
+  participantMembersPanel: { marginTop: 18, padding: 16, borderRadius: 18, borderWidth: 1, borderColor: "#dfe5df", backgroundColor: "#fff" },
+  participantDetailFooter: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, borderTopWidth: 1, borderTopColor: "#dfe5df", backgroundColor: "#fff" },
+  participantJoinButton: { minHeight: 54, alignItems: "center", justifyContent: "center", borderRadius: 17, backgroundColor: "#176b48" },
+  eligibilityNote: { marginBottom: 8, color: "#9a5c27", fontSize: 11, textAlign: "center" },
   detailScroll: { flex: 1, backgroundColor: "#fff" },
   detailPage: { padding: 20, paddingBottom: 60, backgroundColor: "#fff" },
   detailHostRow: { flexDirection: "row", alignItems: "center", gap: 11, padding: 13, borderRadius: 18, backgroundColor: "#fff", borderWidth: 1, borderColor: "#e3e8e2", marginBottom: 12 },
