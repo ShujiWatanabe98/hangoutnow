@@ -261,19 +261,21 @@ function shell(content, showFab = true) {
 
 function hangoutState(h){return h.status==='STARTED'?'Hangout中':h.myJoinStatus==='PENDING'?'申請中':h.myJoinStatus==='WAITLISTED'?'待機中':h.myJoinStatus==='ACCEPTED'?'承認済み':h.status==='FULL'?'満員':'募集中'}
 function keywordGroup(keywordId){return HANGOUT_KEYWORD_GROUPS.find(group=>group.id===keywordId)}
-function hangoutsForKeyword(group){return group?hangouts.filter(hangout=>group.categories.includes(hangout.category)):[]}
+function recommendationScore(hangout){return Number.isFinite(hangout.match)?hangout.match:70}
+function hangoutsForKeyword(group){return group?hangouts.filter(hangout=>group.categories.includes(hangout.category)).map((hangout,order)=>({hangout,order})).sort((left,right)=>recommendationScore(right.hangout)-recommendationScore(left.hangout)||left.order-right.order).map(item=>item.hangout):[]}
+function personalizedKeywordSections(){return HANGOUT_KEYWORD_GROUPS.map((group,order)=>{const items=hangoutsForKeyword(group);const leading=items.slice(0,3);const interestScore=leading.length?leading.reduce((sum,item)=>sum+recommendationScore(item),0)/leading.length:0;return{group,items,interestScore,order}}).filter(section=>section.items.length).sort((left,right)=>right.interestScore-left.interestScore||left.order-right.order)}
 function keywordTile(h,index){
   const state=hangoutState(h);const location=h.publicLocationName||h.place||'エリア未設定';const label=`${h.title}、${state}、${h.time}、${location}、相性${h.match}%`;
   return `<article class="keyword-hangout-tile ${index===0?'featured':''}"><button class="keyword-tile-open" type="button" data-keyword-hangout="${safeText(h.id)}" aria-label="${safeText(label)}"><span class="keyword-tile-photo ${hangoutPhotoClass(h)}"${photoStyle(h.imageUrl)}></span><span class="keyword-tile-status">${state}</span><span class="keyword-tile-match">${h.match}%</span><span class="keyword-tile-copy"><b>${safeText(h.title)}</b><small><span class="keyword-tile-time">${safeText(h.time)}</span> ・ ${safeText(location)}</small></span></button><button class="keyword-tile-heart ${h.hearted?'on':''}" type="button" data-keyword-heart="${safeText(h.id)}" aria-label="${h.hearted?'ハートを取り消す':'ハートを送る'}"><b>${h.hearted?'♥':'♡'}</b><span>${h.heartCount||0}</span></button></article>`;
 }
-async function toggleHangoutHeart(button,hangoutId,refresh){if(button.disabled)return;button.disabled=true;try{const result=await api(`/hangouts/${hangoutId}/heart`,{method:'POST'});const hangout=hangouts.find(item=>String(item.id)===String(hangoutId));if(hangout)Object.assign(hangout,result);refresh();toast(result.hearted?'ハートを送りました':'ハートを取り消しました')}catch(error){button.disabled=false;toast(error.message)}}
+async function toggleHangoutHeart(button,hangoutId,refresh){if(button.disabled)return;button.disabled=true;try{const result=await api(`/hangouts/${hangoutId}/heart`,{method:'POST'});const hangout=hangouts.find(item=>String(item.id)===String(hangoutId));if(hangout)Object.assign(hangout,result);await loadHangouts().catch(()=>undefined);refresh();toast(result.hearted?'ハートを送りました':'ハートを取り消しました')}catch(error){button.disabled=false;toast(error.message)}}
 function bindFullHangoutCards(refresh,returnKeywordId){
   document.querySelectorAll('[data-heart]').forEach(button=>button.onclick=event=>{event.stopPropagation();void toggleHangoutHeart(button,button.dataset.heart,refresh)});
   document.querySelectorAll('.card').forEach(cardElement=>cardElement.onclick=()=>detail(cardElement.dataset.id,null,returnKeywordId?{returnKeywordId}:{}));
 }
 function home() {
   activeScreen = 'home';
-  const groups=HANGOUT_KEYWORD_GROUPS.map(group=>({group,items:hangoutsForKeyword(group)})).filter(section=>section.items.length);
+  const groups=personalizedKeywordSections();
   const journey=demoRole?`<section class="demo-journey"><b>デモ：サヤカの飲み企画</b><ol><li>主催者は30代女性のサヤカ</li><li>20代男性のマサヤは承認済み</li><li>30代女性のマドカはHangoutを検索中</li><li>マドカが途中参加を申請</li><li>承認後はグループトークで会話</li></ol><small>「サヤカと新宿で気軽に飲もう」を開いて試せます。</small></section>`:'';
   const keywordSections=groups.map(({group,items})=>`<section class="keyword-section" aria-labelledby="keyword-${group.id}"><button class="keyword-title" id="keyword-${group.id}" type="button" data-keyword="${group.id}" aria-label="${group.label}をすべて見る"><span class="keyword-title-copy"><b>${group.label}</b><small>${group.description}</small></span><span class="keyword-view-all"><span>すべて見る</span><b aria-hidden="true">›</b></span></button><div class="keyword-mosaic">${items.slice(0,6).map(keywordTile).join('')}</div></section>`).join('');
   shell(`${journey}<section class="hero"><div class="eyebrow">${userLocation?.label||'エリア未設定'}</div><h1>今から何する？</h1><button id="create-hangout" class="create-hangout-button" type="button">Hangoutを作る</button><div class="location-tools"><button id="use-location">現在地を使う</button><select id="manual-area"><option value="">エリアを選択</option>${Object.keys(areas).map(a=>`<option ${userLocation?.label===a?'selected':''}>${a}</option>`).join('')}</select></div></section><section class="keyword-discovery"><header class="keyword-discovery-head"><div><small>キーワードから探す</small><h2>気分に合うHangout</h2></div><button id="open-nearby-map" class="map-shortcut" type="button" aria-label="近くのHangoutをマップで表示"><span></span></button></header>${keywordSections||'<div class="empty">近くのHangoutはまだありません。<br>エリアを変更して探してみてください。</div>'}</section>`, false);
@@ -321,7 +323,7 @@ async function detail(id, sourceScreen = null, options = {}) {
       return;
     }
   }
-  void trackBehavior('HANGOUT_VIEWED',h.id);
+  const behaviorRefresh=trackBehavior('HANGOUT_VIEWED',h.id);
   const requested = ['PENDING','ACCEPTED','WAITLISTED'].includes(h.myJoinStatus);
   const mine=h.hostUserId===session.user.id||h.host===session.user.displayName;
   let requests=[];
@@ -351,7 +353,7 @@ async function detail(id, sourceScreen = null, options = {}) {
   sheet.querySelector('#close').setAttribute('aria-label',returnToProfile?'プロフィールに戻る':returnKeywordId?'キーワード一覧に戻る':'ホームに戻る');
   const hero=sheet.querySelector('.hangout-hero-photo');if(h.imageUrl){hero.className='hangout-hero-photo custom-hangout-photo';hero.style.backgroundImage=`url('${h.imageUrl}')`}
   const hostPhoto=sheet.querySelector('.detail-photo');const openHostPhotos=()=>showProfilePhoto(userPhotos({profilePhoto:h.hostPhoto,profilePhotos:h.hostPhotos}),h.host);hostPhoto.onclick=openHostPhotos;hostPhoto.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();openHostPhotos()}};
-  const returnFromDetail=()=>{sheet.classList.remove('detail-open','conversation-open');sheet.classList.add('closing');setTimeout(()=>{sheet.remove();if(returnToProfile){sourceScreen.classList.remove('profile-behind-hangout');activeScreen='profileScreen'}else if(returnKeywordId)keywordHangoutList(returnKeywordId);else home()},240)};
+  const returnFromDetail=()=>{sheet.classList.remove('detail-open','conversation-open');sheet.classList.add('closing');setTimeout(async()=>{sheet.remove();await behaviorRefresh;await loadHangouts().catch(()=>undefined);if(returnToProfile){sourceScreen.classList.remove('profile-behind-hangout');activeScreen='profileScreen'}else if(returnKeywordId)keywordHangoutList(returnKeywordId);else home()},240)};
   sheet.querySelector('#close').onclick = returnFromDetail;
   const detailRatingComplete=sheet.querySelector('[data-detail-finish-ratings]');if(detailRatingComplete)detailRatingComplete.onclick=returnFromDetail;
   const chatButton=sheet.querySelector('#open-flow-chat');if(chatButton){const conditionPanel=sheet.querySelector('.condition-panel');conditionPanel?.parentNode.insertBefore(chatButton,conditionPanel);chatButton.onclick=()=>openHangoutFlowChat(id)}

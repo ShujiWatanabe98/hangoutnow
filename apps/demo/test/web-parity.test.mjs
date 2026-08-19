@@ -154,6 +154,10 @@ test('web discovery groups Hangouts into six-item keyword mosaics', async () => 
   assert.match(application, /aria-label="\$\{group\.label\}をすべて見る"/);
   assert.match(application, /class="keyword-view-all"><span>すべて見る<\/span><b aria-hidden="true">›<\/b>/);
   assert.match(application, /function keywordHangoutList\(keywordId\)/);
+  assert.match(application, /const groups=personalizedKeywordSections\(\)/);
+  assert.match(application, /await loadHangouts\(\)\.catch\(\(\)=>undefined\);refresh\(\)/);
+  assert.match(application, /const behaviorRefresh=trackBehavior\('HANGOUT_VIEWED',h\.id\)/);
+  assert.match(application, /await behaviorRefresh;await loadHangouts\(\)\.catch\(\(\)=>undefined\)/);
   assert.match(application, /bindFullHangoutCards\(\(\)=>keywordHangoutList\(keywordId\),keywordId\)/);
   assert.match(application, /else if\(returnKeywordId\)keywordHangoutList\(returnKeywordId\)/);
   assert.match(requests, /\.keyword-mosaic\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\);grid-template-rows:repeat\(3,92px\)/);
@@ -166,6 +170,28 @@ test('web discovery groups Hangouts into six-item keyword mosaics', async () => 
   for (const demoTitle of ['古民家カフェでのんびり', 'テラスカフェで朝活', '夜カフェでゆっくり話そう', 'ふわふわパンケーキを食べよう', 'アフタヌーンティーで交流', '和菓子を少しずつ楽しむ会', '季節のジェラート巡り', 'みんなでボウリング', 'ゲームセンターで遊ぼう', '20代・30代のゆる交流会', 'ひとり参加歓迎のおしゃべり会', '読書好きの交流会', 'カメラ好きで集まろう', '地方出身者の交流会', '公園でゆるくピクニック', 'サウナでととのう会', '夜景を眺めながらのんびり', '川沿いで夕涼み', '音楽を聴きながらまったり']) {
     assert.ok(seed.includes(demoTitle), `demo Hangout is missing: ${demoTitle}`);
   }
+});
+
+test('web discovery prioritizes groups and Hangouts by private recommendation scores', async () => {
+  const application = await readFile(new URL('app.js', publicDirectory), 'utf8');
+  const rankingStart = application.indexOf('function recommendationScore');
+  const rankingEnd = application.indexOf('function keywordTile', rankingStart);
+  assert.ok(rankingStart >= 0 && rankingEnd > rankingStart, 'personalized ranking functions are missing');
+  const rankingSource = application.slice(rankingStart, rankingEnd);
+  const rank = new Function('hangouts', 'HANGOUT_KEYWORD_GROUPS', `${rankingSource};return personalizedKeywordSections();`);
+  const groups = [
+    { id: 'drink', categories: ['DRINKING'] },
+    { id: 'cafe', categories: ['CAFE'] },
+    { id: 'chill', categories: ['SAUNA'] },
+  ];
+  const ranked = rank([
+    { id: 'drink-1', category: 'DRINKING', match: 74 },
+    { id: 'cafe-2', category: 'CAFE', match: 88 },
+    { id: 'cafe-1', category: 'CAFE', match: 96 },
+    { id: 'chill-1', category: 'SAUNA', match: 82 },
+  ], groups);
+  assert.deepEqual(ranked.map((section) => section.group.id), ['cafe', 'chill', 'drink']);
+  assert.deepEqual(ranked[0].items.map((hangout) => hangout.id), ['cafe-1', 'cafe-2']);
 });
 
 test('demo authentication is not rolled back by optional initial data loading', async () => {
