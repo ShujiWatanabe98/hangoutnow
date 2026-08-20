@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { v7 as uuidv7 } from 'uuid';
 import { PrismaService } from '../prisma/prisma.service';
-import { AuthRepository, StoredOAuthLoginTicket, StoredRefreshToken, StoredUser } from './auth.types';
+import { AcquisitionInput, AuthRepository, StoredOAuthLoginTicket, StoredRefreshToken, StoredUser } from './auth.types';
 
 const includeInterests = { interests: { include: { interest: true } } } as const;
 
@@ -41,8 +41,9 @@ export class PrismaAuthRepository extends AuthRepository {
     const user = await this.prisma.user.findUnique({ where: { id }, include: includeInterests });
     return user ? this.mapUser(user) : null;
   }
-  async createUser(input: { email: string; passwordHash: string; displayName: string; birthDate: Date | null; gender?: string }): Promise<StoredUser> {
-    const user = await this.prisma.user.create({ data: { id: uuidv7(), ...input, gender: input.gender as 'MALE'|'FEMALE'|'OTHER'|'UNDISCLOSED'|undefined }, include: includeInterests });
+  async createUser(input: { email: string; passwordHash: string; displayName: string; birthDate: Date | null; gender?: string; acquisition?: AcquisitionInput }): Promise<StoredUser> {
+    const { acquisition, ...profile } = input;
+    const user = await this.prisma.user.create({ data: { id: uuidv7(), ...profile, gender: profile.gender as 'MALE'|'FEMALE'|'OTHER'|'UNDISCLOSED'|undefined, ...(acquisition ? { acquisitionAttribution: { create: acquisition } } : {}) }, include: includeInterests });
     return this.mapUser(user);
   }
   async updateProfile(userId: string, input: { displayName?: string; bio?: string | null; homeArea?: string | null; interests?: string[]; profilePhoto?: string | null; profilePhotos?: string[]; gender?: string; preferredAreas?: string[]; preferredActivities?: string[]; preferredAgeMin?: number | null; preferredAgeMax?: number | null; preferredGenders?: string[]; activityTimeSlots?: string[]; matchingDataConsent?: boolean; participationUrgency?: string | null; maxTravelMinutes?: number | null; preferredGroupSizes?: number[]; budgetMin?: number | null; budgetMax?: number | null; socialStyles?: string[]; participationGoals?: string[]; firstTimePreferences?: string[]; alcoholPreference?: string | null; smokingPreference?: string | null; avoidPreferences?: string[]; scheduleFlexibility?: string[]; behaviorLearningEnabled?: boolean; preferredLanguages?: string[] }): Promise<StoredUser> {

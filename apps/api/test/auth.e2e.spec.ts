@@ -9,7 +9,8 @@ import { AccessTokenGuard } from '../src/auth/access-token.guard';
 import { AuthController, UsersController } from '../src/auth/auth.controller';
 import { HostStatusService } from '../src/host-status/host-status.service';
 import { AuthService } from '../src/auth/auth.service';
-import { AuthRepository, StoredOAuthLoginTicket, StoredRefreshToken, StoredUser } from '../src/auth/auth.types';
+import { RegisterDto } from '../src/auth/auth.dto';
+import { AcquisitionInput, AuthRepository, StoredOAuthLoginTicket, StoredRefreshToken, StoredUser } from '../src/auth/auth.types';
 import { ImageStorageService } from '../src/storage/image-storage.service';
 
 class MemoryAuthRepository extends AuthRepository {
@@ -17,10 +18,13 @@ class MemoryAuthRepository extends AuthRepository {
   private tokens: StoredRefreshToken[] = [];
   private oauthTickets: StoredOAuthLoginTicket[] = [];
   private oauthIdentities: Array<{provider:string;subject:string;userId:string}> = [];
+  readonly acquisitions: Array<AcquisitionInput & {userId:string}> = [];
   async findUserByEmail(email: string) { return this.users.find((user) => user.email === email) ?? null; }
   async findUserById(id: string) { return this.users.find((user) => user.id === id) ?? null; }
-  async createUser(input: { email: string; passwordHash: string; displayName: string; birthDate: Date | null; gender?: string }) {
-    const user: StoredUser = { id: `user-${this.users.length + 1}`, ...input, birthDate: input.birthDate?.toISOString().slice(0, 10) ?? null, gender: input.gender??null, bio: null, homeArea: null, preferredAreas: [], preferredActivities: [], preferredAgeMin: null, preferredAgeMax: null, preferredGenders: [], activityTimeSlots: [], matchingDataConsent: false, participationUrgency: null, maxTravelMinutes: null, preferredGroupSizes: [], budgetMin: null, budgetMax: null, socialStyles: [], participationGoals: [], firstTimePreferences: [], alcoholPreference: null, smokingPreference: null, avoidPreferences: [], scheduleFlexibility: [], behaviorLearningEnabled: false, preferredLanguages: [], interests: [], verificationStatus: 'UNVERIFIED', profilePhoto: null, profilePhotos: [] };
+  async createUser(input: { email: string; passwordHash: string; displayName: string; birthDate: Date | null; gender?: string; acquisition?: AcquisitionInput }) {
+    const { acquisition, ...profile } = input;
+    const user: StoredUser = { id: `user-${this.users.length + 1}`, ...profile, birthDate: profile.birthDate?.toISOString().slice(0, 10) ?? null, gender: profile.gender??null, bio: null, homeArea: null, preferredAreas: [], preferredActivities: [], preferredAgeMin: null, preferredAgeMax: null, preferredGenders: [], activityTimeSlots: [], matchingDataConsent: false, participationUrgency: null, maxTravelMinutes: null, preferredGroupSizes: [], budgetMin: null, budgetMax: null, socialStyles: [], participationGoals: [], firstTimePreferences: [], alcoholPreference: null, smokingPreference: null, avoidPreferences: [], scheduleFlexibility: [], behaviorLearningEnabled: false, preferredLanguages: [], interests: [], verificationStatus: 'UNVERIFIED', profilePhoto: null, profilePhotos: [] };
+    if (acquisition) this.acquisitions.push({ userId: user.id, ...acquisition });
     this.users.push(user); return user;
   }
   async updateProfile(userId: string, input: { displayName?: string; bio?: string | null; homeArea?: string | null; interests?: string[]; profilePhoto?: string | null; profilePhotos?: string[]; gender?: string; preferredAreas?: string[]; preferredActivities?: string[]; preferredAgeMin?: number | null; preferredAgeMax?: number | null; preferredGenders?: string[]; activityTimeSlots?: string[]; matchingDataConsent?: boolean; participationUrgency?: string | null; maxTravelMinutes?: number | null; preferredGroupSizes?: number[]; budgetMin?: number | null; budgetMax?: number | null }) {
@@ -142,6 +146,19 @@ describe('authentication and profile', () => {
     await request(app.getHttpServer()).patch('/users/me').set('Authorization', `Bearer ${registered.body.accessToken as string}`).send({ preferredAgeMin: 45, preferredAgeMax: 30 }).expect(400);
     await request(app.getHttpServer()).patch('/users/me').set('Authorization', `Bearer ${registered.body.accessToken as string}`).send({ preferredAgeMin: 17 }).expect(400);
     await request(app.getHttpServer()).patch('/users/me').set('Authorization', `Bearer ${registered.body.accessToken as string}`).send({ budgetMin: 6000, budgetMax: 2000 }).expect(400);
+  }, 15_000);
+
+  it('stores only consented, validated campaign attribution on registration', async () => {
+    app = await createApp();
+    const valid = { consent:true, source:'x', medium:'organic-social', campaign:'shinjuku-launch-202609', content:'post-concept-01' };
+    await request(app.getHttpServer()).post('/auth/register').send({ email:'campaign@example.com', password:'a-secure-password', displayName:'Campaign User', birthDate:'1990-01-01', acquisition:valid }).expect(201);
+    const repository = app.get(AuthRepository) as MemoryAuthRepository;
+    expect(repository.acquisitions).toEqual([{ userId:'user-1', source:'x', medium:'organic-social', campaign:'shinjuku-launch-202609', content:'post-concept-01' }]);
+    const pipe = new ValidationPipe({ whitelist:true, forbidNonWhitelisted:true, transform:true });
+    const registration = { password:'a-secure-password', birthDate:'1990-01-01' };
+    await expect(pipe.transform({ ...registration, email:'no-consent@example.com', displayName:'No Consent', acquisition:{...valid,consent:false} }, { type:'body', metatype:RegisterDto })).rejects.toThrow();
+    await expect(pipe.transform({ ...registration, email:'pii-source@example.com', displayName:'PII Source', acquisition:{...valid,source:'person@example.com'} }, { type:'body', metatype:RegisterDto })).rejects.toThrow();
+    await expect(pipe.transform({ ...registration, email:'extra-field@example.com', displayName:'Extra Field', acquisition:{...valid,referrer:'https://example.com/private'} }, { type:'body', metatype:RegisterDto })).rejects.toThrow();
   }, 15_000);
 
   it('stores up to three profile photos and rejects a fourth', async () => {

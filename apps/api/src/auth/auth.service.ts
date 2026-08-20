@@ -4,8 +4,8 @@ import { compare, hash } from 'bcryptjs';
 import { createHash, randomBytes } from 'node:crypto';
 import { v7 as uuidv7 } from 'uuid';
 import { createRemoteJWKSet, importPKCS8, jwtVerify, SignJWT } from 'jose';
-import { AuthRepository, PublicUser, StoredUser } from './auth.types';
-import { AppleRedeemDto, DemoLoginDto, DemoRole, GoogleRedeemDto, LineRedeemDto, LoginDto, RegisterDto, UpdateProfileDto, XRedeemDto } from './auth.dto';
+import { AcquisitionInput, AuthRepository, PublicUser, StoredUser } from './auth.types';
+import { AcquisitionDto, AppleRedeemDto, DemoLoginDto, DemoRole, GoogleRedeemDto, LineRedeemDto, LoginDto, RegisterDto, UpdateProfileDto, XRedeemDto } from './auth.dto';
 import { ImageStorageService } from '../storage/image-storage.service';
 
 interface TokenPair { accessToken: string; refreshToken: string; expiresIn: number; }
@@ -23,7 +23,7 @@ export class AuthService {
     if (!this.isAdult(input.birthDate)) throw new BadRequestException('18歳以上の方のみ登録できます');
     if (await this.repository.findUserByEmail(email)) throw new ConflictException('このメールアドレスはすでに登録されています');
     let user = await this.repository.createUser({
-      email, passwordHash: await hash(input.password, 10), displayName: input.displayName.trim(), birthDate: new Date(`${input.birthDate}T00:00:00.000Z`), gender: input.gender,
+      email, passwordHash: await hash(input.password, 10), displayName: input.displayName.trim(), birthDate: new Date(`${input.birthDate}T00:00:00.000Z`), gender: input.gender, acquisition: this.acquisition(input.acquisition),
     });
     user = await this.applyRegistrationPhotos(user, input.profilePhotos??(input.profilePhoto?[input.profilePhoto]:[]));
     return { user: this.publicUser(user), ...(await this.issueTokens(user.id)) };
@@ -82,7 +82,7 @@ export class AuthService {
       if (input.birthDate && !this.isAdult(input.birthDate)) throw new BadRequestException('18歳以上の方のみ登録できます');
       const displayName = (input.displayName || row.displayName || 'LINEユーザー').trim();
       const subjectKey = createHash('sha256').update(row.subject).digest('hex').slice(0, 32);
-      user = await this.repository.createUser({ email: `line.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: input.birthDate ? new Date(`${input.birthDate}T00:00:00.000Z`) : null, gender: input.gender });
+      user = await this.repository.createUser({ email: `line.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: input.birthDate ? new Date(`${input.birthDate}T00:00:00.000Z`) : null, gender: input.gender, acquisition: this.acquisition(input.acquisition) });
       await this.repository.createOAuthIdentity('LINE', row.subject, user.id);
       user = await this.applyRegistrationPhotos(user, input.profilePhotos??(input.profilePhoto?[input.profilePhoto]:[]));
     }
@@ -129,7 +129,7 @@ export class AuthService {
       if (input.birthDate && !this.isAdult(input.birthDate)) throw new BadRequestException('18歳以上の方のみ登録できます');
       const displayName = (input.displayName || row.displayName || 'Googleユーザー').trim();
       const subjectKey = createHash('sha256').update(row.subject).digest('hex').slice(0, 32);
-      user = await this.repository.createUser({ email: `google.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: input.birthDate ? new Date(`${input.birthDate}T00:00:00.000Z`) : null, gender: input.gender });
+      user = await this.repository.createUser({ email: `google.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: input.birthDate ? new Date(`${input.birthDate}T00:00:00.000Z`) : null, gender: input.gender, acquisition: this.acquisition(input.acquisition) });
       await this.repository.createOAuthIdentity('GOOGLE', row.subject, user.id);
       user = await this.applyRegistrationPhotos(user, input.profilePhotos??(input.profilePhoto?[input.profilePhoto]:[]));
     }
@@ -179,7 +179,7 @@ export class AuthService {
       if (input.birthDate && !this.isAdult(input.birthDate)) throw new BadRequestException('18歳以上の方のみ登録できます');
       const displayName = (input.displayName || row.displayName || 'Appleユーザー').trim();
       const subjectKey = createHash('sha256').update(row.subject).digest('hex').slice(0, 32);
-      user = await this.repository.createUser({ email: `apple.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: input.birthDate ? new Date(`${input.birthDate}T00:00:00.000Z`) : null, gender: input.gender });
+      user = await this.repository.createUser({ email: `apple.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: input.birthDate ? new Date(`${input.birthDate}T00:00:00.000Z`) : null, gender: input.gender, acquisition: this.acquisition(input.acquisition) });
       await this.repository.createOAuthIdentity('APPLE', row.subject, user.id);
       user = await this.applyRegistrationPhotos(user, input.profilePhotos??(input.profilePhoto?[input.profilePhoto]:[]));
     }
@@ -230,7 +230,7 @@ export class AuthService {
       if (input.birthDate && !this.isAdult(input.birthDate)) throw new BadRequestException('18歳以上の方のみ登録できます');
       const displayName = (input.displayName || row.displayName || 'Xユーザー').trim();
       const subjectKey = createHash('sha256').update(row.subject).digest('hex').slice(0, 32);
-      user = await this.repository.createUser({ email: `x.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: input.birthDate ? new Date(`${input.birthDate}T00:00:00.000Z`) : null, gender: input.gender });
+      user = await this.repository.createUser({ email: `x.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: input.birthDate ? new Date(`${input.birthDate}T00:00:00.000Z`) : null, gender: input.gender, acquisition: this.acquisition(input.acquisition) });
       await this.repository.createOAuthIdentity('X', row.subject, user.id);
       user = await this.applyRegistrationPhotos(user, input.profilePhotos??(input.profilePhoto?[input.profilePhoto]:[]));
     }
@@ -283,6 +283,9 @@ export class AuthService {
     return { accessToken: await this.jwt.signAsync({ sub: userId }, { expiresIn: this.accessTtlSeconds }), refreshToken, expiresIn: this.accessTtlSeconds };
   }
   private tokenHash(token: string): string { return createHash('sha256').update(token).digest('hex'); }
+  private acquisition(value?: AcquisitionDto): AcquisitionInput | undefined {
+    return value ? { source: value.source, medium: value.medium, campaign: value.campaign, content: value.content } : undefined;
+  }
   private isAdult(value: string): boolean {
     const birth = new Date(`${value}T00:00:00.000Z`);
     if (Number.isNaN(birth.getTime())) return false;

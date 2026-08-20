@@ -65,7 +65,7 @@ createServer(async (request, response) => {
     const fileBody = await readFile(file);
     const isApplicationPage = requestedPath === '/demo.html' || requestedPath === '/app.html';
     const body = extname(file) === '.html' && !isApplicationPage
-      ? Buffer.from(fileBody.toString('utf8').replace('<head>', '<head><link rel="stylesheet" href="/cookie-consent.css?v=20260816-2"><link rel="stylesheet" href="/share.css?v=20260816-1"><script src="/analytics.js?v=20260820-1" defer></script><script src="/share.js?v=20260820-1" defer></script>'))
+      ? Buffer.from(fileBody.toString('utf8').replace('<head>', '<head><link rel="stylesheet" href="/cookie-consent.css?v=20260816-2"><link rel="stylesheet" href="/share.css?v=20260816-1"><script src="/analytics.js?v=20260820-2" defer></script><script src="/attribution.js?v=20260820-1" defer></script><script src="/share.js?v=20260820-1" defer></script>'))
       : fileBody;
     const isVersionedAsset = requestedPath.startsWith('/assets/') || ['.css', '.js', '.svg', '.png', '.jpg', '.jpeg', '.webp'].includes(extname(file));
     response.writeHead(200, {

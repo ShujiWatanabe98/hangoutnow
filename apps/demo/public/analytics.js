@@ -56,6 +56,7 @@
     localStorage.setItem(consentKey, value);
     if (value === 'granted') loadAnalytics();
     else globalThis.gtag('consent', 'update', { analytics_storage: 'denied' });
+    globalThis.dispatchEvent(new CustomEvent('hangout:analytics-consent', { detail: value }));
     closeBanner();
   };
 

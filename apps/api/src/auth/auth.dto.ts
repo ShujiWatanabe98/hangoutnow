@@ -1,6 +1,14 @@
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { Gender, ParticipationUrgency } from '@prisma/client';
-import { ArrayMaxSize, IsArray, IsBoolean, IsDateString, IsEmail, IsEnum, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { ArrayMaxSize, Equals, IsArray, IsBoolean, IsDateString, IsEmail, IsEnum, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength, ValidateNested } from 'class-validator';
+
+export class AcquisitionDto {
+  @Equals(true) consent!: true;
+  @IsString() @Matches(/^(x|instagram|line|facebook|web_share|newsletter|founder|partner-[a-z0-9-]{1,40})$/) source!: string;
+  @IsString() @Matches(/^(organic-social|referral|qr|email|paid-social)$/) medium!: string;
+  @IsString() @Matches(/^[a-z0-9][a-z0-9-]{2,63}$/) campaign!: string;
+  @IsString() @Matches(/^[a-z0-9][a-z0-9-]{1,79}$/) content!: string;
+}
 
 export class RegisterDto {
   @IsEmail({}, { message: '正しいメールアドレスを入力してください' }) @Transform(({ value }: { value: unknown }) => typeof value === 'string' ? value.trim().toLowerCase() : value)
@@ -11,6 +19,7 @@ export class RegisterDto {
   @IsOptional() @IsEnum(Gender) gender?: Gender;
   @IsOptional() @IsString() @MaxLength(1_500_000) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/) profilePhoto?: string;
   @IsOptional() @IsArray() @ArrayMaxSize(3) @IsString({ each: true }) @MaxLength(1_500_000, { each: true }) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/, { each: true }) profilePhotos?: string[];
+  @IsOptional() @ValidateNested() @Type(() => AcquisitionDto) acquisition?: AcquisitionDto;
 }
 
 export class LoginDto {
@@ -69,6 +78,7 @@ export class LineRedeemDto {
   @IsOptional() @IsEnum(Gender) gender?: Gender;
   @IsOptional() @IsString() @MaxLength(1_500_000) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/) profilePhoto?: string;
   @IsOptional() @IsArray() @ArrayMaxSize(3) @IsString({ each: true }) @MaxLength(1_500_000, { each: true }) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/, { each: true }) profilePhotos?: string[];
+  @IsOptional() @ValidateNested() @Type(() => AcquisitionDto) acquisition?: AcquisitionDto;
 }
 
 export class GoogleStartDto {
@@ -82,6 +92,7 @@ export class GoogleRedeemDto {
   @IsOptional() @IsEnum(Gender) gender?: Gender;
   @IsOptional() @IsString() @MaxLength(1_500_000) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/) profilePhoto?: string;
   @IsOptional() @IsArray() @ArrayMaxSize(3) @IsString({ each: true }) @MaxLength(1_500_000, { each: true }) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/, { each: true }) profilePhotos?: string[];
+  @IsOptional() @ValidateNested() @Type(() => AcquisitionDto) acquisition?: AcquisitionDto;
 }
 
 export class AppleStartDto {
@@ -101,6 +112,7 @@ export class AppleRedeemDto {
   @IsOptional() @IsEnum(Gender) gender?: Gender;
   @IsOptional() @IsString() @MaxLength(1_500_000) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/) profilePhoto?: string;
   @IsOptional() @IsArray() @ArrayMaxSize(3) @IsString({ each: true }) @MaxLength(1_500_000, { each: true }) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/, { each: true }) profilePhotos?: string[];
+  @IsOptional() @ValidateNested() @Type(() => AcquisitionDto) acquisition?: AcquisitionDto;
 }
 
 export class XStartDto {
@@ -114,4 +126,5 @@ export class XRedeemDto {
   @IsOptional() @IsEnum(Gender) gender?: Gender;
   @IsOptional() @IsString() @MaxLength(1_500_000) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/) profilePhoto?: string;
   @IsOptional() @IsArray() @ArrayMaxSize(3) @IsString({ each: true }) @MaxLength(1_500_000, { each: true }) @Matches(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/, { each: true }) profilePhotos?: string[];
+  @IsOptional() @ValidateNested() @Type(() => AcquisitionDto) acquisition?: AcquisitionDto;
 }

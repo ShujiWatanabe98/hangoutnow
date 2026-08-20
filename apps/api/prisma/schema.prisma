@@ -81,8 +81,22 @@ model User {
   oauthIdentities OAuthIdentity[]
   oauthLoginTickets OAuthLoginTicket[]
   matchFeedbacks MatchFeedback[]
+  acquisitionAttribution AcquisitionAttribution?
 
   @@map("users")
+}
+
+model AcquisitionAttribution {
+  userId     String   @id @map("user_id") @db.Uuid
+  source     String   @db.VarChar(64)
+  medium     String   @db.VarChar(32)
+  campaign   String   @db.VarChar(64)
+  content    String   @db.VarChar(80)
+  createdAt  DateTime @default(now()) @map("created_at")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([campaign, source, createdAt])
+  @@map("acquisition_attributions")
 }
 
 model OAuthIdentity {
