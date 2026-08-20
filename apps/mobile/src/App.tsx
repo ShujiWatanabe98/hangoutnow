@@ -7,7 +7,7 @@ import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import * as WebBrowser from "expo-web-browser";
 import Constants from "expo-constants";
-import { ActivityIndicator, Alert, Animated, FlatList, Image, InputAccessoryView, Keyboard, KeyboardAvoidingView, Linking, Modal, PanResponder, Platform, Pressable, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Animated, FlatList, Image, ImageBackground, InputAccessoryView, Keyboard, KeyboardAvoidingView, Linking, Modal, PanResponder, Platform, Pressable, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { WebView } from "react-native-webview";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 
@@ -26,15 +26,15 @@ const DEFAULT_HANGOUT_IMAGES: Record<string, string> = {
   SHISHA: GENERATED_HANGOUT_IMAGE("chill"), SAUNA: GENERATED_HANGOUT_IMAGE("chill"), NIGHT_VIEW: GENERATED_HANGOUT_IMAGE("chill"), MUSIC: GENERATED_HANGOUT_IMAGE("chill"),
 };
 const HOME_ACTIVITY_GROUPS = [
-  { id: "food", label: "ごはん", categories: ["FOOD", "SUSHI", "YAKINIKU", "DINNER"] },
-  { id: "drink", label: "飲み", categories: ["DRINKING", "WINE", "BAR", "IZAKAYA"] },
-  { id: "cafe", label: "カフェ", categories: ["CAFE"] },
-  { id: "sweets", label: "スイーツ", categories: ["SWEETS"] },
-  { id: "play", label: "遊ぶ", categories: ["KARAOKE", "DARTS", "GAME", "MOVIE", "BOWLING", "ARCADE"] },
-  { id: "social", label: "交流", categories: ["ENGLISH", "SOCIAL"] },
-  { id: "chill", label: "チル", categories: ["SHISHA", "SAUNA", "NIGHT_VIEW", "MUSIC"] },
-  { id: "active", label: "運動", categories: ["RUNNING", "WALKING", "YOGA", "CYCLING"] },
-  { id: "outdoor", label: "アウトドア", categories: ["MOTORCYCLE", "PICNIC", "WATERFRONT"] },
+  { id: "food", label: "ごはん", description: "ランチから夜ごはんまで気軽に集まろう", categories: ["FOOD", "SUSHI", "YAKINIKU", "DINNER"] },
+  { id: "drink", label: "飲み", description: "仕事帰りの一杯を一緒に楽しもう", categories: ["DRINKING", "WINE", "BAR", "IZAKAYA"] },
+  { id: "cafe", label: "カフェ", description: "コーヒーを飲みながらゆっくり話そう", categories: ["CAFE"] },
+  { id: "sweets", label: "スイーツ", description: "甘いものを囲んで気軽に集まろう", categories: ["SWEETS"] },
+  { id: "active", label: "運動", description: "一緒に体を動かして自然に仲良くなろう", categories: ["RUNNING", "WALKING", "YOGA", "CYCLING"] },
+  { id: "outdoor", label: "アウトドア", description: "外の空気を楽しみながら気軽に集まろう", categories: ["MOTORCYCLE", "PICNIC", "WATERFRONT"] },
+  { id: "play", label: "遊ぶ", description: "ゲームやカラオケで一緒に楽しもう", categories: ["KARAOKE", "DARTS", "GAME", "MOVIE", "BOWLING", "ARCADE"] },
+  { id: "social", label: "交流", description: "初参加でも話しやすい仲間を見つけよう", categories: ["ENGLISH", "SOCIAL"] },
+  { id: "chill", label: "チル", description: "急がずゆっくり同じ時間を過ごそう", categories: ["SHISHA", "SAUNA", "NIGHT_VIEW", "MUSIC"] },
 ] as const;
 const HANGOUT_IMAGE_PRESETS = [
   { label: "カフェ", uri: DEFAULT_HANGOUT_IMAGES.CAFE, category: "カフェ", title: "新宿でコーヒー飲もう", description: "初参加歓迎！気軽におしゃべりしながら、おいしいコーヒーを一緒に楽しみましょう。" },
@@ -1434,11 +1434,23 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle
           <Text style={styles.demoHeading}>役割を選んですぐに体験</Text>
           <Text style={styles.demoDescription}>登録なしですぐに体験できます。</Text>
           <View style={styles.demoRow}>
-            <Pressable disabled={loading} style={styles.roleButton} onPress={() => onLogin("", "", "host")}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="サヤカ、主催者としてデモを見る"
+              disabled={loading}
+              style={styles.roleButton}
+              onPress={() => onLogin("", "", "host")}
+            >
               <Text style={styles.roleTitle}>サヤカ（主催者）として見る</Text>
               <Text style={styles.roleHint}>30代女性・飲み企画を管理</Text>
             </Pressable>
-            <Pressable disabled={loading} style={[styles.roleButton, styles.roleGuest]} onPress={() => onLogin("", "", "guest")}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="マドカ、参加者としてデモを見る"
+              disabled={loading}
+              style={[styles.roleButton, styles.roleGuest]}
+              onPress={() => onLogin("", "", "guest")}
+            >
               <Text style={styles.roleTitle}>マドカ（参加者）として見る</Text>
               <Text style={styles.roleHint}>30代女性・Hangoutを探す</Text>
             </Pressable>
@@ -1547,23 +1559,60 @@ function HangoutTimeText({ hangout, style }: { hangout: Pick<Hangout, "status" |
   return <CountdownText startAt={hangout.startAt} style={style} />;
 }
 
+function HomeKeywordTile({ hangout, featured, state, onOpen, onHeart }: { hangout: Hangout; featured?: boolean; state: string; onOpen: () => void; onHeart: () => void }) {
+  return (
+    <View style={[styles.keywordTile, featured && styles.keywordTileFeatured]}>
+      <Pressable style={styles.keywordTileOpen} onPress={onOpen} accessibilityRole="button" accessibilityLabel={`${hangout.title}、${state}、相性${Math.round(hangout.matchScore ?? 70)}%`}>
+        <ImageBackground source={{ uri: hangoutImageUrl(hangout) }} style={styles.keywordTilePhoto} resizeMode="cover">
+          <Text style={[styles.keywordTileStatus, featured && styles.keywordTileStatusFeatured]}>{state}</Text>
+          <Text style={[styles.keywordTileMatch, featured && styles.keywordTileMatchFeatured]}>{Math.round(hangout.matchScore ?? 70)}%</Text>
+          <View style={styles.keywordTileShade}>
+            <Text numberOfLines={2} style={[styles.keywordTileTitle, featured && styles.keywordTileTitleFeatured]}>{hangout.title}</Text>
+            <View style={styles.keywordTileMeta}><HangoutTimeText hangout={hangout} style={[styles.keywordTileTime, featured && styles.keywordTileMetaFeatured]} /><Text numberOfLines={1} style={[styles.keywordTileTime, featured && styles.keywordTileMetaFeatured]}> ・ {hangout.publicLocationName || hangout.locationName}</Text></View>
+          </View>
+        </ImageBackground>
+      </Pressable>
+      <Pressable style={[styles.keywordTileHeart, hangout.hearted && styles.keywordTileHeartOn]} onPress={(event) => { event.stopPropagation(); onHeart(); }} accessibilityRole="button" accessibilityLabel={hangout.hearted ? "ハートを取り消す" : "ハートを送る"}>
+        <Text style={[styles.keywordTileHeartIcon, hangout.hearted && styles.keywordTileHeartIconOn]}>{hangout.hearted ? "♥" : "♡"}</Text><Text style={[styles.keywordTileHeartCount, hangout.hearted && styles.keywordTileHeartIconOn]}>{hangout.heartCount}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function HomeKeywordMosaic({ hangouts, user, onOpen, onHeart }: { hangouts: Hangout[]; user: User; onOpen: (hangout: Hangout) => void; onHeart: (hangout: Hangout) => void }) {
+  const state = (hangout: Hangout) => hangout.hostUserId === user.id && ["OPEN", "FULL"].includes(hangout.status) ? "主催中" : stateLabel(hangout);
+  const item = (index: number, featured = false) => hangouts[index] ? <HomeKeywordTile hangout={hangouts[index]} featured={featured} state={state(hangouts[index])} onOpen={() => onOpen(hangouts[index])} onHeart={() => onHeart(hangouts[index])} /> : <View style={[styles.keywordTile, featured && styles.keywordTileFeatured, styles.keywordTileEmpty]} />;
+  return <View style={styles.keywordMosaic}><View style={styles.keywordMosaicLeft}>{item(0, true)}<View style={styles.keywordMosaicBottom}>{item(1)}{item(2)}</View></View><View style={styles.keywordMosaicRight}>{item(3)}{item(4)}{item(5)}</View></View>;
+}
+
 function HomeScreen({ user, hangouts, refreshing, locationLabel, locationSource, selectedArea, demoRole, onArea, onLocation, onMap, onRefresh, onOpen, onHeart, onCreate }: { user: User; hangouts: Hangout[]; refreshing: boolean; locationLabel: string; locationSource: LocationSource; selectedArea: AlphaArea; demoRole: "host" | "guest" | null; onArea: (area: AlphaArea) => void; onLocation: () => void; onMap: () => void; onRefresh: () => void; onOpen: (hangout: Hangout) => void; onHeart: (hangout: Hangout) => void; onCreate: () => void }) {
-  const [filter, setFilter] = useState<"おすすめ" | "30分後" | "1時間後" | "3時間後">("おすすめ");
-  const [activityGroup, setActivityGroup] = useState<"all" | (typeof HOME_ACTIVITY_GROUPS)[number]["id"]>("all");
+  const [activityGroup, setActivityGroup] = useState<(typeof HOME_ACTIVITY_GROUPS)[number]["id"] | null>(null);
   const homeStateLabel = (hangout: Hangout) => hangout.hostUserId === user.id && ["OPEN", "FULL"].includes(hangout.status) ? "主催中" : stateLabel(hangout);
-  const timeLabel = (startAt: string) => {
-    const minutes = Math.max(0, Math.round((new Date(startAt).getTime() - Date.now()) / 60000));
-    return minutes <= 45 ? "30分後" : minutes <= 90 ? "1時間後" : "3時間後";
-  };
   const selectedActivityGroup = HOME_ACTIVITY_GROUPS.find((group) => group.id === activityGroup);
-  const activityHangouts = selectedActivityGroup ? hangouts.filter((hangout) => (selectedActivityGroup.categories as readonly string[]).includes(hangout.category)) : hangouts;
-  const visibleHangouts = filter === "おすすめ" ? activityHangouts : activityHangouts.filter((hangout) => timeLabel(hangout.startAt) === filter);
+  const hangoutsForGroup = (group: (typeof HOME_ACTIVITY_GROUPS)[number]) => hangouts.filter((hangout) => (group.categories as readonly string[]).includes(hangout.category)).sort((left, right) => (right.matchScore ?? 70) - (left.matchScore ?? 70));
+  const keywordSections = HOME_ACTIVITY_GROUPS.map((group, order) => { const items = hangoutsForGroup(group); const leading = items.slice(0, 3); const interestScore = leading.length ? leading.reduce((sum, item) => sum + (item.matchScore ?? 70), 0) / leading.length : 0; return { group, items, interestScore, order }; }).filter((section) => section.items.length).sort((left, right) => right.interestScore - left.interestScore || left.order - right.order);
+  const visibleHangouts = selectedActivityGroup ? hangoutsForGroup(selectedActivityGroup) : [];
   const conditionLabel = (hangout: Hangout) => `${hangout.genderRestriction === "MALE_ONLY" ? "男性のみ" : hangout.genderRestriction === "FEMALE_ONLY" ? "女性のみ" : "だれでも"}${hangout.maxAge ? `・${hangout.maxAge === 29 ? "20代" : hangout.maxAge === 39 ? "30代" : "50代"}まで` : ""}`;
   const chooseHomeArea = () => Alert.alert("エリアを選択", undefined, [
     { text: "新宿", onPress: () => onArea("新宿") },
     { text: "渋谷", onPress: () => onArea("渋谷") },
     { text: "キャンセル", style: "cancel" },
   ]);
+  if (selectedActivityGroup) return (
+    <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+      <View style={styles.keywordListHeader}><Pressable style={styles.mapBackButton} onPress={() => setActivityGroup(null)} accessibilityRole="button" accessibilityLabel="キーワード一覧に戻る"><View style={styles.backChevron} /></Pressable><View><Text style={styles.eyebrow}>キーワード</Text><Text style={styles.keywordListTitle}>{selectedActivityGroup.label}</Text></View></View>
+      <View style={styles.keywordListLead}><Text style={styles.keywordListDescription}>{selectedActivityGroup.description}</Text><Text style={styles.keywordListCount}>{visibleHangouts.length}件・おすすめ順</Text></View>
+      {visibleHangouts.map((hangout) => (
+        <Pressable key={hangout.id} style={styles.card} onPress={() => onOpen(hangout)}>
+          <Image source={{ uri: hangoutImageUrl(hangout) }} style={styles.activityPhoto} resizeMode="cover" />
+          <Pressable style={[styles.heartButton, hangout.hearted && styles.heartButtonOn]} onPress={(event) => { event.stopPropagation(); onHeart(hangout); }} accessibilityRole="button" accessibilityLabel={hangout.hearted ? "ハートを取り消す" : "ハートを送る"}><Text style={[styles.heartIcon, hangout.hearted && styles.heartIconOn]}>{hangout.hearted ? "♥" : "♡"}</Text><Text style={[styles.heartCount, hangout.hearted && styles.heartIconOn]}>{hangout.heartCount}</Text></Pressable>
+          <Text style={styles.status}>{homeStateLabel(hangout)}</Text>
+          <View style={styles.cardTop}><View style={styles.cardCopy}><Text style={styles.cardCategory}>{categoryLabel(hangout.category)}</Text><Text style={styles.cardTitle}>{hangout.title}</Text><View style={styles.cardMetaRow}><HangoutTimeText hangout={hangout} style={Math.max(0, new Date(hangout.startAt).getTime() - Date.now()) <= 45 * 60 * 1000 ? styles.hotCountdown : styles.muted} />{hangout.distanceKm != null && <Text style={styles.muted}>・ 約{hangout.distanceKm}km</Text>}</View><Text style={styles.muted}>{hangout.publicLocationName || hangout.locationName}</Text><Text style={styles.muted}>参加 {hangout.participantCount} / {hangout.maxParticipants}人 ・ {conditionLabel(hangout)}{hangout.distanceKm != null && hangout.distanceKm > 10 ? <Text style={styles.farBadge}> ・遠め</Text> : null}</Text></View></View>
+          <View style={styles.cardBottom}><View style={styles.cardHostRow}>{hangout.host.profilePhoto ? <Image source={{ uri: hangout.host.profilePhoto }} style={styles.cardHostPhoto} /> : <View style={styles.cardHostFallback}><Text style={styles.cardHostInitial}>{hangout.host.displayName.slice(0,1)}</Text></View>}<View><Text style={styles.hostName}>{hangout.host.displayName}{hangout.host.verification === "VERIFIED" ? " ・確認済み" : ""}</Text><Text style={styles.hostTier}>{hangout.host.hostStatus?.label || "ホワイト"}{hangout.host.hostStatus?.hostAverageRating ? ` ・ 主催評価 ★ ${hangout.host.hostStatus.hostAverageRating}` : " ・ 主催評価なし"}</Text></View></View><View style={styles.cardMatchWrap}><Text style={styles.cardMatchScore}>相性 {Math.round(hangout.matchScore ?? 70)}%</Text></View></View>
+        </Pressable>
+      ))}
+    </ScrollView>
+  );
   return (
     <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
       {demoRole && <View style={styles.demoJourney}><Text style={styles.demoJourneyTitle}>デモ：サヤカの飲み企画</Text><Text style={styles.demoJourneyText}>1. 主催者は30代女性のサヤカ{`\n`}2. 20代男性のマサヤは承認済み{`\n`}3. 30代女性のマドカはHangoutを検索中{`\n`}4. マドカが途中参加を申請{`\n`}5. 承認後はグループトークで会話</Text><Text style={styles.demoJourneyHint}>「サヤカと新宿で気軽に飲もう」を開いて試せます。</Text></View>}
@@ -1582,49 +1631,9 @@ function HomeScreen({ user, hangouts, refreshing, locationLabel, locationSource,
           </Pressable>
         </View>
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-        {(["おすすめ", "30分後", "1時間後", "3時間後"] as const).map((value) => <Pressable key={value} style={[styles.filterPill, filter === value && styles.filterPillOn]} onPress={() => setFilter(value)}><Text style={[styles.filterPillText, filter === value && styles.filterPillTextOn]}>{value}</Text></Pressable>)}
-      </ScrollView>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow} accessibilityLabel="Hangoutの種類を選択">
-        <Pressable style={[styles.filterPill, activityGroup === "all" && styles.filterPillOn]} onPress={() => setActivityGroup("all")}><Text style={[styles.filterPillText, activityGroup === "all" && styles.filterPillTextOn]}>すべて</Text></Pressable>
-        {HOME_ACTIVITY_GROUPS.map((group) => <Pressable key={group.id} style={[styles.filterPill, activityGroup === group.id && styles.filterPillOn]} onPress={() => setActivityGroup(group.id)}><Text style={[styles.filterPillText, activityGroup === group.id && styles.filterPillTextOn]}>{group.label}</Text></Pressable>)}
-      </ScrollView>
-      <View style={styles.sectionHead}>
-        <Text style={styles.sectionTitle}>{selectedActivityGroup?.label ?? "近くのHangout"}</Text>
-        <View style={styles.sectionHeadActions}><Text style={styles.muted}>{visibleHangouts.length}件・距離順</Text><Pressable style={styles.homeMapButton} onPress={onMap} accessibilityRole="button" accessibilityLabel="近くのHangoutをマップで表示"><View style={styles.homeMapPin}><View style={styles.homeMapPinCenter} /></View></Pressable></View>
-      </View>
-      {visibleHangouts.map((hangout) => (
-        <Pressable key={hangout.id} style={styles.card} onPress={() => onOpen(hangout)}>
-          <Image source={{ uri: hangoutImageUrl(hangout) }} style={styles.activityPhoto} resizeMode="cover" />
-          <Pressable style={[styles.heartButton, hangout.hearted && styles.heartButtonOn]} onPress={(event) => { event.stopPropagation(); onHeart(hangout); }} accessibilityRole="button" accessibilityLabel={hangout.hearted ? "ハートを取り消す" : "ハートを送る"}>
-            <Text style={[styles.heartIcon, hangout.hearted && styles.heartIconOn]}>{hangout.hearted ? "♥" : "♡"}</Text>
-            <Text style={[styles.heartCount, hangout.hearted && styles.heartIconOn]}>{hangout.heartCount}</Text>
-          </Pressable>
-          <Text style={styles.status}>{homeStateLabel(hangout)}</Text>
-          <View style={styles.cardTop}>
-            <View style={styles.cardCopy}>
-              <Text style={styles.cardCategory}>{categoryLabel(hangout.category)}</Text>
-              <Text style={styles.cardTitle}>{hangout.title}</Text>
-              <View style={styles.cardMetaRow}><HangoutTimeText hangout={hangout} style={Math.max(0, new Date(hangout.startAt).getTime() - Date.now()) <= 45 * 60 * 1000 ? styles.hotCountdown : styles.muted} />{hangout.distanceKm != null && <Text style={styles.muted}>・ 約{hangout.distanceKm}km</Text>}</View>
-              <Text style={styles.muted}>{hangout.publicLocationName || hangout.locationName}</Text>
-              <Text style={styles.muted}>
-                参加 {hangout.participantCount} / {hangout.maxParticipants}人 ・ {conditionLabel(hangout)}{hangout.distanceKm != null && hangout.distanceKm > 10 ? <Text style={styles.farBadge}> ・遠め</Text> : null}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.cardBottom}>
-            <View style={styles.cardHostRow}>
-              {hangout.host.profilePhoto ? <Image source={{ uri: hangout.host.profilePhoto }} style={styles.cardHostPhoto} /> : <View style={styles.cardHostFallback}><Text style={styles.cardHostInitial}>{hangout.host.displayName.slice(0,1)}</Text></View>}
-              <View>
-                <Text style={styles.hostName}>{hangout.host.displayName}{hangout.host.verification === "VERIFIED" ? " ・確認済み" : ""}</Text>
-                <Text style={styles.hostTier}>{hangout.host.hostStatus?.label || "ホワイト"}{hangout.host.hostStatus?.hostAverageRating ? ` ・ 主催評価 ★ ${hangout.host.hostStatus.hostAverageRating}` : " ・ 主催評価なし"}</Text>
-              </View>
-            </View>
-            <View style={styles.cardMatchWrap}><Text style={styles.cardMatchScore}>相性 {Math.round(hangout.matchScore ?? 70)}%</Text></View>
-          </View>
-        </Pressable>
-      ))}
-      {!visibleHangouts.length && <Text style={styles.empty}>この時間の募集はまだありません。{`\n`}エリアを変更して探してみてください。</Text>}
+      <View style={styles.keywordDiscoveryHead}><View><Text style={styles.keywordDiscoveryEyebrow}>キーワードから探す</Text><Text style={styles.keywordDiscoveryTitle}>気分に合うHangout</Text></View><Pressable style={styles.homeMapButton} onPress={onMap} accessibilityRole="button" accessibilityLabel="近くのHangoutをマップで表示"><View style={styles.homeMapPin}><View style={styles.homeMapPinCenter} /></View></Pressable></View>
+      <View style={styles.keywordDiscovery}>{keywordSections.map(({ group, items }) => <View key={group.id} style={styles.keywordSection}><Pressable style={styles.keywordSectionHead} onPress={() => setActivityGroup(group.id)} accessibilityRole="button" accessibilityLabel={`${group.label}をすべて見る`}><View style={styles.keywordSectionCopy}><Text style={styles.keywordSectionTitle}>{group.label}</Text><Text numberOfLines={1} style={styles.keywordSectionDescription}>{group.description}</Text></View><View style={styles.keywordViewAll}><Text style={styles.keywordViewAllText}>すべて見る</Text><Text style={styles.keywordViewAllChevron}>›</Text></View></Pressable><HomeKeywordMosaic hangouts={items.slice(0, 6)} user={user} onOpen={onOpen} onHeart={onHeart} /></View>)}</View>
+      {!keywordSections.length && <Text style={styles.empty}>近くのHangoutはまだありません。{`\n`}エリアを変更して探してみてください。</Text>}
     </ScrollView>
   );
 }
@@ -2867,6 +2876,47 @@ const styles = StyleSheet.create({
     borderRadius: 13,
   },
   locationText: { fontSize: 11, fontWeight: "900", color: "#176b48" },
+  keywordDiscovery: { paddingHorizontal: 16, paddingBottom: 96 },
+  keywordDiscoveryHead: { marginHorizontal: 20, marginTop: 4, marginBottom: 15, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  keywordDiscoveryEyebrow: { color: "#176b48", fontSize: 10, fontWeight: "900" },
+  keywordDiscoveryTitle: { marginTop: 3, color: "#17221d", fontSize: 21, fontWeight: "900" },
+  keywordSection: { marginBottom: 25 },
+  keywordSectionHead: { minHeight: 48, marginBottom: 9, paddingLeft: 2, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  keywordSectionCopy: { minWidth: 0, flex: 1 },
+  keywordSectionTitle: { color: "#17221d", fontSize: 18, fontWeight: "900" },
+  keywordSectionDescription: { marginTop: 3, color: "#6d766f", fontSize: 10 },
+  keywordViewAll: { minHeight: 38, paddingHorizontal: 13, borderRadius: 20, backgroundColor: "#176b48", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, shadowColor: "#176b48", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 6, elevation: 3 },
+  keywordViewAllText: { color: "#fff", fontSize: 12, fontWeight: "900" },
+  keywordViewAllChevron: { color: "#fff", fontSize: 19, fontWeight: "900", lineHeight: 20 },
+  keywordMosaic: { width: "100%", height: 276, flexDirection: "row", gap: 7 },
+  keywordMosaicLeft: { flex: 2, gap: 7 },
+  keywordMosaicRight: { flex: 1, gap: 7 },
+  keywordMosaicBottom: { flex: 1, flexDirection: "row", gap: 7 },
+  keywordTile: { position: "relative", flex: 1, minWidth: 0, overflow: "hidden", borderRadius: 13, backgroundColor: "#dfe8df", shadowColor: "#17221d", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.09, shadowRadius: 8, elevation: 2 },
+  keywordTileFeatured: { flex: 2, borderRadius: 17 },
+  keywordTileEmpty: { opacity: 0 },
+  keywordTileOpen: { flex: 1 },
+  keywordTilePhoto: { flex: 1, backgroundColor: "#dfe8df" },
+  keywordTileStatus: { position: "absolute", zIndex: 2, top: 5, left: 5, overflow: "hidden", paddingHorizontal: 5, paddingVertical: 3, borderRadius: 10, backgroundColor: "#ffffffeb", color: "#176b48", fontSize: 7, fontWeight: "900" },
+  keywordTileMatch: { position: "absolute", zIndex: 2, top: 33, right: 5, overflow: "hidden", paddingHorizontal: 5, paddingVertical: 3, borderRadius: 10, backgroundColor: "#ffffffeb", color: "#176b48", fontSize: 7, fontWeight: "900" },
+  keywordTileStatusFeatured: { top: 8, left: 8, paddingHorizontal: 7, paddingVertical: 4, fontSize: 9 },
+  keywordTileMatchFeatured: { top: 43, right: 8, paddingHorizontal: 7, paddingVertical: 4, fontSize: 9 },
+  keywordTileShade: { position: "absolute", left: 0, right: 0, bottom: 0, minHeight: 48, paddingHorizontal: 7, paddingTop: 14, paddingBottom: 6, justifyContent: "flex-end", backgroundColor: "#102119c9" },
+  keywordTileTitle: { color: "#fff", fontSize: 10, lineHeight: 13, fontWeight: "900" },
+  keywordTileTitleFeatured: { fontSize: 16, lineHeight: 20 },
+  keywordTileMeta: { minWidth: 0, marginTop: 2, flexDirection: "row", alignItems: "center", overflow: "hidden" },
+  keywordTileTime: { color: "#eaf1ed", fontSize: 7 },
+  keywordTileMetaFeatured: { fontSize: 9 },
+  keywordTileHeart: { position: "absolute", zIndex: 4, top: 5, right: 5, minWidth: 29, height: 25, paddingHorizontal: 5, borderWidth: 1, borderColor: "#ffffffcc", borderRadius: 13, backgroundColor: "#fffffff0", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 2 },
+  keywordTileHeartOn: { backgroundColor: "#176b48" },
+  keywordTileHeartIcon: { color: "#176b48", fontSize: 13, fontWeight: "900" },
+  keywordTileHeartCount: { color: "#176b48", fontSize: 7, fontWeight: "900" },
+  keywordTileHeartIconOn: { color: "#fff" },
+  keywordListHeader: { minHeight: 74, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, borderBottomWidth: 1, borderColor: "#e1e6e1", backgroundColor: "#fff", flexDirection: "row", alignItems: "center", gap: 12 },
+  keywordListTitle: { marginTop: 2, color: "#17221d", fontSize: 25, fontWeight: "900" },
+  keywordListLead: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  keywordListDescription: { flex: 1, color: "#5f6a63", fontSize: 11 },
+  keywordListCount: { color: "#176b48", fontSize: 10, fontWeight: "900" },
   sectionHead: {
     paddingHorizontal: 16,
     flexDirection: "row",

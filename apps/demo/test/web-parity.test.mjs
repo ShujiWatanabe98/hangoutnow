@@ -163,7 +163,7 @@ test('native home exposes the current production recommendation cards', async ()
     readFile(new URL('app.js', publicDirectory), 'utf8'),
     readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8'),
   ]);
-  for (const contract of ['matchScore', 'distanceKm', '相性', '距離順', 'publicLocationName || hangout.locationName', 'conditionLabel(hangout)', '主催評価', 'onMap={() => setScreen("map")}']) {
+  for (const contract of ['matchScore', 'distanceKm', '相性', 'おすすめ順', 'publicLocationName || hangout.locationName', 'conditionLabel(hangout)', '主催評価', 'onMap={() => setScreen("map")}']) {
     assert.ok(mobile.includes(contract), `missing native production-home contract: ${contract}`);
   }
   assert.match(mobile, /Alert\.alert\("エリアを選択"/);
@@ -173,15 +173,19 @@ test('native home exposes the current production recommendation cards', async ()
   assert.match(application, /class="meta card-public-location"/);
 });
 
-test('native home supports every demo category with separate active and outdoor groups', async () => {
+test('native home mirrors the production keyword mosaics and every demo category', async () => {
   const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
   for (const category of ['FOOD', 'SUSHI', 'YAKINIKU', 'DINNER', 'DRINKING', 'WINE', 'BAR', 'IZAKAYA', 'CAFE', 'SWEETS', 'RUNNING', 'WALKING', 'YOGA', 'CYCLING', 'MOTORCYCLE', 'PICNIC', 'WATERFRONT', 'KARAOKE', 'DARTS', 'GAME', 'MOVIE', 'BOWLING', 'ARCADE', 'ENGLISH', 'SOCIAL', 'SHISHA', 'SAUNA', 'NIGHT_VIEW', 'MUSIC']) {
     assert.ok(mobile.includes(`${category}: GENERATED_HANGOUT_IMAGE`), `native generated image is missing: ${category}`);
   }
-  assert.match(mobile, /id: "active", label: "運動", categories: \["RUNNING", "WALKING", "YOGA", "CYCLING"\]/);
-  assert.match(mobile, /id: "outdoor", label: "アウトドア", categories: \["MOTORCYCLE", "PICNIC", "WATERFRONT"\]/);
+  assert.match(mobile, /id: "active", label: "運動", description: "一緒に体を動かして自然に仲良くなろう", categories: \["RUNNING", "WALKING", "YOGA", "CYCLING"\]/);
+  assert.match(mobile, /id: "outdoor", label: "アウトドア", description: "外の空気を楽しみながら気軽に集まろう", categories: \["MOTORCYCLE", "PICNIC", "WATERFRONT"\]/);
   assert.doesNotMatch(mobile, /運動・アウトドア/);
-  assert.match(mobile, /accessibilityLabel="Hangoutの種類を選択"/);
+  for (const contract of ['キーワードから探す', '気分に合うHangout', 'すべて見る', 'おすすめ順', 'HomeKeywordMosaic', 'HomeKeywordTile', 'keywordTileFeatured']) assert.ok(mobile.includes(contract), `native keyword mosaic contract is missing: ${contract}`);
+  assert.match(mobile, /items\.slice\(0, 6\)/);
+  assert.match(mobile, /setActivityGroup\(group\.id\)/);
+  assert.match(mobile, /right\.interestScore - left\.interestScore/);
+  assert.doesNotMatch(mobile, /\["おすすめ", "30分後", "1時間後", "3時間後"\]/);
 });
 
 test('web Hangout cards are shorter without removing images or information', async () => {
