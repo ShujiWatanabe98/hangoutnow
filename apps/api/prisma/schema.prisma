@@ -9,7 +9,7 @@ datasource db {
 
 enum VerificationStatus {
   UNVERIFIED
-  PHONE_VERIFIED
+  VERIFIED
 }
 
 enum AccountStatus {
@@ -54,7 +54,6 @@ model User {
   /// S3-compatible object URL in production. Never persist profile image bytes or base64 data URLs in production.
   profilePhoto   String?        @map("profile_photo") @db.Text
   profilePhotos  String[]       @default([]) @map("profile_photos")
-  phoneNumber    String?        @unique @map("phone_number")
   notificationsEnabled Boolean @default(true) @map("notifications_enabled")
   disabledNotificationTypes String[] @default([]) @map("disabled_notification_types")
   accountStatus  AccountStatus @default(ACTIVE) @map("account_status")
@@ -76,7 +75,6 @@ model User {
   reportsCreated Report[]       @relation("Reporter")
   reportsReceived Report[]      @relation("ReportedUser")
   moderationActions ModerationAction[] @relation("ModeratedUser")
-  phoneVerifications PhoneVerification[]
   notifications Notification[]
   pushTokens PushToken[]
   hangoutHearts HangoutHeart[]
@@ -199,24 +197,6 @@ model Notification {
 
   @@index([userId, readAt, createdAt])
   @@map("notifications")
-}
-
-model PhoneVerification {
-  id        String    @id @db.Uuid
-  userId    String    @map("user_id") @db.Uuid
-  phone     String
-  codeHash  String    @map("code_hash")
-  expiresAt DateTime  @map("expires_at")
-  usedAt    DateTime? @map("used_at")
-  attempts  Int       @default(0)
-  requestIp String?   @map("request_ip")
-  createdAt DateTime  @default(now()) @map("created_at")
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, createdAt])
-  @@index([phone, createdAt])
-  @@index([requestIp, createdAt])
-  @@map("phone_verifications")
 }
 
 enum HangoutStatus {

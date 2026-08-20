@@ -51,6 +51,31 @@ test('production uses the shared Hangout, talk, notification, and profile flows'
   }
 });
 
+test('homepage explains activity-first AI matching with trust and consent', async () => {
+  const homepage = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
+  for (const copy of ['人より先に、', '活動をマッチング。', '独自のマッチングアルゴリズム', 'マッチング成立の可能性を高めます', '信頼と安全を考えたマッチング', '活動履歴は許可した場合のみ利用', '正確な位置情報やトーク内容は学習に使用しません']) {
+    assert.ok(homepage.includes(copy), `homepage AI matching copy is missing: ${copy}`);
+  }
+  assert.doesNotMatch(homepage, /94% MATCH|8つの判断パターン/);
+});
+
+test('homepage exposes useful search metadata without keyword stuffing', async () => {
+  const homepage = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
+  for (const copy of ['近くの友達・趣味仲間を活動から探す｜Hangout Now', '今やりたい活動、時間、エリアから安全に探せる']) {
+    assert.ok(homepage.includes(copy), `homepage search metadata is missing: ${copy}`);
+  }
+  assert.match(homepage, /<link rel="canonical" href="https:\/\/method-more\.com\/">/);
+});
+
+test('public server sends browser security headers', async () => {
+  const server = await readFile(new URL('../server.mjs', import.meta.url), 'utf8');
+  for (const header of ['content-security-policy', 'permissions-policy', 'referrer-policy', 'x-content-type-options', 'x-frame-options']) {
+    assert.ok(server.includes(`'${header}'`), `security header is missing: ${header}`);
+  }
+  assert.match(server, /frame-ancestors 'none'/);
+  assert.match(server, /object-src 'none'/);
+});
+
 test('profile editor saves privacy-safe matching preferences', async () => {
   const [application, mobile] = await Promise.all([
     readFile(new URL('app.js', publicDirectory), 'utf8'),
@@ -204,26 +229,19 @@ test('demo authentication is not rolled back by optional initial data loading', 
   assert.match(loginFlow, /Promise\.allSettled\(\[loadNotificationCount\(\),loadHangouts\(\)\]\)/);
 });
 
-test('social and phone authentication continue directly into account creation', async () => {
+test('social authentication remains available without phone authentication', async () => {
   const [application, mobile] = await Promise.all([
     readFile(new URL('app.js', publicDirectory), 'utf8'),
     readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8'),
   ]);
 
-  assert.match(application, /if\(provider==='電話番号'\)\{phoneAuthDialog\(\);return\}/);
-  assert.match(application, /const input=null/);
-  assert.match(application, /\/auth\/phone\/confirm/);
-  assert.doesNotMatch(mobile, /const input = mode === "register" \? registrationInput\(\) : undefined/);
-  assert.match(mobile, /if \(provider === "LINE"\) void onLine\(\)/);
-  assert.match(mobile, /else if \(provider === "Google"\) void onGoogle\(\)/);
-  assert.match(mobile, /normalizePhoneNumber\(phone\)/);
-  assert.match(mobile, /SMSで届いた6桁の認証コード/);
-  assert.match(mobile, /authenticateWithOAuth\(provider:"google"\|"apple", input\?: OAuthRegistrationInput\)/);
-  assert.match(mobile, /\/auth\/phone\/confirm/);
-  assert.match(mobile, /\/auth\/x\/redeem/);
-  assert.match(application, /const result=await api\(`\/auth\/\$\{provider\}\/redeem`/);
+  for (const provider of ['Google', 'Apple', 'X', 'LINE']) {
+    assert.ok(application.includes(`data-auth-provider="${provider}"`));
+    assert.ok(mobile.includes(`"${provider}"`));
+  }
+  assert.doesNotMatch(application, /auth\/phone|phoneAuthDialog|電話番号|SMS認証/);
+  assert.doesNotMatch(mobile, /auth\/phone|PhoneVerificationScreen|電話番号|SMS認証/);
 });
-
 test('profile remains behind talk while returning with the back animation', async () => {
   const [application, portraits] = await Promise.all([
     readFile(new URL('app.js', publicDirectory), 'utf8'),
@@ -457,7 +475,7 @@ test('native privacy and remaining production screen parity are preserved', asyn
   const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
 
   assert.equal((mobile.match(/matchingDataConsent && session(?:\?\.)?\.user\.behaviorLearningEnabled/g) || []).length, 4);
-  for (const contract of ['accessibilityLabel="ホームに戻る"', '>アカウント</Text>', '>プロフィール</Text>', '>興味のあること</Text>', '主催者メニュー', 'カメラで撮る', '写真から選ぶ', '変更を保存', '本人確認', '終了して評価へ進む', '楽しい時間を過ごせましたか？', 'DateTimePicker']) {
+  for (const contract of ['accessibilityLabel="ホームに戻る"', '>アカウント</Text>', '>プロフィール</Text>', '>興味のあること</Text>', '主催者メニュー', 'カメラで撮る', '写真から選ぶ', '変更を保存', '終了して評価へ進む', '楽しい時間を過ごせましたか？', 'DateTimePicker']) {
     assert.ok(mobile.includes(contract), `missing native production contract: ${contract}`);
   }
 });
@@ -545,7 +563,7 @@ test('native participant members, applicant profile, and chat heading match prod
 
   assert.match(mobile, /member\.profilePhoto \? <Image/);
   assert.match(mobile, /member\.gender === "MALE" \? "男性"/);
-  assert.match(mobile, /member\.verification === "PHONE_VERIFIED" \? "電話確認済み"/);
+  assert.doesNotMatch(mobile, /PHONE_VERIFIED|電話確認済み|電話番号確認/);
   assert.match(mobile, /申請者プロフィール/);
   assert.match(mobile, /applicantDetailLabel}>年齢/);
   assert.match(mobile, /applicantDetailLabel}>活動エリア/);
@@ -570,17 +588,15 @@ test('native profile context, finished ratings, chat copy, and empty interests m
   assert.match(mobile, /<Text style=\{styles\.tag\}>未登録<\/Text>/);
 });
 
-test('native matching enums, age choices, time slots, and phone copy match production', async () => {
+test('native matching enums, age choices, and time slots match production', async () => {
   const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
 
   for (const value of ['"NONE"', '"SOMETIMES"', '"YES"', '"NON_SMOKING"', '"SEPARATED"', '"NO_PREFERENCE"']) assert.ok(mobile.includes(value));
   for (const retired of ['"AVOID" | "OK" | "PREFER"', '["AVOID", "飲まない場を希望"]', '["OK", "どちらでも"]']) assert.ok(!mobile.includes(retired));
   for (const label of ['こだわらない', '18〜24歳', '25〜29歳', '30代', '40代', '50歳〜', '飲まない', '少し飲む', '飲む', '禁煙希望', '分煙希望', '気にしない']) assert.ok(mobile.includes(label));
   assert.match(mobile, /activityTimeSlots: parseList\(activityTimeSlots\)\.slice\(0, 12\)/);
-  assert.match(mobile, /phoneChallenge\?'アカウント作成・ログイン':'SMS認証コードを送る'/);
   assert.ok((mobile.match(/member\.gender === "MALE" \? "男性"/g) ?? []).length >= 2);
 });
-
 test('native hosted and participated history opens the production finished Hangout flow', async () => {
   const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
 
@@ -691,19 +707,12 @@ test('talk and profile editor keep the same persistent back header as Hangout cr
   assert.match(portraits, /\.profile-editor-sheet\{display:grid;grid-template-rows:auto minmax\(0,1fr\)/);
 });
 
-test('web phone registration accepts ordinary Japanese mobile number input', async () => {
+test('web removes phone registration and SMS verification', async () => {
   const web = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
 
-  assert.match(web, /function normalizeJapanesePhone\(value\)/);
-  assert.match(web, /value\.normalize\('NFKC'\)/);
-  assert.match(web, /if\(\/\^0\\d\{9,10\}\$\/\.test\(compact\)\)return`\+81\$\{compact\.slice\(1\)\}`/);
-  assert.match(web, /placeholder="09012345678"/);
-  assert.match(web, /id="auth-phone-help" role="status" aria-live="polite"/);
-  assert.ok(web.indexOf('id="auth-phone-help"') < web.indexOf('id="auth-phone-code-area"'), 'phone request errors must remain visible before the hidden code area');
-  assert.match(web, /requestedPhone=phone/);
-  assert.match(web, /phone:requestedPhone,code:sheet\.querySelector\('#phone-code'\)\.value\.trim\(\)/);
+  assert.doesNotMatch(web, /auth\/phone|users\/me\/phone|normalizeJapanesePhone|電話番号|SMS認証/);
+  for (const provider of ['Google', 'Apple', 'X', 'LINE']) assert.ok(web.includes(`data-auth-provider="${provider}"`));
 });
-
 test('web authentication prioritizes providers and mirrors profile image feedback', async () => {
   const web = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
 
@@ -712,14 +721,12 @@ test('web authentication prioritizes providers and mirrors profile image feedbac
   assert.ok(!web.includes("toast('新しい画像を表示しました')"), 'successful web profile image selection must not show a toast');
 });
 
-test('native authentication prioritizes providers and profile SMS reports real results', async () => {
+test('native authentication prioritizes non-phone providers', async () => {
   const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
   const authenticationCard = mobile.slice(mobile.indexOf('<Text style={styles.authTitle}'), mobile.indexOf('<Text style={styles.authAgreement}>'));
 
   assert.ok(authenticationCard.indexOf('{providerSection}') < authenticationCard.indexOf('<Field label="メールアドレス"'), 'providers must appear before email authentication');
   assert.match(authenticationCard, /アカウントをお持ちの方はログイン/);
-  assert.match(mobile, /const normalizedPhone = normalizePhoneNumber\(phone\)/);
-  assert.match(mobile, /value\.normalize\("NFKC"\)/);
-  assert.match(mobile, /SMSに認証コードを送信しました/);
+  assert.doesNotMatch(mobile, /auth\/phone|PhoneVerificationScreen|電話番号|SMS認証/);
   assert.ok(!mobile.includes('Alert.alert("画像を更新しました"'), 'successful profile image selection must not show an alert');
 });

@@ -2,7 +2,7 @@
  * Increment this immutable identifier whenever scoring behavior or weights change.
  * Historical feedback keeps the version that was active when it was saved.
  */
-export const MATCHING_ALGORITHM_VERSION = 'match-v1.1.0' as const;
+export const MATCHING_ALGORITHM_VERSION = 'match-v1.2.0' as const;
 
 export interface MatchingWeights {
   baseScore: number; activityMatch: number; activityMiss: number; areaMatch: number; areaMiss: number;

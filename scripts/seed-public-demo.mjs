@@ -53,7 +53,6 @@ const accounts = {
   host: {
     email: process.env.HANGOUTNOW_DEMO_HOST_EMAIL || 'demo-host@hangoutnow.example',
     displayName: 'サヤカ',
-    phone: '+819011110001',
     birthDate: '1989-04-12',
     gender: 'FEMALE',
     homeArea: '新宿',
@@ -85,7 +84,6 @@ const accounts = {
   guest: {
     email: process.env.HANGOUTNOW_DEMO_GUEST_EMAIL || 'demo-guest@hangoutnow.example',
     displayName: 'マドカ',
-    phone: '+819011110002',
     birthDate: '1990-09-20',
     gender: 'FEMALE',
     homeArea: '渋谷',
@@ -117,7 +115,6 @@ const accounts = {
   masaya: {
     email: process.env.HANGOUTNOW_DEMO_MASAYA_EMAIL || 'demo-masaya@hangoutnow.example',
     displayName: 'マサヤ（承認済み参加者）',
-    phone: '+819011110003',
     birthDate: '2002-06-15',
     gender: 'MALE',
     homeArea: '新宿',
@@ -128,7 +125,6 @@ const accounts = {
   kenta: {
     email: process.env.HANGOUTNOW_DEMO_KENTA_EMAIL || 'demo-kenta@hangoutnow.example',
     displayName: 'ケンタ',
-    phone: '+819011110004',
     birthDate: '1993-02-18',
     gender: 'MALE',
     homeArea: '渋谷',
@@ -139,7 +135,6 @@ const accounts = {
   aoi: {
     email: process.env.HANGOUTNOW_DEMO_AOI_EMAIL || 'demo-aoi@hangoutnow.example',
     displayName: 'アオイ',
-    phone: '+819011110005',
     birthDate: '1996-07-08',
     gender: 'FEMALE',
     homeArea: '代々木',
@@ -150,7 +145,6 @@ const accounts = {
   rena: {
     email: process.env.HANGOUTNOW_DEMO_RENA_EMAIL || 'demo-rena@hangoutnow.example',
     displayName: 'レナ',
-    phone: '+819011110006',
     birthDate: '1998-11-23',
     gender: 'FEMALE',
     homeArea: '新宿',
@@ -258,20 +252,6 @@ async function loginOrRegister(account) {
     profileUpdate = await call('/users/me', { method: 'PATCH', body: JSON.stringify(compatiblePayload) }, token);
   }
   user = profileUpdate.body;
-
-  if (user.verificationStatus !== 'PHONE_VERIFIED') {
-    const verification = await call('/users/me/phone/request', {
-      method: 'POST',
-      body: JSON.stringify({ phone: account.phone }),
-    }, token);
-    if (!verification.body.demoCode) {
-      throw new Error(`Demo verification code was not returned for ${account.email}`);
-    }
-    user = await call('/users/me/phone/confirm', {
-      method: 'POST',
-      body: JSON.stringify({ phone: account.phone, code: verification.body.demoCode }),
-    }, token).then((result) => result.body);
-  }
 
   return { ...account, id: user.id, token, created };
 }

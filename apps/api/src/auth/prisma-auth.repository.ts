@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { v7 as uuidv7 } from 'uuid';
 import { PrismaService } from '../prisma/prisma.service';
-import { AuthRepository, StoredOAuthLoginTicket, StoredPhoneVerification, StoredRefreshToken, StoredUser } from './auth.types';
+import { AuthRepository, StoredOAuthLoginTicket, StoredRefreshToken, StoredUser } from './auth.types';
 
 const includeInterests = { interests: { include: { interest: true } } } as const;
 
@@ -24,7 +24,7 @@ export class PrismaAuthRepository extends AuthRepository {
       avoidPreferences: user.avoidPreferences, scheduleFlexibility: user.scheduleFlexibility, behaviorLearningEnabled: user.behaviorLearningEnabled,
       preferredLanguages: user.preferredLanguages,
       verificationStatus: user.verification, interests: user.interests.map((item) => item.interest.name),
-      profilePhoto: user.profilePhoto, profilePhotos: user.profilePhotos, phoneNumber: user.phoneNumber,
+      profilePhoto: user.profilePhoto, profilePhotos: user.profilePhotos,
     };
   }
 
@@ -39,10 +39,6 @@ export class PrismaAuthRepository extends AuthRepository {
   }
   async findUserById(id: string): Promise<StoredUser | null> {
     const user = await this.prisma.user.findUnique({ where: { id }, include: includeInterests });
-    return user ? this.mapUser(user) : null;
-  }
-  async findUserByPhone(phone: string): Promise<StoredUser | null> {
-    const user = await this.prisma.user.findUnique({ where: { phoneNumber: phone }, include: includeInterests });
     return user ? this.mapUser(user) : null;
   }
   async createUser(input: { email: string; passwordHash: string; displayName: string; birthDate: Date | null; gender?: string }): Promise<StoredUser> {
@@ -65,20 +61,6 @@ export class PrismaAuthRepository extends AuthRepository {
   async saveRefreshToken(token: StoredRefreshToken): Promise<void> { await this.prisma.refreshToken.create({ data: token }); }
   async findRefreshToken(tokenHash: string): Promise<StoredRefreshToken | null> { return this.prisma.refreshToken.findUnique({ where: { tokenHash } }); }
   async revokeRefreshToken(id: string): Promise<void> { await this.prisma.refreshToken.update({ where: { id }, data: { revokedAt: new Date() } }); }
-  async createPhoneVerification(input: StoredPhoneVerification): Promise<void> { await this.prisma.phoneVerification.create({ data: input }); }
-  async findPhoneVerification(userId: string, phone: string): Promise<StoredPhoneVerification | null> {
-    return this.prisma.phoneVerification.findFirst({ where: { userId, phone, usedAt: null }, orderBy: { createdAt: 'desc' } });
-  }
-  async failPhoneVerification(id: string): Promise<void> { await this.prisma.phoneVerification.update({ where: { id }, data: { attempts: { increment: 1 } } }); }
-  async verifyPhone(userId: string, phone: string, verificationId: string): Promise<StoredUser> {
-    await this.prisma.$transaction([
-      this.prisma.phoneVerification.update({ where: { id: verificationId }, data: { usedAt: new Date() } }),
-      this.prisma.user.update({ where: { id: userId }, data: { phoneNumber: phone, verification: 'PHONE_VERIFIED' } }),
-    ]);
-    return this.loadUser(userId).then((user) => this.mapUser(user));
-  }
-  async setVerifiedPhone(userId:string,phone:string):Promise<StoredUser>{const user=await this.prisma.user.update({where:{id:userId},data:{phoneNumber:phone,verification:'PHONE_VERIFIED'},include:includeInterests});return this.mapUser(user)}
-  async phoneVerificationCounts(userId:string,phone:string,requestIp:string,since:Date){const[user,phoneCount,ip]=await Promise.all([this.prisma.phoneVerification.count({where:{userId,createdAt:{gte:since}}}),this.prisma.phoneVerification.count({where:{phone,createdAt:{gte:since}}}),this.prisma.phoneVerification.count({where:{requestIp,createdAt:{gte:since}}})]);return{user,phone:phoneCount,ip}}
   async deleteUser(userId:string):Promise<void>{await this.prisma.user.delete({where:{id:userId}})}
   async findOAuthIdentity(provider:string,subject:string):Promise<StoredUser|null>{
     const identity=await this.prisma.oAuthIdentity.findUnique({where:{provider_subject:{provider,subject}},include:{user:{include:includeInterests}}});

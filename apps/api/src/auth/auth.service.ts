@@ -1,12 +1,11 @@
 import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { compare, hash } from 'bcryptjs';
-import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { v7 as uuidv7 } from 'uuid';
 import { createRemoteJWKSet, importPKCS8, jwtVerify, SignJWT } from 'jose';
 import { AuthRepository, PublicUser, StoredUser } from './auth.types';
-import { AppleRedeemDto, ConfirmPhoneAuthDto, ConfirmPhoneVerificationDto, DemoLoginDto, DemoRole, GoogleRedeemDto, LineRedeemDto, LoginDto, RegisterDto, RequestPhoneAuthDto, RequestPhoneVerificationDto, UpdateProfileDto, XRedeemDto } from './auth.dto';
-import { SmsVerificationProvider } from './sms-verification.provider';
+import { AppleRedeemDto, DemoLoginDto, DemoRole, GoogleRedeemDto, LineRedeemDto, LoginDto, RegisterDto, UpdateProfileDto, XRedeemDto } from './auth.dto';
 import { ImageStorageService } from '../storage/image-storage.service';
 
 interface TokenPair { accessToken: string; refreshToken: string; expiresIn: number; }
@@ -17,7 +16,7 @@ export class AuthService {
   private readonly accessTtlSeconds = 15 * 60;
   private readonly refreshTtlMs = 30 * 24 * 60 * 60 * 1000;
 
-  constructor(@Inject(AuthRepository) private readonly repository: AuthRepository, @Inject(JwtService) private readonly jwt: JwtService, @Inject(SmsVerificationProvider) private readonly sms: SmsVerificationProvider, @Inject(ImageStorageService) private readonly images: ImageStorageService) {}
+  constructor(@Inject(AuthRepository) private readonly repository: AuthRepository, @Inject(JwtService) private readonly jwt: JwtService, @Inject(ImageStorageService) private readonly images: ImageStorageService) {}
 
   async register(input: RegisterDto): Promise<AuthResponse> {
     const email = input.email.trim().toLowerCase();
@@ -239,28 +238,6 @@ export class AuthService {
     return { user: this.publicUser(user), ...(await this.issueTokens(user.id)) };
   }
 
-  async requestPhoneAuth(input:RequestPhoneAuthDto,_requestIp='unknown'){
-    void _requestIp;
-    if(process.env.NODE_ENV==='production'&&!this.sms.enabled)throw new ServiceUnavailableException('SMS認証は現在利用できません');
-    const challengeToken=randomBytes(40).toString('base64url');
-    const code=randomInt(100000,1000000).toString();
-    if(this.sms.enabled)await this.sms.request(input.phone);
-    const existing=await this.repository.findUserByPhone(input.phone);
-    await this.repository.saveOAuthLoginTicket({id:uuidv7(),tokenHash:this.tokenHash(challengeToken),provider:'PHONE',subject:input.phone,displayName:null,profilePhoto:this.sms.enabled?'twilio':this.phoneCodeHash(input.phone,code),userId:existing?.id||null,expiresAt:new Date(Date.now()+10*60_000),usedAt:null});
-    return{challengeToken,expiresIn:600,...(process.env.NODE_ENV!=='production'&&!this.sms.enabled?{demoCode:code}:{})};
-  }
-
-  async confirmPhoneAuth(input:ConfirmPhoneAuthDto):Promise<AuthResponse>{
-    const row=await this.repository.findOAuthLoginTicket(this.tokenHash(input.challengeToken));
-    if(!row||row.provider!=='PHONE'||row.subject!==input.phone||row.usedAt||row.expiresAt<=new Date())throw new UnauthorizedException('認証コードの有効期限が切れました。もう一度お試しください');
-    const valid=this.sms.enabled?await this.sms.check(input.phone,input.code):(()=>{const expected=Buffer.from(row.profilePhoto||'','hex');const actual=Buffer.from(this.phoneCodeHash(input.phone,input.code),'hex');return expected.length===actual.length&&expected.length>0&&timingSafeEqual(expected,actual)})();
-    if(!valid)throw new UnauthorizedException('認証コードが正しくありません');
-    let user=row.userId?await this.repository.findUserById(row.userId):await this.repository.findUserByPhone(input.phone);
-    if(!user){const subjectKey=createHash('sha256').update(input.phone).digest('hex').slice(0,32);try{user=await this.repository.createUser({email:`phone.${subjectKey}@oauth.hangoutnow.invalid`,passwordHash:await hash(randomBytes(48).toString('base64url'),10),displayName:'電話番号ユーザー',birthDate:null});user=await this.repository.setVerifiedPhone(user.id,input.phone)}catch{throw new ConflictException('この電話番号はすでに登録されています')}}
-    await this.repository.consumeOAuthLoginTicket(row.id);
-    return{user:this.publicUser(user),...(await this.issueTokens(user.id))};
-  }
-
   async refresh(rawToken: string): Promise<AuthResponse> {
     const stored = await this.repository.findRefreshToken(this.tokenHash(rawToken));
     if (!stored || stored.revokedAt || stored.expiresAt <= new Date()) throw new UnauthorizedException('ログインの有効期限が切れました。もう一度ログインしてください');
@@ -295,27 +272,6 @@ export class AuthService {
     const updated=await this.repository.updateProfile(userId,{...input,interests:normalized,preferredAreas:normalizedList(input.preferredAreas),preferredActivities:normalizedList(input.preferredActivities),activityTimeSlots:normalizedList(input.activityTimeSlots),socialStyles:normalizedList(input.socialStyles),participationGoals:normalizedList(input.participationGoals),firstTimePreferences:normalizedList(input.firstTimePreferences),avoidPreferences:normalizedList(input.avoidPreferences),scheduleFlexibility:normalizedList(input.scheduleFlexibility),preferredLanguages:normalizedList(input.preferredLanguages),...(profilePhotos===undefined?{}:{profilePhotos,profilePhoto:profilePhotos[0]??null})});
     if(profilePhotos!==undefined){const retained=new Set(profilePhotos);for(const oldPhoto of new Set([current.profilePhoto,...current.profilePhotos].filter((value):value is string=>Boolean(value))))if(!retained.has(oldPhoto))await this.images.deleteProfilePhoto(userId,oldPhoto)}
     return this.publicUser(updated);
-  }
-  async requestPhoneVerification(userId: string, input: RequestPhoneVerificationDto, requestIp='unknown') {
-    if(process.env.NODE_ENV==='production'&&!this.sms.enabled)throw new ServiceUnavailableException('SMS認証は現在利用できません');
-    const counts=await this.repository.phoneVerificationCounts(userId,input.phone,requestIp,new Date(Date.now()-24*60*60_000));
-    if(counts.user>=5||counts.phone>=5||counts.ip>=20)throw new BadRequestException('本日の認証コード送信回数が上限に達しました');
-    const latest=await this.repository.findPhoneVerification(userId,input.phone);
-    if(latest?.createdAt&&latest.createdAt.getTime()>Date.now()-60_000)throw new BadRequestException('認証コードを再送する場合は60秒お待ちください');
-    const code = randomInt(100000, 1000000).toString();
-    if(this.sms.enabled)await this.sms.request(input.phone);
-    await this.repository.createPhoneVerification({ id: uuidv7(), userId, phone: input.phone, codeHash: this.sms.enabled?'twilio':this.phoneCodeHash(input.phone, code), expiresAt: new Date(Date.now() + 10 * 60_000), usedAt: null, attempts: 0, requestIp });
-    // An SMS provider should send the code in production. It is returned only for the local demo.
-    const exposeDemoCode = !this.sms.enabled && (process.env.NODE_ENV !== 'production' || process.env.DEMO_MODE === 'true');
-    return { expiresIn: 600, resendAfter:60, ...(exposeDemoCode ? { demoCode: code } : {}) };
-  }
-  async confirmPhoneVerification(userId: string, input: ConfirmPhoneVerificationDto): Promise<PublicUser> {
-    const row = await this.repository.findPhoneVerification(userId, input.phone);
-    if (!row || row.expiresAt <= new Date() || row.attempts >= 5) throw new BadRequestException('認証コードの有効期限が切れています');
-    const valid=this.sms.enabled?await this.sms.check(input.phone,input.code):(()=>{const expected=Buffer.from(row.codeHash,'hex');const actual=Buffer.from(this.phoneCodeHash(input.phone,input.code),'hex');return expected.length===actual.length&&timingSafeEqual(expected,actual)})();
-    if (!valid) { await this.repository.failPhoneVerification(row.id); throw new BadRequestException('認証コードが正しくありません'); }
-    try { return this.publicUser(await this.repository.verifyPhone(userId, input.phone, row.id)); }
-    catch { throw new ConflictException('この電話番号はすでに登録されています'); }
   }
   verifyAccessToken(token: string): { sub: string } { return this.jwt.verify<{ sub: string }>(token); }
 
@@ -353,10 +309,9 @@ export class AuthService {
       alcoholPreference: user.alcoholPreference, smokingPreference: user.smokingPreference,
       avoidPreferences: user.avoidPreferences, scheduleFlexibility: user.scheduleFlexibility, behaviorLearningEnabled: user.behaviorLearningEnabled,
       preferredLanguages: user.preferredLanguages,
-      profilePhoto: user.profilePhoto, profilePhotos: user.profilePhotos, phoneNumber: user.phoneNumber,
+      profilePhoto: user.profilePhoto, profilePhotos: user.profilePhotos,
     };
   }
-  private phoneCodeHash(phone: string, code: string): string { return createHash('sha256').update(`${phone}:${code}:${process.env.PHONE_CODE_SECRET || 'local-demo-secret'}`).digest('hex'); }
   private lineCallbackUrl(): string { return process.env.LINE_LOGIN_CALLBACK_URL || 'https://hangoutnow-api.onrender.com/auth/line/callback'; }
   private googleCallbackUrl(): string { return process.env.GOOGLE_LOGIN_CALLBACK_URL || 'https://hangoutnow-api.onrender.com/auth/google/callback'; }
   private isAllowedGoogleReturnTo(value: string): boolean { return value === 'hangoutnow://auth/google' || this.isAllowedLineReturnTo(value); }

@@ -19,7 +19,7 @@ import { PrismaService } from '../src/prisma/prisma.service';
 import { SafetyController } from '../src/safety/safety.controller';
 import { SafetyService } from '../src/safety/safety.service';
 
-type Verification = 'UNVERIFIED' | 'PHONE_VERIFIED';
+type Verification = 'UNVERIFIED' | 'VERIFIED';
 type HangoutStatus = 'OPEN' | 'FULL' | 'STARTED' | 'FINISHED' | 'CANCELLED';
 type JoinStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
 
@@ -86,11 +86,11 @@ interface BlockWhere { OR?: Array<{ blockerId?: string; blockedId?: string }>; b
 
 class MemorySocialDb {
   readonly users: TestUser[] = [
-    { id: 'host', email: 'host@example.com', displayName: 'Host', verification: 'PHONE_VERIFIED', profilePhoto: 'host-photo', notificationsEnabled: true, birthDate:new Date('1990-01-01'), gender:'MALE', bio:'主催者です', homeArea:'新宿', interests:[] },
-    { id: 'guest', email: 'guest@example.com', displayName: 'Guest', verification: 'PHONE_VERIFIED', profilePhoto: 'guest-photo', notificationsEnabled: true, birthDate:new Date('2000-01-01'), gender:'FEMALE', bio:'カフェ巡りが好きです', homeArea:'渋谷', interests:[{interest:{name:'カフェ'}},{interest:{name:'ランニング'}}] },
-    { id: 'outsider', email: 'outsider@example.com', displayName: 'Outsider', verification: 'PHONE_VERIFIED', profilePhoto: 'outsider-photo', notificationsEnabled: true, birthDate:new Date('1980-01-01'), gender:'OTHER', bio:null, homeArea:null, interests:[] },
-    { id: 'waiter', email: 'waiter@example.com', displayName: 'Waiter', verification: 'PHONE_VERIFIED', profilePhoto: 'waiter-photo', notificationsEnabled: true, birthDate:new Date('1995-01-01'), gender:'OTHER', bio:null, homeArea:null, interests:[] },
-    { id: 'demo', email: 'demo-host@hangoutnow.example', displayName: 'Demo', verification: 'PHONE_VERIFIED', profilePhoto: 'demo-photo', notificationsEnabled: true, birthDate:new Date('1990-01-01'), gender:'MALE', bio:null, homeArea:null, interests:[] },
+    { id: 'host', email: 'host@example.com', displayName: 'Host', verification: 'UNVERIFIED', profilePhoto: 'host-photo', notificationsEnabled: true, birthDate:new Date('1990-01-01'), gender:'MALE', bio:'主催者です', homeArea:'新宿', interests:[] },
+    { id: 'guest', email: 'guest@example.com', displayName: 'Guest', verification: 'VERIFIED', profilePhoto: 'guest-photo', notificationsEnabled: true, birthDate:new Date('2000-01-01'), gender:'FEMALE', bio:'カフェ巡りが好きです', homeArea:'渋谷', interests:[{interest:{name:'カフェ'}},{interest:{name:'ランニング'}}] },
+    { id: 'outsider', email: 'outsider@example.com', displayName: 'Outsider', verification: 'VERIFIED', profilePhoto: 'outsider-photo', notificationsEnabled: true, birthDate:new Date('1980-01-01'), gender:'OTHER', bio:null, homeArea:null, interests:[] },
+    { id: 'waiter', email: 'waiter@example.com', displayName: 'Waiter', verification: 'VERIFIED', profilePhoto: 'waiter-photo', notificationsEnabled: true, birthDate:new Date('1995-01-01'), gender:'OTHER', bio:null, homeArea:null, interests:[] },
+    { id: 'demo', email: 'demo-host@hangoutnow.example', displayName: 'Demo', verification: 'VERIFIED', profilePhoto: 'demo-photo', notificationsEnabled: true, birthDate:new Date('1990-01-01'), gender:'MALE', bio:null, homeArea:null, interests:[] },
   ];
   readonly hangouts: TestHangout[] = [];
   readonly joinRequests: TestJoinRequest[] = [];

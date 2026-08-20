@@ -57,11 +57,7 @@ Location-aware listing is available with `GET /hangouts?latitude=...&longitude=.
 ## Profile verification
 
 - `PATCH /users/me` accepts a JPEG, PNG, or WebP data URL in `profilePhoto` (the demo resizes it to at most 512 px).
-- `POST /users/me/phone/request` starts a 10-minute, five-attempt verification challenge. Local development returns `demoCode`; production does not.
-- Requests have a 60-second resend delay plus daily limits per account, phone number, and source IP.
-- When all `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_VERIFY_SERVICE_SID` values are configured, the server uses Twilio Verify SMS and never returns a demo code.
-- `POST /users/me/phone/confirm` verifies the six-digit code and marks the user `PHONE_VERIFIED`.
-- Creating a Hangout requires both a profile photo and a verified phone number.
+- Creating a Hangout requires a profile photo.
 
 ## Notifications and realtime
 

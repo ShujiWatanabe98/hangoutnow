@@ -58,18 +58,6 @@ export class UpdateProfileDto {
   @IsOptional() @IsArray() @ArrayMaxSize(4) @IsEnum(LanguagePreference, { each: true }) preferredLanguages?: LanguagePreference[];
 }
 
-export class RequestPhoneVerificationDto { @IsString() @Matches(/^\+[1-9]\d{7,14}$/) phone!: string; }
-export class ConfirmPhoneVerificationDto {
-  @IsString() @Matches(/^\+[1-9]\d{7,14}$/) phone!: string;
-  @IsString() @Matches(/^\d{6}$/) code!: string;
-}
-export class RequestPhoneAuthDto { @IsString() @Matches(/^\+[1-9]\d{7,14}$/) phone!: string; }
-export class ConfirmPhoneAuthDto {
-  @IsString() @Matches(/^\+[1-9]\d{7,14}$/) phone!: string;
-  @IsString() @MinLength(20) challengeToken!: string;
-  @IsString() @Matches(/^\d{6}$/) code!: string;
-}
-
 export class LineStartDto {
   @IsString() @Matches(/^(hangoutnow:\/\/auth\/line|https:\/\/(www\.)?method-more\.com\/(demo|app)\.html|https:\/\/hangoutnow-demo\.onrender\.com\/(demo|app)\.html|http:\/\/(localhost|127\.0\.0\.1):4173\/(demo|app)\.html)$/) returnTo!: string;
 }

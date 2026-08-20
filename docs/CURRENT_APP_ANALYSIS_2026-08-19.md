@@ -32,7 +32,6 @@ Discover → Join → Match → Chat → Hangout → Rating
 ### 認証・プロフィール
 
 - メール登録・ログイン・更新トークン・ログアウト
-- 電話番号認証
 - LINE、Google、Apple、XのOAuth導線
 - 写真最大3枚
 - 年齢、性別、自己紹介、活動エリア、興味
@@ -229,4 +228,3 @@ EAS設定の秘密鍵パスが特定Windows PCに依存しています。EAS Sec
 - `apps/demo/public/app.js`
 - `apps/admin/app/page.tsx`
 - `render.yaml`
-

@@ -20,8 +20,6 @@ services:
         generateValue: true
       - key: ADMIN_API_TOKEN
         generateValue: true
-      - key: PHONE_CODE_SECRET
-        generateValue: true
       - key: LINE_LOGIN_CHANNEL_ID
         value: "2011130010"
       - key: LINE_LOGIN_CHANNEL_SECRET
@@ -63,12 +61,6 @@ services:
       - key: S3_SECRET_ACCESS_KEY
         sync: false
       - key: S3_PUBLIC_BASE_URL
-        sync: false
-      - key: TWILIO_ACCOUNT_SID
-        sync: false
-      - key: TWILIO_AUTH_TOKEN
-        sync: false
-      - key: TWILIO_VERIFY_SERVICE_SID
         sync: false
       - key: RESEND_API_KEY
         sync: false

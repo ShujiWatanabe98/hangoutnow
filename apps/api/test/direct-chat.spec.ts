@@ -10,8 +10,8 @@ function service(options: { mutualFiveStar: boolean; blocked?: boolean }) {
     userOneId: '019ffb00-0000-7000-8000-000000000010',
     userTwoId: '019ffb00-0000-7000-8000-000000000020',
     createdAt: new Date(), updatedAt: new Date(), messages: [],
-    userOne: { id: '019ffb00-0000-7000-8000-000000000010', displayName: 'A', profilePhoto: null, verification: 'PHONE_VERIFIED' },
-    userTwo: { id: '019ffb00-0000-7000-8000-000000000020', displayName: 'B', profilePhoto: null, verification: 'PHONE_VERIFIED' },
+userOne: { id: '019ffb00-0000-7000-8000-000000000010', displayName: 'A', profilePhoto: null, verification: 'VERIFIED' },
+    userTwo: { id: '019ffb00-0000-7000-8000-000000000020', displayName: 'B', profilePhoto: null, verification: 'VERIFIED' },
   };
   const database = {
     block: { findFirst: vi.fn().mockResolvedValue(options.blocked ? { id: 'blocked' } : null) },

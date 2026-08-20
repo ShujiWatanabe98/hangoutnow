@@ -18,7 +18,7 @@ Hangout Now starts with approximately 100 registered users and prioritizes a low
 
 ### Expected infrastructure cost
 
-Render stated in July 2026 that an always-on Starter web service plus Basic-256mb PostgreSQL on Hobby typically costs about USD 13/month before bandwidth and storage growth. Exchange rates, taxes, object storage, SMS, bandwidth and build overages are separate. Therefore JPY 2,000–3,000 is a target and budget guardrail, not a guaranteed invoice.
+Render stated in July 2026 that an always-on Starter web service plus Basic-256mb PostgreSQL on Hobby typically costs about USD 13/month before bandwidth and storage growth. Exchange rates, taxes, object storage, bandwidth and build overages are separate. Therefore JPY 2,000–3,000 is a target and budget guardrail, not a guaranteed invoice.
 
 Sources checked 2026-08-13:
 

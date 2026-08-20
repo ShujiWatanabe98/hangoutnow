@@ -102,14 +102,14 @@ hangoutnow/
 4. **Chat**: 承認者だけが活動の `chat-rooms` を読書きできる。終了済み Hangout で相互に 5 点評価済みの組み合わせのみ `direct-chats` を作成できる。
 5. **Hangout**: 主催者が `start`、その後 `finish` を実行する。終了後は参加者評価と履歴表示を行う。
 
-モバイルは `home`、`map`、`create`、`detail`、`phone`、`chat`、`rating`、`profile`、`notifications` の 9 画面を `apps/mobile/src/App.tsx` で保持する。主催者とゲストのデモログインもこのアプリ側で扱う。
+モバイルは `home`、`map`、`create`、`detail`、`chat`、`rating`、`profile`、`notifications` の 8 画面を `apps/mobile/src/App.tsx` で保持する。主催者とゲストのデモログインもこのアプリ側で扱う。
 
 ## 5. API とドメイン境界
 
 ### 認証・利用者
 
 - `/auth`: メール登録・ログイン・トークン更新・デモログインに加え、LINE、Google、Apple、X の OAuth 開始/コールバック/引換を提供する。
-- `/users/me`: 自分のプロフィール、主催者ステータス、プロフィール更新・退会、電話番号認証を扱う。
+- `/users/me`: 自分のプロフィール、主催者ステータス、プロフィール更新・退会を扱う。
 - アクセストークンは JWT、リフレッシュトークンはハッシュ化して DB に保存する。全体にレート制限があり、認証の登録・ログインはより厳しい制限を設定する。
 
 ### Hangout と位置情報
@@ -132,7 +132,7 @@ hangoutnow/
 
 | 領域 | 主なモデル | 内容 |
 | --- | --- | --- |
-| 利用者・認証 | `User`、`RefreshToken`、`OAuthIdentity`、`OAuthLoginTicket`、`PhoneVerification` | アカウント、認証連携、電話認証、アカウント状態 |
+| 利用者・認証 | `User`、`RefreshToken`、`OAuthIdentity`、`OAuthLoginTicket` | アカウント、認証連携、アカウント状態 |
 | 活動 | `Hangout`、`JoinRequest`、`HangoutHeart`、`HangoutRating` | 活動、申請/出欠、保存、実施後評価 |
 | 会話 | `ChatRoom`、`Message`、`DirectChat`、`DirectMessage` | 活動内および条件付き 1:1 のメッセージ |
 | 信頼・安全 | `Block`、`Report`、`ModerationAction`、`UserStamp` | 相互非表示、通報と運営履歴、信頼表示 |
@@ -154,7 +154,7 @@ hangoutnow/
 
 - `render.yaml` は `hangoutnow-api`（Docker、Starter）と `hangoutnow-demo`（Node、Free）を定義する。
 - API は `GET /health` を health check に用い、CORS は `method-more.com` とデモのオリジンを許可する。
-- 本番 DB、OAuth secret、S3、Twilio、Resend の秘匿値は Render 側で手動設定する。リポジトリや `.env.example` に実値を置かない。
+- 本番 DB、OAuth secret、S3、Resend の秘匿値は Render 側で手動設定する。リポジトリや `.env.example` に実値を置かない。
 
 ## 8. テストが守る代表ルール
 

@@ -22,7 +22,7 @@ services:
       DATABASE_URL: postgresql://hangout:hangout@postgres:5432/hangoutnow?schema=public
       JWT_ACCESS_SECRET: local-demo-secret-change-before-deployment
       ADMIN_API_TOKEN: local-admin-demo-token-change-me
-      PHONE_CODE_SECRET: local-phone-code-secret-change-me
+      DEMO_MODE: "true"
       PORT: 3000
     command: ["sh", "-c", "npx prisma migrate deploy --schema apps/api/prisma/schema.prisma && node apps/api/dist/src/main.js"]
     ports:

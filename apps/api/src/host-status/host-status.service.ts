@@ -54,7 +54,7 @@ export function calculateHostStatus(input: HostStatusInput): HostStatus {
   const recentAverageRating = recentRatings.length ? Number((recentRatings.reduce((sum, rating) => sum + rating.score, 0) / recentRatings.length).toFixed(1)) : null;
   const decided = input.completedHangouts + input.cancelledHangouts;
   const cancellationRate = decided ? Number((input.cancelledHangouts / decided).toFixed(3)) : 0;
-  const trusted = input.verification === VerificationStatus.PHONE_VERIFIED && input.resolvedReports === 0;
+  const trusted = input.verification === VerificationStatus.VERIFIED && input.resolvedReports === 0;
   const level = trusted ? LEVELS.find((candidate) => input.completedHangouts >= candidate.completed && input.totalParticipants >= candidate.participants && ratingCount >= candidate.ratings && (averageRating ?? 0) >= candidate.average && (recentAverageRating ?? 0) >= candidate.recent && cancellationRate <= candidate.maxCancellation) : undefined;
   const tier: HostTier = level?.tier ?? 'WHITE';
   const ascending: HostTier[] = ['WHITE', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'DIAMOND'];

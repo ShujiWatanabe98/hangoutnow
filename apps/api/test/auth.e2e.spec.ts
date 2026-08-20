@@ -9,21 +9,18 @@ import { AccessTokenGuard } from '../src/auth/access-token.guard';
 import { AuthController, UsersController } from '../src/auth/auth.controller';
 import { HostStatusService } from '../src/host-status/host-status.service';
 import { AuthService } from '../src/auth/auth.service';
-import { AuthRepository, StoredOAuthLoginTicket, StoredPhoneVerification, StoredRefreshToken, StoredUser } from '../src/auth/auth.types';
-import { SmsVerificationProvider } from '../src/auth/sms-verification.provider';
+import { AuthRepository, StoredOAuthLoginTicket, StoredRefreshToken, StoredUser } from '../src/auth/auth.types';
 import { ImageStorageService } from '../src/storage/image-storage.service';
 
 class MemoryAuthRepository extends AuthRepository {
   private users: StoredUser[] = [];
   private tokens: StoredRefreshToken[] = [];
-  private phoneCodes: StoredPhoneVerification[] = [];
   private oauthTickets: StoredOAuthLoginTicket[] = [];
   private oauthIdentities: Array<{provider:string;subject:string;userId:string}> = [];
   async findUserByEmail(email: string) { return this.users.find((user) => user.email === email) ?? null; }
   async findUserById(id: string) { return this.users.find((user) => user.id === id) ?? null; }
-  async findUserByPhone(phone:string){return this.users.find((user)=>user.phoneNumber===phone)??null}
   async createUser(input: { email: string; passwordHash: string; displayName: string; birthDate: Date | null; gender?: string }) {
-    const user: StoredUser = { id: `user-${this.users.length + 1}`, ...input, birthDate: input.birthDate?.toISOString().slice(0, 10) ?? null, gender: input.gender??null, bio: null, homeArea: null, preferredAreas: [], preferredActivities: [], preferredAgeMin: null, preferredAgeMax: null, preferredGenders: [], activityTimeSlots: [], matchingDataConsent: false, participationUrgency: null, maxTravelMinutes: null, preferredGroupSizes: [], budgetMin: null, budgetMax: null, socialStyles: [], participationGoals: [], firstTimePreferences: [], alcoholPreference: null, smokingPreference: null, avoidPreferences: [], scheduleFlexibility: [], behaviorLearningEnabled: false, preferredLanguages: [], interests: [], verificationStatus: 'UNVERIFIED', profilePhoto: null, profilePhotos: [], phoneNumber: null };
+    const user: StoredUser = { id: `user-${this.users.length + 1}`, ...input, birthDate: input.birthDate?.toISOString().slice(0, 10) ?? null, gender: input.gender??null, bio: null, homeArea: null, preferredAreas: [], preferredActivities: [], preferredAgeMin: null, preferredAgeMax: null, preferredGenders: [], activityTimeSlots: [], matchingDataConsent: false, participationUrgency: null, maxTravelMinutes: null, preferredGroupSizes: [], budgetMin: null, budgetMax: null, socialStyles: [], participationGoals: [], firstTimePreferences: [], alcoholPreference: null, smokingPreference: null, avoidPreferences: [], scheduleFlexibility: [], behaviorLearningEnabled: false, preferredLanguages: [], interests: [], verificationStatus: 'UNVERIFIED', profilePhoto: null, profilePhotos: [] };
     this.users.push(user); return user;
   }
   async updateProfile(userId: string, input: { displayName?: string; bio?: string | null; homeArea?: string | null; interests?: string[]; profilePhoto?: string | null; profilePhotos?: string[]; gender?: string; preferredAreas?: string[]; preferredActivities?: string[]; preferredAgeMin?: number | null; preferredAgeMax?: number | null; preferredGenders?: string[]; activityTimeSlots?: string[]; matchingDataConsent?: boolean; participationUrgency?: string | null; maxTravelMinutes?: number | null; preferredGroupSizes?: number[]; budgetMin?: number | null; budgetMax?: number | null }) {
@@ -32,13 +29,7 @@ class MemoryAuthRepository extends AuthRepository {
   async saveRefreshToken(token: StoredRefreshToken) { this.tokens.push(token); }
   async findRefreshToken(tokenHash: string) { return this.tokens.find((token) => token.tokenHash === tokenHash) ?? null; }
   async revokeRefreshToken(id: string) { const token = this.tokens.find((item) => item.id === id); if (token) token.revokedAt = new Date(); }
-  async createPhoneVerification(input: StoredPhoneVerification) { this.phoneCodes.push(input); }
-  async findPhoneVerification(userId: string, phone: string) { return [...this.phoneCodes].reverse().find((item) => item.userId === userId && item.phone === phone && !item.usedAt) ?? null; }
-  async failPhoneVerification(id: string) { const item=this.phoneCodes.find((row)=>row.id===id); if(item)item.attempts+=1; }
-  async verifyPhone(userId: string, phone: string, verificationId: string) { const user=await this.findUserById(userId); if(!user)throw new Error(); const row=this.phoneCodes.find((item)=>item.id===verificationId); if(row)row.usedAt=new Date(); user.phoneNumber=phone;user.verificationStatus='PHONE_VERIFIED';return user; }
-  async setVerifiedPhone(userId:string,phone:string){const user=await this.findUserById(userId);if(!user)throw new Error();user.phoneNumber=phone;user.verificationStatus='PHONE_VERIFIED';return user}
-  async phoneVerificationCounts(userId:string,phone:string,requestIp:string,since:Date){const rows=this.phoneCodes.filter(x=>(x.createdAt??new Date())>=since);return{user:rows.filter(x=>x.userId===userId).length,phone:rows.filter(x=>x.phone===phone).length,ip:rows.filter(x=>x.requestIp===requestIp).length}}
-  async deleteUser(userId:string){this.users=this.users.filter((user)=>user.id!==userId);this.tokens=this.tokens.filter((token)=>token.userId!==userId);this.phoneCodes=this.phoneCodes.filter((row)=>row.userId!==userId)}
+  async deleteUser(userId:string){this.users=this.users.filter((user)=>user.id!==userId);this.tokens=this.tokens.filter((token)=>token.userId!==userId)}
   async findOAuthIdentity(provider:string,subject:string){const identity=this.oauthIdentities.find((item)=>item.provider===provider&&item.subject===subject);return identity?this.findUserById(identity.userId):null}
   async createOAuthIdentity(provider:string,subject:string,userId:string){this.oauthIdentities.push({provider,subject,userId})}
   async saveOAuthLoginTicket(input:StoredOAuthLoginTicket){this.oauthTickets.push(input)}
@@ -52,7 +43,7 @@ describe('authentication and profile', () => {
     const moduleRef = await Test.createTestingModule({
       imports: [JwtModule.register({ secret: 'test-secret-that-is-long-enough-for-tests' })],
       controllers: [AuthController, UsersController],
-      providers: [AuthService, AccessTokenGuard, SmsVerificationProvider, ImageStorageService, { provide: HostStatusService, useValue: { forUser: async () => ({ tier: 'BRONZE', label: 'ブロンズ' }) } }, { provide: AuthRepository, useClass: MemoryAuthRepository }],
+      providers: [AuthService, AccessTokenGuard, ImageStorageService, { provide: HostStatusService, useValue: { forUser: async () => ({ tier: 'BRONZE', label: 'ブロンズ' }) } }, { provide: AuthRepository, useClass: MemoryAuthRepository }],
     }).compile();
     const instance = moduleRef.createNestApplication();
     instance.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
@@ -70,6 +61,15 @@ describe('authentication and profile', () => {
     expect(host.body.user.displayName).toBe('サヤカ');
     expect(guest.body.user.displayName).toBe('マドカ');
     await request(app.getHttpServer()).post('/auth/demo-login').send({ role: 'unknown' }).expect(400);
+  });
+
+  it('does not expose phone registration or verification endpoints', async () => {
+    app = await createApp();
+    const registered = await request(app.getHttpServer()).post('/auth/register').send({ email: 'no-phone@example.com', password: 'a-secure-password', displayName: 'No Phone', birthDate: '1990-01-01' }).expect(201);
+    await request(app.getHttpServer()).post('/auth/phone/request').send({ phone: '+819012345678' }).expect(404);
+    await request(app.getHttpServer()).post('/auth/phone/confirm').send({ phone: '+819012345678', code: '123456' }).expect(404);
+    await request(app.getHttpServer()).post('/users/me/phone/request').set('Authorization', `Bearer ${registered.body.accessToken as string}`).send({ phone: '+819012345678' }).expect(404);
+    await request(app.getHttpServer()).post('/users/me/phone/confirm').set('Authorization', `Bearer ${registered.body.accessToken as string}`).send({ phone: '+819012345678', code: '123456' }).expect(404);
   });
 
   it('registers with a verified LINE identity and rejects ticket reuse', async()=>{
@@ -143,70 +143,6 @@ describe('authentication and profile', () => {
     await request(app.getHttpServer()).patch('/users/me').set('Authorization', `Bearer ${registered.body.accessToken as string}`).send({ preferredAgeMin: 17 }).expect(400);
     await request(app.getHttpServer()).patch('/users/me').set('Authorization', `Bearer ${registered.body.accessToken as string}`).send({ budgetMin: 6000, budgetMax: 2000 }).expect(400);
   }, 15_000);
-
-  it('uploads a profile photo and verifies a phone number', async () => {
-    app = await createApp();
-    const registered = await request(app.getHttpServer()).post('/auth/register').send({ email: 'photo@example.com', password: 'a-secure-password', displayName: 'Photo', birthDate: '1990-01-01' }).expect(201);
-    const auth = { Authorization: `Bearer ${registered.body.accessToken as string}` };
-    const photo='data:image/png;base64,iVBORw0KGgo=';
-    await request(app.getHttpServer()).patch('/users/me').set(auth).send({ profilePhoto: photo }).expect(200);
-    const requested=await request(app.getHttpServer()).post('/users/me/phone/request').set(auth).send({phone:'+819012345678'}).expect(201);
-    expect(requested.body.demoCode).toMatch(/^\d{6}$/);
-    const verified=await request(app.getHttpServer()).post('/users/me/phone/confirm').set(auth).send({phone:'+819012345678',code:requested.body.demoCode}).expect(201);
-    expect(verified.body.verificationStatus).toBe('PHONE_VERIFIED');
-    expect(verified.body.profilePhoto).toBe(photo);
-  }, 15_000);
-
-  it('rejects phone code requests in production when Twilio Verify is unavailable', async () => {
-    const previousNodeEnv = process.env.NODE_ENV;
-    const previousTwilioAccountSid = process.env.TWILIO_ACCOUNT_SID;
-    const previousTwilioAuthToken = process.env.TWILIO_AUTH_TOKEN;
-    const previousTwilioVerifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
-    process.env.NODE_ENV = 'production';
-    delete process.env.TWILIO_ACCOUNT_SID;
-    delete process.env.TWILIO_AUTH_TOKEN;
-    delete process.env.TWILIO_VERIFY_SERVICE_SID;
-    try {
-      app = await createApp();
-      const unavailableMessage = 'SMS認証は現在利用できません';
-      await request(app.getHttpServer())
-        .post('/auth/phone/request')
-        .send({ phone: '+819012345680' })
-        .expect(503)
-        .expect(({ body }) => expect(body.message).toBe(unavailableMessage));
-
-      const registered = await request(app.getHttpServer())
-        .post('/auth/register')
-        .send({ email: 'sms-unavailable@example.com', password: 'a-secure-password', displayName: 'SMS Unavailable', birthDate: '1990-01-01' })
-        .expect(201);
-      await request(app.getHttpServer())
-        .post('/users/me/phone/request')
-        .set('Authorization', `Bearer ${registered.body.accessToken as string}`)
-        .send({ phone: '+819012345680' })
-        .expect(503)
-        .expect(({ body }) => expect(body.message).toBe(unavailableMessage));
-    } finally {
-      if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
-      else process.env.NODE_ENV = previousNodeEnv;
-      if (previousTwilioAccountSid === undefined) delete process.env.TWILIO_ACCOUNT_SID;
-      else process.env.TWILIO_ACCOUNT_SID = previousTwilioAccountSid;
-      if (previousTwilioAuthToken === undefined) delete process.env.TWILIO_AUTH_TOKEN;
-      else process.env.TWILIO_AUTH_TOKEN = previousTwilioAuthToken;
-      if (previousTwilioVerifyServiceSid === undefined) delete process.env.TWILIO_VERIFY_SERVICE_SID;
-      else process.env.TWILIO_VERIFY_SERVICE_SID = previousTwilioVerifyServiceSid;
-    }
-  }, 15_000);
-
-  it('creates an account and logs in with a verified phone number',async()=>{
-    app=await createApp();
-    const requested=await request(app.getHttpServer()).post('/auth/phone/request').send({phone:'+819012345679'}).expect(201);
-    const registered=await request(app.getHttpServer()).post('/auth/phone/confirm').send({phone:'+819012345679',challengeToken:requested.body.challengeToken,code:requested.body.demoCode}).expect(200);
-    expect(registered.body.user).toMatchObject({displayName:'電話番号ユーザー',phoneNumber:'+819012345679',verificationStatus:'PHONE_VERIFIED',birthDate:null});
-    const requestedAgain=await request(app.getHttpServer()).post('/auth/phone/request').send({phone:'+819012345679'}).expect(201);
-    const loggedIn=await request(app.getHttpServer()).post('/auth/phone/confirm').send({phone:'+819012345679',challengeToken:requestedAgain.body.challengeToken,code:requestedAgain.body.demoCode}).expect(200);
-    expect(loggedIn.body.user.id).toBe(registered.body.user.id);
-    await request(app.getHttpServer()).post('/auth/phone/confirm').send({phone:'+819012345679',challengeToken:requestedAgain.body.challengeToken,code:requestedAgain.body.demoCode}).expect(401);
-  },15_000);
 
   it('stores up to three profile photos and rejects a fourth', async () => {
     app = await createApp();

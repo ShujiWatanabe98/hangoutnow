@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { FunnelEventType, Gender, HangoutStatus, JoinRequestStatus, ModerationActionType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 export { MATCHING_ALGORITHM_VERSION } from './matching-version';
-import { DEFAULT_MATCHING_WEIGHTS, MatchingWeights } from './matching-version';
+import { DEFAULT_MATCHING_WEIGHTS, MATCHING_ALGORITHM_VERSION, MatchingWeights } from './matching-version';
 import { MatchingAdminService } from './matching-admin.service';
 
 export interface MatchCandidate {
@@ -32,8 +32,11 @@ interface MatchProfile {
   preferredLanguages: string[];
 }
 
-interface BehaviorSignal { category: string; serviceArea: string; strength: number }
+interface BehaviorSignal { category: string; serviceArea: string; strength: number; occurredAt?: Date }
 export interface InteractionSignal { averageRating: number | null; ratingCount: number; completionRate: number | null; conversationParticipationRate: number | null; enforcedSafetyActions: number }
+
+export type MatchPattern = 'ACTIVITY_INTENT' | 'LIFE_RHYTHM' | 'BODY_RHYTHM' | 'DECISION_STYLE' | 'MOBILITY' | 'PARTICIPATION_PACE' | 'SOCIAL_STYLE' | 'TRUST_SAFETY';
+export interface MatchResult { score: number; algorithmVersion: typeof MATCHING_ALGORITHM_VERSION; reasons: string[]; patterns: Partial<Record<MatchPattern, number>> }
 
 const clamp = (value: number) => Math.max(40, Math.min(99, Math.round(value)));
 const normalized = (value: string) => value.trim().toLocaleLowerCase('ja-JP');
@@ -58,9 +61,12 @@ function age(birthDate?: Date | null) {
   return value;
 }
 
-export function calculateMatchScore(profile: MatchProfile, candidate: MatchCandidate, behavior: BehaviorSignal[] = [], now = new Date(), interaction?: InteractionSignal, weights: MatchingWeights = DEFAULT_MATCHING_WEIGHTS) {
-  if (!profile.matchingDataConsent) return 70;
+export function calculateMatchResult(profile: MatchProfile, candidate: MatchCandidate, behavior: BehaviorSignal[] = [], now = new Date(), interaction?: InteractionSignal, weights: MatchingWeights = DEFAULT_MATCHING_WEIGHTS): MatchResult {
+  if (!profile.matchingDataConsent) return { score: 70, algorithmVersion: MATCHING_ALGORITHM_VERSION, reasons: ['開催日時が近い順に表示しています'], patterns: {} };
   let score = weights.baseScore;
+  const patterns: Partial<Record<MatchPattern, number>> = {};
+  const reasons: string[] = [];
+  const add = (pattern: MatchPattern, value: number, reason?: string) => { score += value; patterns[pattern] = (patterns[pattern] ?? 0) + value; if (reason && value > 0) reasons.push(reason); };
   const activityAliases: Record<string, string[]> = {
     FOOD: ['グルメ', '食事', 'ラーメン'], CAFE: ['カフェ', 'コーヒー'], RUNNING: ['ランニング', '運動', 'スポーツ'],
     WALKING: ['散歩', 'ウォーキング'], MOTORCYCLE: ['ツーリング', 'バイク'],
@@ -68,43 +74,52 @@ export function calculateMatchScore(profile: MatchProfile, candidate: MatchCandi
   const searchableActivity = [candidate.category, candidate.title, ...(activityAliases[candidate.category] ?? [])];
   const searchableArea = [candidate.serviceArea, candidate.publicLocationName];
 
-  if (profile.preferredActivities.length) score += includesLoose(profile.preferredActivities, ...searchableActivity) ? weights.activityMatch : weights.activityMiss;
-  if (profile.preferredAreas.length) score += includesLoose(profile.preferredAreas, ...searchableArea) ? weights.areaMatch : weights.areaMiss;
+  if (profile.preferredActivities.length) add('ACTIVITY_INTENT', includesLoose(profile.preferredActivities, ...searchableActivity) ? weights.activityMatch : weights.activityMiss, 'やりたい活動と一致');
+  if (profile.preferredAreas.length) add('MOBILITY', includesLoose(profile.preferredAreas, ...searchableArea) ? weights.areaMatch : weights.areaMiss, '希望エリアと一致');
   if (profile.activityTimeSlots.length) {
     const keys = slotKeys(candidate.startAt);
-    score += includesLoose(profile.activityTimeSlots, ...keys) ? weights.timeMatch : weights.timeMiss;
+    add('BODY_RHYTHM', includesLoose(profile.activityTimeSlots, ...keys) ? weights.timeMatch : weights.timeMiss, '活動しやすい時間帯');
   }
   if (profile.preferredGroupSizes.length) {
     const distance = Math.min(...profile.preferredGroupSizes.map(size => Math.abs(size - candidate.maxParticipants)));
-    score += distance === 0 ? weights.groupMatch : distance <= 2 ? weights.groupMatch * 0.4 : -3;
+    add('PARTICIPATION_PACE', distance === 0 ? weights.groupMatch : distance <= 2 ? weights.groupMatch * 0.4 : -3, '希望するグループ規模');
   }
   const hostAge = age(candidate.host.birthDate);
   if (hostAge !== null && (profile.preferredAgeMin !== null || profile.preferredAgeMax !== null)) {
-    score += (profile.preferredAgeMin === null || hostAge >= profile.preferredAgeMin) && (profile.preferredAgeMax === null || hostAge <= profile.preferredAgeMax) ? weights.ageMatch : weights.ageMiss;
+    add('SOCIAL_STYLE', (profile.preferredAgeMin === null || hostAge >= profile.preferredAgeMin) && (profile.preferredAgeMax === null || hostAge <= profile.preferredAgeMax) ? weights.ageMatch : weights.ageMiss);
   }
-  if (profile.preferredGenders.length && candidate.host.gender) score += profile.preferredGenders.includes(candidate.host.gender) ? 4 : -4;
-  if (profile.socialStyles.length && candidate.host.socialStyles?.length) score += includesLoose(profile.socialStyles, ...candidate.host.socialStyles) ? 3 : 0;
-  if (profile.preferredLanguages.length && candidate.host.preferredLanguages?.length) score += includesLoose(profile.preferredLanguages, ...candidate.host.preferredLanguages) ? weights.languageMatch : -Math.min(2, weights.languageMatch);
+  if (profile.preferredGenders.length && candidate.host.gender) add('SOCIAL_STYLE', profile.preferredGenders.includes(candidate.host.gender) ? 4 : -4);
+  if (profile.socialStyles.length && candidate.host.socialStyles?.length) add('SOCIAL_STYLE', includesLoose(profile.socialStyles, ...candidate.host.socialStyles) ? 3 : 0, '活動スタイルが近い');
+  if (profile.preferredLanguages.length && candidate.host.preferredLanguages?.length) add('SOCIAL_STYLE', includesLoose(profile.preferredLanguages, ...candidate.host.preferredLanguages) ? weights.languageMatch : -Math.min(2, weights.languageMatch), '希望言語と一致');
 
   const hoursAway = Math.max(0, (candidate.startAt.getTime() - now.getTime()) / 3_600_000);
-  if (profile.participationUrgency === 'NOW') score += hoursAway <= 3 ? 7 : -3;
-  else if (profile.participationUrgency === 'TODAY') score += hoursAway <= 24 ? 5 : -2;
-  else if (profile.participationUrgency === 'THIS_WEEK') score += hoursAway <= 24 * 7 ? 4 : -2;
-  else if (profile.participationUrgency === 'WEEKEND') score += [0, 6].includes(candidate.startAt.getDay()) ? 5 : -2;
+  if (profile.participationUrgency === 'NOW') add('LIFE_RHYTHM', hoursAway <= 3 ? 7 : -3, '今すぐ参加しやすい');
+  else if (profile.participationUrgency === 'TODAY') add('LIFE_RHYTHM', hoursAway <= 24 ? 5 : -2, '今日参加しやすい');
+  else if (profile.participationUrgency === 'THIS_WEEK') add('LIFE_RHYTHM', hoursAway <= 24 * 7 ? 4 : -2, '今週の予定に合う');
+  else if (profile.participationUrgency === 'WEEKEND') add('LIFE_RHYTHM', [0, 6].includes(candidate.startAt.getDay()) ? 5 : -2, '週末の予定に合う');
 
   if (profile.behaviorLearningEnabled) {
+    let behaviorScore = 0;
     for (const signal of behavior) {
-      if (normalized(signal.category) === normalized(candidate.category)) score += signal.strength;
-      if (normalized(signal.serviceArea) === normalized(candidate.serviceArea)) score += signal.strength * 0.45;
+      const ageDays = signal.occurredAt ? Math.max(0, (now.getTime() - signal.occurredAt.getTime()) / 86_400_000) : 0;
+      const decay = Math.pow(0.5, ageDays / 30);
+      if (normalized(signal.category) === normalized(candidate.category)) behaviorScore += signal.strength * decay;
+      if (normalized(signal.serviceArea) === normalized(candidate.serviceArea)) behaviorScore += signal.strength * 0.45 * decay;
     }
+    add('DECISION_STYLE', Math.min(8, behaviorScore), '最近の活動傾向に合う');
     if (interaction) {
-      if (interaction.ratingCount >= 3 && interaction.averageRating !== null) score += Math.max(-4, Math.min(4, (interaction.averageRating - 3) * 2));
-      if (interaction.completionRate !== null) score += Math.max(-3, Math.min(3, (interaction.completionRate - 0.7) * 6));
-      if (interaction.conversationParticipationRate !== null) score += Math.max(0, Math.min(2, interaction.conversationParticipationRate * 2));
-      score -= Math.min(weights.safetyPenalty * 2, interaction.enforcedSafetyActions * weights.safetyPenalty);
+      const confidence = Math.min(1, interaction.ratingCount / 10);
+      if (interaction.averageRating !== null) add('TRUST_SAFETY', Math.max(-4, Math.min(4, (interaction.averageRating - 3) * 2)) * confidence);
+      if (interaction.completionRate !== null) add('TRUST_SAFETY', Math.max(-3, Math.min(3, (interaction.completionRate - 0.7) * 6)), '開催実績が安定');
+      if (interaction.conversationParticipationRate !== null) add('TRUST_SAFETY', Math.max(0, Math.min(2, interaction.conversationParticipationRate * 2)));
+      add('TRUST_SAFETY', -Math.min(weights.safetyPenalty * 2, interaction.enforcedSafetyActions * weights.safetyPenalty));
     }
   }
-  return clamp(score);
+  return { score: clamp(score), algorithmVersion: MATCHING_ALGORITHM_VERSION, reasons: [...new Set(reasons)].slice(0, 3), patterns };
+}
+
+export function calculateMatchScore(profile: MatchProfile, candidate: MatchCandidate, behavior: BehaviorSignal[] = [], now = new Date(), interaction?: InteractionSignal, weights: MatchingWeights = DEFAULT_MATCHING_WEIGHTS) {
+  return calculateMatchResult(profile, candidate, behavior, now, interaction, weights).score;
 }
 
 @Injectable()
@@ -112,30 +127,35 @@ export class MatchingService {
   constructor(@Inject(PrismaService) private readonly db: PrismaService, @Inject(MatchingAdminService) private readonly admin: MatchingAdminService) {}
 
   async scoresFor(userId: string, candidates: MatchCandidate[]) {
+    const results = await this.resultsFor(userId, candidates);
+    return new Map([...results].map(([id, result]) => [id, result.score]));
+  }
+
+  async resultsFor(userId: string, candidates: MatchCandidate[]) {
     const profile = await this.db.user.findUnique({ where: { id: userId }, select: {
       preferredAreas: true, preferredActivities: true, preferredAgeMin: true, preferredAgeMax: true,
       preferredGenders: true, activityTimeSlots: true, participationUrgency: true, preferredGroupSizes: true,
       matchingDataConsent: true, behaviorLearningEnabled: true,
       socialStyles: true, preferredLanguages: true,
     }});
-    if (!profile) return new Map<string, number>();
+    if (!profile) return new Map<string, MatchResult>();
     const learningEnabled = profile.matchingDataConsent && profile.behaviorLearningEnabled;
     const [behavior, interactions, weights] = await Promise.all([
       learningEnabled ? this.behaviorSignals(userId) : Promise.resolve([]),
       learningEnabled ? this.interactionSignals(candidates.map(candidate => candidate.hostUserId)) : Promise.resolve(new Map<string, InteractionSignal>()),
       this.admin.activeWeights(),
     ]);
-    return new Map(candidates.map(candidate => [candidate.id, calculateMatchScore(profile, candidate, behavior, new Date(), interactions.get(candidate.hostUserId), weights)]));
+    return new Map(candidates.map(candidate => [candidate.id, calculateMatchResult(profile, candidate, behavior, new Date(), interactions.get(candidate.hostUserId), weights)]));
   }
 
   private async behaviorSignals(userId: string): Promise<BehaviorSignal[]> {
     const [hearted, joined, hosted, viewed] = await Promise.all([
-      this.db.hangout.findMany({ where: { hearts: { some: { userId } } }, select: { category: true, serviceArea: true }, take: 50, orderBy: { updatedAt: 'desc' } }),
-      this.db.hangout.findMany({ where: { joinRequests: { some: { userId, status: JoinRequestStatus.ACCEPTED } } }, select: { category: true, serviceArea: true }, take: 50, orderBy: { updatedAt: 'desc' } }),
-      this.db.hangout.findMany({ where: { hostUserId: userId }, select: { category: true, serviceArea: true }, take: 50, orderBy: { updatedAt: 'desc' } }),
-      this.db.hangout.findMany({ where: { funnelEvents: { some: { userId, eventType: FunnelEventType.HANGOUT_VIEWED } } }, select: { category: true, serviceArea: true }, take: 50, orderBy: { updatedAt: 'desc' } }),
+      this.db.hangout.findMany({ where: { hearts: { some: { userId } } }, select: { category: true, serviceArea: true, updatedAt: true }, take: 50, orderBy: { updatedAt: 'desc' } }),
+      this.db.hangout.findMany({ where: { joinRequests: { some: { userId, status: JoinRequestStatus.ACCEPTED } } }, select: { category: true, serviceArea: true, updatedAt: true }, take: 50, orderBy: { updatedAt: 'desc' } }),
+      this.db.hangout.findMany({ where: { hostUserId: userId }, select: { category: true, serviceArea: true, updatedAt: true }, take: 50, orderBy: { updatedAt: 'desc' } }),
+      this.db.hangout.findMany({ where: { funnelEvents: { some: { userId, eventType: FunnelEventType.HANGOUT_VIEWED } } }, select: { category: true, serviceArea: true, updatedAt: true }, take: 50, orderBy: { updatedAt: 'desc' } }),
     ]);
-    const compact = (rows: Array<{ category: string; serviceArea: string }>, strength: number) => rows.slice(0, 12).map(row => ({ ...row, strength }));
+    const compact = (rows: Array<{ category: string; serviceArea: string; updatedAt: Date }>, strength: number) => rows.slice(0, 12).map(row => ({ category: row.category, serviceArea: row.serviceArea, occurredAt: row.updatedAt, strength }));
     return [...compact(hearted, 0.8), ...compact(joined, 1.5), ...compact(hosted, 1.2), ...compact(viewed, 0.25)];
   }
 
