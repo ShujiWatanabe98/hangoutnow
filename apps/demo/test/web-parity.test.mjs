@@ -171,6 +171,17 @@ test('native home exposes the current production recommendation cards', async ()
   assert.match(application, /class="meta card-public-location"/);
 });
 
+test('native home supports every demo category with separate active and outdoor groups', async () => {
+  const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
+  for (const category of ['FOOD', 'SUSHI', 'YAKINIKU', 'DINNER', 'DRINKING', 'WINE', 'BAR', 'IZAKAYA', 'CAFE', 'SWEETS', 'RUNNING', 'WALKING', 'YOGA', 'CYCLING', 'MOTORCYCLE', 'PICNIC', 'WATERFRONT', 'KARAOKE', 'DARTS', 'GAME', 'MOVIE', 'BOWLING', 'ARCADE', 'ENGLISH', 'SOCIAL', 'SHISHA', 'SAUNA', 'NIGHT_VIEW', 'MUSIC']) {
+    assert.ok(mobile.includes(`${category}: GENERATED_HANGOUT_IMAGE`), `native generated image is missing: ${category}`);
+  }
+  assert.match(mobile, /id: "active", label: "運動", categories: \["RUNNING", "WALKING", "YOGA", "CYCLING"\]/);
+  assert.match(mobile, /id: "outdoor", label: "アウトドア", categories: \["MOTORCYCLE", "PICNIC", "WATERFRONT"\]/);
+  assert.doesNotMatch(mobile, /運動・アウトドア/);
+  assert.match(mobile, /accessibilityLabel="Hangoutの種類を選択"/);
+});
+
 test('web Hangout cards are shorter without removing images or information', async () => {
   const [application, portraits, requests] = await Promise.all([
     readFile(new URL('app.js', publicDirectory), 'utf8'),
@@ -573,9 +584,10 @@ test('native Hangout creation offers every production image preset and native ph
   for (const label of ['カフェ', 'ラーメン', 'ランニング', '飲み会', 'ダーツ', 'バー', 'ごはん', 'カラオケ', '英会話', 'シーシャ', 'スイーツ', '映画']) {
     assert.match(mobile, new RegExp(`label: "${label}"`));
   }
-  for (const asset of ['demo-cafe-hangout.jpg', 'demo-ramen-mami-v3.jpg', 'demo-running-hangout-v2.jpg', 'demo-drinking-hangout-v2.jpg', 'hangout-dartu.jpg', 'hangout-bar.jpg', 'hangout-gohan.jpg', 'hangout-karaoke.jpg', 'hangout-english.jpg', 'hangout-shisha.jpg', 'hangout-sweet.jpg', 'hangout-movie.jpg']) {
-    assert.ok(mobile.includes(asset), `missing production image preset: ${asset}`);
+  for (const group of ['food', 'drink', 'cafe', 'sweets', 'active', 'outdoor', 'play', 'social', 'chill']) {
+    assert.ok(mobile.includes(`GENERATED_HANGOUT_IMAGE("${group}")`), `missing generated image group: ${group}`);
   }
+  for (const category of ['DARTS', 'BAR', 'DINNER', 'KARAOKE', 'ENGLISH', 'SHISHA', 'SWEETS', 'MOVIE']) assert.ok(mobile.includes(`uri: DEFAULT_HANGOUT_IMAGES.${category}`));
   assert.match(mobile, /HANGOUT_IMAGE_PRESETS\.map\(\(preset\)/);
   assert.match(mobile, /企画に近い画像を選んでください/);
   assert.match(mobile, /launchCameraAsync\(pickerOptions\)/);

@@ -14,27 +14,41 @@ import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/dat
 const API_URL = "https://hangoutnow-api.onrender.com";
 const WEBSITE_URL = "https://method-more.com";
 const ACTIVITY_PHOTO_URL = `${WEBSITE_URL}/assets/activity-photos-v1.png`;
+const GENERATED_HANGOUT_IMAGE = (group: string) => `${WEBSITE_URL}/assets/hangout-demo-${group}-2026.webp`;
 const DEFAULT_HANGOUT_IMAGES: Record<string, string> = {
-  CAFE: `${WEBSITE_URL}/assets/demo-cafe-hangout.jpg`,
-  FOOD: `${WEBSITE_URL}/assets/demo-ramen-mami-v3.jpg`,
-  RUNNING: `${WEBSITE_URL}/assets/demo-running-hangout-v2.jpg`,
-  WALKING: `${WEBSITE_URL}/assets/hangout-sanpo.jpg`,
-  MOTORCYCLE: `${WEBSITE_URL}/assets/demo-touring-hangout-v2.jpg`,
-  DRINKING: `${WEBSITE_URL}/assets/demo-drinking-hangout-v2.jpg`,
+  FOOD: GENERATED_HANGOUT_IMAGE("food"), SUSHI: GENERATED_HANGOUT_IMAGE("food"), YAKINIKU: GENERATED_HANGOUT_IMAGE("food"), DINNER: GENERATED_HANGOUT_IMAGE("food"),
+  DRINKING: GENERATED_HANGOUT_IMAGE("drink"), WINE: GENERATED_HANGOUT_IMAGE("drink"), BAR: GENERATED_HANGOUT_IMAGE("drink"), IZAKAYA: GENERATED_HANGOUT_IMAGE("drink"),
+  CAFE: GENERATED_HANGOUT_IMAGE("cafe"), SWEETS: GENERATED_HANGOUT_IMAGE("sweets"),
+  RUNNING: GENERATED_HANGOUT_IMAGE("active"), WALKING: GENERATED_HANGOUT_IMAGE("active"), YOGA: GENERATED_HANGOUT_IMAGE("active"), CYCLING: GENERATED_HANGOUT_IMAGE("active"),
+  MOTORCYCLE: GENERATED_HANGOUT_IMAGE("outdoor"), PICNIC: GENERATED_HANGOUT_IMAGE("outdoor"), WATERFRONT: GENERATED_HANGOUT_IMAGE("outdoor"),
+  KARAOKE: GENERATED_HANGOUT_IMAGE("play"), DARTS: GENERATED_HANGOUT_IMAGE("play"), GAME: GENERATED_HANGOUT_IMAGE("play"), MOVIE: GENERATED_HANGOUT_IMAGE("play"), BOWLING: GENERATED_HANGOUT_IMAGE("play"), ARCADE: GENERATED_HANGOUT_IMAGE("play"),
+  ENGLISH: GENERATED_HANGOUT_IMAGE("social"), SOCIAL: GENERATED_HANGOUT_IMAGE("social"),
+  SHISHA: GENERATED_HANGOUT_IMAGE("chill"), SAUNA: GENERATED_HANGOUT_IMAGE("chill"), NIGHT_VIEW: GENERATED_HANGOUT_IMAGE("chill"), MUSIC: GENERATED_HANGOUT_IMAGE("chill"),
 };
+const HOME_ACTIVITY_GROUPS = [
+  { id: "food", label: "ごはん", categories: ["FOOD", "SUSHI", "YAKINIKU", "DINNER"] },
+  { id: "drink", label: "飲み", categories: ["DRINKING", "WINE", "BAR", "IZAKAYA"] },
+  { id: "cafe", label: "カフェ", categories: ["CAFE"] },
+  { id: "sweets", label: "スイーツ", categories: ["SWEETS"] },
+  { id: "play", label: "遊ぶ", categories: ["KARAOKE", "DARTS", "GAME", "MOVIE", "BOWLING", "ARCADE"] },
+  { id: "social", label: "交流", categories: ["ENGLISH", "SOCIAL"] },
+  { id: "chill", label: "チル", categories: ["SHISHA", "SAUNA", "NIGHT_VIEW", "MUSIC"] },
+  { id: "active", label: "運動", categories: ["RUNNING", "WALKING", "YOGA", "CYCLING"] },
+  { id: "outdoor", label: "アウトドア", categories: ["MOTORCYCLE", "PICNIC", "WATERFRONT"] },
+] as const;
 const HANGOUT_IMAGE_PRESETS = [
   { label: "カフェ", uri: DEFAULT_HANGOUT_IMAGES.CAFE, category: "カフェ", title: "新宿でコーヒー飲もう", description: "初参加歓迎！気軽におしゃべりしながら、おいしいコーヒーを一緒に楽しみましょう。" },
   { label: "ラーメン", uri: DEFAULT_HANGOUT_IMAGES.FOOD, category: "ラーメン", title: "新宿でラーメンを食べよう", description: "話題のラーメンを一緒に楽しみませんか？一人では入りづらい方も気軽にどうぞ！" },
   { label: "ランニング", uri: DEFAULT_HANGOUT_IMAGES.RUNNING, category: "ランニング", title: "新宿を気軽にランニングしよう", description: "会話できるゆっくりペースで走ります。初心者も経験者も一緒に楽しみましょう！" },
   { label: "飲み会", uri: DEFAULT_HANGOUT_IMAGES.DRINKING, category: "飲み会", title: "新宿で気軽に飲もう", description: "仕事帰りに楽しく乾杯しませんか？初参加の方も入りやすい気軽な飲み会です！" },
-  { label: "ダーツ", uri: `${WEBSITE_URL}/assets/hangout-dartu.jpg`, category: "ダーツ", title: "渋谷で気軽にダーツしよう", description: "初心者も経験者も歓迎！気軽にダーツを楽しみながら交流しましょう。" },
-  { label: "バー", uri: `${WEBSITE_URL}/assets/hangout-bar.jpg`, category: "バー", title: "落ち着いたバーで話そう", description: "静かなバーでゆっくり話しながら、楽しい時間を過ごしましょう。" },
-  { label: "ごはん", uri: `${WEBSITE_URL}/assets/hangout-gohan.jpg`, category: "ごはん", title: "新宿で一緒にごはんを食べよう", description: "ひとりでは入りにくいお店へ、みんなで気軽にごはんを食べに行きましょう。" },
-  { label: "カラオケ", uri: `${WEBSITE_URL}/assets/hangout-karaoke.jpg`, category: "カラオケ", title: "新宿でカラオケを楽しもう", description: "歌の上手さは関係なし！好きな曲を歌って、みんなで楽しく盛り上がりましょう。" },
-  { label: "英会話", uri: `${WEBSITE_URL}/assets/hangout-english.jpg`, category: "英会話", title: "初心者向け英会話カフェ", description: "間違えても大丈夫。カフェで気軽に英会話を練習しながら交流しましょう。" },
-  { label: "シーシャ", uri: `${WEBSITE_URL}/assets/hangout-shisha.jpg`, category: "シーシャ", title: "ゆったりシーシャを楽しもう", description: "落ち着いた空間でシーシャを楽しみながら、気軽におしゃべりしましょう。" },
-  { label: "スイーツ", uri: `${WEBSITE_URL}/assets/hangout-sweet.jpg`, category: "スイーツ", title: "話題のスイーツを食べに行こう", description: "気になっていたスイーツを一緒に楽しみながら、のんびり交流しましょう。" },
-  { label: "映画", uri: `${WEBSITE_URL}/assets/hangout-movie.jpg`, category: "映画", title: "一緒に映画を観に行こう", description: "気になる映画を一緒に観て、終わったあとは感想を楽しく話しましょう。" },
+  { label: "ダーツ", uri: DEFAULT_HANGOUT_IMAGES.DARTS, category: "ダーツ", title: "渋谷で気軽にダーツしよう", description: "初心者も経験者も歓迎！気軽にダーツを楽しみながら交流しましょう。" },
+  { label: "バー", uri: DEFAULT_HANGOUT_IMAGES.BAR, category: "バー", title: "落ち着いたバーで話そう", description: "静かなバーでゆっくり話しながら、楽しい時間を過ごしましょう。" },
+  { label: "ごはん", uri: DEFAULT_HANGOUT_IMAGES.DINNER, category: "ごはん", title: "新宿で一緒にごはんを食べよう", description: "ひとりでは入りにくいお店へ、みんなで気軽にごはんを食べに行きましょう。" },
+  { label: "カラオケ", uri: DEFAULT_HANGOUT_IMAGES.KARAOKE, category: "カラオケ", title: "新宿でカラオケを楽しもう", description: "歌の上手さは関係なし！好きな曲を歌って、みんなで楽しく盛り上がりましょう。" },
+  { label: "英会話", uri: DEFAULT_HANGOUT_IMAGES.ENGLISH, category: "英会話", title: "初心者向け英会話カフェ", description: "間違えても大丈夫。カフェで気軽に英会話を練習しながら交流しましょう。" },
+  { label: "シーシャ", uri: DEFAULT_HANGOUT_IMAGES.SHISHA, category: "シーシャ", title: "ゆったりシーシャを楽しもう", description: "落ち着いた空間でシーシャを楽しみながら、気軽におしゃべりしましょう。" },
+  { label: "スイーツ", uri: DEFAULT_HANGOUT_IMAGES.SWEETS, category: "スイーツ", title: "話題のスイーツを食べに行こう", description: "気になっていたスイーツを一緒に楽しみながら、のんびり交流しましょう。" },
+  { label: "映画", uri: DEFAULT_HANGOUT_IMAGES.MOVIE, category: "映画", title: "一緒に映画を観に行こう", description: "気になる映画を一緒に観て、終わったあとは感想を楽しく話しましょう。" },
 ] as const;
 const SESSION_KEY = "hangout-now-session";
 const MANUAL_AREA_KEY = "hangout-now-manual-area";
@@ -266,7 +280,7 @@ function stateLabel(hangout: Hangout) {
   return hangout.myJoinStatus === "ACCEPTED" ? "承認済み" : hangout.myJoinStatus === "PENDING" ? "申請中" : hangout.myJoinStatus === "WAITLISTED" ? "待機中" : hangout.status === "FULL" ? "満員" : "募集中";
 }
 function categoryLabel(category: string) {
-  return ({ FOOD: "食事", RUNNING: "ランニング", CAFE: "カフェ", MOTORCYCLE: "ツーリング", WALKING: "散歩" } as Record<string, string>)[category] ?? category;
+  return ({ FOOD: "食事", SUSHI: "寿司", YAKINIKU: "焼肉", DINNER: "夜ごはん", DRINKING: "飲み会", WINE: "ワイン・日本酒", BAR: "バー", IZAKAYA: "居酒屋", CAFE: "カフェ", SWEETS: "スイーツ", RUNNING: "ランニング", WALKING: "散歩", YOGA: "ヨガ", CYCLING: "サイクリング", MOTORCYCLE: "ツーリング", PICNIC: "ピクニック", WATERFRONT: "水辺", KARAOKE: "カラオケ", DARTS: "ダーツ", GAME: "ゲーム", MOVIE: "映画", BOWLING: "ボウリング", ARCADE: "ゲームセンター", ENGLISH: "英会話", SOCIAL: "交流", SHISHA: "シーシャ", SAUNA: "サウナ", NIGHT_VIEW: "夜景", MUSIC: "音楽" } as Record<string, string>)[category] ?? category;
 }
 
 function hangoutImageUrl(hangout: Pick<Hangout, "imageUrl" | "category">) {
@@ -1535,12 +1549,15 @@ function HangoutTimeText({ hangout, style }: { hangout: Pick<Hangout, "status" |
 
 function HomeScreen({ user, hangouts, refreshing, locationLabel, locationSource, selectedArea, demoRole, onArea, onLocation, onMap, onRefresh, onOpen, onHeart, onCreate }: { user: User; hangouts: Hangout[]; refreshing: boolean; locationLabel: string; locationSource: LocationSource; selectedArea: AlphaArea; demoRole: "host" | "guest" | null; onArea: (area: AlphaArea) => void; onLocation: () => void; onMap: () => void; onRefresh: () => void; onOpen: (hangout: Hangout) => void; onHeart: (hangout: Hangout) => void; onCreate: () => void }) {
   const [filter, setFilter] = useState<"おすすめ" | "30分後" | "1時間後" | "3時間後">("おすすめ");
+  const [activityGroup, setActivityGroup] = useState<"all" | (typeof HOME_ACTIVITY_GROUPS)[number]["id"]>("all");
   const homeStateLabel = (hangout: Hangout) => hangout.hostUserId === user.id && ["OPEN", "FULL"].includes(hangout.status) ? "主催中" : stateLabel(hangout);
   const timeLabel = (startAt: string) => {
     const minutes = Math.max(0, Math.round((new Date(startAt).getTime() - Date.now()) / 60000));
     return minutes <= 45 ? "30分後" : minutes <= 90 ? "1時間後" : "3時間後";
   };
-  const visibleHangouts = filter === "おすすめ" ? hangouts : hangouts.filter((hangout) => timeLabel(hangout.startAt) === filter);
+  const selectedActivityGroup = HOME_ACTIVITY_GROUPS.find((group) => group.id === activityGroup);
+  const activityHangouts = selectedActivityGroup ? hangouts.filter((hangout) => (selectedActivityGroup.categories as readonly string[]).includes(hangout.category)) : hangouts;
+  const visibleHangouts = filter === "おすすめ" ? activityHangouts : activityHangouts.filter((hangout) => timeLabel(hangout.startAt) === filter);
   const conditionLabel = (hangout: Hangout) => `${hangout.genderRestriction === "MALE_ONLY" ? "男性のみ" : hangout.genderRestriction === "FEMALE_ONLY" ? "女性のみ" : "だれでも"}${hangout.maxAge ? `・${hangout.maxAge === 29 ? "20代" : hangout.maxAge === 39 ? "30代" : "50代"}まで` : ""}`;
   const chooseHomeArea = () => Alert.alert("エリアを選択", undefined, [
     { text: "新宿", onPress: () => onArea("新宿") },
@@ -1568,8 +1585,12 @@ function HomeScreen({ user, hangouts, refreshing, locationLabel, locationSource,
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
         {(["おすすめ", "30分後", "1時間後", "3時間後"] as const).map((value) => <Pressable key={value} style={[styles.filterPill, filter === value && styles.filterPillOn]} onPress={() => setFilter(value)}><Text style={[styles.filterPillText, filter === value && styles.filterPillTextOn]}>{value}</Text></Pressable>)}
       </ScrollView>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow} accessibilityLabel="Hangoutの種類を選択">
+        <Pressable style={[styles.filterPill, activityGroup === "all" && styles.filterPillOn]} onPress={() => setActivityGroup("all")}><Text style={[styles.filterPillText, activityGroup === "all" && styles.filterPillTextOn]}>すべて</Text></Pressable>
+        {HOME_ACTIVITY_GROUPS.map((group) => <Pressable key={group.id} style={[styles.filterPill, activityGroup === group.id && styles.filterPillOn]} onPress={() => setActivityGroup(group.id)}><Text style={[styles.filterPillText, activityGroup === group.id && styles.filterPillTextOn]}>{group.label}</Text></Pressable>)}
+      </ScrollView>
       <View style={styles.sectionHead}>
-        <Text style={styles.sectionTitle}>近くのHangout</Text>
+        <Text style={styles.sectionTitle}>{selectedActivityGroup?.label ?? "近くのHangout"}</Text>
         <View style={styles.sectionHeadActions}><Text style={styles.muted}>{visibleHangouts.length}件・距離順</Text><Pressable style={styles.homeMapButton} onPress={onMap} accessibilityRole="button" accessibilityLabel="近くのHangoutをマップで表示"><View style={styles.homeMapPin}><View style={styles.homeMapPinCenter} /></View></Pressable></View>
       </View>
       {visibleHangouts.map((hangout) => (
