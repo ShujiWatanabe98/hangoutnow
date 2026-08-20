@@ -28,9 +28,9 @@
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" sizes="180x180">
   <link rel="alternate" type="application/rss+xml" title="Hangout Now お知らせ" href="/feed.xml">
   <title>近くの友達・趣味仲間を活動から探す｜Hangout Now</title>
-  <link rel="stylesheet" href="landing.css?v=20260819-51">
+  <link rel="stylesheet" href="landing.css?v=20260820-52">
   <link rel="stylesheet" href="mobile-apps.css?v=20260817-50">
-  <link rel="stylesheet" href="guides.css">
+  <link rel="stylesheet" href="guides.css?v=20260820-1">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -79,7 +79,7 @@
   <header class="site-header">
     <a class="logo" href="/" aria-label="Hangout Now ホーム">Hangout <i>Now</i></a>
     <nav aria-label="メインナビゲーション">
-      <a href="/about.html">サービス概要</a><a href="/how-it-works.html">使い方</a><a href="/safety.html">安心・安全</a><a href="/faq.html">よくある質問</a><a href="/demo.html">デモを見る</a><a class="nav-cta" href="/app.html">Webアプリを開く</a>
+      <a href="/about.html">サービス概要</a><a href="/how-it-works.html">使い方</a><a href="/safety.html">安心・安全</a><a href="/faq.html">よくある質問</a><a href="/demo.html" data-cta-name="open-demo" data-cta-position="header" data-page-type="homepage">デモを見る</a><a class="nav-cta" href="/app.html" data-cta-name="browse-hangouts" data-cta-position="header" data-page-type="homepage">Webアプリを開く</a>
     </nav>
   </header>
 
@@ -90,10 +90,11 @@
         <h1><span class="hero-title-line">やりたいことから、</span><br><em>つながろう。</em></h1>
         <p class="hero-lead">「今からランニング」「今夜ラーメン」——気分と時間が合う近くの仲間を、アクティビティから見つけるソーシャルアプリ。</p>
         <div class="hero-actions">
-          <a class="button primary" href="/app.html">Hangout Nowを始める</a>
-          <a class="button text-button" href="/demo.html">登録なしでデモを見る <span>→</span></a>
+          <a class="button primary" href="/app.html" data-cta-name="browse-hangouts" data-cta-position="hero" data-page-type="homepage">今夜のHangoutを見る</a>
+          <a class="button text-button" href="/demo.html" data-cta-name="open-demo" data-cta-position="hero" data-page-type="homepage">登録なしで60秒デモ <span>→</span></a>
         </div>
-        <p class="availability"><span></span> Webアプリからアカウントを作成できます</p>
+        <p class="availability"><span></span> Web版を利用できます · 18歳以上 · 正確な集合場所は承認後に表示</p>
+        <a class="host-entry" href="/how-it-works.html#host" data-cta-name="host-guide" data-cta-position="hero" data-page-type="homepage">主催したい方：Hangoutの作り方を見る →</a>
       </div>
 
       <div class="hero-visual" aria-label="Hangout Nowのアクティビティ画面イメージ">
@@ -146,7 +147,7 @@
 
     <section class="guides">
       <div class="guides-heading"><p class="section-label">ACTIVITY GUIDES</p><h2>今日やりたいことから、<br>仲間を探すヒント。</h2><p>地域や活動に合わせた募集例と、安全に参加するためのポイントを紹介します。</p></div>
-      <div class="guide-links"><a href="/shinjuku-drinking-friends.html"><small>新宿 · 飲み</small><b>新宿で飲み仲間を探す</b><span>→</span></a><a href="/shibuya-cafe-friends.html"><small>渋谷 · カフェ</small><b>渋谷でカフェ仲間を探す</b><span>→</span></a><a href="/tokyo-running-friends.html"><small>東京 · ランニング</small><b>東京でランニング仲間を探す</b><span>→</span></a><a href="/find-friends-now.html"><small>今から · 近く</small><b>今から会える仲間を探す</b><span>→</span></a><a href="/hobby-friends-nearby.html"><small>趣味 · 近く</small><b>近くの趣味仲間を探す</b><span>→</span></a></div>
+      <div class="guide-links"><a class="guide-featured" href="/tokyo-working-adult-friends.html" data-guide-name="tokyo-working-adult-friends"><small>東京 · 社会人 · 一人参加</small><b>東京で社会人の友達を、趣味から安全に探す</b><span>→</span></a><a href="/shinjuku-drinking-friends.html" data-guide-name="shinjuku-drinking-friends"><small>新宿 · 飲み</small><b>新宿で飲み仲間を探す</b><span>→</span></a><a href="/shibuya-cafe-friends.html" data-guide-name="shibuya-cafe-friends"><small>渋谷 · カフェ</small><b>渋谷でカフェ仲間を探す</b><span>→</span></a><a href="/tokyo-running-friends.html" data-guide-name="tokyo-running-friends"><small>東京 · ランニング</small><b>東京でランニング仲間を探す</b><span>→</span></a><a href="/find-friends-now.html" data-guide-name="find-friends-now"><small>今から · 近く</small><b>今から会える仲間を探す</b><span>→</span></a><a href="/hobby-friends-nearby.html" data-guide-name="hobby-friends-nearby"><small>趣味 · 近く</small><b>近くの趣味仲間を探す</b><span>→</span></a></div>
     </section>
 
     <section class="ai-matching" aria-labelledby="ai-matching-title">
@@ -164,7 +165,7 @@
     </section>
 
     <section class="newsletter" aria-labelledby="newsletter-title">
-      <div><p class="section-label">STAY UPDATED</p><h2 id="newsletter-title">公開時のお知らせを<br>メールで受け取る。</h2><p>公開情報や重要な安全機能の更新をお届けします。いつでも解除できます。</p></div>
+      <div><p class="section-label">STAY UPDATED</p><h2 id="newsletter-title">新着Hangoutと更新情報を<br>メールで受け取る。</h2><p>新着情報や重要な安全機能の更新をお届けします。いつでも解除できます。</p></div>
       <form id="newsletter-form"><label for="newsletter-email">メールアドレス</label><div class="newsletter-fields"><input id="newsletter-email" name="email" type="email" autocomplete="email" maxlength="254" required placeholder="you@example.com"><button type="submit">更新通知に登録</button></div><label class="newsletter-consent"><input name="consent" type="checkbox" required> <span><a href="/privacy.html">プライバシーポリシー</a>を確認し、更新通知の受信に同意します。</span></label><p id="newsletter-status" class="newsletter-status" role="status" aria-live="polite"></p></form>
     </section>
 
@@ -190,7 +191,7 @@
 
     <section class="closing">
       <div><p class="section-label">READY WHEN YOU ARE</p><h2>次の「やってみたい」を、<br>今日にしよう。</h2></div>
-      <a class="button light" href="/app.html">Hangout Nowを始める <span>→</span></a>
+      <a class="button light" href="/app.html" data-cta-name="browse-hangouts" data-cta-position="closing" data-page-type="homepage">Hangout Nowを始める <span>→</span></a>
     </section>
   </main>
 
@@ -199,6 +200,6 @@
     <nav aria-label="フッターナビゲーション"><a href="/about.html">サービス概要</a><a href="/how-it-works.html">使い方</a><a href="/safety.html">安心・安全</a><a href="/faq.html">よくある質問</a><a href="/find-friends-now.html">今から仲間を探す</a><a href="mailto:info@method-more.com">お問い合わせ</a><a href="/privacy.html">プライバシー</a><a href="/terms.html">利用規約</a><a href="/community-guidelines.html">ガイドライン</a><a href="/delete-account.html">アカウント削除</a></nav>
     <p class="copyright">© 2026 methodmore. All rights reserved.</p>
   </footer>
-  <script src="/newsletter.js" defer></script>
+  <script src="/newsletter.js?v=20260820-1" defer></script>
 </body>
 </html>

@@ -6,6 +6,11 @@
   globalThis.gtag('consent', 'default', { analytics_storage: 'denied' });
 
   let analyticsLoaded = false;
+  const sendEvent = (name, parameters = {}) => {
+    if (!analyticsLoaded) return;
+    globalThis.gtag('event', name, parameters);
+  };
+  globalThis.hangoutAnalyticsEvent = sendEvent;
   const trackWebVitals = () => {
     let lcp = 0;
     let cls = 0;
@@ -79,11 +84,23 @@
   document.addEventListener('click', (event) => {
     if (!analyticsLoaded) return;
     const share = event.target.closest('[data-share-network]');
-    if (share) globalThis.gtag('event', 'share', { method: share.dataset.shareNetwork, content_type: 'page', item_id: location.pathname });
+    if (share) sendEvent('share', { method: share.dataset.shareNetwork, content_type: 'page', item_id: location.pathname });
+    const cta = event.target.closest('[data-cta-name]');
+    if (cta) sendEvent('cta_click', {
+      cta_name: cta.dataset.ctaName,
+      position: cta.dataset.ctaPosition || 'content',
+      page_type: cta.dataset.pageType || 'content',
+    });
+    const guide = event.target.closest('[data-guide-name]');
+    if (guide) sendEvent('guide_open', { guide_name: guide.dataset.guideName, page_type: 'homepage' });
     const link = event.target.closest('a');
     if (!link) return;
     const href = link.getAttribute('href') || '';
-    if (href.startsWith('/demo.html')) globalThis.gtag('event', 'demo_open', { link_url: '/demo.html' });
-    if (href.startsWith('mailto:')) globalThis.gtag('event', 'contact_click', { contact_method: 'email' });
+    if (href.startsWith('/demo.html')) sendEvent('demo_open', {
+      link_url: '/demo.html',
+      position: link.dataset.ctaPosition || 'content',
+      page_type: link.dataset.pageType || 'content',
+    });
+    if (href.startsWith('mailto:')) sendEvent('contact_click', { contact_method: 'email' });
   });
 })();

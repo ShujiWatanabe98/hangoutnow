@@ -17,8 +17,9 @@
       const result = await response.json();
       if (!response.ok) throw new Error('登録内容を確認してください。');
       if (result.unsubscribeToken) localStorage.setItem('hangout-now-newsletter-token', result.unsubscribeToken);
-      status.textContent = result.alreadyRegistered ? 'このメールアドレスは登録済みです。' : '登録しました。公開時や重要なお知らせをメールでご案内します。';
+      status.textContent = result.alreadyRegistered ? 'このメールアドレスは登録済みです。' : '登録しました。新着や重要なお知らせをメールでご案内します。';
       status.className = 'newsletter-status success';
+      globalThis.hangoutAnalyticsEvent?.('generate_lead', { lead_type: 'newsletter', form_location: 'homepage' });
       form.reset();
     } catch (error) {
       status.textContent = error instanceof Error ? error.message : '登録できませんでした。時間を置いてお試しください。';
