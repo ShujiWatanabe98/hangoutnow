@@ -158,18 +158,21 @@ test('web discovery groups Hangouts into six-item keyword mosaics', async () => 
   ]);
 
   assert.doesNotMatch(application, /activeFilter|data-filter/);
-  for (const keyword of ['ごはん', '飲み', 'カフェ', 'スイーツ', '運動・アウトドア', '遊ぶ', '交流', 'チル']) {
+  for (const keyword of ['ごはん', '飲み', 'カフェ', 'スイーツ', '運動', 'アウトドア', '遊ぶ', '交流', 'チル']) {
     assert.ok(application.includes(keyword), `keyword section is missing: ${keyword}`);
   }
   assert.doesNotMatch(application, /label:'ごはん・飲み'/);
   assert.doesNotMatch(application, /label:'カフェ・スイーツ'|label:'趣味・交流'/);
+  assert.doesNotMatch(application, /label:'運動・アウトドア'/);
   assert.match(application, /id:'food',label:'ごはん'.+categories:\['FOOD','SUSHI','YAKINIKU','DINNER'\]/);
   assert.match(application, /id:'drink',label:'飲み'.+categories:\['DRINKING','WINE','BAR','IZAKAYA'\]/);
   assert.match(application, /id:'cafe',label:'カフェ'.+categories:\['CAFE'\]/);
   assert.match(application, /id:'sweets',label:'スイーツ'.+categories:\['SWEETS'\]/);
+  assert.match(application, /id:'active',label:'運動'.+categories:\['RUNNING','WALKING','YOGA','CYCLING'\]/);
+  assert.match(application, /id:'outdoor',label:'アウトドア'.+categories:\['MOTORCYCLE','PICNIC','WATERFRONT'\]/);
   assert.match(application, /id:'play',label:'遊ぶ'.+categories:\['KARAOKE','DARTS','GAME','MOVIE','BOWLING','ARCADE'\]/);
   assert.match(application, /id:'social',label:'交流'.+categories:\['ENGLISH','SOCIAL'\]/);
-  assert.match(application, /id:'chill',label:'チル'.+categories:\['SHISHA','PICNIC','SAUNA','NIGHT_VIEW','WATERFRONT','MUSIC'\]/);
+  assert.match(application, /id:'chill',label:'チル'.+categories:\['SHISHA','SAUNA','NIGHT_VIEW','MUSIC'\]/);
   assert.match(application, /items\.slice\(0,6\)\.map\(keywordTile\)/);
   assert.match(application, /<article class="keyword-hangout-tile/);
   assert.match(application, /data-keyword-heart="\$\{safeText\(h\.id\)\}"/);
@@ -194,6 +197,30 @@ test('web discovery groups Hangouts into six-item keyword mosaics', async () => 
   assert.match(requests, /\.keyword-title:active \.keyword-view-all\{transform:scale\(\.96\)/);
   for (const demoTitle of ['古民家カフェでのんびり', 'テラスカフェで朝活', '夜カフェでゆっくり話そう', 'ふわふわパンケーキを食べよう', 'アフタヌーンティーで交流', '和菓子を少しずつ楽しむ会', '季節のジェラート巡り', 'みんなでボウリング', 'ゲームセンターで遊ぼう', '20代・30代のゆる交流会', 'ひとり参加歓迎のおしゃべり会', '読書好きの交流会', 'カメラ好きで集まろう', '地方出身者の交流会', '公園でゆるくピクニック', 'サウナでととのう会', '夜景を眺めながらのんびり', '川沿いで夕涼み', '音楽を聴きながらまったり']) {
     assert.ok(seed.includes(demoTitle), `demo Hangout is missing: ${demoTitle}`);
+  }
+});
+
+test('public demo seeds every Hangout category with generated activity photography', async () => {
+  const seed = await readFile(new URL('../../../scripts/seed-public-demo.mjs', import.meta.url), 'utf8');
+  const categories = [
+    'FOOD', 'SUSHI', 'YAKINIKU', 'DINNER',
+    'DRINKING', 'WINE', 'BAR', 'IZAKAYA',
+    'CAFE', 'SWEETS',
+    'RUNNING', 'WALKING', 'YOGA', 'CYCLING',
+    'MOTORCYCLE', 'PICNIC', 'WATERFRONT',
+    'KARAOKE', 'DARTS', 'GAME', 'MOVIE', 'BOWLING', 'ARCADE',
+    'ENGLISH', 'SOCIAL',
+    'SHISHA', 'SAUNA', 'NIGHT_VIEW', 'MUSIC',
+  ];
+  const groups = ['food', 'drink', 'cafe', 'sweets', 'active', 'outdoor', 'play', 'social', 'chill'];
+
+  for (const category of categories) {
+    assert.match(seed, new RegExp(`\\b${category}: generatedDemoPhoto\\('`), `generated photo mapping is missing: ${category}`);
+    assert.match(seed, new RegExp(`category: '${category}'|,'${category}','(?:SHINJUKU|SHIBUYA)'`), `demo Hangout is missing: ${category}`);
+  }
+  for (const group of groups) {
+    const photo = await readFile(new URL(`assets/hangout-demo-${group}-2026.webp`, publicDirectory));
+    assert.ok(photo.byteLength > 50_000, `generated demo photo is unexpectedly small: ${group}`);
   }
 });
 

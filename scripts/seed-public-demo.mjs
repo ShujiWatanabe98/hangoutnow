@@ -17,36 +17,37 @@ const masayaPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo
 const kentaPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-host-profile.jpg', import.meta.url)).toString('base64')}`;
 const aoiPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-guest-profile.jpg', import.meta.url)).toString('base64')}`;
 const hangoutPhoto = (name) => `data:image/jpeg;base64,${readFileSync(new URL(`../apps/demo/public/assets/${name}`, import.meta.url)).toString('base64')}`;
-const ramenPhoto = hangoutPhoto('hangout-ramen.jpg');
-const runningPhoto = `data:image/jpeg;base64,${readFileSync(new URL('../apps/demo/public/assets/demo-running-hangout-v2.jpg', import.meta.url)).toString('base64')}`;
-const cafePhoto = hangoutPhoto('hangout-coffee.jpg');
-const touringPhoto = hangoutPhoto('hangout-bike.jpg');
-const drinkingPhoto = hangoutPhoto('hangout-nomikai.jpg');
+const generatedDemoPhoto = (group) => hangoutPhoto(`hangout-demo-${group}-2026.webp`);
 const imageByCategory = {
-  FOOD: ramenPhoto,
-  DRINKING: drinkingPhoto,
-  WINE: hangoutPhoto('hangout-bar.jpg'),
-  CAFE: cafePhoto,
-  BAR: hangoutPhoto('hangout-bar.jpg'),
-  IZAKAYA: drinkingPhoto,
-  YAKINIKU: hangoutPhoto('hangout-yakiniku.jpg'),
-  SWEETS: hangoutPhoto('hangout-sweet.jpg'),
-  DARTS: hangoutPhoto('hangout-dartu.jpg'),
-  GAME: hangoutPhoto('hangout-boardgame.jpg'),
-  SHISHA: hangoutPhoto('hangout-si-sha.jpg'),
-  ENGLISH: hangoutPhoto('hangout-english.jpg'),
-  DINNER: hangoutPhoto('hangout-gohan.jpg'),
-  WALKING: hangoutPhoto('hangout-sanpo.jpg'),
-  YOGA: runningPhoto,
-  CYCLING: touringPhoto,
-  BOWLING: hangoutPhoto('hangout-dartu.jpg'),
-  ARCADE: hangoutPhoto('hangout-boardgame.jpg'),
-  SOCIAL: hangoutPhoto('hangout-english.jpg'),
-  PICNIC: hangoutPhoto('hangout-sanpo.jpg'),
-  SAUNA: hangoutPhoto('hangout-movie.jpg'),
-  NIGHT_VIEW: hangoutPhoto('hangout-movie.jpg'),
-  WATERFRONT: hangoutPhoto('hangout-sanpo.jpg'),
-  MUSIC: hangoutPhoto('hangout-movie.jpg'),
+  FOOD: generatedDemoPhoto('food'),
+  SUSHI: generatedDemoPhoto('food'),
+  YAKINIKU: generatedDemoPhoto('food'),
+  DINNER: generatedDemoPhoto('food'),
+  DRINKING: generatedDemoPhoto('drink'),
+  WINE: generatedDemoPhoto('drink'),
+  BAR: generatedDemoPhoto('drink'),
+  IZAKAYA: generatedDemoPhoto('drink'),
+  CAFE: generatedDemoPhoto('cafe'),
+  SWEETS: generatedDemoPhoto('sweets'),
+  RUNNING: generatedDemoPhoto('active'),
+  WALKING: generatedDemoPhoto('active'),
+  YOGA: generatedDemoPhoto('active'),
+  CYCLING: generatedDemoPhoto('active'),
+  MOTORCYCLE: generatedDemoPhoto('outdoor'),
+  PICNIC: generatedDemoPhoto('outdoor'),
+  WATERFRONT: generatedDemoPhoto('outdoor'),
+  KARAOKE: generatedDemoPhoto('play'),
+  DARTS: generatedDemoPhoto('play'),
+  GAME: generatedDemoPhoto('play'),
+  MOVIE: generatedDemoPhoto('play'),
+  BOWLING: generatedDemoPhoto('play'),
+  ARCADE: generatedDemoPhoto('play'),
+  ENGLISH: generatedDemoPhoto('social'),
+  SOCIAL: generatedDemoPhoto('social'),
+  SHISHA: generatedDemoPhoto('chill'),
+  SAUNA: generatedDemoPhoto('chill'),
+  NIGHT_VIEW: generatedDemoPhoto('chill'),
+  MUSIC: generatedDemoPhoto('chill'),
 };
 
 const accounts = {
@@ -268,7 +269,7 @@ const samples = [
   {
     organizer: 'host',
     title: 'サヤカと新宿で気軽に飲もう',
-    imageUrl: drinkingPhoto,
+    imageUrl: imageByCategory.DRINKING,
     description: '仕事帰りに気軽に乾杯する、公開デモ用の架空の飲み会です。初参加も歓迎します。',
     category: 'DRINKING', serviceArea: 'SHINJUKU', startInMinutes: 60, publicLocationName: '新宿駅東口周辺（デモ）', locationName: 'デモ居酒屋 新宿店 東京都新宿区新宿3-1-1',
     latitude: 35.6901, longitude: 139.7005, maxParticipants: 4, genderRestriction: 'ANY', maxAge: 39,
@@ -276,7 +277,7 @@ const samples = [
   {
     organizer: 'aoi',
     title: '代々木公園をゆっくりランニング',
-    imageUrl: runningPhoto,
+    imageUrl: imageByCategory.RUNNING,
     description: '会話できるペースで約5km走ります。初心者も歓迎する架空の募集です。',
     category: 'RUNNING', serviceArea: 'SHINJUKU', startInMinutes: 60, publicLocationName: '代々木公園周辺（デモ）', locationName: '代々木公園 原宿門 東京都渋谷区代々木神園町2-1',
     latitude: 35.6717, longitude: 139.6949, maxParticipants: 6, genderRestriction: 'FEMALE_ONLY', maxAge: 39,
@@ -284,7 +285,7 @@ const samples = [
   {
     organizer: 'host',
     title: '新宿で話題のラーメンを食べよう',
-    imageUrl: ramenPhoto,
+    imageUrl: imageByCategory.FOOD,
     description: '気になっていたラーメン店へ一緒に行く、公開デモ用の架空募集です。',
     category: 'FOOD', serviceArea: 'SHINJUKU', startInMinutes: 30, publicLocationName: '新宿駅東口周辺（デモ）', locationName: 'デモラーメン新宿店 東京都新宿区歌舞伎町1-2-3',
     latitude: 35.6920, longitude: 139.7038, maxParticipants: 4, genderRestriction: 'MALE_ONLY', maxAge: 59,
@@ -292,7 +293,7 @@ const samples = [
   {
     organizer: 'host',
     title: '夕方のショートツーリング',
-    imageUrl: touringPhoto,
+    imageUrl: imageByCategory.MOTORCYCLE,
     description: '安全第一で景色を楽しむ、公開デモ用の架空ツーリング募集です。',
     category: 'MOTORCYCLE', serviceArea: 'SHIBUYA', startInMinutes: 180, publicLocationName: '渋谷駅周辺（デモ）', locationName: '渋谷区立宮下公園 東京都渋谷区神宮前6-20-10',
     latitude: 35.6437, longitude: 139.6816, maxParticipants: 5, genderRestriction: 'ANY', maxAge: 59,
@@ -300,7 +301,7 @@ const samples = [
   {
     organizer: 'kenta',
     title: '渋谷のカフェでまったりしよう',
-    imageUrl: cafePhoto,
+    imageUrl: imageByCategory.CAFE,
     description: '落ち着いたカフェでコーヒーを飲みながら、ゆっくり話す公開デモ用の架空募集です。',
     category: 'CAFE', serviceArea: 'SHIBUYA', startInMinutes: 60, publicLocationName: '渋谷駅周辺（デモ）', locationName: 'デモカフェ渋谷店 東京都渋谷区渋谷1-26-5',
     latitude: 35.6580, longitude: 139.7016, maxParticipants: 5, genderRestriction: 'ANY',

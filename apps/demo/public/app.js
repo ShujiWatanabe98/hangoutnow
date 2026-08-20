@@ -24,10 +24,11 @@ const HANGOUT_KEYWORD_GROUPS=[
   {id:'drink',label:'飲み',description:'仕事帰りの一杯を一緒に楽しもう',categories:['DRINKING','WINE','BAR','IZAKAYA']},
   {id:'cafe',label:'カフェ',description:'コーヒーを飲みながらゆっくり話そう',categories:['CAFE']},
   {id:'sweets',label:'スイーツ',description:'甘いものを囲んで気軽に集まろう',categories:['SWEETS']},
-  {id:'active-outdoor',label:'運動・アウトドア',description:'体を動かして自然に仲良くなろう',categories:['RUNNING','WALKING','MOTORCYCLE','YOGA','CYCLING']},
+  {id:'active',label:'運動',description:'一緒に体を動かして自然に仲良くなろう',categories:['RUNNING','WALKING','YOGA','CYCLING']},
+  {id:'outdoor',label:'アウトドア',description:'外の空気を楽しみながら気軽に集まろう',categories:['MOTORCYCLE','PICNIC','WATERFRONT']},
   {id:'play',label:'遊ぶ',description:'ゲームやカラオケで一緒に楽しもう',categories:['KARAOKE','DARTS','GAME','MOVIE','BOWLING','ARCADE']},
   {id:'social',label:'交流',description:'初参加でも話しやすい仲間を見つけよう',categories:['ENGLISH','SOCIAL']},
-  {id:'chill',label:'チル',description:'急がずゆっくり同じ時間を過ごそう',categories:['SHISHA','PICNIC','SAUNA','NIGHT_VIEW','WATERFRONT','MUSIC']},
+  {id:'chill',label:'チル',description:'急がずゆっくり同じ時間を過ごそう',categories:['SHISHA','SAUNA','NIGHT_VIEW','MUSIC']},
 ];
 const MATCH_AREA_OPTIONS=['新宿','渋谷','池袋','東京','品川','上野','横浜'];
 const MATCH_TIME_OPTIONS=['朝','昼','夕方','夜','深夜'];
