@@ -1,16 +1,17 @@
 (() => {
-  const shareable = /^\/(news(?:-[a-z-]+)?|shinjuku-drinking-friends|shibuya-cafe-friends|tokyo-running-friends|find-friends-now|hobby-friends-nearby|tokyo-working-adult-friends)\.html$/.test(location.pathname);
+  const shareable = /^\/(news(?:-[a-z-]+)?|shinjuku-drinking-friends|shibuya-cafe-friends|tokyo-running-friends|find-friends-now|hobby-friends-nearby|shinjuku-working-adult-friends)\.html$/.test(location.pathname);
   if (!shareable) return;
   const main = document.querySelector('main');
   const canonical = document.querySelector('link[rel="canonical"]')?.href || location.href;
   const title = document.querySelector('meta[property="og:title"]')?.content || document.title;
+  const campaign = location.pathname.startsWith('/shinjuku-') ? 'shinjuku-launch-202609' : 'page-share-202608';
   if (!main) return;
   const trackedUrl = (network) => {
     const url = new URL(canonical);
     url.searchParams.set('utm_source', network);
     url.searchParams.set('utm_medium', 'organic-social');
-    url.searchParams.set('utm_campaign', 'tokyo-launch-202609');
-    url.searchParams.set('utm_id', 'tokyo-launch-202609');
+    url.searchParams.set('utm_campaign', campaign);
+    url.searchParams.set('utm_id', campaign);
     url.searchParams.set('utm_source_platform', network);
     url.searchParams.set('utm_content', location.pathname.replace(/^\//, '').replace(/\.html$/, ''));
     return url.toString();

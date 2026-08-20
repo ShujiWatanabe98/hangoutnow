@@ -67,10 +67,10 @@ test('homepage exposes useful search metadata without keyword stuffing', async (
   assert.match(homepage, /<link rel="canonical" href="https:\/\/method-more\.com\/">/);
 });
 
-test('homepage targets Tokyo solo participants with measurable acquisition links', async () => {
+test('homepage targets Shinjuku solo participants with measurable acquisition links', async () => {
   const [homepage, guide, sitemap, analytics, newsletter, share, server] = await Promise.all([
     readFile(new URL('../public/index.html', import.meta.url), 'utf8'),
-    readFile(new URL('../public/tokyo-working-adult-friends.html', import.meta.url), 'utf8'),
+    readFile(new URL('../public/shinjuku-working-adult-friends.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/sitemap.xml', import.meta.url), 'utf8'),
     readFile(new URL('../public/analytics.js', import.meta.url), 'utf8'),
     readFile(new URL('../public/newsletter.js', import.meta.url), 'utf8'),
@@ -78,30 +78,32 @@ test('homepage targets Tokyo solo participants with measurable acquisition links
     readFile(new URL('../server.mjs', import.meta.url), 'utf8'),
   ]);
 
-  for (const copy of ['今夜のHangoutを見る', '登録なしで60秒デモ', '18歳以上', '東京で社会人の友達を、趣味から安全に探す']) {
+  for (const copy of ['今夜のHangoutを見る', '登録なしで60秒デモ', '18歳以上', '新宿で社会人の友達を、趣味から安全に探す']) {
     assert.ok(homepage.includes(copy), `target acquisition copy is missing: ${copy}`);
   }
   assert.match(homepage, /data-cta-name="browse-hangouts" data-cta-position="hero" data-page-type="homepage"/);
   assert.match(homepage, /href="\/how-it-works\.html#host" data-cta-name="host-guide"/);
-  assert.match(homepage, /href="\/tokyo-working-adult-friends\.html" data-guide-name="tokyo-working-adult-friends"/);
+  assert.match(homepage, /href="\/shinjuku-working-adult-friends\.html" data-guide-name="shinjuku-working-adult-friends"/);
 
   for (const contract of ['一人参加しやすい活動の選び方', '参加を決める前の確認リスト', '公共の場所で合流', 'AIマッチングは成立を保証するものではなく', '執筆：Hangout Now運営']) {
     assert.ok(guide.includes(contract), `working-adult guide is missing: ${contract}`);
   }
-  assert.match(guide, /<link rel="canonical" href="https:\/\/method-more\.com\/tokyo-working-adult-friends\.html">/);
+  assert.match(guide, /<link rel="canonical" href="https:\/\/method-more\.com\/shinjuku-working-adult-friends\.html">/);
   assert.match(guide, /"@type": "Article"/);
   assert.match(guide, /"@type": "BreadcrumbList"/);
-  assert.match(sitemap, /https:\/\/method-more\.com\/tokyo-working-adult-friends\.html/);
+  assert.match(sitemap, /https:\/\/method-more\.com\/shinjuku-working-adult-friends\.html/);
 
   for (const eventName of ['cta_click', 'guide_open', 'demo_open']) assert.ok(analytics.includes(`'${eventName}'`), `analytics event is missing: ${eventName}`);
   assert.match(analytics, /cta_name: cta\.dataset\.ctaName/);
   assert.match(newsletter, /hangoutAnalyticsEvent\?\.\('generate_lead', \{ lead_type: 'newsletter'/);
-  for (const campaignPart of ["utm_medium', 'organic-social'", "utm_campaign', 'tokyo-launch-202609'", "utm_id', 'tokyo-launch-202609'", "utm_source_platform", "utm_content"]) {
+  for (const campaignPart of ["'shinjuku-launch-202609'", "utm_medium', 'organic-social'", "utm_campaign', campaign", "utm_id', campaign", "utm_source_platform", "utm_content"]) {
     assert.ok(share.includes(campaignPart), `share attribution is missing: ${campaignPart}`);
   }
-  assert.match(share, /tokyo-working-adult-friends/);
+  assert.match(share, /shinjuku-working-adult-friends/);
   assert.match(server, /analytics\.js\?v=20260820-1/);
   assert.match(server, /share\.js\?v=20260820-1/);
+  assert.match(server, /requestedPath === '\/tokyo-working-adult-friends\.html'/);
+  assert.match(server, /location: '\/shinjuku-working-adult-friends\.html'/);
 });
 
 test('public server sends browser security headers', async () => {

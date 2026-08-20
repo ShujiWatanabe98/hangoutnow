@@ -12,11 +12,11 @@
 
 ## 最初の対象者
 
-1. 東京在住の23〜34歳の社会人。仕事帰りや休日に30〜120分の空き時間があり、食事、カフェ、ランニング、散歩などへ一人で参加したい人
-2. 上京、転勤、進学後に、恋愛相手を先に選ぶのではなく共通の趣味から友達を探したい22〜39歳の人
-3. カフェ、ランニング、語学交流など、少人数の活動を安全に主催したい25〜45歳の人
+1. 新宿周辺で働く、住む、立ち寄る23〜34歳の社会人。仕事帰りや休日に30〜120分の空き時間があり、食事、カフェ、ランニング、散歩などへ一人で参加したい人
+2. 上京、転勤、進学後に、恋愛相手を先に選ぶのではなく新宿の共通の趣味から友達を探したい22〜39歳の人
+3. 新宿でカフェ、ランニング、語学交流など、少人数の活動を安全に主催したい25〜45歳の人
 
-初期エリアとテーマは「渋谷 × カフェ」「新宿 × 食事・飲み」「東京 × ランニング」「今から × 近く」に集中します。実際に参加できるHangoutが不足している時間帯には広告で流入だけを増やしません。
+初期エリアは新宿だけです。「新宿 × 食事」「新宿 × カフェ」「新宿 × 飲み」「新宿 × ランニング・散歩」「新宿 × 今から」に集中します。渋谷や東京全域への展開は、新宿で供給と実参加が安定してから判断します。実際に参加できるHangoutが不足している時間帯には広告で流入だけを増やしません。
 
 ## 伝える価値
 
@@ -35,15 +35,15 @@
 |---|---|
 | `utm_source` | `instagram`, `x`, `line`, `newsletter`, `partner-coworking-a` |
 | `utm_medium` | `organic-social`, `email`, `referral`, `qr`, `paid-social` |
-| `utm_campaign` | `tokyo-launch-202609` |
+| `utm_campaign` | `shinjuku-launch-202609` |
 | `utm_content` | `reel-cafe-01`, `post-safety-02`, `story-running-01` |
-| `utm_id` | `tokyo-launch-202609` |
+| `utm_id` | `shinjuku-launch-202609` |
 | `utm_source_platform` | `instagram`, `x`, `line` |
 
 例:
 
 ```text
-https://method-more.com/shibuya-cafe-friends.html?utm_source=instagram&utm_medium=organic-social&utm_campaign=tokyo-launch-202609&utm_content=reel-cafe-01&utm_id=tokyo-launch-202609&utm_source_platform=instagram
+https://method-more.com/shinjuku-working-adult-friends.html?utm_source=instagram&utm_medium=organic-social&utm_campaign=shinjuku-launch-202609&utm_content=reel-cafe-01&utm_id=shinjuku-launch-202609&utm_source_platform=instagram
 ```
 
 投稿前に、投稿日、担当者、対象者、投稿先、リンク、全UTM、素材名、安全確認担当、結果、継続または停止判断を台帳へ記録します。短縮URLは使わず、`method-more.com` の完全なURLを掲載します。
@@ -76,8 +76,8 @@ GA4はCookie同意済みの訪問だけを計測し、自社DBの利用集計と
 ## 最初の30日
 
 1. 1週目: CTA・UTM・計測を整え、重点エリアの供給状況と登録経路を確認
-2. 2週目: 渋谷カフェ、新宿食事の情報発信と、主催者候補5〜10人の確保
-3. 3週目: 東京ランニング、「今から」の情報発信と、地域パートナー候補3件への提案準備
+2. 2週目: 新宿カフェ、新宿食事の情報発信と、新宿の主催者候補5〜10人の確保
+3. 3週目: 新宿ランニング・散歩、「新宿で今から」の情報発信と、新宿の地域パートナー候補3件への提案準備
 4. 4週目: 成立・実参加まで到達した流入元だけを継続し、アクセスのみの施策を停止
 
 最初の2週間は基準値を集め、その後はホームからアプリまたはデモへのCTR 20%以上、登録後7日以内の参加申請または主催15%以上、承認後の完了70%以上を暫定目標にします。

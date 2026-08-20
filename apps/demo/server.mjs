@@ -26,6 +26,15 @@ createServer(async (request, response) => {
     response.end();
     return;
   }
+  if (requestedPath === '/tokyo-working-adult-friends.html') {
+    response.writeHead(301, {
+      ...securityHeaders,
+      location: '/shinjuku-working-adult-friends.html',
+      'cache-control': 'no-store',
+    });
+    response.end();
+    return;
+  }
   if(proxyApiUrl&&requestedPath.startsWith('/api/')){
     try{
       const body=request.method==='GET'||request.method==='HEAD'?undefined:await new Promise((resolve,reject)=>{const chunks=[];request.on('data',chunk=>chunks.push(chunk));request.on('end',()=>resolve(Buffer.concat(chunks)));request.on('error',reject)});
