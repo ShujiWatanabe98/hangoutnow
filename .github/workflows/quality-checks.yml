@@ -47,3 +47,6 @@ jobs:
 
       - name: Build production API image
         run: docker build --file apps/api/Dockerfile --tag hangoutnow-api:ci .
+
+      - name: Verify image optimization runtime
+        run: docker run --rm hangoutnow-api:ci node -e "require('./apps/api/node_modules/sharp'); console.log('sharp runtime ok')"

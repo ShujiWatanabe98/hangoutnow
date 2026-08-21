@@ -8,7 +8,7 @@ COPY apps/demo/package.json apps/demo/package.json
 COPY packages/shared/package.json packages/shared/package.json
 COPY packages/config/package.json packages/config/package.json
 RUN npm ci --include=optional
-RUN npm install --no-save --os=linux --libc=musl --cpu=x64 @img/sharp-linuxmusl-x64
+RUN npm install --no-save --os=linux --libc=musl --cpu=x64 @img/sharp-linuxmusl-x64@0.35.3 @img/sharp-libvips-linuxmusl-x64@1.3.2
 COPY apps/api apps/api
 RUN npm run prisma:generate -w @hangout-now/api && npm run build -w @hangout-now/api
 EXPOSE 3000
