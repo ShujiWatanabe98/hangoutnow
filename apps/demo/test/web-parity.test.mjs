@@ -96,12 +96,13 @@ test('homepage targets Shinjuku solo participants with measurable acquisition li
   for (const eventName of ['cta_click', 'guide_open', 'demo_open']) assert.ok(analytics.includes(`'${eventName}'`), `analytics event is missing: ${eventName}`);
   assert.match(analytics, /cta_name: cta\.dataset\.ctaName/);
   assert.match(newsletter, /hangoutAnalyticsEvent\?\.\('generate_lead', \{ lead_type: 'newsletter'/);
-  for (const campaignPart of ["'shinjuku-launch-202609'", "utm_medium', 'organic-social'", "utm_campaign', campaign", "utm_id', campaign", "utm_source_platform", "utm_content"]) {
+  for (const campaignPart of ["'shinjuku-launch-202609'", "utm_medium', network === 'web_share' ? 'referral' : 'organic-social'", "utm_campaign', campaign", "utm_id', campaign", "utm_source_platform", "utm_content"]) {
     assert.ok(share.includes(campaignPart), `share attribution is missing: ${campaignPart}`);
   }
   assert.match(share, /shinjuku-working-adult-friends/);
   assert.match(server, /analytics\.js\?v=20260820-2/);
-  assert.match(server, /share\.js\?v=20260821-2/);
+  assert.match(server, /share\.css\?v=20260821-2/);
+  assert.match(server, /share\.js\?v=20260821-3/);
   assert.match(server, /requestedPath === '\/tokyo-working-adult-friends\.html'/);
   assert.match(server, /location: '\/shinjuku-working-adult-friends\.html'/);
 });

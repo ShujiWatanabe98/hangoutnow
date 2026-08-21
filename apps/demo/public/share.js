@@ -9,7 +9,7 @@
   const trackedUrl = (network) => {
     const url = new URL(canonical);
     url.searchParams.set('utm_source', network);
-    url.searchParams.set('utm_medium', 'organic-social');
+    url.searchParams.set('utm_medium', network === 'web_share' ? 'referral' : 'organic-social');
     url.searchParams.set('utm_campaign', campaign);
     url.searchParams.set('utm_id', campaign);
     url.searchParams.set('utm_source_platform', network);
@@ -19,10 +19,22 @@
   const section = document.createElement('section');
   section.className = 'share-panel';
   section.setAttribute('aria-label', 'このページを共有');
-  section.innerHTML = `<strong>このページを共有</strong><div><a data-share-network="x" target="_blank" rel="noopener noreferrer">X</a><a data-share-network="line" target="_blank" rel="noopener noreferrer">LINE</a><a data-share-network="facebook" target="_blank" rel="noopener noreferrer">Facebook</a>${navigator.share ? '<button type="button" data-share-network="native">その他</button>' : ''}</div>`;
+  section.innerHTML = `<strong>このページを共有</strong><div><a data-share-network="x" target="_blank" rel="noopener noreferrer">X</a><a data-share-network="line" target="_blank" rel="noopener noreferrer">LINE</a><a data-share-network="facebook" target="_blank" rel="noopener noreferrer">Facebook</a><button type="button" data-share-network="copy">リンクをコピー</button>${navigator.share ? '<button type="button" data-share-network="native">その他</button>' : ''}</div><p class="share-status" role="status" aria-live="polite"></p>`;
   section.querySelector('[data-share-network="x"]').href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(trackedUrl('x'))}`;
   section.querySelector('[data-share-network="line"]').href = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(trackedUrl('line'))}`;
   section.querySelector('[data-share-network="facebook"]').href = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(trackedUrl('facebook'))}`;
+  section.querySelector('[data-share-network="copy"]').addEventListener('click', async (event) => {
+    const button = event.currentTarget;
+    const status = section.querySelector('.share-status');
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('clipboard unavailable');
+      await navigator.clipboard.writeText(trackedUrl('web_share'));
+      button.textContent = 'コピー済み';
+      status.textContent = '募集ページのリンクをコピーしました。';
+    } catch {
+      status.textContent = 'コピーできませんでした。共有先を選ぶか、ブラウザのアドレスをコピーしてください。';
+    }
+  });
   section.querySelector('[data-share-network="native"]')?.addEventListener('click', async () => {
     try { await navigator.share({ title, url: trackedUrl('web_share') }); } catch { /* User cancelled the share sheet. */ }
   });

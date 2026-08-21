@@ -40,6 +40,10 @@ test('Shinjuku first-member campaign is honest, safe, indexable, and measurable'
   assert.match(sitemap, /https:\/\/method-more\.com\/shinjuku-first-members\.html/);
   assert.match(share, /shinjuku-cafe-friends/);
   assert.match(share, /shinjuku-first-members/);
+  assert.match(share, /data-share-network="copy">リンクをコピー/);
+  assert.match(share, /navigator\.clipboard\?\.writeText/);
+  assert.match(share, /network === 'web_share' \? 'referral' : 'organic-social'/);
+  assert.match(share, /role="status" aria-live="polite"/);
 });
 
 test('campaign kit uses privacy-safe UTM values', async () => {
@@ -82,4 +86,46 @@ test('campaign attribution requires consent and keeps only allow-listed UTM fiel
   assert.match(server, /attribution\.js\?v=20260821-2/);
   assert.match(privacy, /氏名、メールアドレス、電話番号、正確な位置、トーク内容は含めず/);
   assert.doesNotMatch(script, /document\.referrer|parameters\.get\(['"](?:email|phone|latitude|longitude)/);
+});
+
+test('campaign copy-share creates a privacy-safe referral link and confirms completion', async () => {
+  const script = await publicFile('share.js');
+  const elements = {
+    x: {}, line: {}, facebook: {},
+    copy: { textContent:'リンクをコピー', addEventListener:(_name, listener)=>{ elements.copy.listener=listener; } },
+    status: { textContent:'' },
+  };
+  const section = {
+    className:'', innerHTML:'', setAttribute:()=>{},
+    querySelector:(selector)=>({
+      '[data-share-network="x"]':elements.x,
+      '[data-share-network="line"]':elements.line,
+      '[data-share-network="facebook"]':elements.facebook,
+      '[data-share-network="copy"]':elements.copy,
+      '[data-share-network="native"]':null,
+      '.share-status':elements.status,
+    })[selector] ?? null,
+  };
+  let copied = '';
+  const main = { append:(value)=>{ main.appended=value; } };
+  const context = {
+    location:{pathname:'/shinjuku-first-members.html',href:'https://method-more.com/shinjuku-first-members.html'},
+    document:{
+      title:'新宿の先行参加メンバー募集',
+      querySelector:(selector)=>selector==='main'?main:selector==='link[rel="canonical"]'?{href:'https://method-more.com/shinjuku-first-members.html'}:{content:'新宿の先行参加メンバー募集'},
+      createElement:()=>section,
+    },
+    navigator:{clipboard:{writeText:async(value)=>{copied=value;}}},
+    URL, encodeURIComponent,
+  };
+  runInNewContext(script, context);
+  await elements.copy.listener({currentTarget:elements.copy});
+  const copiedUrl = new URL(copied);
+  assert.equal(copiedUrl.origin + copiedUrl.pathname, 'https://method-more.com/shinjuku-first-members.html');
+  assert.deepEqual(Object.fromEntries(copiedUrl.searchParams), {
+    utm_source:'web_share',utm_medium:'referral',utm_campaign:'shinjuku-launch-202609',utm_id:'shinjuku-launch-202609',utm_source_platform:'web_share',utm_content:'shinjuku-first-members',
+  });
+  assert.equal(elements.copy.textContent, 'コピー済み');
+  assert.equal(elements.status.textContent, '募集ページのリンクをコピーしました。');
+  assert.equal(main.appended, section);
 });
