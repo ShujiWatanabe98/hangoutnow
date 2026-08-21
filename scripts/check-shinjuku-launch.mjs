@@ -11,7 +11,7 @@ const checks = [
   {
     name: 'First-member page',
     url: `${publicOrigin}/shinjuku-first-members.html`,
-    markers: ['index,follow,max-image-preview:large', '新宿の先行参加メンバー募集', '"@type": "WebPage"'],
+    markers: ['index,follow,max-image-preview:large', '新宿の先行参加メンバー募集', '"@type": "WebPage"', '"@type": "FAQPage"'],
   },
   {
     name: 'Cafe guide',

@@ -19,10 +19,14 @@ test('Shinjuku first-member campaign is honest, safe, indexable, and measurable'
   assert.match(recruitment, /<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">/);
   assert.match(recruitment, /"@type": "WebPage"/);
   assert.match(recruitment, /"@type": "BreadcrumbList"/);
+  assert.match(recruitment, /"@type": "FAQPage"/);
   assert.match(recruitment, /18歳以上/);
   assert.equal((recruitment.match(/href="\/app\.html\?mode=register"/g)??[]).length, 2);
   assert.match(recruitment, /正確な集合場所.*承認/);
   assert.match(recruitment, /デモ画面の人物・募集は検証用の架空データ/);
+  for (const answer of ['一人で参加申請することを前提', 'アカウント登録は無料', '条件が合わない募集へ無理に申請する必要はありません', '本人の許可なく連絡先を運営へ渡したりしない']) {
+    assert.ok(recruitment.includes(answer), `recruitment FAQ is missing: ${answer}`);
+  }
   assert.match(recruitment, /data-cta-name="first-members-open-app"/);
   assert.doesNotMatch(recruitment, /残り[0-9０-９]+名|現在[0-9０-９]+名/);
   for (const contract of ['30〜60分、2〜4人', '予算と精算方法を書く', 'アレルギー', '営業、宗教、投資、恋愛目的への変更']) {
