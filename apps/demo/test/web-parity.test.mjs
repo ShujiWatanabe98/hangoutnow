@@ -125,6 +125,11 @@ test('public server sends browser security headers', async () => {
   }
   assert.match(server, /frame-ancestors 'none'/);
   assert.match(server, /object-src 'none'/);
+  assert.match(
+    server,
+    /img-src 'self' data: https:\/\/hangoutnow-demo\.onrender\.com/,
+    'CSP must allow the production demo asset origin used by Hangout image URLs',
+  );
 });
 
 test('profile editor saves privacy-safe matching preferences', async () => {
