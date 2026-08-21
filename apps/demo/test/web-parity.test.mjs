@@ -255,6 +255,23 @@ test('web discovery groups Hangouts into six-item keyword mosaics', async () => 
   }
 });
 
+test('web keyword mosaics render photos and keep hearts inside each tile', async () => {
+  const [application, portraits, demo, production] = await Promise.all([
+    readFile(new URL('../public/app.js', import.meta.url), 'utf8'),
+    readFile(new URL('../public/portraits.css', import.meta.url), 'utf8'),
+    readFile(new URL('../public/demo.html', import.meta.url), 'utf8'),
+    readFile(new URL('../public/app.html', import.meta.url), 'utf8'),
+  ]);
+  assert.match(application, /keyword-tile-photo \$\{hangoutPhotoClass\(h\)\}/);
+  assert.match(application, /photoStyle\(h\.imageUrl\)/);
+  assert.match(portraits, /\.keyword-mosaic\{height:276px;/);
+  assert.match(portraits, /\.keyword-hangout-tile\{position:relative;isolation:isolate;/);
+  assert.match(portraits, /\.keyword-tile-photo\{position:absolute;inset:0;display:block;/);
+  assert.match(portraits, /\.keyword-tile-heart\{position:absolute;z-index:4;top:5px;right:5px;/);
+  assert.match(demo, /portraits\.css\?v=20260821-41/);
+  assert.match(production, /portraits\.css\?v=20260821-41/);
+});
+
 test('public demo seeds every Hangout category with generated activity photography', async () => {
   const seed = await readFile(new URL('../../../scripts/seed-public-demo.mjs', import.meta.url), 'utf8');
   const categories = [
