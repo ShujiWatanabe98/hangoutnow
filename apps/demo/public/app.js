@@ -9,7 +9,7 @@ const IS_PRODUCTION = globalThis.HANGOUT_NOW_CONFIG?.production === true;
 const SESSION_STORAGE_KEY = IS_PRODUCTION ? 'hangout-now-production-session' : 'hangout-now-session';
 const DEMO_ROLE_STORAGE_KEY = 'hangout-now-demo-role';
 const ACQUISITION_STORAGE_KEY = 'hangout-now-acquisition-v1';
-function pendingAcquisition(){try{const value=JSON.parse(sessionStorage.getItem(ACQUISITION_STORAGE_KEY)||'null');const valid=value&&/^(x|instagram|line|facebook|web_share|newsletter|founder|partner-[a-z0-9-]{1,40})$/.test(value.source)&&/^(organic-social|referral|qr|email|paid-social)$/.test(value.medium)&&/^[a-z0-9][a-z0-9-]{2,63}$/.test(value.campaign)&&/^[a-z0-9][a-z0-9-]{1,79}$/.test(value.content);return valid?{consent:true,source:value.source,medium:value.medium,campaign:value.campaign,content:value.content}:undefined}catch{return undefined}}
+function pendingAcquisition(){try{const value=JSON.parse(sessionStorage.getItem(ACQUISITION_STORAGE_KEY)||'null');const valid=value&&/^(x|instagram|line|facebook|web_share|newsletter|founder|method-more|partner-[a-z0-9-]{1,40})$/.test(value.source)&&/^(organic-social|organic-search|referral|qr|email|paid-social)$/.test(value.medium)&&/^[a-z0-9][a-z0-9-]{2,63}$/.test(value.campaign)&&/^[a-z0-9][a-z0-9-]{1,79}$/.test(value.content);return valid?{consent:true,source:value.source,medium:value.medium,campaign:value.campaign,content:value.content}:undefined}catch{return undefined}}
 function clearPendingAcquisition(){sessionStorage.removeItem(ACQUISITION_STORAGE_KEY)}
 const saved = JSON.parse(localStorage.getItem('hangout-now-demo') || 'null');
 const hangouts = saved?.hangouts || defaults;

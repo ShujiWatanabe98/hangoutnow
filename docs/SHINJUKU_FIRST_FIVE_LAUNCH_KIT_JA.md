@@ -1,6 +1,6 @@
 # Hangout Now 新宿・初期5名募集キット
 
-最終更新: 2026-08-20
+最終更新: 2026-08-21
 
 ## 募集の前提
 
@@ -12,6 +12,8 @@
 - 実投稿、DM、店舗や団体への送信は、公開名義と送信先を確認してから行う
 
 募集ページ: `https://method-more.com/shinjuku-first-members.html`
+
+新宿カフェ実用ガイド: `https://method-more.com/shinjuku-cafe-friends.html`
 
 進捗メモ: `docs/SHINJUKU_FIRST_FIVE_PROGRESS_JA.md`
 
@@ -151,3 +153,4 @@ info@method-more.com
 - 管理画面の「新宿・初期5名の募集導線」で、登録、参加申請、承認、主催、アクティブ化、完了を導線別に確認する。
 - 氏名、メールアドレス、電話番号、正確な位置、トーク内容、参照元URLは募集導線の集計へ保存・表示しない。
 - 同意しない利用者は計測対象外になるため、管理画面の数値は全登録者数ではなく「同意済み導線からの登録数」として扱う。
+- 新宿カフェ実用ガイドから登録画面へ進んだ場合は、固定値 `method-more / organic-search / guide-cafe-search` で比較する。検索語、参照元URL、個人情報は保存しない。

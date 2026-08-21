@@ -156,6 +156,7 @@ describe('authentication and profile', () => {
     expect(repository.acquisitions).toEqual([{ userId:'user-1', source:'x', medium:'organic-social', campaign:'shinjuku-launch-202609', content:'post-concept-01' }]);
     const pipe = new ValidationPipe({ whitelist:true, forbidNonWhitelisted:true, transform:true });
     const registration = { password:'a-secure-password', birthDate:'1990-01-01' };
+    await expect(pipe.transform({ ...registration, email:'search-guide@example.com', displayName:'Search Guide', acquisition:{...valid,source:'method-more',medium:'organic-search',content:'guide-cafe-search'} }, { type:'body', metatype:RegisterDto })).resolves.toMatchObject({ acquisition:{ source:'method-more', medium:'organic-search', content:'guide-cafe-search' } });
     await expect(pipe.transform({ ...registration, email:'no-consent@example.com', displayName:'No Consent', acquisition:{...valid,consent:false} }, { type:'body', metatype:RegisterDto })).rejects.toThrow();
     await expect(pipe.transform({ ...registration, email:'pii-source@example.com', displayName:'PII Source', acquisition:{...valid,source:'person@example.com'} }, { type:'body', metatype:RegisterDto })).rejects.toThrow();
     await expect(pipe.transform({ ...registration, email:'extra-field@example.com', displayName:'Extra Field', acquisition:{...valid,referrer:'https://example.com/private'} }, { type:'body', metatype:RegisterDto })).rejects.toThrow();

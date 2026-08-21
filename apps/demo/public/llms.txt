@@ -18,6 +18,8 @@
 - [安心・安全](https://method-more.com/safety.html): 位置情報保護、本人確認、通報、安全な合流
 - [よくある質問](https://method-more.com/faq.html): 利用条件、料金、位置情報、提供状況
 - [新宿で飲み仲間を探す](https://method-more.com/shinjuku-drinking-friends.html): 新宿での募集例、エリア、終了時間、安全な集合
+- [新宿でカフェ仲間を探す](https://method-more.com/shinjuku-cafe-friends.html): 一人参加しやすい短時間のカフェ活動、人数、予算、安全な集合
+- [新宿の先行参加メンバー募集](https://method-more.com/shinjuku-first-members.html): 18歳以上を対象にした新宿の少人数先行検証
 - [渋谷でカフェ仲間を探す](https://method-more.com/shibuya-cafe-friends.html): 短時間のカフェ募集と安全な参加方法
 - [東京でランニング仲間を探す](https://method-more.com/tokyo-running-friends.html): 距離、ペース、持ち物、中止条件
 - [今から会える仲間を探す](https://method-more.com/find-friends-now.html): 空き時間に活動から仲間を探す流れ

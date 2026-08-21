@@ -1,5 +1,5 @@
 (() => {
-  const shareable = /^\/(news(?:-[a-z-]+)?|shinjuku-drinking-friends|shibuya-cafe-friends|tokyo-running-friends|find-friends-now|hobby-friends-nearby|shinjuku-working-adult-friends|shinjuku-first-members)\.html$/.test(location.pathname);
+  const shareable = /^\/(news(?:-[a-z-]+)?|shinjuku-drinking-friends|shinjuku-cafe-friends|shibuya-cafe-friends|tokyo-running-friends|find-friends-now|hobby-friends-nearby|shinjuku-working-adult-friends|shinjuku-first-members)\.html$/.test(location.pathname);
   if (!shareable) return;
   const main = document.querySelector('main');
   const canonical = document.querySelector('link[rel="canonical"]')?.href || location.href;

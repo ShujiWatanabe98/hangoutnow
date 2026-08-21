@@ -4,8 +4,8 @@ import { ArrayMaxSize, Equals, IsArray, IsBoolean, IsDateString, IsEmail, IsEnum
 
 export class AcquisitionDto {
   @Equals(true) consent!: true;
-  @IsString() @Matches(/^(x|instagram|line|facebook|web_share|newsletter|founder|partner-[a-z0-9-]{1,40})$/) source!: string;
-  @IsString() @Matches(/^(organic-social|referral|qr|email|paid-social)$/) medium!: string;
+  @IsString() @Matches(/^(x|instagram|line|facebook|web_share|newsletter|founder|method-more|partner-[a-z0-9-]{1,40})$/) source!: string;
+  @IsString() @Matches(/^(organic-social|organic-search|referral|qr|email|paid-social)$/) medium!: string;
   @IsString() @Matches(/^[a-z0-9][a-z0-9-]{2,63}$/) campaign!: string;
   @IsString() @Matches(/^[a-z0-9][a-z0-9-]{1,79}$/) content!: string;
 }

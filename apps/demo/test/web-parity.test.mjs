@@ -101,7 +101,7 @@ test('homepage targets Shinjuku solo participants with measurable acquisition li
   }
   assert.match(share, /shinjuku-working-adult-friends/);
   assert.match(server, /analytics\.js\?v=20260820-2/);
-  assert.match(server, /share\.js\?v=20260820-1/);
+  assert.match(server, /share\.js\?v=20260821-2/);
   assert.match(server, /requestedPath === '\/tokyo-working-adult-friends\.html'/);
   assert.match(server, /location: '\/shinjuku-working-adult-friends\.html'/);
 });

@@ -5,21 +5,36 @@ import { runInNewContext } from 'node:vm';
 
 const publicFile = (name) => readFile(new URL(`../public/${name}`, import.meta.url), 'utf8');
 
-test('Shinjuku first-member campaign is honest, safe, and measurable', async () => {
-  const [homepage, recruitment, share] = await Promise.all([
+test('Shinjuku first-member campaign is honest, safe, indexable, and measurable', async () => {
+  const [homepage, recruitment, cafeGuide, sitemap, share] = await Promise.all([
     publicFile('index.html'),
     publicFile('shinjuku-first-members.html'),
+    publicFile('shinjuku-cafe-friends.html'),
+    publicFile('sitemap.xml'),
     publicFile('share.js'),
   ]);
 
   assert.match(homepage, /href="\/shinjuku-first-members\.html"/);
-  assert.match(recruitment, /<meta name="robots" content="noindex,follow,noarchive">/);
+  assert.match(homepage, /href="\/shinjuku-cafe-friends\.html" data-guide-name="shinjuku-cafe-friends"/);
+  assert.match(recruitment, /<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">/);
+  assert.match(recruitment, /"@type": "WebPage"/);
+  assert.match(recruitment, /"@type": "BreadcrumbList"/);
   assert.match(recruitment, /18歳以上/);
   assert.equal((recruitment.match(/href="\/app\.html\?mode=register"/g)??[]).length, 2);
   assert.match(recruitment, /正確な集合場所.*承認/);
   assert.match(recruitment, /デモ画面の人物・募集は検証用の架空データ/);
   assert.match(recruitment, /data-cta-name="first-members-open-app"/);
   assert.doesNotMatch(recruitment, /残り[0-9０-９]+名|現在[0-9０-９]+名/);
+  for (const contract of ['30〜60分、2〜4人', '予算と精算方法を書く', 'アレルギー', '営業、宗教、投資、恋愛目的への変更']) {
+    assert.ok(cafeGuide.includes(contract), `cafe guide is missing: ${contract}`);
+  }
+  assert.match(cafeGuide, /<link rel="canonical" href="https:\/\/method-more\.com\/shinjuku-cafe-friends\.html">/);
+  assert.match(cafeGuide, /"@type": "Article"/);
+  assert.match(cafeGuide, /"@type": "BreadcrumbList"/);
+  assert.match(cafeGuide, /utm_source=method-more&amp;utm_medium=organic-search&amp;utm_campaign=shinjuku-launch-202609&amp;utm_content=guide-cafe-search/);
+  assert.match(sitemap, /https:\/\/method-more\.com\/shinjuku-cafe-friends\.html/);
+  assert.match(sitemap, /https:\/\/method-more\.com\/shinjuku-first-members\.html/);
+  assert.match(share, /shinjuku-cafe-friends/);
   assert.match(share, /shinjuku-first-members/);
 });
 
@@ -52,11 +67,15 @@ test('campaign attribution requires consent and keeps only allow-listed UTM fiel
   assert.equal(JSON.parse(session.get('hangout-now-acquisition-v1')).source, 'x');
   listeners.get('hangout:analytics-consent')({detail:'denied'});
   assert.equal(session.has('hangout-now-acquisition-v1'), false);
+  context.location.search='?utm_source=method-more&utm_medium=organic-search&utm_campaign=shinjuku-launch-202609&utm_content=guide-cafe-search';
+  local.set('hangout-now-analytics-consent', 'granted');
+  listeners.get('hangout:analytics-consent')({detail:'granted'});
+  assert.deepEqual(JSON.parse(session.get('hangout-now-acquisition-v1')), {source:'method-more',medium:'organic-search',campaign:'shinjuku-launch-202609',content:'guide-cafe-search'});
   assert.match(app, /body\.acquisition=acquisition/);
   assert.match(app, /searchParams\.get\('mode'\)===\'register\'\?\'register\':\'login\'/);
   assert.match(app, /return valid\?\{consent:true,source:value\.source,medium:value\.medium,campaign:value\.campaign,content:value\.content\}:undefined/);
   assert.match(app, /clearPendingAcquisition/);
-  assert.match(server, /attribution\.js\?v=20260820-1/);
+  assert.match(server, /attribution\.js\?v=20260821-2/);
   assert.match(privacy, /氏名、メールアドレス、電話番号、正確な位置、トーク内容は含めず/);
   assert.doesNotMatch(script, /document\.referrer|parameters\.get\(['"](?:email|phone|latitude|longitude)/);
 });
