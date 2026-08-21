@@ -44,3 +44,6 @@ jobs:
 
       - name: Test
         run: npm test
+
+      - name: Build production API image
+        run: docker build --file apps/api/Dockerfile --tag hangoutnow-api:ci .
