@@ -117,17 +117,39 @@ info@method-more.com
 
 ## 新宿の協力相談候補
 
-2026-08-20に公式サイトで営業・活動状況を確認した候補。まだ連絡はしていない。掲載、施設利用、ロゴ利用が可能と決めつけず、最初は「募集ページを案内できるか」の相談だけを行う。
+2026-08-21に公式サイトで営業・活動状況と問い合わせ導線を再確認した候補。まだ連絡はしていない。掲載、施設利用、ロゴ利用が可能と決めつけず、最初は「募集ページを案内できるか」の相談だけを行う。
 
 | 優先 | 候補 | 相性 | 公式確認先 | 最初の相談 |
 |---|---|---|---|---|
-| A | 勉強カフェ 新宿エリア | 社会人、学び仲間、定期イベントという対象が合う | https://learning-gym.com/faq/ | 公式LINEまたはスタッフへ、会員向け案内の可否を確認 |
-| A | BasisPoint 西新宿店 | 西新宿のドロップイン利用者と仕事帰り層へ届く | https://basispoint.tokyo/store/coworking/nishishinjuku/ | 問い合わせ窓口へ、募集ページ紹介の可否を確認 |
-| B | 一般社団法人 新宿観光振興協会 | 新宿の交流と地域活性化という目的が近い | https://www.kanko-shinjuku.jp/about/-/index.html | 問い合わせフォームから、協力制度や後援条件を確認 |
+| A | 勉強カフェ 新宿エリア | 社会人、学び仲間、定期イベントという対象が合う | https://learning-gym.com/info/ | 公式LINEまたはスタッフへ、会員向け案内の可否を確認 |
+| A | BasisPoint 西新宿店 | 西新宿のドロップイン利用者と仕事帰り層へ届く | https://basispoint.tokyo/contact/ | 問い合わせ窓口へ、募集ページ紹介の可否を確認 |
+| B | 一般社団法人 新宿観光振興協会 | 新宿の交流と地域活性化という目的が近い | https://www.kanko-shinjuku.jp/inquiry_form.php | 問い合わせフォームから、協力制度や後援条件を確認 |
 | B | 新宿中央公園 | 散歩など公共空間を使う安全な活動と相性がある | https://shinjukuchuo-park.jp/ | 公園名・写真・イベント欄を使う前に管理者へ条件を確認 |
-| C | 公益財団法人 新宿未来創造財団 | スポーツ・文化・生涯学習の参加者層へ届く可能性 | https://www.regasu-shinjuku.or.jp/?page_id=144967 | 既存施設での勧誘可否を先に確認し、許可なく告知しない |
+| C | 公益財団法人 新宿未来創造財団 | スポーツ・文化・生涯学習の参加者層へ届く可能性 | https://www.regasu-shinjuku.or.jp/?p=314 | 既存施設での勧誘可否を先に確認し、許可なく告知しない |
 
 除外確認: 旧ワーキングスペース「BASE POINT」は公式サイト上で2025年8月末の全サービス終了が案内されているため、候補に入れない。BIZ新宿は公式案内で会員勧誘目的の利用不可とされているため、募集会場や告知先として提案しない。
+
+### 公式の問い合わせ導線
+
+| 優先 | 候補 | 送信前に開く公式ページ | 注意点 |
+|---|---|---|---|
+| A | 勉強カフェ 新宿エリア | https://learning-gym.com/info/ | 公式LINE、電話、店頭相談が案内されている。募集ページ紹介の可否だけを尋ね、会員向け告知が可能とは決めつけない |
+| A | BasisPoint 西新宿店 | https://basispoint.tokyo/contact/ | 一般問い合わせフォームで対象店舗に西新宿を選ぶ。施設利用や掲示の許可を得る前に施設名・ロゴを募集素材へ使わない |
+| B | 一般社団法人 新宿観光振興協会 | https://www.kanko-shinjuku.jp/inquiry_form.php | 問い合わせ内容は500文字以内。後援・掲載・協力制度の有無を質問し、後援を受けられると先に表現しない |
+| C | 公益財団法人 新宿未来創造財団 | https://www.regasu-shinjuku.or.jp/?p=314 | 「そのほか」を選ぶ一般問い合わせ。公式注意書きでセールス提案へ回答しない場合があるため、優先度を上げず1回だけ相談する |
+
+フォーム送信時に氏名、連絡先、プライバシーポリシー同意が必要になる場合は、送信直前に入力者本人が内容を確認する。Captchaを回避・自動入力せず、未返信を理由に繰り返し送信しない。
+
+### 提携先別の計測URL
+
+| 候補 | UTM source | UTM content | 案内URL |
+|---|---|---|---|
+| 勉強カフェ 新宿エリア | `partner-learning-gym` | `member-guidance` | `https://method-more.com/shinjuku-first-members.html?utm_source=partner-learning-gym&utm_medium=referral&utm_campaign=shinjuku-launch-202609&utm_content=member-guidance` |
+| BasisPoint 西新宿店 | `partner-basispoint` | `nishishinjuku-inquiry` | `https://method-more.com/shinjuku-first-members.html?utm_source=partner-basispoint&utm_medium=referral&utm_campaign=shinjuku-launch-202609&utm_content=nishishinjuku-inquiry` |
+| 新宿観光振興協会 | `partner-shinjuku-tourism` | `collaboration-inquiry` | `https://method-more.com/shinjuku-first-members.html?utm_source=partner-shinjuku-tourism&utm_medium=referral&utm_campaign=shinjuku-launch-202609&utm_content=collaboration-inquiry` |
+| 新宿未来創造財団 | `partner-regasu` | `foundation-inquiry` | `https://method-more.com/shinjuku-first-members.html?utm_source=partner-regasu&utm_medium=referral&utm_campaign=shinjuku-launch-202609&utm_content=foundation-inquiry` |
+
+これらのURLは、相手が案内掲載に同意した後に渡す。問い合わせフォームへ最初からUTM付きURLを書く場合も、個人名・担当者名・連絡先をUTM値へ入れない。
 
 ## QRコード
 

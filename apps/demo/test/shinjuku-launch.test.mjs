@@ -51,6 +51,16 @@ test('campaign kit uses privacy-safe UTM values', async () => {
   assert.match(kit, /utm_campaign=shinjuku-launch-202609/);
   assert.match(kit, /氏名、電話番号、私信は公開しない/);
   assert.match(kit, /apps\/demo\/public\/assets\/shinjuku-first-five-qr\.png/);
+  const trackedUrls = kit.match(/https:\/\/method-more\.com\/shinjuku-first-members\.html\?[^\s`]+/g) ?? [];
+  assert.ok(trackedUrls.length >= 10, 'every prepared channel needs a measurable URL');
+  for (const value of trackedUrls) {
+    const url = new URL(value);
+    assert.match(url.searchParams.get('utm_source') ?? '', /^(x|instagram|line|founder|partner-[a-z0-9-]{1,40})$/);
+    assert.match(url.searchParams.get('utm_medium') ?? '', /^(organic-social|referral|qr)$/);
+    assert.equal(url.searchParams.get('utm_campaign'), 'shinjuku-launch-202609');
+    assert.match(url.searchParams.get('utm_content') ?? '', /^[a-z0-9][a-z0-9-]{1,79}$/);
+    assert.equal(url.searchParams.has('email') || url.searchParams.has('phone') || url.searchParams.has('name'), false);
+  }
 });
 
 test('campaign attribution requires consent and keeps only allow-listed UTM fields', async () => {
