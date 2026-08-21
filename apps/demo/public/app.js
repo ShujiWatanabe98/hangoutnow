@@ -314,16 +314,15 @@ async function detail(id, sourceScreen = null, options = {}) {
   let profileLoading=null;
   if(returnToProfile){sourceScreen.classList.add('profile-behind-hangout');document.body.insertAdjacentHTML('beforeend','<div class="sheet profile-hangout-loading" role="status" aria-live="polite"><section><span></span><b>Hangoutを読み込んでいます</b></section></div>');profileLoading=document.querySelector('.profile-hangout-loading')}
   const returnAfterDeletion=async()=>{await loadHangouts();await profileScreen({animate:false})};
-  let h = hangouts.find((item) => String(item.id) === String(id));
-  if (!h) {
-    try {
-      h = hangoutView(await api(`/hangouts/${id}`), hangouts.length);
-    } catch (error) {
-      profileLoading?.remove();
-      sourceScreen?.classList.remove('profile-behind-hangout');
-      toast(error.message);
-      return;
-    }
+  let h;
+  try {
+    const listIndex=hangouts.findIndex((item)=>String(item.id)===String(id));
+    h=hangoutView(await api(`/hangouts/${id}`),listIndex>=0?listIndex:hangouts.length);
+  } catch (error) {
+    profileLoading?.remove();
+    sourceScreen?.classList.remove('profile-behind-hangout');
+    toast(error.message);
+    return;
   }
   const behaviorRefresh=trackBehavior('HANGOUT_VIEWED',h.id);
   const requested = ['PENDING','ACCEPTED','WAITLISTED'].includes(h.myJoinStatus);

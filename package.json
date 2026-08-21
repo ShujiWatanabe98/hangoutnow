@@ -11,7 +11,8 @@
     "dev:api": "npm run dev -w @hangout-now/api",
     "demo:seed": "node scripts/seed-public-demo.mjs",
     "demo:seed:direct": "node scripts/seed-mutual-five-star-demo.mjs",
-    "demo:seed:week": "node scripts/seed-week-history-demo.mjs"
+    "demo:seed:week": "node scripts/seed-week-history-demo.mjs",
+    "images:optimize-stored": "node scripts/optimize-stored-images.mjs"
   },
   "overrides": {
     "react": "19.1.0",

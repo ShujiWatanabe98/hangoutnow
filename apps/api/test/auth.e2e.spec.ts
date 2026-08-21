@@ -4,6 +4,7 @@ import { JwtModule, JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import { exportJWK, exportPKCS8, generateKeyPair, SignJWT } from 'jose';
 import request from 'supertest';
+import sharp from 'sharp';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AccessTokenGuard } from '../src/auth/access-token.guard';
 import { AuthController, UsersController } from '../src/auth/auth.controller';
@@ -12,6 +13,11 @@ import { AuthService } from '../src/auth/auth.service';
 import { RegisterDto } from '../src/auth/auth.dto';
 import { AcquisitionInput, AuthRepository, StoredOAuthLoginTicket, StoredRefreshToken, StoredUser } from '../src/auth/auth.types';
 import { ImageStorageService } from '../src/storage/image-storage.service';
+
+async function testPhoto(color: string): Promise<string> {
+  const body = await sharp({ create: { width: 640, height: 480, channels: 3, background: color } }).png().toBuffer();
+  return `data:image/png;base64,${body.toString('base64')}`;
+}
 
 class MemoryAuthRepository extends AuthRepository {
   private users: StoredUser[] = [];
@@ -136,9 +142,9 @@ describe('authentication and profile', () => {
     expect(registered.body.user.email).toBe('user@example.com');
     expect(registered.body.user.passwordHash).toBeUndefined();
     expect(registered.body.user.profilePhoto).toBeNull();
-    const selectedPhoto='data:image/png;base64,iVBORw0KGgo=';
+    const selectedPhoto=await testPhoto('#4f8f67');
     const registeredWithPhoto=await request(app.getHttpServer()).post('/auth/register').send({ email: 'selected-photo@example.com', password: 'a-secure-password', displayName: 'Photo User', birthDate: '1990-01-01', profilePhoto:selectedPhoto }).expect(201);
-    expect(registeredWithPhoto.body.user.profilePhoto).toBe(selectedPhoto);
+    expect(registeredWithPhoto.body.user.profilePhoto).toMatch(/^data:image\/webp;base64,/);
     const profile = await request(app.getHttpServer()).patch('/users/me').set('Authorization', `Bearer ${registered.body.accessToken as string}`).send({ bio: '今から走ろう', interests: ['ランニング', 'ランニング', 'AI'] }).expect(200);
     expect(profile.body.interests).toEqual(['ランニング', 'AI']);
     const matching = await request(app.getHttpServer()).patch('/users/me').set('Authorization', `Bearer ${registered.body.accessToken as string}`).send({ preferredAreas: ['新宿', '新宿', '渋谷'], preferredActivities: ['カフェ', 'ランニング', 'チル'], preferredAgeMin: 25, preferredAgeMax: 40, preferredGenders: ['FEMALE', 'OTHER'], activityTimeSlots: ['夜', '土', '日'], matchingDataConsent: true, participationUrgency: 'TODAY', maxTravelMinutes: 30, preferredGroupSizes: [2, 4], budgetMin: 1000, budgetMax: 5000, socialStyles: ['少人数でじっくり'], participationGoals: ['趣味仲間', '友達づくり'], firstTimePreferences: ['初参加歓迎'], alcoholPreference: 'SOMETIMES', smokingPreference: 'NON_SMOKING', avoidPreferences: ['大人数', '深夜'], scheduleFlexibility: ['途中参加OK', '途中退出OK'], behaviorLearningEnabled: true, preferredLanguages: ['JAPANESE', 'ENGLISH'] }).expect(200);
@@ -166,12 +172,13 @@ describe('authentication and profile', () => {
     app = await createApp();
     const registered = await request(app.getHttpServer()).post('/auth/register').send({ email: 'three-photos@example.com', password: 'a-secure-password', displayName: 'Three Photos', birthDate: '1990-01-01' }).expect(201);
     const auth = { Authorization: `Bearer ${registered.body.accessToken as string}` };
-    const photos=['data:image/png;base64,aQ==','data:image/png;base64,ag==','data:image/png;base64,aw=='];
-    const updated=await request(app.getHttpServer()).patch('/users/me').set(auth).send({profilePhotos:photos}).expect(200);
-    expect(updated.body.profilePhotos).toEqual(photos);
-    expect(updated.body.profilePhoto).toBe(photos[0]);
-    await request(app.getHttpServer()).patch('/users/me').set(auth).send({profilePhotos:[...photos,'data:image/png;base64,ZA==']}).expect(400);
-  },15_000);
+    const photos = await Promise.all(['#4f8f67', '#356f9f', '#9f6535'].map(testPhoto));
+    const updated = await request(app.getHttpServer()).patch('/users/me').set(auth).send({ profilePhotos: photos }).expect(200);
+    expect(updated.body.profilePhotos).toHaveLength(3);
+    expect(updated.body.profilePhotos.every((photo: string) => /^data:image\/webp;base64,/.test(photo))).toBe(true);
+    expect(updated.body.profilePhoto).toBe(updated.body.profilePhotos[0]);
+    await request(app.getHttpServer()).patch('/users/me').set(auth).send({ profilePhotos: [...photos, 'data:image/png;base64,ZA=='] }).expect(400);
+  }, 15_000);
 
   it('rejects minors and rotates refresh tokens', async () => {
     app = await createApp();

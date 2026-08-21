@@ -36,7 +36,7 @@ describe('Hangout image normalization', () => {
     await expect(service.update('host', 'hangout', { imageUrl: 'https://example.com/cafe.jpg' })).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('converts an uploaded image to a 1200 x 675 JPEG before saving', async () => {
+  it('converts an uploaded image to a mobile-sized 960 x 540 WebP before saving', async () => {
     const source = await sharp({
       create: { width: 400, height: 800, channels: 3, background: '#4f8f67' },
     }).png().toBuffer();
@@ -54,9 +54,9 @@ describe('Hangout image normalization', () => {
       imageUrl: `data:image/png;base64,${source.toString('base64')}`,
     });
     const imageUrl = (result as { imageUrl: string }).imageUrl;
-    expect(imageUrl).toMatch(/^data:image\/jpeg;base64,/);
+    expect(imageUrl).toMatch(/^data:image\/webp;base64,/);
     const metadata = await sharp(Buffer.from(imageUrl.split(',')[1]!, 'base64')).metadata();
-    expect(metadata).toMatchObject({ format: 'jpeg', width: 1200, height: 675 });
+    expect(metadata).toMatchObject({ format: 'webp', width: 960, height: 540 });
   });
 
   it('rejects image data that cannot be decoded', async () => {

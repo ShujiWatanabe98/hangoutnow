@@ -51,6 +51,17 @@ test('production uses the shared Hangout, talk, notification, and profile flows'
   }
 });
 
+test('web and native load Hangout details from the detail API instead of reusing list rows', async () => {
+  const [application, mobile] = await Promise.all([
+    readFile(new URL('app.js', publicDirectory), 'utf8'),
+    readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(application, /h=hangoutView\(await api\(`\/hangouts\/\$\{id\}`\)/);
+  assert.doesNotMatch(application, /let h = hangouts\.find/);
+  assert.match(mobile, /const detail = await request<Hangout>\(`\/hangouts\/\$\{hangout\.id\}`\)/);
+});
+
 test('homepage explains activity-first AI matching with trust and consent', async () => {
   const homepage = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
   for (const copy of ['人より先に、', '活動をマッチング。', '独自のマッチングアルゴリズム', 'マッチング成立の可能性を高めます', '信頼と安全を考えたマッチング', '活動履歴は許可した場合のみ利用', '正確な位置情報やトーク内容は学習に使用しません']) {
@@ -183,6 +194,7 @@ test('native home mirrors the production keyword mosaics and every demo category
   assert.match(mobile, /id: "outdoor", label: "アウトドア", description: "外の空気を楽しみながら気軽に集まろう", categories: \["MOTORCYCLE", "PICNIC", "WATERFRONT"\]/);
   assert.doesNotMatch(mobile, /運動・アウトドア/);
   for (const contract of ['キーワードから探す', '気分に合うHangout', 'すべて見る', 'おすすめ順', 'HomeKeywordMosaic', 'HomeKeywordTile', 'keywordTileFeatured']) assert.ok(mobile.includes(contract), `native keyword mosaic contract is missing: ${contract}`);
+  assert.match(mobile, /keywordTilePhoto: \{ flex: 1, width: "100%", height: "100%", backgroundColor: "#dfe8df" \}/);
   assert.match(mobile, /items\.slice\(0, 6\)/);
   assert.match(mobile, /setActivityGroup\(group\.id\)/);
   assert.match(mobile, /right\.interestScore - left\.interestScore/);
@@ -264,12 +276,15 @@ test('web keyword mosaics render photos and keep hearts inside each tile', async
   ]);
   assert.match(application, /keyword-tile-photo \$\{hangoutPhotoClass\(h\)\}/);
   assert.match(application, /photoStyle\(h\.imageUrl\)/);
-  assert.match(portraits, /\.keyword-mosaic\{height:276px;/);
+  assert.match(portraits, /\.keyword-mosaic\{height:276px;display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\);grid-template-rows:repeat\(3,minmax\(0,1fr\)\)/);
+  assert.match(portraits, /\.keyword-hangout-tile\.featured\{grid-column:1\/3;grid-row:1\/3\}/);
+  assert.match(portraits, /\.keyword-hangout-tile:nth-child\(6\)\{grid-column:3;grid-row:3;/);
   assert.match(portraits, /\.keyword-hangout-tile\{position:relative;isolation:isolate;/);
-  assert.match(portraits, /\.keyword-tile-photo\{position:absolute;inset:0;display:block;/);
+  assert.match(portraits, /\.keyword-tile-photo\{position:absolute;inset:0;display:block;width:100%;height:100%;/);
+  assert.match(portraits, /\.keyword-tile-photo\.custom-hangout-photo\{background-size:cover!important;background-position:center!important\}/);
   assert.match(portraits, /\.keyword-tile-heart\{position:absolute;z-index:4;top:5px;right:5px;/);
-  assert.match(demo, /portraits\.css\?v=20260821-41/);
-  assert.match(production, /portraits\.css\?v=20260821-41/);
+  assert.match(demo, /portraits\.css\?v=20260821-43/);
+  assert.match(production, /portraits\.css\?v=20260821-43/);
 });
 
 test('public demo seeds every Hangout category with generated activity photography', async () => {
@@ -792,8 +807,9 @@ test('profile name changes refresh Hangout and talk display names', async () => 
   const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
 
   assert.match(web, /saveSession\(\);await loadHangouts\(\);await profileScreen/);
-  assert.match(mobile, /const \[nextHangouts, nextRooms\] = await Promise\.all\(\[loadHome\(\), loadRooms\(\)\]\)/);
-  assert.match(mobile, /setSelectedHangout\(\(current\) => current \? nextHangouts\.find/);
+  assert.match(mobile, /const selectedHangoutId = selectedHangout\?\.id/);
+  assert.match(mobile, /selectedHangoutId \? request<Hangout>\(`\/hangouts\/\$\{selectedHangoutId\}`\) : Promise\.resolve\(null\)/);
+  assert.match(mobile, /if \(refreshedDetail\) setSelectedHangout\(refreshedDetail\)/);
   assert.match(mobile, /setSelectedRoom\(\(current\) => current \? nextRooms\.find/);
 });
 

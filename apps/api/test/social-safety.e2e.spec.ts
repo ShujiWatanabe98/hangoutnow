@@ -29,6 +29,7 @@ interface TestUser {
   displayName: string;
   verification: Verification;
   profilePhoto: string | null;
+  profilePhotos?: string[];
   notificationsEnabled: boolean;
   birthDate: Date;
   gender: 'MALE'|'FEMALE'|'OTHER'|'UNDISCLOSED';
@@ -291,7 +292,7 @@ class MemorySocialDb {
   private publicUser(id: string) {
     const user = this.users.find((item) => item.id === id);
     if (!user) throw new Error('User not found');
-    return { id: user.id, displayName: user.displayName, verification: user.verification, profilePhoto: user.profilePhoto, birthDate:user.birthDate, bio:user.bio, homeArea:user.homeArea, interests:user.interests };
+    return { id: user.id, displayName: user.displayName, verification: user.verification, profilePhoto: user.profilePhoto, profilePhotos: user.profilePhotos ?? [], birthDate:user.birthDate, bio:user.bio, homeArea:user.homeArea, interests:user.interests };
   }
 
   private requireHangout(id: string): TestHangout {
@@ -392,6 +393,41 @@ describe('social journey safety boundaries', () => {
     expect(demo.isDemo).toBe(true);
     expect((await service.list('host')).map((item) => item.title)).toEqual(['本番Hangout']);
     expect((await service.list('demo')).map((item) => item.title)).toEqual(['本番Hangout','デモHangout']);
+  });
+
+  it('keeps the Hangout list DTO lightweight and loads profiles only from the detail API', async () => {
+    const hangoutId = await createHangout();
+    const joined = await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('guest')).send({ message: '参加します' }).expect(201);
+    await request(app.getHttpServer()).post(`/join-requests/${joined.body.id as string}/accept`).set(auth('host')).expect(201);
+    const detailedPhoto = `data:image/webp;base64,${'A'.repeat(50_000)}`;
+    db.users.find((user) => user.id === 'host')!.profilePhotos = [detailedPhoto, detailedPhoto, detailedPhoto];
+    db.users.find((user) => user.id === 'guest')!.profilePhotos = [detailedPhoto, detailedPhoto, detailedPhoto];
+    const listQuerySpy = vi.spyOn(db.hangout, 'findMany');
+
+    const listed = await request(app.getHttpServer()).get('/hangouts').set(auth('guest')).expect(200);
+    const item = listed.body.find((candidate: { id: string }) => candidate.id === hangoutId) as Record<string, unknown>;
+    expect(item).toMatchObject({ id: hangoutId, participantCount: 2 });
+    expect(item).not.toHaveProperty('description');
+    expect(item).not.toHaveProperty('acceptedParticipants');
+    expect(item).not.toHaveProperty('meetingAddress');
+    expect(item).not.toHaveProperty('latitude');
+    expect(item.host).toMatchObject({ profilePhoto: 'host-photo' });
+    expect(item.host).not.toHaveProperty('profilePhotos');
+    expect(JSON.stringify(listed.body)).not.toContain(detailedPhoto);
+    const listQuery = listQuerySpy.mock.calls.find(([query]) => 'select' in query)?.[0] as { select?: { host?: { select?: Record<string, boolean> }; joinRequests?: { select?: Record<string, boolean> } } } | undefined;
+    expect(listQuery?.select?.host?.select?.profilePhoto).toBe(true);
+    expect(listQuery?.select?.host?.select?.profilePhotos).toBeUndefined();
+    expect(listQuery?.select?.joinRequests?.select?.user).toBeUndefined();
+
+    const detailQuerySpy = vi.spyOn(db.hangout, 'findUnique');
+    const detail = await request(app.getHttpServer()).get(`/hangouts/${hangoutId}`).set(auth('guest')).expect(200);
+    expect(detail.body).toHaveProperty('description');
+    expect(detail.body.host).toHaveProperty('profilePhotos');
+    expect(detail.body.acceptedParticipants[0]).toHaveProperty('profilePhotos');
+    expect(JSON.stringify(listed.body).length).toBeLessThan(JSON.stringify(detail.body).length / 10);
+    const detailQuery = detailQuerySpy.mock.calls.find(([query]) => 'include' in query)?.[0] as { include?: { host?: { select?: Record<string, boolean> }; joinRequests?: { select?: { user?: unknown } } } } | undefined;
+    expect(detailQuery?.include?.host?.select?.profilePhotos).toBe(true);
+    expect(detailQuery?.include?.joinRequests?.select?.user).toBeDefined();
   });
 
   it('finishes a due Hangout with no applicants', async () => {

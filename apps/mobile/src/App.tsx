@@ -139,28 +139,26 @@ type HostStatus = {
   cancellationRate: number;
   nextTier: HostTier | null;
 };
-type Host = {
+type HangoutListHost = {
   id: string;
   displayName: string;
   profilePhoto: string | null;
-  profilePhotos?: string[];
   verification: string;
   hostStatus?: HostStatus;
 };
-type Hangout = {
+type Host = HangoutListHost & {
+  profilePhotos: string[];
+};
+type HangoutListItem = {
   id: string;
   hostUserId: string;
   status: string;
   title: string;
-  description: string | null;
   imageUrl: string | null;
   category: string;
   startAt: string;
   locationName: string;
   publicLocationName?: string;
-  meetingPlaceName?: string | null;
-  meetingAddress?: string | null;
-  navigationUrl?: string | null;
   distanceKm?: number | null;
   matchScore?: number;
   participantCount: number;
@@ -170,12 +168,20 @@ type Hangout = {
   genderRestriction: "ANY" | "MALE_ONLY" | "FEMALE_ONLY";
   maxAge: number | null;
   myJoinStatus: string | null;
+  host: HangoutListHost;
+  hearted: boolean;
+  heartCount: number;
+};
+type Hangout = HangoutListItem & {
+  description: string | null;
+  meetingPlaceName?: string | null;
+  meetingAddress?: string | null;
+  navigationUrl?: string | null;
+  myJoinStatus: string | null;
   myJoinRequestId: string | null;
   myAttendanceStatus: "PENDING_CONFIRMATION" | "CONFIRMED" | "CANCELLED" | null;
   host: Host;
-  hearted: boolean;
-  heartCount: number;
-  acceptedParticipants?: ApplicantProfile[];
+  acceptedParticipants: ApplicantProfile[];
 };
 type Message = {
   id: string;
@@ -273,7 +279,7 @@ type OAuthRegistrationInput = { displayName: string; birthDate: string; gender: 
 function messageText(body: string) {
   return body.startsWith("__STAMP__") ? "過去のスタンプ" : body;
 }
-function stateLabel(hangout: Hangout) {
+function stateLabel(hangout: HangoutListItem) {
   if (hangout.status === "STARTED") return "Hangout中";
   if (hangout.status === "FINISHED") return "終了";
   if (hangout.status === "CANCELLED") return "中止";
@@ -283,7 +289,7 @@ function categoryLabel(category: string) {
   return ({ FOOD: "食事", SUSHI: "寿司", YAKINIKU: "焼肉", DINNER: "夜ごはん", DRINKING: "飲み会", WINE: "ワイン・日本酒", BAR: "バー", IZAKAYA: "居酒屋", CAFE: "カフェ", SWEETS: "スイーツ", RUNNING: "ランニング", WALKING: "散歩", YOGA: "ヨガ", CYCLING: "サイクリング", MOTORCYCLE: "ツーリング", PICNIC: "ピクニック", WATERFRONT: "水辺", KARAOKE: "カラオケ", DARTS: "ダーツ", GAME: "ゲーム", MOVIE: "映画", BOWLING: "ボウリング", ARCADE: "ゲームセンター", ENGLISH: "英会話", SOCIAL: "交流", SHISHA: "シーシャ", SAUNA: "サウナ", NIGHT_VIEW: "夜景", MUSIC: "音楽" } as Record<string, string>)[category] ?? category;
 }
 
-function hangoutImageUrl(hangout: Pick<Hangout, "imageUrl" | "category">) {
+function hangoutImageUrl(hangout: Pick<HangoutListItem, "imageUrl" | "category">) {
   return hangout.imageUrl || DEFAULT_HANGOUT_IMAGES[hangout.category] || ACTIVITY_PHOTO_URL;
 }
 
@@ -308,7 +314,7 @@ async function readJson(response: Response): Promise<unknown> {
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [screen, setScreen] = useState<Screen>("home");
-  const [hangouts, setHangouts] = useState<Hangout[]>([]);
+  const [hangouts, setHangouts] = useState<HangoutListItem[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [ratingRoom, setRatingRoom] = useState<GroupRoom | null>(null);
@@ -389,10 +395,10 @@ export default function App() {
   );
 
   const loadHome = useCallback(async (locationOverride?: { latitude: number; longitude: number } | null) => {
-    if (!session) return [] as Hangout[];
+    if (!session) return [] as HangoutListItem[];
     const activeCoordinates = locationOverride === undefined ? coordinates : locationOverride;
     const query = activeCoordinates ? `?latitude=${activeCoordinates.latitude}&longitude=${activeCoordinates.longitude}&radiusKm=5` : "";
-    const nextHangouts = await request<Hangout[]>(`/hangouts${query}`);
+    const nextHangouts = await request<HangoutListItem[]>(`/hangouts${query}`);
     setHangouts(nextHangouts);
     if (session.user.matchingDataConsent && session.user.behaviorLearningEnabled) {
       void request("/analytics/events", {
@@ -403,12 +409,11 @@ export default function App() {
     return nextHangouts;
   }, [coordinates, request, session]);
 
-  const toggleHeart = useCallback(async (hangout: Hangout) => {
+  const toggleHeart = useCallback(async (hangout: HangoutListItem) => {
     try {
       const result = await request<{ hearted: boolean; heartCount: number }>(`/hangouts/${hangout.id}/heart`, { method: "POST" });
-      const update = (item: Hangout) => item.id === hangout.id ? { ...item, ...result } : item;
-      setHangouts((current) => current.map(update));
-      setSelectedHangout((current) => current ? update(current) : current);
+      setHangouts((current) => current.map((item) => item.id === hangout.id ? { ...item, ...result } : item));
+      setSelectedHangout((current) => current?.id === hangout.id ? { ...current, ...result } : current);
       showActionMessage(result.hearted ? "ハートを送りました" : "ハートを取り消しました");
     } catch {
       Alert.alert("ハートを送れませんでした", "通信状態を確認してもう一度お試しください。");
@@ -685,7 +690,6 @@ export default function App() {
     const previousStatus = hangout.myJoinStatus;
     const applyJoinStatus = (status: string | null) => {
       setSelectedHangout((current) => current?.id === hangout.id ? { ...current, myJoinStatus: status } : current);
-      setHangouts((current) => current.map((item) => item.id === hangout.id ? { ...item, myJoinStatus: status } : item));
     };
     applyJoinStatus("PENDING");
     try {
@@ -708,7 +712,7 @@ export default function App() {
         const confirmed = await request<Hangout>(`/hangouts/${hangout.id}`);
         if (["PENDING", "WAITLISTED", "ACCEPTED"].includes(confirmed.myJoinStatus ?? "")) {
           setSelectedHangout((current) => current?.id === confirmed.id ? confirmed : current);
-          setHangouts((current) => current.map((item) => item.id === confirmed.id ? confirmed : item));
+          await loadHome();
           showActionMessage(confirmed.myJoinStatus === "WAITLISTED" ? "待機リストに登録しました" : "参加申請を受け付けました");
           return;
         }
@@ -724,7 +728,7 @@ export default function App() {
     }
   }
 
-  async function openHangout(hangout: Pick<Hangout, "id">) {
+  async function openHangout(hangout: Pick<HangoutListItem, "id">) {
     setLoading(true);
     setError("");
     try {
@@ -1229,8 +1233,9 @@ export default function App() {
     try {
       const user = await request<User>("/users/me", { method: "PATCH", body: JSON.stringify(input) });
       setSession((current) => (current ? { ...current, user } : current));
-      const [nextHangouts, nextRooms] = await Promise.all([loadHome(), loadRooms()]);
-      setSelectedHangout((current) => current ? nextHangouts.find((hangout) => hangout.id === current.id) ?? current : current);
+      const selectedHangoutId = selectedHangout?.id;
+      const [, nextRooms, refreshedDetail] = await Promise.all([loadHome(), loadRooms(), selectedHangoutId ? request<Hangout>(`/hangouts/${selectedHangoutId}`) : Promise.resolve(null)]);
+      if (refreshedDetail) setSelectedHangout(refreshedDetail);
       setSelectedRoom((current) => current ? nextRooms.find((room) => room.id === current.id) ?? current : current);
       setRatingRoom((current) => current ? nextRooms.find((room): room is GroupRoom => room.type === "GROUP" && room.id === current.id) ?? current : current);
     } catch (cause) {
@@ -1553,13 +1558,13 @@ function CountdownText({ startAt, style }: { startAt: string; style?: object }) 
   return <Text style={style}>{label}</Text>;
 }
 
-function HangoutTimeText({ hangout, style }: { hangout: Pick<Hangout, "status" | "startAt">; style?: object }) {
+function HangoutTimeText({ hangout, style }: { hangout: Pick<HangoutListItem, "status" | "startAt">; style?: object }) {
   if (hangout.status === "STARTED") return <Text style={style}>Hangout中</Text>;
   if (hangout.status === "FINISHED" || hangout.status === "CANCELLED") return <Text style={style}>{hangout.status === "FINISHED" ? "終了" : "中止"}</Text>;
   return <CountdownText startAt={hangout.startAt} style={style} />;
 }
 
-function HomeKeywordTile({ hangout, featured, state, onOpen, onHeart }: { hangout: Hangout; featured?: boolean; state: string; onOpen: () => void; onHeart: () => void }) {
+function HomeKeywordTile({ hangout, featured, state, onOpen, onHeart }: { hangout: HangoutListItem; featured?: boolean; state: string; onOpen: () => void; onHeart: () => void }) {
   return (
     <View style={[styles.keywordTile, featured && styles.keywordTileFeatured]}>
       <Pressable style={styles.keywordTileOpen} onPress={onOpen} accessibilityRole="button" accessibilityLabel={`${hangout.title}、${state}、相性${Math.round(hangout.matchScore ?? 70)}%`}>
@@ -1579,20 +1584,20 @@ function HomeKeywordTile({ hangout, featured, state, onOpen, onHeart }: { hangou
   );
 }
 
-function HomeKeywordMosaic({ hangouts, user, onOpen, onHeart }: { hangouts: Hangout[]; user: User; onOpen: (hangout: Hangout) => void; onHeart: (hangout: Hangout) => void }) {
-  const state = (hangout: Hangout) => hangout.hostUserId === user.id && ["OPEN", "FULL"].includes(hangout.status) ? "主催中" : stateLabel(hangout);
+function HomeKeywordMosaic({ hangouts, user, onOpen, onHeart }: { hangouts: HangoutListItem[]; user: User; onOpen: (hangout: HangoutListItem) => void; onHeart: (hangout: HangoutListItem) => void }) {
+  const state = (hangout: HangoutListItem) => hangout.hostUserId === user.id && ["OPEN", "FULL"].includes(hangout.status) ? "主催中" : stateLabel(hangout);
   const item = (index: number, featured = false) => hangouts[index] ? <HomeKeywordTile hangout={hangouts[index]} featured={featured} state={state(hangouts[index])} onOpen={() => onOpen(hangouts[index])} onHeart={() => onHeart(hangouts[index])} /> : <View style={[styles.keywordTile, featured && styles.keywordTileFeatured, styles.keywordTileEmpty]} />;
   return <View style={styles.keywordMosaic}><View style={styles.keywordMosaicLeft}>{item(0, true)}<View style={styles.keywordMosaicBottom}>{item(1)}{item(2)}</View></View><View style={styles.keywordMosaicRight}>{item(3)}{item(4)}{item(5)}</View></View>;
 }
 
-function HomeScreen({ user, hangouts, refreshing, locationLabel, locationSource, selectedArea, demoRole, onArea, onLocation, onMap, onRefresh, onOpen, onHeart, onCreate }: { user: User; hangouts: Hangout[]; refreshing: boolean; locationLabel: string; locationSource: LocationSource; selectedArea: AlphaArea; demoRole: "host" | "guest" | null; onArea: (area: AlphaArea) => void; onLocation: () => void; onMap: () => void; onRefresh: () => void; onOpen: (hangout: Hangout) => void; onHeart: (hangout: Hangout) => void; onCreate: () => void }) {
+function HomeScreen({ user, hangouts, refreshing, locationLabel, locationSource, selectedArea, demoRole, onArea, onLocation, onMap, onRefresh, onOpen, onHeart, onCreate }: { user: User; hangouts: HangoutListItem[]; refreshing: boolean; locationLabel: string; locationSource: LocationSource; selectedArea: AlphaArea; demoRole: "host" | "guest" | null; onArea: (area: AlphaArea) => void; onLocation: () => void; onMap: () => void; onRefresh: () => void; onOpen: (hangout: HangoutListItem) => void; onHeart: (hangout: HangoutListItem) => void; onCreate: () => void }) {
   const [activityGroup, setActivityGroup] = useState<(typeof HOME_ACTIVITY_GROUPS)[number]["id"] | null>(null);
-  const homeStateLabel = (hangout: Hangout) => hangout.hostUserId === user.id && ["OPEN", "FULL"].includes(hangout.status) ? "主催中" : stateLabel(hangout);
+  const homeStateLabel = (hangout: HangoutListItem) => hangout.hostUserId === user.id && ["OPEN", "FULL"].includes(hangout.status) ? "主催中" : stateLabel(hangout);
   const selectedActivityGroup = HOME_ACTIVITY_GROUPS.find((group) => group.id === activityGroup);
   const hangoutsForGroup = (group: (typeof HOME_ACTIVITY_GROUPS)[number]) => hangouts.filter((hangout) => (group.categories as readonly string[]).includes(hangout.category)).sort((left, right) => (right.matchScore ?? 70) - (left.matchScore ?? 70));
   const keywordSections = HOME_ACTIVITY_GROUPS.map((group, order) => { const items = hangoutsForGroup(group); const leading = items.slice(0, 3); const interestScore = leading.length ? leading.reduce((sum, item) => sum + (item.matchScore ?? 70), 0) / leading.length : 0; return { group, items, interestScore, order }; }).filter((section) => section.items.length).sort((left, right) => right.interestScore - left.interestScore || left.order - right.order);
   const visibleHangouts = selectedActivityGroup ? hangoutsForGroup(selectedActivityGroup) : [];
-  const conditionLabel = (hangout: Hangout) => `${hangout.genderRestriction === "MALE_ONLY" ? "男性のみ" : hangout.genderRestriction === "FEMALE_ONLY" ? "女性のみ" : "だれでも"}${hangout.maxAge ? `・${hangout.maxAge === 29 ? "20代" : hangout.maxAge === 39 ? "30代" : "50代"}まで` : ""}`;
+  const conditionLabel = (hangout: HangoutListItem) => `${hangout.genderRestriction === "MALE_ONLY" ? "男性のみ" : hangout.genderRestriction === "FEMALE_ONLY" ? "女性のみ" : "だれでも"}${hangout.maxAge ? `・${hangout.maxAge === 29 ? "20代" : hangout.maxAge === 39 ? "30代" : "50代"}まで` : ""}`;
   const chooseHomeArea = () => Alert.alert("エリアを選択", undefined, [
     { text: "新宿", onPress: () => onArea("新宿") },
     { text: "渋谷", onPress: () => onArea("渋谷") },
@@ -1638,7 +1643,7 @@ function HomeScreen({ user, hangouts, refreshing, locationLabel, locationSource,
   );
 }
 
-function MapScreen({ hangouts, coordinates, onBack, onOpen }: { hangouts: Hangout[]; coordinates: { latitude: number; longitude: number }; onBack: () => void; onOpen: (hangout: Hangout) => void }) {
+function MapScreen({ hangouts, coordinates, onBack, onOpen }: { hangouts: HangoutListItem[]; coordinates: { latitude: number; longitude: number }; onBack: () => void; onOpen: (hangout: HangoutListItem) => void }) {
   const mappedHangouts = hangouts.slice(0, 8);
   const mapUrl = `https://maps.google.com/maps?q=${encodeURIComponent(`${coordinates.latitude},${coordinates.longitude}`)}&z=13&output=embed`;
   return (
@@ -2896,7 +2901,7 @@ const styles = StyleSheet.create({
   keywordTileFeatured: { flex: 2, borderRadius: 17 },
   keywordTileEmpty: { opacity: 0 },
   keywordTileOpen: { flex: 1 },
-  keywordTilePhoto: { flex: 1, backgroundColor: "#dfe8df" },
+  keywordTilePhoto: { flex: 1, width: "100%", height: "100%", backgroundColor: "#dfe8df" },
   keywordTileStatus: { position: "absolute", zIndex: 2, top: 5, left: 5, overflow: "hidden", paddingHorizontal: 5, paddingVertical: 3, borderRadius: 10, backgroundColor: "#ffffffeb", color: "#176b48", fontSize: 7, fontWeight: "900" },
   keywordTileMatch: { position: "absolute", zIndex: 2, top: 33, right: 5, overflow: "hidden", paddingHorizontal: 5, paddingVertical: 3, borderRadius: 10, backgroundColor: "#ffffffeb", color: "#176b48", fontSize: 7, fontWeight: "900" },
   keywordTileStatusFeatured: { top: 8, left: 8, paddingHorizontal: 7, paddingVertical: 4, fontSize: 9 },
