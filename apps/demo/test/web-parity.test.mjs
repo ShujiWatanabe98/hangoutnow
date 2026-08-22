@@ -132,6 +132,7 @@ test('corporate homepage separates methodmore from its two product pages', async
   assert.match(corporate, /<link rel="canonical" href="https:\/\/method-more\.com\/">/);
   assert.match(corporate, /href="\/hangout-now\.html"/);
   assert.match(corporate, /href="\/divertnavi\.html"/);
+  assert.match(corporate, /href="\/divertnavi-app\/">Webアプリを開く<\/a>/);
   assert.match(corporate, /Hangout <em>Now<\/em>/);
   assert.match(corporate, /DivertNavi/);
   assert.match(corporate, /公開中/);
