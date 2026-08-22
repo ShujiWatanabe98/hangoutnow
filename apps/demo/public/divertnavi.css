@@ -124,8 +124,8 @@
 .dn-steps p { max-width: 660px; margin: 0; color: #afc0c5; line-height: 1.8; }
 
 .dn-category-list { display: grid; grid-template-columns: repeat(4, 1fr); gap: 13px; }
+.dn-categories .dn-heading h2 { font-size: clamp(43px, 4.4vw, 60px); }
 .dn-category-list article { min-height: 145px; padding: 22px; display: flex; flex-direction: column; justify-content: space-between; border: 1px solid var(--dn-line); border-radius: 22px; background: var(--dn-white); }
-.dn-category-list article:last-child { grid-column: span 2; }
 .dn-category-list span { font-size: 32px; }
 .dn-category-list b { font-size: 14px; }
 
@@ -178,7 +178,6 @@
   .dn-feature-grid { grid-template-columns: 1fr; }
   .dn-feature-card { min-height: 310px; }
   .dn-category-list { grid-template-columns: repeat(2, 1fr); }
-  .dn-category-list article:last-child { grid-column: span 2; }
   .dn-safety-copy { position: static; }
 }
 
@@ -210,7 +209,6 @@
   .dn-steps > li > span { width: 45px; height: 45px; }
   .dn-category-list { grid-template-columns: 1fr 1fr; gap: 9px; }
   .dn-category-list article { min-height: 125px; padding: 17px; }
-  .dn-category-list article:last-child { grid-column: span 2; }
   .dn-category-list b { font-size: 12px; }
   .dn-roadmap-grid { grid-template-columns: 1fr; }
   .dn-roadmap-grid p { min-height: 0; }

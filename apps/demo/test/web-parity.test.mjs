@@ -146,12 +146,18 @@ test('corporate homepage separates methodmore from its two product pages', async
     '運転中は、<br>画面を操作しない',
     '生の位置履歴をサーバーに保存しません',
     '警察・行政機関が提供するサービスではありません',
+    '文章入力は使わず、大きなアイコンとラベル、音声入力で共有します。',
+    '12種類の危険カテゴリ。',
     'Android MVP',
     'iOS',
   ]) assert.ok(divertnavi.includes(copy), `DivertNavi product copy is missing: ${copy}`);
-  for (const category of ['取り締まり情報', '落下物・落石', '冠水', '雹', '激しい雨・水たまり', '事故・故障車', '工事・車線規制']) {
+  for (const category of ['取り締まり情報', '落下物・落石', '冠水', '雹', '激しい雨・水たまり', '事故・故障車', '工事・車線規制', '穴・段差', '白線・停止線が見えにくい', '標識・信号が見えにくい', '分かりにくい・誤解しやすい標識', '滑りやすい路面']) {
     assert.ok(divertnavi.includes(category), `DivertNavi hazard category is missing: ${category}`);
   }
+  assert.match(divertnavi, /工事・車線規制<\/b><\/article>\s*<article><span>🕳️<\/span><b>穴・段差/);
+  const categoryMarkup = divertnavi.match(/<div class="dn-category-list">([\s\S]*?)<\/div>/)?.[1] ?? '';
+  assert.equal((categoryMarkup.match(/<article>/g) ?? []).length, 12);
+  assert.match(divertStyles, /\.dn-category-list \{ display: grid; grid-template-columns: repeat\(4, 1fr\);/);
   assert.equal(assetVersion(corporate, 'corporate.css'), assetVersion(divertnavi, 'corporate.css'));
   assert.match(sitemap, /https:\/\/method-more\.com\/hangout-now\.html/);
   assert.match(sitemap, /https:\/\/method-more\.com\/divertnavi\.html/);
