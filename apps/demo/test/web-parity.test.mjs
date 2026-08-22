@@ -119,10 +119,11 @@ test('homepage targets Shinjuku solo participants with measurable acquisition li
 });
 
 test('corporate homepage separates methodmore from its two product pages', async () => {
-  const [corporate, hangout, divertnavi, sitemap, corporateStyles, divertStyles] = await Promise.all([
+  const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles] = await Promise.all([
     readFile(new URL('../public/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/hangout-now.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/divertnavi.html', import.meta.url), 'utf8'),
+    readFile(new URL('../public/divertnavi-privacy.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/sitemap.xml', import.meta.url), 'utf8'),
     readFile(new URL('../public/corporate.css', import.meta.url), 'utf8'),
     readFile(new URL('../public/divertnavi.css', import.meta.url), 'utf8'),
@@ -141,6 +142,12 @@ test('corporate homepage separates methodmore from its two product pages', async
   assert.match(divertnavi, /<link rel="canonical" href="https:\/\/method-more\.com\/divertnavi\.html">/);
   assert.match(divertnavi, /<title>走るだけで、みんなを守る｜DivertNavi<\/title>/);
   assert.match(divertnavi, /href="\/divertnavi-app\/">ブラウザでシミュレーション/);
+  assert.match(divertnavi, /href="\/divertnavi-privacy\.html">プライバシー<\/a>/);
+  assert.match(divertnaviPrivacy, /<link rel="canonical" href="https:\/\/method-more\.com\/divertnavi-privacy\.html">/);
+  assert.match(divertnaviPrivacy, /<title>プライバシーポリシー \| DivertNavi<\/title>/);
+  for (const privacyCopy of ['位置情報', '目的地の検索情報と履歴', '危険情報の登録', 'Mapbox', 'Open-Meteo', 'RainViewer', '利用者への関連付けとトラッキング', '保存期間と削除', 'info@method-more.com']) {
+    assert.ok(divertnaviPrivacy.includes(privacyCopy), `DivertNavi privacy copy is missing: ${privacyCopy}`);
+  }
   for (const copy of [
     'DivertNavi（ダイバーナビ）',
     'ナビゲーションアプリ<br>ではありません',
@@ -163,6 +170,7 @@ test('corporate homepage separates methodmore from its two product pages', async
   assert.equal(assetVersion(corporate, 'corporate.css'), assetVersion(divertnavi, 'corporate.css'));
   assert.match(sitemap, /https:\/\/method-more\.com\/hangout-now\.html/);
   assert.match(sitemap, /https:\/\/method-more\.com\/divertnavi\.html/);
+  assert.match(sitemap, /https:\/\/method-more\.com\/divertnavi-privacy\.html/);
   assert.match(corporateStyles, /\.divert-art/);
   assert.match(divertStyles, /@media \(max-width: 620px\)/);
 });
