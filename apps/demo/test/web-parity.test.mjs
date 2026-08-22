@@ -119,29 +119,44 @@ test('homepage targets Shinjuku solo participants with measurable acquisition li
 });
 
 test('corporate homepage separates methodmore from its two product pages', async () => {
-  const [corporate, hangout, dirvertnavi, sitemap, corporateStyles] = await Promise.all([
+  const [corporate, hangout, divertnavi, sitemap, corporateStyles, divertStyles] = await Promise.all([
     readFile(new URL('../public/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/hangout-now.html', import.meta.url), 'utf8'),
-    readFile(new URL('../public/dirvertnavi.html', import.meta.url), 'utf8'),
+    readFile(new URL('../public/divertnavi.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/sitemap.xml', import.meta.url), 'utf8'),
     readFile(new URL('../public/corporate.css', import.meta.url), 'utf8'),
+    readFile(new URL('../public/divertnavi.css', import.meta.url), 'utf8'),
   ]);
 
   assert.match(corporate, /<title>methodmore｜日常の選択を、もっと前へ。<\/title>/);
   assert.match(corporate, /<link rel="canonical" href="https:\/\/method-more\.com\/">/);
   assert.match(corporate, /href="\/hangout-now\.html"/);
-  assert.match(corporate, /href="\/dirvertnavi\.html"/);
+  assert.match(corporate, /href="\/divertnavi\.html"/);
   assert.match(corporate, /Hangout <em>Now<\/em>/);
-  assert.match(corporate, /DirvertNavi/);
+  assert.match(corporate, /DivertNavi/);
   assert.match(corporate, /公開中/);
-  assert.match(corporate, /準備中/);
+  assert.match(corporate, /Android MVP 開発中/);
   assert.match(hangout, /<link rel="canonical" href="https:\/\/method-more\.com\/hangout-now\.html">/);
-  assert.match(dirvertnavi, /<link rel="canonical" href="https:\/\/method-more\.com\/dirvertnavi\.html">/);
-  assert.match(dirvertnavi, /準備が整い次第このページでお知らせします/);
-  assert.equal(assetVersion(corporate, 'corporate.css'), assetVersion(dirvertnavi, 'corporate.css'));
+  assert.match(divertnavi, /<link rel="canonical" href="https:\/\/method-more\.com\/divertnavi\.html">/);
+  assert.match(divertnavi, /<title>走るだけで、みんなを守る｜DivertNavi<\/title>/);
+  for (const copy of [
+    'DivertNavi（ダイバーナビ）',
+    'ナビゲーションアプリ<br>ではありません',
+    '同じ道路・進行方向の前方',
+    '運転中は、<br>画面を操作しない',
+    '生の位置履歴をサーバーに保存しません',
+    '警察・行政機関が提供するサービスではありません',
+    'Android MVP',
+    'iOS',
+  ]) assert.ok(divertnavi.includes(copy), `DivertNavi product copy is missing: ${copy}`);
+  for (const category of ['取り締まり情報', '落下物・落石', '冠水', '雹', '激しい雨・水たまり', '事故・故障車', '工事・車線規制']) {
+    assert.ok(divertnavi.includes(category), `DivertNavi hazard category is missing: ${category}`);
+  }
+  assert.equal(assetVersion(corporate, 'corporate.css'), assetVersion(divertnavi, 'corporate.css'));
   assert.match(sitemap, /https:\/\/method-more\.com\/hangout-now\.html/);
-  assert.match(sitemap, /https:\/\/method-more\.com\/dirvertnavi\.html/);
-  assert.match(corporateStyles, /\.dirvert-art/);
+  assert.match(sitemap, /https:\/\/method-more\.com\/divertnavi\.html/);
+  assert.match(corporateStyles, /\.divert-art/);
+  assert.match(divertStyles, /@media \(max-width: 620px\)/);
 });
 
 test('public server sends browser security headers', async () => {

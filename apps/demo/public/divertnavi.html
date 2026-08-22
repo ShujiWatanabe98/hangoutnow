@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="description" content="走るだけで、みんなを守る。DivertNaviは、進行方向の道路上にある危険を音声と通知で伝え、少ない操作で共有する道路安全アプリです。">
+  <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">
+  <meta name="theme-color" content="#071b25">
+  <link rel="canonical" href="https://method-more.com/divertnavi.html">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="DivertNavi">
+  <meta property="og:title" content="走るだけで、みんなを守る｜DivertNavi">
+  <meta property="og:description" content="進行方向の道路危険を音声と通知で伝える、methodmoreの道路安全アプリ。Android MVPを開発中です。">
+  <meta property="og:url" content="https://method-more.com/divertnavi.html">
+  <meta property="og:locale" content="ja_JP">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="走るだけで、みんなを守る｜DivertNavi">
+  <meta name="twitter:description" content="進行方向の道路危険を音声と通知で伝える道路安全アプリ。">
+  <link rel="icon" href="/methodmore-favicon.svg" type="image/svg+xml">
+  <title>走るだけで、みんなを守る｜DivertNavi</title>
+  <link rel="stylesheet" href="/corporate.css?v=20260822-3">
+  <link rel="stylesheet" href="/divertnavi.css?v=20260822-2">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://method-more.com/#organization",
+        "name": "methodmore",
+        "url": "https://method-more.com/",
+        "email": "info@method-more.com"
+      },
+      {
+        "@type": "MobileApplication",
+        "@id": "https://method-more.com/divertnavi.html#application",
+        "name": "DivertNavi",
+        "alternateName": "ダイバーナビ",
+        "url": "https://method-more.com/divertnavi.html",
+        "applicationCategory": "TravelApplication",
+        "operatingSystem": "Android, iOS",
+        "inLanguage": "ja-JP",
+        "description": "既存の地図・音楽アプリと併用し、走行方向の道路上に存在する危険を音声と通知で伝える道路安全アプリ",
+        "publisher": { "@id": "https://method-more.com/#organization" }
+      }
+    ]
+  }
+  </script>
+</head>
+<body class="dn-body">
+  <header class="dn-header">
+    <a class="dn-brand" href="/divertnavi.html" aria-label="DivertNavi ホーム">
+      <span class="dn-brand-mark" aria-hidden="true"><i></i></span>
+      <span>Divert<b>Navi</b></span>
+    </a>
+    <nav aria-label="DivertNavi メインナビゲーション">
+      <a href="#features">特長</a>
+      <a href="#how">仕組み</a>
+      <a href="#safety">安全設計</a>
+      <a href="#roadmap">開発状況</a>
+      <a class="dn-nav-contact" href="mailto:info@method-more.com?subject=DivertNaviについて">お問い合わせ</a>
+    </nav>
+    <a class="dn-methodmore" href="/" aria-label="methodmore会社ホームへ">methodmore <span aria-hidden="true">↗</span></a>
+  </header>
+
+  <main>
+    <section class="dn-hero" aria-labelledby="dn-hero-title">
+      <div class="dn-hero-copy">
+        <p class="dn-status"><span></span> ANDROID MVP 開発中</p>
+        <p class="dn-kicker">ROAD SAFETY, TOGETHER</p>
+        <h1 id="dn-hero-title">走るだけで、<br><em>みんなを守る。</em></h1>
+        <p class="dn-hero-lead">DivertNavi（ダイバーナビ）は、進行方向の道路上にある危険を音声と通知で伝え、危険情報を少ない操作で共有する道路安全アプリです。</p>
+        <div class="dn-hero-actions">
+          <a class="dn-button dn-button-primary" href="#how">仕組みを見る <span aria-hidden="true">↓</span></a>
+          <a class="dn-button dn-button-secondary" href="#safety">安全設計を見る</a>
+        </div>
+        <p class="dn-companion"><span aria-hidden="true">＋</span> 既存の地図・音楽アプリと一緒に使えます</p>
+      </div>
+
+      <div class="dn-device-stage" aria-label="DivertNavi走行モード画面のイメージ">
+        <div class="dn-radar-ring dn-radar-one"></div>
+        <div class="dn-radar-ring dn-radar-two"></div>
+        <div class="dn-phone">
+          <div class="dn-phone-top"><span>9:41</span><strong>● ●●</strong></div>
+          <div class="dn-map">
+            <span class="dn-map-road road-a"></span>
+            <span class="dn-map-road road-b"></span>
+            <span class="dn-map-road road-c"></span>
+            <span class="dn-route-line"></span>
+            <span class="dn-car-dot"></span>
+            <span class="dn-hazard hazard-object">📦</span>
+            <span class="dn-hazard hazard-rain">☔</span>
+            <div class="dn-drive-pill"><span></span> 走行モード ON</div>
+            <div class="dn-alert-card">
+              <span class="dn-alert-icon">📦</span>
+              <div><small>300m先</small><b>落下物の情報</b><p>同じ道路・進行方向</p></div>
+            </div>
+            <div class="dn-report-button"><span>＋</span> 危険を報告</div>
+          </div>
+        </div>
+        <span class="dn-floating-note note-voice">音声でお知らせ</span>
+        <span class="dn-floating-note note-direction">進行方向だけ</span>
+      </div>
+    </section>
+
+    <section class="dn-proof" aria-label="DivertNaviの基本方針">
+      <article><span>01</span><b>同じ道路・進行方向</b><p>前方の危険に絞って判定</p></article>
+      <article><span>02</span><b>音声と通知</b><p>運転中の画面操作を減らす</p></article>
+      <article><span>03</span><b>プライバシー優先</b><p>生の位置履歴を保存しない</p></article>
+    </section>
+
+    <section class="dn-definition dn-section" aria-labelledby="definition-title">
+      <div>
+        <p class="dn-section-label">WHAT IS DIVERTNAVI?</p>
+        <h2 id="definition-title">ナビゲーションアプリ<br>ではありません。</h2>
+      </div>
+      <div class="dn-definition-copy">
+        <p>目的地までの道順を置き換えるのではなく、使い慣れた地図や音楽アプリと併用し、この先の道路にある危険へ早く気づくためのアプリです。</p>
+        <p>直線距離だけでは通知しません。道路、進行方向、距離、情報の信頼度を組み合わせ、必要な警告だけを届ける設計を目指しています。</p>
+      </div>
+    </section>
+
+    <section class="dn-features dn-section" id="features" aria-labelledby="features-title">
+      <div class="dn-heading">
+        <p class="dn-section-label">DESIGNED FOR THE ROAD</p>
+        <h2 id="features-title">知らせる。共有する。<br>確かめ合う。</h2>
+        <p>走行中の負担を増やさず、道路の安全情報をみんなで新しく保つための4つの設計です。</p>
+      </div>
+      <div class="dn-feature-grid">
+        <article class="dn-feature-card feature-alert">
+          <span class="dn-feature-number">01</span><span class="dn-feature-icon" aria-hidden="true">◉</span>
+          <h3>前方の危険を警告</h3>
+          <p>同じ道路・進行方向の前方にある危険を抽出し、カテゴリに応じた距離で音声と通知を届けます。</p>
+        </article>
+        <article class="dn-feature-card feature-report">
+          <span class="dn-feature-number">02</span><span class="dn-feature-icon" aria-hidden="true">＋</span>
+          <h3>少ない操作で共有</h3>
+          <p>大きなカテゴリボタンから2操作以内で投稿。音声登録は、走行中の操作をさらに減らす機能として段階的に提供します。</p>
+        </article>
+        <article class="dn-feature-card feature-trust">
+          <span class="dn-feature-number">03</span><span class="dn-feature-icon" aria-hidden="true">✓</span>
+          <h3>みんなで確かめる</h3>
+          <p>通過後の「まだある」「もうない」と時間経過から信頼度を更新。古い情報や未確認情報を強い警告に使いません。</p>
+        </article>
+        <article class="dn-feature-card feature-private">
+          <span class="dn-feature-number">04</span><span class="dn-feature-icon" aria-hidden="true">⌁</span>
+          <h3>移動履歴を残さない</h3>
+          <p>投稿者を匿名化し、生の位置履歴をサーバーに保存しません。メール、氏名、電話番号もMVPでは取得しません。</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="dn-how dn-section" id="how" aria-labelledby="how-title">
+      <div class="dn-heading dn-heading-light">
+        <p class="dn-section-label">HOW IT WORKS</p>
+        <h2 id="how-title">運転を始めたら、<br>あとは安全に集中。</h2>
+      </div>
+      <ol class="dn-steps">
+        <li><span>1</span><div><small>START</small><h3>走行モードを開始</h3><p>ユーザーが開始したときだけ、走行中に必要な位置情報を使います。</p></div></li>
+        <li><span>2</span><div><small>ALERT</small><h3>前方の危険をお知らせ</h3><p>道路と進行方向を照合し、必要なタイミングで一度だけ警告します。</p></div></li>
+        <li><span>3</span><div><small>SHARE</small><h3>危険を共有・確認</h3><p>停車中の操作や音声で投稿し、通過後に情報がまだ有効か確かめます。</p></div></li>
+      </ol>
+    </section>
+
+    <section class="dn-categories dn-section" aria-labelledby="categories-title">
+      <div class="dn-heading">
+        <p class="dn-section-label">HAZARD CATEGORIES</p>
+        <h2 id="categories-title">一瞬でわかる、<br>7つの危険カテゴリ。</h2>
+        <p>文章入力は使わず、大きなアイコンとラベルで共有します。</p>
+      </div>
+      <div class="dn-category-list">
+        <article><span>🚨</span><b>取り締まり情報</b></article>
+        <article><span>📦</span><b>落下物・落石</b></article>
+        <article><span>🌊</span><b>冠水</b></article>
+        <article><span>🧊</span><b>雹</b></article>
+        <article><span>☔</span><b>激しい雨・水たまり</b></article>
+        <article><span>⚠️</span><b>事故・故障車</b></article>
+        <article><span>🚧</span><b>工事・車線規制</b></article>
+      </div>
+    </section>
+
+    <section class="dn-safety dn-section" id="safety" aria-labelledby="safety-title">
+      <div class="dn-safety-copy">
+        <p class="dn-section-label">SAFETY & PRIVACY</p>
+        <h2 id="safety-title">運転中は、<br>画面を操作しない。</h2>
+        <p>安全性、プライバシー、OS公式ガイドラインを優先し、便利さのために運転中の複雑な操作を求めません。</p>
+        <a href="mailto:info@method-more.com?subject=DivertNaviの安全設計について">安全設計について問い合わせる <span aria-hidden="true">↗</span></a>
+      </div>
+      <div class="dn-safety-rules">
+        <article><span>01</span><div><b>走行中の文字入力なし</b><p>投稿は大きなカテゴリボタンまたは音声。確認への回答も走行中に強制しません。</p></div></article>
+        <article><span>02</span><div><b>必要な情報だけを利用</b><p>連続位置をサーバーへ送らず、位置・端末トークン・匿名IDをログに残しません。</p></div></article>
+        <article><span>03</span><div><b>安全を断定しない</b><p>道路照合やデータが不十分な場合、安全なルートや危険の有無を断定しません。</p></div></article>
+        <article><span>04</span><div><b>公式機関を装わない</b><p>警察・行政機関が提供するサービスではありません。ユーザー投稿には未確認情報が含まれる場合があります。</p></div></article>
+      </div>
+    </section>
+
+    <section class="dn-roadmap dn-section" id="roadmap" aria-labelledby="roadmap-title">
+      <div class="dn-heading">
+        <p class="dn-section-label">DEVELOPMENT ROADMAP</p>
+        <h2 id="roadmap-title">まずAndroidから。<br>その先にiOSへ。</h2>
+        <p>現在はMVPの仕様検証と基盤開発を進めています。公開時期は、実機と実走行前シミュレーションの安全確認後にお知らせします。</p>
+      </div>
+      <div class="dn-roadmap-grid">
+        <article class="current"><span>NOW</span><small>PHASE 1</small><h3>Android MVP</h3><p>Kotlin・Jetpack Composeを使い、地図、危険投稿、走行モード、前方警告、信頼度の順に検証します。</p><b><i></i> 開発中</b></article>
+        <article><span>NEXT</span><small>PHASE 2</small><h3>iOS</h3><p>Androidと共通の安全ロジックを使い、通知、音声、Siri/App Shortcuts、Live Activityへ展開します。</p><b>Android検証後</b></article>
+      </div>
+    </section>
+
+    <section class="dn-closing" aria-labelledby="closing-title">
+      <p class="dn-section-label">SAFER ROADS, BUILT TOGETHER</p>
+      <h2 id="closing-title">道路の「気をつけて」を、<br>次に走る人へ。</h2>
+      <p>走るだけで、みんなを守る。DivertNaviは、安全に使える形を一つずつ検証しながら開発しています。</p>
+      <a class="dn-button dn-button-primary" href="mailto:info@method-more.com?subject=DivertNaviについて">お問い合わせ <span aria-hidden="true">↗</span></a>
+    </section>
+  </main>
+
+  <footer class="dn-footer">
+    <a class="dn-brand dn-brand-footer" href="/divertnavi.html"><span class="dn-brand-mark" aria-hidden="true"><i></i></span><span>Divert<b>Navi</b></span></a>
+    <p>走るだけで、みんなを守る。</p>
+    <nav aria-label="フッターナビゲーション"><a href="#features">特長</a><a href="#safety">安全設計</a><a href="#roadmap">開発状況</a><a href="/">methodmore</a><a href="mailto:info@method-more.com">お問い合わせ</a></nav>
+    <small>開発中のプロダクトです。掲載内容は検証結果により変更する場合があります。</small>
+    <small>© 2026 methodmore</small>
+  </footer>
+</body>
+</html>
