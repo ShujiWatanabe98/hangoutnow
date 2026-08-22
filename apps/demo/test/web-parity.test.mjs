@@ -119,26 +119,29 @@ test('homepage targets Shinjuku solo participants with measurable acquisition li
 });
 
 test('corporate homepage separates methodmore from its two product pages', async () => {
-  const [corporate, hangout, divertnabi, sitemap] = await Promise.all([
+  const [corporate, hangout, dirvertnavi, sitemap, corporateStyles] = await Promise.all([
     readFile(new URL('../public/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/hangout-now.html', import.meta.url), 'utf8'),
-    readFile(new URL('../public/divertnabi.html', import.meta.url), 'utf8'),
+    readFile(new URL('../public/dirvertnavi.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/sitemap.xml', import.meta.url), 'utf8'),
+    readFile(new URL('../public/corporate.css', import.meta.url), 'utf8'),
   ]);
 
   assert.match(corporate, /<title>methodmore｜日常の選択を、もっと前へ。<\/title>/);
   assert.match(corporate, /<link rel="canonical" href="https:\/\/method-more\.com\/">/);
   assert.match(corporate, /href="\/hangout-now\.html"/);
-  assert.match(corporate, /href="\/divertnabi\.html"/);
+  assert.match(corporate, /href="\/dirvertnavi\.html"/);
   assert.match(corporate, /Hangout <em>Now<\/em>/);
-  assert.match(corporate, /DivertNabi/);
+  assert.match(corporate, /DirvertNavi/);
   assert.match(corporate, /公開中/);
   assert.match(corporate, /準備中/);
   assert.match(hangout, /<link rel="canonical" href="https:\/\/method-more\.com\/hangout-now\.html">/);
-  assert.match(divertnabi, /<link rel="canonical" href="https:\/\/method-more\.com\/divertnabi\.html">/);
-  assert.match(divertnabi, /準備が整い次第このページでお知らせします/);
+  assert.match(dirvertnavi, /<link rel="canonical" href="https:\/\/method-more\.com\/dirvertnavi\.html">/);
+  assert.match(dirvertnavi, /準備が整い次第このページでお知らせします/);
+  assert.equal(assetVersion(corporate, 'corporate.css'), assetVersion(dirvertnavi, 'corporate.css'));
   assert.match(sitemap, /https:\/\/method-more\.com\/hangout-now\.html/);
-  assert.match(sitemap, /https:\/\/method-more\.com\/divertnabi\.html/);
+  assert.match(sitemap, /https:\/\/method-more\.com\/dirvertnavi\.html/);
+  assert.match(corporateStyles, /\.dirvert-art/);
 });
 
 test('public server sends browser security headers', async () => {
