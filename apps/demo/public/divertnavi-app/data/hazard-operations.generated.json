@@ -1,0 +1,566 @@
+{
+  "schemaVersion": 3,
+  "runId": "2026-08-22_13-58-27-121",
+  "startedAt": "2026-08-22T13:58:27.121Z",
+  "completedAt": "2026-08-22T13:58:27.425Z",
+  "state": "READY_FOR_REVIEW",
+  "targetDataset": "UNDERPASS",
+  "researchedAt": "2026-08-22",
+  "scope": {
+    "requestedPrefectureCodes": [
+      "11",
+      "12",
+      "13",
+      "14",
+      "43"
+    ],
+    "requestedPrefectureNames": [
+      "埼玉県",
+      "千葉県",
+      "東京都",
+      "神奈川県",
+      "熊本県"
+    ]
+  },
+  "summary": {
+    "currentItemCount": 747,
+    "candidateItemCount": 747,
+    "addedCount": 0,
+    "removedCount": 0,
+    "changedCount": 0,
+    "sampleAddedIds": [],
+    "sampleRemovedIds": [],
+    "sampleChangedIds": [],
+    "requestedPrefectures": 5,
+    "importedPrefectures": 5,
+    "failedPrefectures": 0
+  },
+  "gates": [
+    {
+      "id": "target-prefectures",
+      "label": "選択地域をすべて取得",
+      "status": "PASS",
+      "detail": "5/5都道府県、失敗0件"
+    },
+    {
+      "id": "minimum-count",
+      "label": "対象地域の想定件数を維持",
+      "status": "PASS",
+      "detail": "747件（現行対象データの75%以上）"
+    },
+    {
+      "id": "unique-ids",
+      "label": "IDの重複なし",
+      "status": "PASS",
+      "detail": "重複0件"
+    },
+    {
+      "id": "coordinate-range",
+      "label": "座標範囲を検証",
+      "status": "PASS",
+      "detail": "範囲外0件"
+    },
+    {
+      "id": "removal-guard",
+      "label": "大幅な削除を防止",
+      "status": "PASS",
+      "detail": "削除0件（0.0%）、上限5%"
+    }
+  ],
+  "categorySources": [
+    {
+      "category": "UNDERPASS",
+      "label": "道路冠水注意地点",
+      "icon": "↓",
+      "status": "ACTIVE",
+      "sourceKind": "STATIC_RISK",
+      "sourceOrganization": "ユーザー投稿＋国土交通省・道路管理者",
+      "sourceUrl": "https://www.mlit.go.jp/road/bosai/doro_bosaijoho_webmap/",
+      "updatePolicy": "静的な注意地点は毎日差分確認。現在の冠水は投稿・通行規制・雨量を別レイヤーで照合する。",
+      "collectionWindow": "毎日 04:30 JST／公式更新検知時は臨時実行",
+      "freshnessPolicy": "静的地点は次回公式更新まで。現在発生中とは扱わない。",
+      "note": "注意地点とリアルタイム冠水を分離し、公式地点の削除は人の承認なしに反映しない。",
+      "sources": [
+        {
+          "name": "DivertNaviユーザー投稿",
+          "organization": "DivertNavi",
+          "kind": "COMMUNITY",
+          "status": "USER_ACTIVE",
+          "url": null,
+          "cadence": "常時受付",
+          "freshness": "180分",
+          "role": "現在の冠水・現地状況を即時補完。複数投稿と公式規制で信頼度を更新。",
+          "isDefault": true
+        },
+        {
+          "name": "道路防災情報WEBマップ",
+          "organization": "国土交通省・地方整備局",
+          "kind": "OFFICIAL_STATIC",
+          "status": "CONNECTED",
+          "url": "https://www.mlit.go.jp/road/bosai/doro_bosaijoho_webmap/",
+          "cadence": "24時間ごと",
+          "freshness": "公式更新まで",
+          "role": "アンダーパス等の冠水想定箇所を収集。現在の冠水情報には転用しない。"
+        },
+        {
+          "name": "道路情報提供システム",
+          "organization": "国土交通省",
+          "kind": "OFFICIAL_WEB",
+          "status": "TERMS_REVIEW",
+          "url": "https://www.road-info-prvs.mlit.go.jp/roadinfo/pc/pcTop_00_0.html",
+          "cadence": "5分確認候補",
+          "freshness": "15分",
+          "role": "冠水や災害に伴う通行規制を照合。自動取得は配信条件確認後。"
+        }
+      ]
+    },
+    {
+      "category": "FLOOD",
+      "label": "冠水",
+      "icon": "🌊",
+      "status": "DESIGNED",
+      "sourceKind": "DYNAMIC_FUSION",
+      "sourceOrganization": "ユーザー投稿＋国交省河川情報＋気象庁＋JARTIC",
+      "sourceUrl": "https://www.mlit.go.jp/river/event/main/datahaishin/index.html",
+      "updatePolicy": "投稿を即時反映候補とし、河川水位・洪水予報・浸水キキクル・道路規制の一致で信頼度を上げる。",
+      "collectionWindow": "5分ごと（気象・河川配信の更新に同期）",
+      "freshnessPolicy": "最終確認から30分。投稿だけの場合は180分で失効。",
+      "note": "河川洪水リスクと道路冠水の発生を同一視せず、道路上の確証がない場合は「周辺冠水リスク」と表示する。",
+      "sources": [
+        {
+          "name": "DivertNaviユーザー投稿",
+          "organization": "DivertNavi",
+          "kind": "COMMUNITY",
+          "status": "USER_ACTIVE",
+          "url": null,
+          "cadence": "常時受付",
+          "freshness": "180分",
+          "role": "道路上の冠水、深さ、通行可否を現地から補完。",
+          "isDefault": true
+        },
+        {
+          "name": "水防災オープンデータ提供サービス",
+          "organization": "国土交通省・河川情報センター",
+          "kind": "OFFICIAL_FEED",
+          "status": "CONTRACT_REQUIRED",
+          "url": "https://www.mlit.go.jp/river/event/main/datahaishin/index.html",
+          "cadence": "5分想定",
+          "freshness": "15分",
+          "role": "47都道府県の雨量・水位・洪水予警報を正式な数値配信で取得。"
+        },
+        {
+          "name": "防災情報XML（警報・指定河川洪水予報）",
+          "organization": "気象庁",
+          "kind": "OFFICIAL_PUBLIC_FEED",
+          "status": "READY_TO_CONNECT",
+          "url": "https://xml.kishou.go.jp/xmlpull.html",
+          "cadence": "1分",
+          "freshness": "10分",
+          "role": "登録不要の高頻度Atomから警報・注意報・指定河川洪水予報を取得。取得済み電文URLを再取得しない。"
+        },
+        {
+          "name": "浸水・洪水キキクル",
+          "organization": "気象庁／気象業務支援センター",
+          "kind": "OFFICIAL_FEED",
+          "status": "CONTRACT_REQUIRED",
+          "url": "https://www.data.jma.go.jp/suishin/cgi-bin/catalogue/make_product_page.cgi?id=Kikendo",
+          "cadence": "10分",
+          "freshness": "20分",
+          "role": "1km格子GRIB2の浸水・洪水危険度を道路周辺へ空間照合。安定配信は支援センター契約を使う。"
+        },
+        {
+          "name": "法人向け道路交通情報",
+          "organization": "JARTIC",
+          "kind": "TRAFFIC_FEED",
+          "status": "CONTRACT_REQUIRED",
+          "url": "https://www.jartic.or.jp/s/service/forcorporation/",
+          "cadence": "5分",
+          "freshness": "10分",
+          "role": "冠水・災害に伴う通行止めや車線規制を確証として利用。"
+        }
+      ]
+    },
+    {
+      "category": "HEAVY_RAIN",
+      "label": "激しい雨・水たまり",
+      "icon": "☔",
+      "status": "DESIGNED",
+      "sourceKind": "WEATHER_FUSION",
+      "sourceOrganization": "ユーザー投稿＋気象庁正式配信＋契約気象API",
+      "sourceUrl": "https://www.data.jma.go.jp/developer/weatherdataguide/appendix/2-1-b.html",
+      "updatePolicy": "5分共有キャッシュで降水実況・60分予測を取得し、ルート各点の到着予想時刻へ補間する。",
+      "collectionWindow": "5分ごと",
+      "freshnessPolicy": "10分。予測時刻を過ぎたデータは利用しない。",
+      "note": "公開Web画面を高頻度巡回せず、気象業務支援センターまたは契約APIの正式配信を使う。",
+      "sources": [
+        {
+          "name": "DivertNaviユーザー投稿",
+          "organization": "DivertNavi",
+          "kind": "COMMUNITY",
+          "status": "USER_ACTIVE",
+          "url": null,
+          "cadence": "常時受付",
+          "freshness": "60分",
+          "role": "視界不良、深い水たまり、局地的豪雨を現地補完。",
+          "isDefault": true
+        },
+        {
+          "name": "防災情報XML（大雨警報・気象情報）",
+          "organization": "気象庁",
+          "kind": "OFFICIAL_PUBLIC_FEED",
+          "status": "READY_TO_CONNECT",
+          "url": "https://xml.kishou.go.jp/xmlpull.html",
+          "cadence": "1分",
+          "freshness": "10分",
+          "role": "登録不要の高頻度Atomから大雨警報・注意報・記録的短時間大雨等の公式発表を取得。"
+        },
+        {
+          "name": "最新アメダス降水量CSV",
+          "organization": "気象庁",
+          "kind": "OFFICIAL_PUBLIC_CSV",
+          "status": "READY_TO_CONNECT",
+          "url": "https://www.data.jma.go.jp/stats/data/mdrr/docs/csv_dl_readme.html",
+          "cadence": "10分",
+          "freshness": "40分",
+          "role": "全国観測点の1時間降水量と品質情報を取得。観測から公開まで約30分の遅延を加味し、ナウキャストの補助にする。"
+        },
+        {
+          "name": "高解像度降水ナウキャスト",
+          "organization": "気象庁／気象業務支援センター",
+          "kind": "OFFICIAL_FEED",
+          "status": "CONTRACT_REQUIRED",
+          "url": "https://www.jmbsc.or.jp/jp/online/file/f-online30300.html",
+          "cadence": "5分",
+          "freshness": "10分",
+          "role": "250m格子・30分先、1km格子・60分先の降水強度を主要判定に使用。"
+        },
+        {
+          "name": "降水短時間予報",
+          "organization": "気象庁／気象業務支援センター",
+          "kind": "OFFICIAL_FEED",
+          "status": "CONTRACT_REQUIRED",
+          "url": "https://www.data.jma.go.jp/developer/weatherdataguide/appendix/2-1-b.html",
+          "cadence": "10〜30分",
+          "freshness": "30分",
+          "role": "60分を超える到着予想地点の降雨リスクを補完。"
+        },
+        {
+          "name": "Weather Data API（Weather X）",
+          "organization": "日本気象協会",
+          "kind": "COMMERCIAL_API",
+          "status": "CONTRACT_REQUIRED",
+          "url": "https://weather-jwa.jp/service/weather_api",
+          "cadence": "契約仕様",
+          "freshness": "契約仕様",
+          "role": "国内向け詳細予測の冗長系。契約項目・再配信条件・道路利用可否を確認して採用。"
+        },
+        {
+          "name": "アメフリ -Amefuri-",
+          "organization": "Amefuri（気象情報提供元はApp Store記載で株式会社メディアラボ）",
+          "kind": "CONSUMER_APP",
+          "status": "NO_PUBLIC_API",
+          "url": "https://amefuri.app/",
+          "cadence": "取得しない",
+          "freshness": "判定対象外",
+          "role": "公開APIと再配信条件を確認できないため、画面・内部通信を取得しない。提供者から法人利用許諾を得た場合だけ再審査する。"
+        }
+      ]
+    },
+    {
+      "category": "HAIL",
+      "label": "雹",
+      "icon": "🧊",
+      "status": "DESIGNED",
+      "sourceKind": "WEATHER_INFERENCE",
+      "sourceOrganization": "ユーザー投稿＋雷・降水ナウキャスト＋雹対応契約事業者",
+      "sourceUrl": "https://www.jmbsc.or.jp/jp/online/file/f-online30600.html",
+      "updatePolicy": "投稿を直接観測として扱い、雷活動度と強い降水は「雹のおそれ」の補助判定だけに使用する。",
+      "collectionWindow": "10分ごと",
+      "freshnessPolicy": "60分。直接観測の再確認がなければ速やかに失効。",
+      "note": "気象庁の雷・降水データだけから雹発生を断定しない。雹専用プロダクト契約後に自動確定条件を追加する。",
+      "sources": [
+        {
+          "name": "DivertNaviユーザー投稿",
+          "organization": "DivertNavi",
+          "kind": "COMMUNITY",
+          "status": "USER_ACTIVE",
+          "url": null,
+          "cadence": "常時受付",
+          "freshness": "60分",
+          "role": "雹の直接観測。写真なしでも複数投稿・時間近接で信頼度を更新。",
+          "isDefault": true
+        },
+        {
+          "name": "防災情報XML（雷注意報等）",
+          "organization": "気象庁",
+          "kind": "OFFICIAL_PUBLIC_FEED",
+          "status": "READY_TO_CONNECT",
+          "url": "https://xml.kishou.go.jp/xmlpull.html",
+          "cadence": "1分",
+          "freshness": "10分",
+          "role": "雷注意報など積乱雲発達の公式発表を取得するが、雹の直接観測には扱わない。"
+        },
+        {
+          "name": "雷ナウキャスト",
+          "organization": "気象庁／気象業務支援センター",
+          "kind": "OFFICIAL_FEED",
+          "status": "CONTRACT_REQUIRED",
+          "url": "https://www.jmbsc.or.jp/jp/online/file/f-online30600.html",
+          "cadence": "10分",
+          "freshness": "20分",
+          "role": "発達した積乱雲の補助指標。単独では雹判定に使わない。"
+        },
+        {
+          "name": "高解像度降水ナウキャスト",
+          "organization": "気象庁／気象業務支援センター",
+          "kind": "OFFICIAL_FEED",
+          "status": "CONTRACT_REQUIRED",
+          "url": "https://www.jmbsc.or.jp/jp/online/file/f-online30300.html",
+          "cadence": "5分",
+          "freshness": "10分",
+          "role": "強い対流域の補助指標。雷データと組み合わせても表示は「おそれ」に限定。"
+        },
+        {
+          "name": "雹対応の法人向け気象API",
+          "organization": "気象予報事業者",
+          "kind": "COMMERCIAL_API",
+          "status": "PRODUCT_REVIEW",
+          "url": "https://www.jwa.or.jp/service/transport-infra/api/micos-api/",
+          "cadence": "契約仕様",
+          "freshness": "契約仕様",
+          "role": "雹の実況・予測項目、利用許諾、精度評価を確認してから採用。"
+        }
+      ]
+    },
+    {
+      "category": "ACCIDENT",
+      "label": "事故・故障車",
+      "icon": "⚠️",
+      "status": "DESIGNED",
+      "sourceKind": "TRAFFIC_FUSION",
+      "sourceOrganization": "ユーザー投稿＋JARTIC/VICS＋道路会社＋警察庁統計",
+      "sourceUrl": "https://www.jartic.or.jp/s/service/forcorporation/",
+      "updatePolicy": "発生中事故は交通情報配信と投稿を統合し、過去事故統計は危険傾向レイヤーとして分離する。",
+      "collectionWindow": "5分ごと／事故統計は年次更新",
+      "freshnessPolicy": "発生中情報は15分、確認継続中は最大180分。",
+      "note": "警察庁オープンデータは過去の人身事故であり、発生中事故として表示しない。",
+      "sources": [
+        {
+          "name": "DivertNaviユーザー投稿",
+          "organization": "DivertNavi",
+          "kind": "COMMUNITY",
+          "status": "USER_ACTIVE",
+          "url": null,
+          "cadence": "常時受付",
+          "freshness": "180分",
+          "role": "事故・故障車・車線支障を即時補完。",
+          "isDefault": true
+        },
+        {
+          "name": "法人向け道路交通情報",
+          "organization": "JARTIC",
+          "kind": "TRAFFIC_FEED",
+          "status": "CONTRACT_REQUIRED",
+          "url": "https://www.jartic.or.jp/s/service/forcorporation/",
+          "cadence": "5分",
+          "freshness": "10分",
+          "role": "事故、故障車、交通規制を主要な発生中情報として取得。"
+        },
+        {
+          "name": "VICS符号型道路交通情報",
+          "organization": "VICSセンター／JARTIC",
+          "kind": "TRAFFIC_FEED",
+          "status": "CONTRACT_REQUIRED",
+          "url": "https://www.vics.or.jp/center/offering/",
+          "cadence": "5分（高速道路は1分）",
+          "freshness": "10分",
+          "role": "事故・故障車・事象規制を地図へ重畳可能な形式で取得。契約、負担金、再配信条件の確認が必要。"
+        },
+        {
+          "name": "交通事故統計オープンデータ",
+          "organization": "警察庁",
+          "kind": "OFFICIAL_STATIC",
+          "status": "READY_TO_CONNECT",
+          "url": "https://www.npa.go.jp/publications/statistics/koutsuu/opendata/index_opendata.html",
+          "cadence": "年次",
+          "freshness": "統計年度",
+          "role": "事故多発傾向の事前リスク評価専用。リアルタイム事故とは別表示。"
+        }
+      ]
+    },
+    {
+      "category": "OBJECT",
+      "label": "落下物・落石",
+      "icon": "📦",
+      "status": "DESIGNED",
+      "sourceKind": "TRAFFIC_FUSION",
+      "sourceOrganization": "ユーザー投稿＋JARTIC/VICS＋道路管理者",
+      "sourceUrl": "https://www.jartic.or.jp/s/service/forcorporation/",
+      "updatePolicy": "投稿を即時候補とし、交通障害・通行規制・道路会社情報で確証。解除情報を優先して消し込む。",
+      "collectionWindow": "5分ごと",
+      "freshnessPolicy": "最終確認から30分。投稿だけの場合は180分。",
+      "note": "落石による規制は公式情報を優先し、落下物は短寿命データとして早めに失効させる。",
+      "sources": [
+        {
+          "name": "DivertNaviユーザー投稿",
+          "organization": "DivertNavi",
+          "kind": "COMMUNITY",
+          "status": "USER_ACTIVE",
+          "url": null,
+          "cadence": "常時受付",
+          "freshness": "180分",
+          "role": "落下物・落石・倒木などの現地発見を即時補完。",
+          "isDefault": true
+        },
+        {
+          "name": "法人向け道路交通情報",
+          "organization": "JARTIC",
+          "kind": "TRAFFIC_FEED",
+          "status": "CONTRACT_REQUIRED",
+          "url": "https://www.jartic.or.jp/s/service/forcorporation/",
+          "cadence": "5分",
+          "freshness": "10分",
+          "role": "路上障害物、災害、通行規制を主要確証として利用。"
+        },
+        {
+          "name": "道路情報提供システム",
+          "organization": "国土交通省",
+          "kind": "OFFICIAL_WEB",
+          "status": "TERMS_REVIEW",
+          "url": "https://www.road-info-prvs.mlit.go.jp/roadinfo/pc/pcTop_00_0.html",
+          "cadence": "5分確認候補",
+          "freshness": "15分",
+          "role": "落石・倒木・災害に伴う規制を照合。正式な機械配信の可否を確認。"
+        },
+        {
+          "name": "NEXCOリアルタイム交通情報",
+          "organization": "高速道路会社",
+          "kind": "OFFICIAL_WEB",
+          "status": "TERMS_REVIEW",
+          "url": "https://www.drivetraffic.jp/",
+          "cadence": "5分確認候補",
+          "freshness": "15分",
+          "role": "高速道路上の障害・規制を地域別に照合。自動取得は許諾確認後。"
+        }
+      ]
+    },
+    {
+      "category": "ROADWORK",
+      "label": "工事・車線規制",
+      "icon": "🚧",
+      "status": "DESIGNED",
+      "sourceKind": "TRAFFIC_FUSION",
+      "sourceOrganization": "ユーザー投稿＋JARTIC＋国交省＋高速道路会社",
+      "sourceUrl": "https://www.jartic.or.jp/s/service/forcorporation/",
+      "updatePolicy": "予定工事を毎日先読みし、当日は5分交通情報で開始・終了・規制内容を更新する。",
+      "collectionWindow": "稼働中は5分ごと／予定情報は毎日 04:00 JST",
+      "freshnessPolicy": "稼働中は15分。予定は終了予定時刻＋30分で失効。",
+      "note": "予定と実施中を別状態で持ち、道路管理者の開始・終了情報を投稿より優先する。",
+      "sources": [
+        {
+          "name": "DivertNaviユーザー投稿",
+          "organization": "DivertNavi",
+          "kind": "COMMUNITY",
+          "status": "USER_ACTIVE",
+          "url": null,
+          "cadence": "常時受付",
+          "freshness": "360分",
+          "role": "突発的な車線規制や予定との差異を現地補完。",
+          "isDefault": true
+        },
+        {
+          "name": "法人向け道路交通情報",
+          "organization": "JARTIC",
+          "kind": "TRAFFIC_FEED",
+          "status": "CONTRACT_REQUIRED",
+          "url": "https://www.jartic.or.jp/s/service/forcorporation/",
+          "cadence": "5分",
+          "freshness": "10分",
+          "role": "工事・作業・車線規制の実施状況を取得。"
+        },
+        {
+          "name": "道路情報提供システム",
+          "organization": "国土交通省",
+          "kind": "OFFICIAL_WEB",
+          "status": "TERMS_REVIEW",
+          "url": "https://www.road-info-prvs.mlit.go.jp/roadinfo/pc/pcTop_00_0.html",
+          "cadence": "5分確認候補",
+          "freshness": "15分",
+          "role": "直轄国道の現在規制、工事・行事予定箇所を照合。"
+        },
+        {
+          "name": "NEXCO工事規制・リアルタイム情報",
+          "organization": "高速道路会社",
+          "kind": "OFFICIAL_WEB",
+          "status": "TERMS_REVIEW",
+          "url": "https://www.drivetraffic.jp/",
+          "cadence": "5分／日次",
+          "freshness": "15分",
+          "role": "高速道路の工事予定と実施中規制を地域別に補完。"
+        }
+      ]
+    },
+    {
+      "category": "POLICE",
+      "label": "交通安全重点地点",
+      "icon": "🚨",
+      "status": "POLICY_REVIEW",
+      "sourceKind": "SAFETY_GUIDANCE",
+      "sourceOrganization": "ユーザー投稿＋都道府県警察の公開取締計画・重点地点",
+      "sourceUrl": "https://www.keishicho.metro.tokyo.lg.jp/kotsu/torishimari/kokai_juten/jutentorishimari.html",
+      "updatePolicy": "公式に公開された重点地点・計画を安全運転注意として日次確認。投稿は未確認情報として短時間表示する。",
+      "collectionWindow": "毎日 05:00 JST／月初に全件照合",
+      "freshnessPolicy": "公式計画の対象期間まで。投稿は120分。",
+      "note": "取締り回避を助ける断定表示は行わず、「交通安全重点地点」として制限速度・交通規則の順守を促す。",
+      "sources": [
+        {
+          "name": "DivertNaviユーザー投稿",
+          "organization": "DivertNavi",
+          "kind": "COMMUNITY",
+          "status": "USER_ACTIVE",
+          "url": null,
+          "cadence": "常時受付",
+          "freshness": "120分",
+          "role": "安全運転を促す未確認情報として補完。公式情報と誤認させない。",
+          "isDefault": true
+        },
+        {
+          "name": "重点取締場所・公開交通取締り",
+          "organization": "警視庁・各道府県警察",
+          "kind": "OFFICIAL_STATIC",
+          "status": "READY_TO_CONNECT",
+          "url": "https://www.keishicho.metro.tokyo.lg.jp/kotsu/torishimari/kokai_juten/jutentorishimari.html",
+          "cadence": "日次",
+          "freshness": "公開対象期間",
+          "role": "警察が公開する重点路線・場所・取締計画を安全重点地点として取得。"
+        },
+        {
+          "name": "取締り活動ガイドライン",
+          "organization": "警察庁・都道府県警察",
+          "kind": "OFFICIAL_STATIC",
+          "status": "READY_TO_CONNECT",
+          "url": "https://www.npa.go.jp/laws/notification/koutuu/shidou/040328.pdf",
+          "cadence": "月次",
+          "freshness": "最新版まで",
+          "role": "重点地区・重点路線の定義と表示根拠を確認。リアルタイム地点には使わない。"
+        },
+        {
+          "name": "交通規制情報オープンデータ",
+          "organization": "JARTIC",
+          "kind": "OFFICIAL_STATIC",
+          "status": "READY_TO_CONNECT",
+          "url": "https://www.jartic.or.jp/service/opendata/",
+          "cadence": "月次",
+          "freshness": "前々月末基準",
+          "role": "固定交通規制の補助情報。取締り実施情報ではないことを明示。"
+        }
+      ]
+    }
+  ],
+  "publication": {
+    "mapDataUpdated": false,
+    "requiresExplicitPromotion": true,
+    "command": "npm.cmd run data:promote -- 2026-08-22_13-58-27-121",
+    "note": "候補は検証済みです。差分確認後に明示的な反映操作が必要です。"
+  }
+}

@@ -5,6 +5,9 @@ import { extname, join, normalize } from 'node:path';
 const port = Number(process.env.DEMO_PORT ?? 4173);
 const root = join(import.meta.dirname, 'public');
 const proxyApiUrl = (process.env.DEMO_PROXY_API_URL || process.env.API_URL)?.replace(/\/$/, '');
+const dashboardPathCandidate = process.env.DIVERTNAVI_DASHBOARD_PATH?.trim().replace(/\/+$/, '') ?? '';
+const divertNaviDashboardPath = /^\/divertnavi-app\/[a-z0-9](?:[a-z0-9-]{22,}[a-z0-9])$/.test(dashboardPathCandidate) ? dashboardPathCandidate : '';
+const divertNaviCollector = divertNaviDashboardPath ? import('./divertnavi-collector/service.mjs') : null;
 const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.xml': 'application/xml; charset=utf-8', '.txt': 'text/plain; charset=utf-8' };
 const securityHeaders = {
   'content-security-policy': "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://api.mapbox.com https://*.tiles.mapbox.com https://hangoutnow-demo.onrender.com https://play.google.com https://tools.applemediaservices.com; frame-src https://maps.google.com; connect-src 'self' https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com https://www.google-analytics.com https://region1.google-analytics.com; font-src 'self'; worker-src blob:; upgrade-insecure-requests",
@@ -17,6 +20,7 @@ const securityHeaders = {
 
 createServer(async (request, response) => {
   const requestedPath = request.url?.split('?')[0] ?? '/';
+  const normalizedRequestedPath = requestedPath.replace(/\/+$/, '') || '/';
   if (requestedPath === '/demo.html' && request.url === '/demo.html') {
     response.writeHead(302, {
       ...securityHeaders,
@@ -33,6 +37,41 @@ createServer(async (request, response) => {
       'cache-control': 'no-store',
     });
     response.end();
+    return;
+  }
+  if (divertNaviCollector && requestedPath.startsWith(`${divertNaviDashboardPath}/api/collector/`)) {
+    try {
+      const collector = await divertNaviCollector;
+      await collector.ready;
+      const action = requestedPath.slice(`${divertNaviDashboardPath}/api/collector/`.length);
+      let result;
+      if (request.method === 'GET' && action === 'status') result = collector.getCollectorStatus();
+      else if (request.method === 'POST' && action === 'start') {
+        const body = await new Promise((resolve, reject) => {
+          let text = '';
+          request.on('data', (chunk) => { text += chunk; if (text.length > 16384) reject(new Error('リクエストが大きすぎます')); });
+          request.on('end', () => { try { resolve(text ? JSON.parse(text) : {}); } catch (error) { reject(error); } });
+          request.on('error', reject);
+        });
+        const prefectureCodes = Array.isArray(body.prefectureCodes) ? body.prefectureCodes : [];
+        if (!prefectureCodes.length || prefectureCodes.some((code) => !/^\d{2}$/.test(code))) {
+          response.writeHead(400, { ...securityHeaders, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+          response.end(JSON.stringify({ error: '対象都道府県が不正です' }));
+          return;
+        }
+        result = await collector.startCollector(prefectureCodes);
+      } else if (request.method === 'POST' && action === 'stop') result = collector.stopCollector();
+      else {
+        response.writeHead(404, { ...securityHeaders, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+        response.end(JSON.stringify({ error: 'Not found' }));
+        return;
+      }
+      response.writeHead(200, { ...securityHeaders, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+      response.end(JSON.stringify(result));
+    } catch (error) {
+      response.writeHead(500, { ...securityHeaders, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+      response.end(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }));
+    }
     return;
   }
   if(proxyApiUrl&&requestedPath.startsWith('/api/')){
@@ -60,18 +99,26 @@ createServer(async (request, response) => {
   }
   if (requestedPath === '/divertnavi-app/config.js') {
     const mapboxToken = process.env.MAPBOX_APIKEY?.trim() ?? '';
+    let dashboardRequest = false;
+    try { dashboardRequest = Boolean(divertNaviDashboardPath && new URL(request.headers.referer).pathname.replace(/\/+$/, '') === divertNaviDashboardPath); } catch {}
+    const config = {
+      mapboxToken,
+      ...(dashboardRequest ? { dashboardPath: divertNaviDashboardPath, collectorApiBase: `${divertNaviDashboardPath}/api/collector` } : {}),
+    };
     response.writeHead(200, {
       ...securityHeaders,
       'content-type': 'text/javascript; charset=utf-8',
       'cache-control': 'no-store',
     });
-    response.end(`globalThis.DIVERTNAVI_CONFIG=${JSON.stringify({ mapboxToken })};`);
+    response.end(`globalThis.DIVERTNAVI_CONFIG=${JSON.stringify(config)};`);
     return;
   }
   const pathname = requestedPath === '/'
     ? '/index.html'
     : requestedPath === '/divertnavi-app' || requestedPath === '/divertnavi-app/'
       ? '/divertnavi-app/index.html'
+      : divertNaviDashboardPath && normalizedRequestedPath === divertNaviDashboardPath
+        ? '/divertnavi-app/index.html'
       : requestedPath;
   const file = normalize(join(root, pathname));
   if (!file.startsWith(root)) { response.writeHead(403, securityHeaders).end(); return; }

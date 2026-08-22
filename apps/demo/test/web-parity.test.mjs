@@ -198,6 +198,9 @@ test('public server sends browser security headers', async () => {
   assert.match(server, /requestedPath === '\/divertnavi-app\/'/);
   assert.match(server, /requestedPath === '\/divertnavi-app\/config\.js'/);
   assert.match(server, /process\.env\.MAPBOX_APIKEY/);
+  assert.match(server, /process\.env\.DIVERTNAVI_DASHBOARD_PATH/);
+  assert.match(server, /action === 'status'/);
+  assert.doesNotMatch(server, /\/divertnavi-app\/ops-[a-z0-9-]{24,}/, 'private dashboard path must not be committed');
 });
 
 test('profile editor saves privacy-safe matching preferences', async () => {
