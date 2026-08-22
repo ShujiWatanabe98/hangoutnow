@@ -63,7 +63,7 @@ test('web and native load Hangout details from the detail API instead of reusing
 });
 
 test('homepage explains activity-first AI matching with trust and consent', async () => {
-  const homepage = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
+  const homepage = await readFile(new URL('../public/hangout-now.html', import.meta.url), 'utf8');
   for (const copy of ['人より先に、', '活動をマッチング。', '独自のマッチングアルゴリズム', 'マッチング成立の可能性を高めます', '信頼と安全を考えたマッチング', '活動履歴は許可した場合のみ利用', '正確な位置情報やトーク内容は学習に使用しません']) {
     assert.ok(homepage.includes(copy), `homepage AI matching copy is missing: ${copy}`);
   }
@@ -71,16 +71,16 @@ test('homepage explains activity-first AI matching with trust and consent', asyn
 });
 
 test('homepage exposes useful search metadata without keyword stuffing', async () => {
-  const homepage = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
+  const homepage = await readFile(new URL('../public/hangout-now.html', import.meta.url), 'utf8');
   for (const copy of ['近くの友達・趣味仲間を活動から探す｜Hangout Now', '今やりたい活動、時間、エリアから安全に探せる']) {
     assert.ok(homepage.includes(copy), `homepage search metadata is missing: ${copy}`);
   }
-  assert.match(homepage, /<link rel="canonical" href="https:\/\/method-more\.com\/">/);
+  assert.match(homepage, /<link rel="canonical" href="https:\/\/method-more\.com\/hangout-now\.html">/);
 });
 
 test('homepage targets Shinjuku solo participants with measurable acquisition links', async () => {
   const [homepage, guide, sitemap, analytics, newsletter, share, server] = await Promise.all([
-    readFile(new URL('../public/index.html', import.meta.url), 'utf8'),
+    readFile(new URL('../public/hangout-now.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/shinjuku-working-adult-friends.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/sitemap.xml', import.meta.url), 'utf8'),
     readFile(new URL('../public/analytics.js', import.meta.url), 'utf8'),
@@ -116,6 +116,29 @@ test('homepage targets Shinjuku solo participants with measurable acquisition li
   assert.match(server, /share\.js\?v=20260821-3/);
   assert.match(server, /requestedPath === '\/tokyo-working-adult-friends\.html'/);
   assert.match(server, /location: '\/shinjuku-working-adult-friends\.html'/);
+});
+
+test('corporate homepage separates methodmore from its two product pages', async () => {
+  const [corporate, hangout, divertnabi, sitemap] = await Promise.all([
+    readFile(new URL('../public/index.html', import.meta.url), 'utf8'),
+    readFile(new URL('../public/hangout-now.html', import.meta.url), 'utf8'),
+    readFile(new URL('../public/divertnabi.html', import.meta.url), 'utf8'),
+    readFile(new URL('../public/sitemap.xml', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(corporate, /<title>methodmore｜日常の選択を、もっと前へ。<\/title>/);
+  assert.match(corporate, /<link rel="canonical" href="https:\/\/method-more\.com\/">/);
+  assert.match(corporate, /href="\/hangout-now\.html"/);
+  assert.match(corporate, /href="\/divertnabi\.html"/);
+  assert.match(corporate, /Hangout <em>Now<\/em>/);
+  assert.match(corporate, /DivertNabi/);
+  assert.match(corporate, /公開中/);
+  assert.match(corporate, /準備中/);
+  assert.match(hangout, /<link rel="canonical" href="https:\/\/method-more\.com\/hangout-now\.html">/);
+  assert.match(divertnabi, /<link rel="canonical" href="https:\/\/method-more\.com\/divertnabi\.html">/);
+  assert.match(divertnabi, /準備が整い次第このページでお知らせします/);
+  assert.match(sitemap, /https:\/\/method-more\.com\/hangout-now\.html/);
+  assert.match(sitemap, /https:\/\/method-more\.com\/divertnabi\.html/);
 });
 
 test('public server sends browser security headers', async () => {

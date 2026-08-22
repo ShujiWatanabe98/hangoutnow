@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="methodmore">
+  <rect width="64" height="64" rx="18" fill="#101d32"/>
+  <path d="M14 42V24c0-3 2-5 5-5s5 2 5 5v18h-7V25c0-1-.5-1.5-1.5-1.5S14 24 14 25v17Zm13 0V24c0-3 2-5 5-5s5 2 5 5v18h-7V25c0-1-.5-1.5-1.5-1.5S27 24 27 25v17Zm13 0V24c0-3 2-5 5-5s5 2 5 5v18h-7V25c0-1-.5-1.5-1.5-1.5S40 24 40 25v17Z" fill="#f1ff61"/>
+</svg>

@@ -7,7 +7,7 @@ const publicFile = (name) => readFile(new URL(`../public/${name}`, import.meta.u
 
 test('Shinjuku first-member campaign is honest, safe, indexable, and measurable', async () => {
   const [homepage, recruitment, cafeGuide, sitemap, share] = await Promise.all([
-    publicFile('index.html'),
+    publicFile('hangout-now.html'),
     publicFile('shinjuku-first-members.html'),
     publicFile('shinjuku-cafe-friends.html'),
     publicFile('sitemap.xml'),
