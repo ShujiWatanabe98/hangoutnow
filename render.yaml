@@ -82,6 +82,8 @@ services:
         value: 22
       - key: API_URL
         value: https://hangoutnow-api.onrender.com
+      - key: MAPBOX_APIKEY
+        sync: false
 
   - type: web
     name: hangoutnow-admin

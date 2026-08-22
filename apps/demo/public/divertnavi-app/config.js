@@ -1,0 +1,1 @@
+globalThis.DIVERTNAVI_CONFIG ||= {}

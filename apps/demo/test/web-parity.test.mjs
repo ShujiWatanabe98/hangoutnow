@@ -139,6 +139,7 @@ test('corporate homepage separates methodmore from its two product pages', async
   assert.match(hangout, /<link rel="canonical" href="https:\/\/method-more\.com\/hangout-now\.html">/);
   assert.match(divertnavi, /<link rel="canonical" href="https:\/\/method-more\.com\/divertnavi\.html">/);
   assert.match(divertnavi, /<title>走るだけで、みんなを守る｜DivertNavi<\/title>/);
+  assert.match(divertnavi, /href="\/divertnavi-app\/">ブラウザでシミュレーション/);
   for (const copy of [
     'DivertNavi（ダイバーナビ）',
     'ナビゲーションアプリ<br>ではありません',
@@ -165,6 +166,20 @@ test('corporate homepage separates methodmore from its two product pages', async
   assert.match(divertStyles, /@media \(max-width: 620px\)/);
 });
 
+test('DivertNavi browser simulator is packaged under the product page', async () => {
+  const [appIndex, underpassData] = await Promise.all([
+    readFile(new URL('../public/divertnavi-app/index.html', import.meta.url), 'utf8'),
+    readFile(new URL('../public/divertnavi-app/data/underpasses.generated.json', import.meta.url), 'utf8'),
+  ]);
+  const dataset = JSON.parse(underpassData);
+
+  assert.match(appIndex, /src="\/divertnavi-app\/assets\/index-[^"]+\.js"/);
+  assert.match(appIndex, /href="\/divertnavi-app\/assets\/index-[^"]+\.css"/);
+  assert.match(appIndex, /src="\/divertnavi-app\/config\.js"/);
+  assert.equal(dataset.coverage.importedPrefectures, 47);
+  assert.equal(dataset.coverage.itemCount, 4577);
+});
+
 test('public server sends browser security headers', async () => {
   const server = await readFile(new URL('../server.mjs', import.meta.url), 'utf8');
   for (const header of ['content-security-policy', 'permissions-policy', 'referrer-policy', 'x-content-type-options', 'x-frame-options']) {
@@ -174,9 +189,14 @@ test('public server sends browser security headers', async () => {
   assert.match(server, /object-src 'none'/);
   assert.match(
     server,
-    /img-src 'self' data: https:\/\/hangoutnow-demo\.onrender\.com/,
+    /img-src 'self' data: [^;]*https:\/\/hangoutnow-demo\.onrender\.com/,
     'CSP must allow the production demo asset origin used by Hangout image URLs',
   );
+  assert.match(server, /https:\/\/api\.mapbox\.com/);
+  assert.match(server, /worker-src blob:/);
+  assert.match(server, /requestedPath === '\/divertnavi-app\/'/);
+  assert.match(server, /requestedPath === '\/divertnavi-app\/config\.js'/);
+  assert.match(server, /process\.env\.MAPBOX_APIKEY/);
 });
 
 test('profile editor saves privacy-safe matching preferences', async () => {
