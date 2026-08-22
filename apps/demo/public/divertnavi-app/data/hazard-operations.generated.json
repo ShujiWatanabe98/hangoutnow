@@ -1,8 +1,8 @@
 {
   "schemaVersion": 3,
-  "runId": "2026-08-22_13-58-27-121",
-  "startedAt": "2026-08-22T13:58:27.121Z",
-  "completedAt": "2026-08-22T13:58:27.425Z",
+  "runId": "2026-08-22_14-39-21-694",
+  "startedAt": "2026-08-22T14:39:21.694Z",
+  "completedAt": "2026-08-22T14:39:22.638Z",
   "state": "READY_FOR_REVIEW",
   "targetDataset": "UNDERPASS",
   "researchedAt": "2026-08-22",
@@ -450,12 +450,12 @@
       "icon": "🚧",
       "status": "DESIGNED",
       "sourceKind": "TRAFFIC_FUSION",
-      "sourceOrganization": "ユーザー投稿＋JARTIC＋国交省＋高速道路会社",
-      "sourceUrl": "https://www.jartic.or.jp/s/service/forcorporation/",
-      "updatePolicy": "予定工事を毎日先読みし、当日は5分交通情報で開始・終了・規制内容を更新する。",
-      "collectionWindow": "稼働中は5分ごと／予定情報は毎日 04:00 JST",
-      "freshnessPolicy": "稼働中は15分。予定は終了予定時刻＋30分で失効。",
-      "note": "予定と実施中を別状態で持ち、道路管理者の開始・終了情報を投稿より優先する。",
+      "sourceOrganization": "ユーザー投稿＋JARTICオープンデータ＋JARTIC法人配信＋国交省＋高速道路会社",
+      "sourceUrl": "https://www.jartic.or.jp/service/opendata/",
+      "updatePolicy": "JARTIC月次オープンデータから法定交通規制のベースラインを取得する。予定工事と実施中規制は、将来の法人配信接続後に別状態で更新する。",
+      "collectionWindow": "JARTIC公開一覧を24時間ごと／法人配信接続後は稼働中5分ごと",
+      "freshnessPolicy": "オープンデータは公開対象月まで。リアルタイム情報として使用しない。",
+      "note": "月次の法定交通規制と工事・実施中規制を混同しない。オープンデータは候補保存のみで、地図へ自動公開しない。",
       "sources": [
         {
           "name": "DivertNaviユーザー投稿",
@@ -467,6 +467,16 @@
           "freshness": "360分",
           "role": "突発的な車線規制や予定との差異を現地補完。",
           "isDefault": true
+        },
+        {
+          "name": "交通規制情報オープンデータ（TypeD）",
+          "organization": "JARTIC",
+          "kind": "OFFICIAL_OPEN_DATA",
+          "status": "CONNECTED",
+          "url": "https://www.jartic.or.jp/service/opendata/",
+          "cadence": "月次公開／公開一覧は24時間ごとに確認",
+          "freshness": "公開対象月",
+          "role": "都道府県警察が保有する通行止め等の法定交通規制ベースラインを取得。工事やリアルタイム規制ではなく、地図への自動公開対象外。"
         },
         {
           "name": "法人向け道路交通情報",
@@ -560,7 +570,7 @@
   "publication": {
     "mapDataUpdated": false,
     "requiresExplicitPromotion": true,
-    "command": "npm.cmd run data:promote -- 2026-08-22_13-58-27-121",
+    "command": "npm.cmd run data:promote -- 2026-08-22_14-39-21-694",
     "note": "候補は検証済みです。差分確認後に明示的な反映操作が必要です。"
   }
 }

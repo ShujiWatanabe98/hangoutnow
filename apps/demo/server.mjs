@@ -8,9 +8,10 @@ const proxyApiUrl = (process.env.DEMO_PROXY_API_URL || process.env.API_URL)?.rep
 const dashboardPathCandidate = process.env.DIVERTNAVI_DASHBOARD_PATH?.trim().replace(/\/+$/, '') ?? '';
 const divertNaviDashboardPath = /^\/divertnavi-app\/[a-z0-9](?:[a-z0-9-]{22,}[a-z0-9])$/.test(dashboardPathCandidate) ? dashboardPathCandidate : '';
 const divertNaviCollector = divertNaviDashboardPath ? import('./divertnavi-collector/service.mjs') : null;
+const weathernewsRadarUrl = 'https://wxtech.weathernews.com/api/v1/tile/prec';
 const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.xml': 'application/xml; charset=utf-8', '.txt': 'text/plain; charset=utf-8' };
 const securityHeaders = {
-  'content-security-policy': "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://api.mapbox.com https://*.tiles.mapbox.com https://hangoutnow-demo.onrender.com https://play.google.com https://tools.applemediaservices.com; frame-src https://maps.google.com; connect-src 'self' https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com https://www.google-analytics.com https://region1.google-analytics.com; font-src 'self'; worker-src blob:; upgrade-insecure-requests",
+  'content-security-policy': "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://api.mapbox.com https://*.tiles.mapbox.com https://tilecache.rainviewer.com https://hangoutnow-demo.onrender.com https://play.google.com https://tools.applemediaservices.com; frame-src https://maps.google.com; connect-src 'self' https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com https://api.rainviewer.com https://tilecache.rainviewer.com https://api.open-meteo.com https://www.google-analytics.com https://region1.google-analytics.com; font-src 'self'; worker-src blob:; upgrade-insecure-requests",
   'cross-origin-opener-policy': 'same-origin-allow-popups',
   'permissions-policy': 'camera=(self), geolocation=(self), microphone=()',
   'referrer-policy': 'strict-origin-when-cross-origin',
@@ -71,6 +72,28 @@ createServer(async (request, response) => {
     } catch (error) {
       response.writeHead(500, { ...securityHeaders, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
       response.end(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }));
+    }
+    return;
+  }
+  if (request.method === 'GET' && requestedPath === '/api/weather/radar') {
+    const apiKey = process.env.WXTECH_API_KEY?.trim() ?? '';
+    if (!apiKey) {
+      response.writeHead(503, { ...securityHeaders, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+      response.end(JSON.stringify({ code: 'WXTECH_NOT_CONFIGURED', message: 'Weathernews API is not configured; use RainViewer.' }));
+      return;
+    }
+    try {
+      const upstream = await fetch(weathernewsRadarUrl, { headers: { 'X-Api-Key': apiKey }, signal: AbortSignal.timeout(15_000) });
+      const body = Buffer.from(await upstream.arrayBuffer());
+      response.writeHead(upstream.status, {
+        ...securityHeaders,
+        'content-type': upstream.headers.get('content-type') || 'application/json; charset=utf-8',
+        'cache-control': upstream.ok ? 'public, max-age=240' : 'no-store',
+      });
+      response.end(body);
+    } catch {
+      response.writeHead(502, { ...securityHeaders, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+      response.end(JSON.stringify({ code: 'WXTECH_UPSTREAM_ERROR', message: 'Weathernews API is temporarily unavailable; use RainViewer.' }));
     }
     return;
   }

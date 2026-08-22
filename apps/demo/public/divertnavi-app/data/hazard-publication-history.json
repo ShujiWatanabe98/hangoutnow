@@ -1,19 +1,77 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-22T12:15:51.629Z",
+  "generatedAt": "2026-08-22T14:42:41.142Z",
   "delivery": {
-    "webDataPath": "/data/underpasses.generated.json",
+    "webDataPath": "/data/traffic-regulations.generated.json",
     "publicWebUrl": "https://method-more.com/divertnavi-app/",
     "iosMode": "PUBLIC_WEBVIEW",
     "note": "収集候補の昇格と公開デプロイを分離して記録します。"
   },
   "currentSnapshot": {
-    "dataset": "UNDERPASS",
-    "datasetGeneratedAt": "2026-08-22T12:15:51.629Z",
-    "itemCount": 4577,
-    "prefectureCodes": [],
-    "prefectureNames": ["全国（現行ベースライン）"],
-    "sourceRunId": null
+    "dataset": "JARTIC_TRAFFIC_REGULATION_BASELINE",
+    "datasetGeneratedAt": "2026-08-22T14:42:41.142Z",
+    "itemCount": 31360,
+    "prefectureCodes": [
+      "11",
+      "12",
+      "13",
+      "14",
+      "43"
+    ],
+    "prefectureNames": [
+      "埼玉県",
+      "千葉県",
+      "東京都",
+      "神奈川県",
+      "熊本県"
+    ],
+    "sourceRunId": "jartic-20260822143935868"
   },
-  "entries": []
+  "entries": [
+    {
+      "id": "hazard-publication-jartic-20260822143935868",
+      "runId": "jartic-20260822143935868",
+      "recordedAt": "2026-08-22T14:42:41.142Z",
+      "event": "APP_DATA_PROMOTED",
+      "dataset": "JARTIC_TRAFFIC_REGULATION_BASELINE",
+      "categoryLabel": "JARTIC法定交通規制（月次）",
+      "scope": {
+        "prefectureCodes": [
+          "11",
+          "12",
+          "13",
+          "14",
+          "43"
+        ],
+        "prefectureNames": [
+          "埼玉県",
+          "千葉県",
+          "東京都",
+          "神奈川県",
+          "熊本県"
+        ]
+      },
+      "changes": {
+        "added": 31360,
+        "removed": 0,
+        "changed": 0,
+        "total": 31360
+      },
+      "datasetGeneratedAt": "2026-08-22T14:42:41.142Z",
+      "targets": [
+        {
+          "id": "WEB",
+          "label": "Webアプリ",
+          "state": "LOCAL_REFLECTED",
+          "detail": "Webが読み込むローカル地図データへ反映。公開デプロイは別工程です。"
+        },
+        {
+          "id": "IOS",
+          "label": "iOSアプリ",
+          "state": "WAITING_WEB_DEPLOY",
+          "detail": "公開Webアプリのデプロイ後に同じデータが反映されます。"
+        }
+      ]
+    }
+  ]
 }

@@ -198,6 +198,11 @@ test('public server sends browser security headers', async () => {
   assert.match(server, /requestedPath === '\/divertnavi-app\/'/);
   assert.match(server, /requestedPath === '\/divertnavi-app\/config\.js'/);
   assert.match(server, /process\.env\.MAPBOX_APIKEY/);
+  assert.match(server, /process\.env\.WXTECH_API_KEY/);
+  assert.match(server, /requestedPath === '\/api\/weather\/radar'/);
+  assert.match(server, /https:\/\/api\.rainviewer\.com/);
+  assert.match(server, /https:\/\/tilecache\.rainviewer\.com/);
+  assert.match(server, /https:\/\/api\.open-meteo\.com/);
   assert.match(server, /process\.env\.DIVERTNAVI_DASHBOARD_PATH/);
   assert.match(server, /action === 'status'/);
   assert.doesNotMatch(server, /\/divertnavi-app\/ops-[a-z0-9-]{24,}/, 'private dashboard path must not be committed');
