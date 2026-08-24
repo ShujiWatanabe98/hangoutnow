@@ -2,7 +2,7 @@ import { buildHazardPointGuidance, createSessionUserHazardPoint, defaultSelected
 import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260824-2";
 import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260824-1";
 import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260824-1";
-import { advanceDemoProgress, demoRoutePositionAt, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260824-3";
+import { advanceDemoProgress, demoRoutePositionAt, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260824-4";
 import { nearbyMonitoredPoints, voiceApproachMessage, } from "./voiceApproach.js?v=20260824-5";
 import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260824-1";
 import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260824-4";
@@ -138,7 +138,7 @@ let activeNearbyPointIds = new Set();
 let activeVoiceRecognition = null;
 let preferredJapaneseVoice = null;
 let activeSpeechSequence = 0;
-let lastDemoCameraFollowAt = -Infinity;
+let demoCameraFollowStartsAt = -Infinity;
 let panelTouchStartY = null;
 let panelTouchLastY = null;
 let panelTouchStartedAt = 0;
@@ -460,6 +460,12 @@ function speakMonitorApproach(point) {
     demoPlaybackStatus.dataset.lastVoiceAnnouncement = message;
     speakNaturalJapanese(message);
 }
+function announceDemoStart() {
+    const message = "デモ走行を開始します。危険地点に近づくと音声でお知らせします。";
+    demoPlaybackStatus.dataset.lastVoicePoint = "demo-start";
+    demoPlaybackStatus.dataset.lastVoiceAnnouncement = message;
+    speakNaturalJapanese(message);
+}
 function checkDemoVoiceApproach(location, now) {
     if (now - lastVoiceProximityCheckAt < VOICE_PROXIMITY_CHECK_INTERVAL_MS)
         return;
@@ -736,19 +742,16 @@ function focusDemoVehicle(duration = 750) {
         bearing: position.bearing,
         duration,
     });
-    lastDemoCameraFollowAt = performance.now();
+    demoCameraFollowStartsAt = performance.now() + duration;
 }
 function followDemoVehicle(position, now) {
-    if (map === null || !demoDriveRunning || now - lastDemoCameraFollowAt < 250)
+    if (map === null || !demoDriveRunning || now < demoCameraFollowStartsAt)
         return;
-    lastDemoCameraFollowAt = now;
-    map.easeTo({
+    map.jumpTo({
         center: [position.coordinate[0], position.coordinate[1]],
         zoom: Math.max(map.getZoom(), 15.2),
         pitch: 48,
         bearing: position.bearing,
-        duration: 300,
-        easing: (progress) => progress,
     });
 }
 function createDemoVehicleMarker() {
@@ -781,9 +784,11 @@ function animateContinuousDemoDrive() {
         demoDriveProgress = advanceDemoProgress(demoDriveProgress, elapsed, DEMO_DRIVE_DURATION_MS, demoDriveRunning);
         const position = demoRoutePositionAt(demoDriveRoute, demoDriveProgress);
         demoDriveMarker.setLngLat([position.coordinate[0], position.coordinate[1]]);
-        if (demoVehicleGraphic !== null)
-            demoVehicleGraphic.style.transform = `rotate(${position.bearing}deg)`;
         followDemoVehicle(position, now);
+        if (demoVehicleGraphic !== null) {
+            const mapBearing = map?.getBearing() ?? 0;
+            demoVehicleGraphic.style.transform = `rotate(${screenRelativeBearing(position.bearing, mapBearing)}deg)`;
+        }
         demoPlaybackStatus.dataset.demoProgress = String(Math.floor(demoDriveProgress * 100));
         demoPlaybackStatus.dataset.vehicleLongitude = position.coordinate[0].toFixed(6);
         demoPlaybackButton.dataset.completedCategories = String(Math.floor(demoDriveProgress * 100));
@@ -1099,11 +1104,19 @@ for (const button of document.querySelectorAll("[data-category]")) {
 demoPlaybackButton.addEventListener("click", () => {
     demoDriveRunning = !demoDriveRunning;
     demoDriveLastFrameAt = null;
-    if (!demoDriveRunning)
+    if (!demoDriveRunning) {
         cancelNaturalJapaneseSpeech();
+    }
+    else {
+        activeNearbyPointIds.clear();
+        lastVoiceAnnouncementAt = -Infinity;
+        lastVoiceProximityCheckAt = 0;
+    }
     renderDemoPlaybackState();
-    if (demoDriveRunning)
+    if (demoDriveRunning) {
         focusDemoVehicle();
+        announceDemoStart();
+    }
 });
 requiredElement("#dismiss-notification").addEventListener("click", () => {
     notificationPreview.hidden = true;

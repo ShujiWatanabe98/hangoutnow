@@ -172,8 +172,8 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(coachStyles, /max-height: calc\(100% - clamp\(64px,12vh,96px\)\)/);
   assert.match(coachDemoScript, /panelScroll\.addEventListener\("touchmove"/);
   assert.match(coachDemoScript, /dragDistance >= 88/);
-  assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260824-15"/);
-  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260824-19/);
+  assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260824-16"/);
+  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260824-20/);
   assert.match(coachBootstrap, /dataset\.clientError/);
   assert.match(coachDemoScript, /SYNTHETIC_ONLY/);
   assert.match(coachDemoScript, /counts: \{ underpasses: 1, policePriorityLocations: 1 \}/);
@@ -184,7 +184,7 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(coachDemoScript, /directions\/v5\/mapbox\/driving/);
   assert.match(coachDemoScript, /自動デモ再生中　横浜駅 → 本厚木駅/);
   assert.match(coachDemoScript, /デモ停止中　横浜駅 → 本厚木駅/);
-  assert.match(coachDemoScript, /continuousDemoDrive\.js\?v=20260824-3/);
+  assert.match(coachDemoScript, /continuousDemoDrive\.js\?v=20260824-4/);
   assert.match(coachDemoScript, /hazardMap\.js\?v=20260824-5/);
   assert.match(coachDemoScript, /naturalSpeech\.js\?v=20260824-4/);
   assert.match(coachDemoScript, /voiceApproach\.js\?v=20260824-5/);
@@ -209,6 +209,10 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(coachDemoScript, /DEMO_VOICE_SCENARIOS/);
   assert.match(coachDemoScript, /focusDemoVehicle\(\)/);
   assert.match(coachDemoScript, /followDemoVehicle\(position, now\)/);
+  assert.match(coachDemoScript, /map\.jumpTo\(\{/);
+  assert.doesNotMatch(coachDemoScript, /now - lastDemoCameraFollowAt < 250/);
+  assert.match(coachDemoScript, /screenRelativeBearing\(position\.bearing, mapBearing\)/);
+  assert.match(coachDemoScript, /デモ走行を開始します。危険地点に近づくと音声でお知らせします。/);
   assert.match(coachDemoScript, /zoom: 15\.2/);
   assert.doesNotMatch(coachDemoScript, /合成.+地点に接近/);
   assert.match(coachNaturalSpeechModule, /name\.includes\("natural"\)/);

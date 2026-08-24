@@ -12,6 +12,12 @@ export const FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE = [
     [139.392, 35.442],
     HON_ATSUGI_STATION,
 ];
+export function screenRelativeBearing(vehicleBearing, mapBearing) {
+    if (!Number.isFinite(vehicleBearing) || !Number.isFinite(mapBearing)) {
+        throw new Error("bearings must be finite");
+    }
+    return ((vehicleBearing - mapBearing + 540) % 360) - 180;
+}
 export function advanceDemoProgress(progress, elapsedMilliseconds, durationMilliseconds, running) {
     if (!running)
         return progress;

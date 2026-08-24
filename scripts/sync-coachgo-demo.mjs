@@ -50,7 +50,7 @@ const demoRuntime = await readFile(demoRuntimePath, 'utf8');
 await writeFile(
   demoRuntimePath,
   demoRuntime
-    .replace('./continuousDemoDrive.js', './continuousDemoDrive.js?v=20260824-3')
+    .replace('./continuousDemoDrive.js', './continuousDemoDrive.js?v=20260824-4')
     .replace('./divertNaviUnderpasses.js', './divertNaviUnderpasses.js?v=20260824-1')
     .replace('./hazardMap.js', './hazardMap.js?v=20260824-5')
     .replace('./kanagawaPolicePoints.js', './kanagawaPolicePoints.js?v=20260824-1')
@@ -69,7 +69,7 @@ const publicHtml = sourceHtml
   .replace('href="/mobile-poc/styles.css"', 'href="/coachgo-demo/styles.css?v=20260824-11"')
   .replace('src="/runtime-config.js"', 'src="/coachgo-demo/runtime-config.js"')
   .replace('src="/vendor/mapbox-gl.js"', 'src="/coachgo-demo/vendor/mapbox-gl.js"')
-  .replace('src="/mobile-poc/bootstrap.js"', 'src="/coachgo-demo/bootstrap.js?v=20260824-15"');
+  .replace('src="/mobile-poc/bootstrap.js"', 'src="/coachgo-demo/bootstrap.js?v=20260824-16"');
 
 await mkdir(publicRoot, { recursive: true });
 await writeFile(resolve(publicRoot, 'index.html'), publicHtml, 'utf8');
@@ -77,7 +77,7 @@ await copyFile(resolve(coachGoRoot, 'mobile-poc/styles.css'), resolve(publicRoot
 const sourceBootstrap = await readFile(resolve(coachGoRoot, 'mobile-poc/bootstrap.js'), 'utf8');
 await writeFile(
   resolve(publicRoot, 'bootstrap.js'),
-  sourceBootstrap.replace('/dist/mobile/demo.js', '/coachgo-demo/dist/mobile/demo.js?v=20260824-19'),
+  sourceBootstrap.replace('/dist/mobile/demo.js', '/coachgo-demo/dist/mobile/demo.js?v=20260824-20'),
   'utf8',
 );
 
