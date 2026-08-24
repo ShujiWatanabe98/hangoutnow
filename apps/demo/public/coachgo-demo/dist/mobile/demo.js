@@ -5,7 +5,7 @@ import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=202
 import { advanceDemoProgress, demoRoutePositionAt, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260824-2";
 import { nearbyMonitoredPoints, voiceApproachMessage, } from "./voiceApproach.js?v=20260824-4";
 import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260824-1";
-import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260824-2";
+import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260824-3";
 function syntheticSharedMapPayload() {
     return {
         schemaVersion: 1,
@@ -57,7 +57,10 @@ function requiredElement(selector) {
     return element;
 }
 const categoryPanel = requiredElement("#category-panel");
+const panelScroll = requiredElement("#category-panel .panel-scroll");
 const panelBackdrop = requiredElement("#panel-backdrop");
+const openSettingsButton = requiredElement("#open-settings");
+const closePanelButton = requiredElement("#close-panel");
 const mapLoadState = requiredElement("#map-load-state");
 const sharedDataStatus = requiredElement("#shared-data-status");
 const selectedCount = requiredElement("#selected-count");
@@ -119,7 +122,7 @@ let demoDriveRoute = null;
 let demoDriveMarker = null;
 let demoVehicleGraphic = null;
 let demoDriveAnimationStarted = false;
-let demoDriveRunning = true;
+let demoDriveRunning = false;
 let demoDriveProgress = 0;
 let demoDriveLastFrameAt = null;
 let lastVoiceProximityCheckAt = 0;
@@ -128,8 +131,13 @@ let activeNearbyPointIds = new Set();
 let activeVoiceRecognition = null;
 let preferredJapaneseVoice = null;
 let activeSpeechSequence = 0;
+let panelTouchStartY = null;
+let panelTouchLastY = null;
+let panelTouchStartedAt = 0;
+let panelTouchDragging = false;
 const VOICE_PROXIMITY_CHECK_INTERVAL_MS = 750;
 const VOICE_ANNOUNCEMENT_COOLDOWN_MS = 12_000;
+const MOBILE_PANEL_QUERY = "(max-width: 760px)";
 function refreshPreferredJapaneseVoice() {
     if (!("speechSynthesis" in window))
         return;
@@ -209,9 +217,26 @@ if ("speechSynthesis" in window) {
 function allHazards() {
     return [...SYNTHETIC_HAZARD_POINTS, ...sessionUserReports];
 }
+function resetPanelDrag() {
+    panelTouchStartY = null;
+    panelTouchLastY = null;
+    panelTouchStartedAt = 0;
+    panelTouchDragging = false;
+    categoryPanel.classList.remove("dragging");
+    categoryPanel.style.removeProperty("--sheet-drag-y");
+}
 function setPanelOpen(open) {
-    categoryPanel.classList.toggle("open", open);
-    panelBackdrop.hidden = !open || !window.matchMedia("(max-width: 760px)").matches;
+    const mobile = window.matchMedia(MOBILE_PANEL_QUERY).matches;
+    const overlayOpen = mobile && open;
+    resetPanelDrag();
+    categoryPanel.classList.toggle("open", overlayOpen);
+    openSettingsButton.setAttribute("aria-expanded", String(overlayOpen));
+    panelBackdrop.hidden = !overlayOpen;
+    categoryPanel.setAttribute("aria-hidden", mobile ? String(!overlayOpen) : "false");
+    if (mobile && !overlayOpen)
+        categoryPanel.setAttribute("inert", "");
+    else
+        categoryPanel.removeAttribute("inert");
 }
 function renderPermissionStatus() {
     permissionStatusElement.textContent = `接近検知: ${approachDetectionEnabled ? "ON" : "OFF"} / バックグラウンド通知: ${backgroundNotificationEnabled ? "ON" : "OFF"} / 読み上げ: ${hazardVoiceEnabled ? "ON" : "OFF"}（合成PoC）`;
@@ -940,8 +965,59 @@ function renderMap() {
         removeActiveMapPopup();
     }
 }
-requiredElement("#close-panel").addEventListener("click", () => setPanelOpen(false));
+openSettingsButton.addEventListener("click", () => {
+    setPanelOpen(!categoryPanel.classList.contains("open"));
+});
+closePanelButton.addEventListener("click", () => setPanelOpen(false));
 panelBackdrop.addEventListener("click", () => setPanelOpen(false));
+document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && categoryPanel.classList.contains("open"))
+        setPanelOpen(false);
+});
+panelScroll.addEventListener("touchstart", (event) => {
+    if (!window.matchMedia(MOBILE_PANEL_QUERY).matches || !categoryPanel.classList.contains("open"))
+        return;
+    if (panelScroll.scrollTop > 0 || event.touches.length !== 1)
+        return;
+    const touch = event.touches[0];
+    if (touch === undefined)
+        return;
+    panelTouchStartY = touch.clientY;
+    panelTouchLastY = touch.clientY;
+    panelTouchStartedAt = performance.now();
+    panelTouchDragging = false;
+}, { passive: true });
+panelScroll.addEventListener("touchmove", (event) => {
+    if (panelTouchStartY === null || event.touches.length !== 1)
+        return;
+    const touch = event.touches[0];
+    if (touch === undefined)
+        return;
+    panelTouchLastY = touch.clientY;
+    const dragDistance = Math.max(0, touch.clientY - panelTouchStartY);
+    if (dragDistance < 6)
+        return;
+    panelTouchDragging = true;
+    event.preventDefault();
+    categoryPanel.classList.add("dragging");
+    categoryPanel.style.setProperty("--sheet-drag-y", `${dragDistance}px`);
+}, { passive: false });
+function finishPanelSwipe() {
+    if (panelTouchStartY === null || panelTouchLastY === null) {
+        resetPanelDrag();
+        return;
+    }
+    const dragDistance = Math.max(0, panelTouchLastY - panelTouchStartY);
+    const elapsed = Math.max(1, performance.now() - panelTouchStartedAt);
+    const shouldClose = panelTouchDragging && (dragDistance >= 88 || dragDistance / elapsed >= 0.55);
+    resetPanelDrag();
+    if (shouldClose)
+        setPanelOpen(false);
+}
+panelScroll.addEventListener("touchend", finishPanelSwipe, { passive: true });
+panelScroll.addEventListener("touchcancel", () => resetPanelDrag(), { passive: true });
+window.matchMedia(MOBILE_PANEL_QUERY).addEventListener("change", () => setPanelOpen(false));
+setPanelOpen(false);
 approachDetectionToggle.addEventListener("click", () => {
     approachDetectionEnabled = !approachDetectionEnabled;
     if (!approachDetectionEnabled) {
