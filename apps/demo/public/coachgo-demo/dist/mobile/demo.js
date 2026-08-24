@@ -1,7 +1,7 @@
 import { buildApproachNotification, createSessionUserHazardPoint, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js";
 import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js";
 import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260824-1";
-import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js";
+import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260824-1";
 import { demoRoutePositionAt, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260824-1";
 function syntheticSharedMapPayload() {
     return {
@@ -90,6 +90,7 @@ const UNDERPASS_SOURCE_ID = "coachgo-underpasses";
 const UNDERPASS_CLUSTER_LAYER_ID = "coachgo-underpass-clusters";
 const UNDERPASS_CLUSTER_COUNT_LAYER_ID = "coachgo-underpass-cluster-count";
 const UNDERPASS_POINT_LAYER_ID = "coachgo-underpass-points";
+const ROAD_FLOODING_MARKER_IMAGE_ID = "coachgo-road-flooding-category-icon";
 const RAINVIEWER_SOURCE_ID = "coachgo-rainviewer-radar";
 const RAINVIEWER_LAYER_ID = "coachgo-rainviewer-radar-layer";
 const RAINVIEWER_METADATA_URL = "https://api.rainviewer.com/public/weather-maps.json";
@@ -239,17 +240,25 @@ function addSyntheticMarkers() {
 function updateDemoPlaybackAvailability() {
     demoPlaybackButton.disabled = !initialMapLoadCompleted || demoDriveRoute === null;
 }
-function createSharedMarkerIcon(kind) {
-    const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    icon.setAttribute("viewBox", "0 0 24 24");
-    icon.setAttribute("aria-hidden", "true");
-    if (kind === "UNDERPASS") {
-        icon.innerHTML = '<path d="M3 15V11a9 9 0 0 1 18 0v4h-3v-4a6 6 0 0 0-12 0v4H3Z"/><path d="M2.5 17c2-1.3 4-.3 5 0 1.5.5 3.1.5 4.5-.2 1.5-.7 3-.7 4.5 0 1.5.7 3.1.7 5-.1v2.7c-1.9.8-3.5.8-5 .1-1.5-.7-3-.7-4.5 0-1.4.7-3 .7-4.5.2-1-.3-3-1.3-5 0V17Z"/>';
-    }
-    else {
-        icon.innerHTML = '<path d="M12 2.5 20 5.7v5.2c0 5.1-3.2 8.7-8 10.6-4.8-1.9-8-5.5-8-10.6V5.7L12 2.5Z"/><path class="marker-cutout" d="m12 6.2 1.35 2.74 3.02.44-2.19 2.13.52 3.01L12 13.1l-2.7 1.42.52-3.01-2.19-2.13 3.02-.44L12 6.2Z"/>';
-    }
-    return icon;
+function createCategoryMarkerImage(icon, background) {
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 64;
+    const context = canvas.getContext("2d");
+    if (context === null)
+        throw new Error("category marker canvas is unavailable");
+    context.beginPath();
+    context.arc(32, 32, 27, 0, Math.PI * 2);
+    context.fillStyle = background;
+    context.fill();
+    context.lineWidth = 6;
+    context.strokeStyle = "#ffffff";
+    context.stroke();
+    context.font = '30px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.fillText(icon, 32, 34);
+    return context.getImageData(0, 0, 64, 64);
 }
 function isDivertNaviMapPayload(value) {
     if (value === null || typeof value !== "object")
@@ -275,7 +284,10 @@ function addSharedDataMarkers() {
         element.className = "shared-data-marker shared-police";
         element.dataset.sharedPoint = point.id;
         element.setAttribute("aria-label", `${point.name}、警察公開の交通安全重点地点`);
-        element.append(createSharedMarkerIcon(point.kind));
+        const icon = document.createElement("span");
+        icon.setAttribute("aria-hidden", "true");
+        icon.textContent = categoryIcon("POLICE_ENFORCEMENT");
+        element.append(icon);
         element.addEventListener("click", () => selectSharedPoint(point));
         const marker = new window.mapboxgl.Marker({ element, anchor: "center" })
             .setLngLat([point.longitude, point.latitude])
@@ -312,17 +324,18 @@ function addUnderpassLayers() {
         clusterMaxZoom: 12,
         clusterRadius: 48,
     });
+    if (!map.hasImage(ROAD_FLOODING_MARKER_IMAGE_ID)) {
+        map.addImage(ROAD_FLOODING_MARKER_IMAGE_ID, createCategoryMarkerImage(categoryIcon("ROAD_FLOODING"), "#007bff"), { pixelRatio: 2 });
+    }
     map.addLayer({
         id: UNDERPASS_CLUSTER_LAYER_ID,
-        type: "circle",
+        type: "symbol",
         source: UNDERPASS_SOURCE_ID,
         filter: ["has", "point_count"],
-        paint: {
-            "circle-color": "#007bff",
-            "circle-radius": ["step", ["get", "point_count"], 18, 20, 23, 100, 29],
-            "circle-stroke-color": "#ffffff",
-            "circle-stroke-width": 3,
-            "circle-opacity": 0.9,
+        layout: {
+            "icon-image": ROAD_FLOODING_MARKER_IMAGE_ID,
+            "icon-size": ["step", ["get", "point_count"], 0.95, 20, 1.12, 100, 1.28],
+            "icon-allow-overlap": true,
         },
     });
     map.addLayer({
@@ -333,21 +346,20 @@ function addUnderpassLayers() {
         layout: {
             "text-field": ["get", "point_count_abbreviated"],
             "text-size": 12,
+            "text-offset": [0, 2.2],
             "text-allow-overlap": true,
         },
-        paint: { "text-color": "#ffffff" },
+        paint: { "text-color": "#0068d8", "text-halo-color": "#ffffff", "text-halo-width": 2 },
     });
     map.addLayer({
         id: UNDERPASS_POINT_LAYER_ID,
-        type: "circle",
+        type: "symbol",
         source: UNDERPASS_SOURCE_ID,
         filter: ["!", ["has", "point_count"]],
-        paint: {
-            "circle-color": "#007bff",
-            "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 7, 15, 12],
-            "circle-stroke-color": "#ffffff",
-            "circle-stroke-width": 3,
-            "circle-opacity": 0.95,
+        layout: {
+            "icon-image": ROAD_FLOODING_MARKER_IMAGE_ID,
+            "icon-size": ["interpolate", ["linear"], ["zoom"], 10, 0.65, 15, 0.95],
+            "icon-allow-overlap": false,
         },
     });
     map.on("click", UNDERPASS_CLUSTER_LAYER_ID, (event) => {
@@ -579,7 +591,7 @@ function withKanagawaPolice(payload) {
         },
         attribution: {
             ...payload.attribution,
-            police: "神奈川県警察 高津警察署 速度取締り指針を加工して概略表示",
+            police: "神奈川県警察 15署の速度取締り指針を加工して概略表示",
         },
         limitations: [
             ...payload.limitations.filter((item) => !item.includes("警察地点")),

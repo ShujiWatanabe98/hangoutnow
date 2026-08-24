@@ -81,8 +81,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .hazard-marker { width: 48px; height: 48px; font-size: 19px; }
 .user-report-marker { width: 44px; height: 44px; font-size: 16px; }
 .shared-data-marker { width: 38px; height: 38px; display: grid; place-items: center; border: 4px solid #fff; border-radius: 50%; color: #fff; box-shadow: 0 6px 16px rgba(31,37,44,0.4),0 0 0 2px rgba(32,37,44,0.1); cursor: pointer; }
-.shared-data-marker svg { width: 24px; height: 24px; fill: currentColor; }
-.shared-data-marker .marker-cutout { fill: rgba(117,64,200,0.98); }
+.shared-data-marker > span { line-height: 1; font-size: 19px; }
 .shared-data-marker.shared-underpass { background: #007bff; }
 .shared-data-marker.shared-police { background: #7540c8; }
 .shared-data-marker.selected { transform: scale(1.35); box-shadow: 0 0 0 4px rgba(255,173,0,0.35), 0 4px 12px rgba(31,37,44,0.35); }
