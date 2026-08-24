@@ -155,7 +155,7 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.doesNotMatch(coachDemo, /開発用シナリオ|危険監視を開始|何を見守りますか？/);
   assert.match(coachDemo, /src="\/coachgo-demo\/runtime-config\.js"/);
   assert.match(coachDemo, /src="\/coachgo-demo\/vendor\/mapbox-gl\.js"/);
-  assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260824-2"/);
+  assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260824-3"/);
   assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260824-6/);
   assert.match(coachBootstrap, /dataset\.clientError/);
   assert.match(coachDemoScript, /SYNTHETIC_ONLY/);

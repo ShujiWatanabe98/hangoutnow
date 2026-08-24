@@ -57,7 +57,7 @@ const publicHtml = sourceHtml
   .replace('href="/mobile-poc/styles.css"', 'href="/coachgo-demo/styles.css?v=20260824-3"')
   .replace('src="/runtime-config.js"', 'src="/coachgo-demo/runtime-config.js"')
   .replace('src="/vendor/mapbox-gl.js"', 'src="/coachgo-demo/vendor/mapbox-gl.js"')
-  .replace('src="/mobile-poc/bootstrap.js"', 'src="/coachgo-demo/bootstrap.js?v=20260824-2"');
+  .replace('src="/mobile-poc/bootstrap.js"', 'src="/coachgo-demo/bootstrap.js?v=20260824-3"');
 
 await mkdir(publicRoot, { recursive: true });
 await writeFile(resolve(publicRoot, 'index.html'), publicHtml, 'utf8');
