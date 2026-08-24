@@ -12,6 +12,15 @@ export const FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE = [
     [139.392, 35.442],
     HON_ATSUGI_STATION,
 ];
+export function advanceDemoProgress(progress, elapsedMilliseconds, durationMilliseconds, running) {
+    if (!running)
+        return progress;
+    if (!Number.isFinite(durationMilliseconds) || durationMilliseconds <= 0) {
+        throw new Error("demo duration must be positive");
+    }
+    const elapsed = Math.max(0, elapsedMilliseconds);
+    return (progress + elapsed / durationMilliseconds) % 1;
+}
 function isCoordinate(value) {
     return Array.isArray(value)
         && value.length >= 2

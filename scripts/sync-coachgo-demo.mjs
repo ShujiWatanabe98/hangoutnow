@@ -15,6 +15,7 @@ const runtimeFiles = [
   'mobile/hazardMap.js',
   'mobile/kanagawaPolicePoints.js',
   'mobile/mapboxStyle.js',
+  'mobile/voiceApproach.js',
 ];
 
 const staleGeneratedPaths = [
@@ -47,9 +48,10 @@ const demoRuntime = await readFile(demoRuntimePath, 'utf8');
 await writeFile(
   demoRuntimePath,
   demoRuntime
-    .replace('./continuousDemoDrive.js', './continuousDemoDrive.js?v=20260824-1')
+    .replace('./continuousDemoDrive.js', './continuousDemoDrive.js?v=20260824-2')
     .replace('./divertNaviUnderpasses.js', './divertNaviUnderpasses.js?v=20260824-1')
-    .replace('./kanagawaPolicePoints.js', './kanagawaPolicePoints.js?v=20260824-1'),
+    .replace('./kanagawaPolicePoints.js', './kanagawaPolicePoints.js?v=20260824-1')
+    .replace('./voiceApproach.js', './voiceApproach.js?v=20260824-1'),
   'utf8',
 );
 
@@ -61,7 +63,7 @@ const publicHtml = sourceHtml
   .replace('href="/mobile-poc/styles.css"', 'href="/coachgo-demo/styles.css?v=20260824-5"')
   .replace('src="/runtime-config.js"', 'src="/coachgo-demo/runtime-config.js"')
   .replace('src="/vendor/mapbox-gl.js"', 'src="/coachgo-demo/vendor/mapbox-gl.js"')
-  .replace('src="/mobile-poc/bootstrap.js"', 'src="/coachgo-demo/bootstrap.js?v=20260824-6"');
+  .replace('src="/mobile-poc/bootstrap.js"', 'src="/coachgo-demo/bootstrap.js?v=20260824-7"');
 
 await mkdir(publicRoot, { recursive: true });
 await writeFile(resolve(publicRoot, 'index.html'), publicHtml, 'utf8');
@@ -69,7 +71,7 @@ await copyFile(resolve(coachGoRoot, 'mobile-poc/styles.css'), resolve(publicRoot
 const sourceBootstrap = await readFile(resolve(coachGoRoot, 'mobile-poc/bootstrap.js'), 'utf8');
 await writeFile(
   resolve(publicRoot, 'bootstrap.js'),
-  sourceBootstrap.replace('/dist/mobile/demo.js', '/coachgo-demo/dist/mobile/demo.js?v=20260824-9'),
+  sourceBootstrap.replace('/dist/mobile/demo.js', '/coachgo-demo/dist/mobile/demo.js?v=20260824-10'),
   'utf8',
 );
 
