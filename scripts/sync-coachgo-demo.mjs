@@ -10,12 +10,14 @@ const destinationRoot = resolve(publicRoot, 'dist');
 
 const runtimeFiles = [
   'mobile/demo.js',
+  'mobile/divertNaviUnderpasses.js',
   'mobile/hazardMap.js',
   'mobile/mapboxStyle.js',
 ];
 
 const staleGeneratedPaths = [
   'dist/e2e',
+  'dist/ingestion',
   'dist/prediction',
   'dist/mobile/mobilityEstimator.js',
   'dist/mobile/mobilityEstimator.js.map',
@@ -38,6 +40,14 @@ for (const relativePath of runtimeFiles) {
   await copyFile(source, destination);
 }
 
+const demoRuntimePath = resolve(destinationRoot, 'mobile/demo.js');
+const demoRuntime = await readFile(demoRuntimePath, 'utf8');
+await writeFile(
+  demoRuntimePath,
+  demoRuntime.replace('./divertNaviUnderpasses.js', './divertNaviUnderpasses.js?v=20260824-1'),
+  'utf8',
+);
+
 const sourceHtml = await readFile(resolve(coachGoRoot, 'mobile-poc/index.html'), 'utf8');
 const publicHtml = sourceHtml
   .replace('<meta name="theme-color" content="#f7f7f2">', '<meta name="theme-color" content="#f7f7f2">\n    <meta name="robots" content="noindex,nofollow,noarchive">\n    <link rel="canonical" href="https://method-more.com/coachgo-demo/">')
@@ -46,11 +56,17 @@ const publicHtml = sourceHtml
   .replace('href="/mobile-poc/styles.css"', 'href="/coachgo-demo/styles.css?v=20260823-2"')
   .replace('src="/runtime-config.js"', 'src="/coachgo-demo/runtime-config.js"')
   .replace('src="/vendor/mapbox-gl.js"', 'src="/coachgo-demo/vendor/mapbox-gl.js"')
-  .replace('src="/dist/mobile/demo.js"', 'src="/coachgo-demo/dist/mobile/demo.js"');
+  .replace('src="/mobile-poc/bootstrap.js"', 'src="/coachgo-demo/bootstrap.js?v=20260824-2"');
 
 await mkdir(publicRoot, { recursive: true });
 await writeFile(resolve(publicRoot, 'index.html'), publicHtml, 'utf8');
 await copyFile(resolve(coachGoRoot, 'mobile-poc/styles.css'), resolve(publicRoot, 'styles.css'));
+const sourceBootstrap = await readFile(resolve(coachGoRoot, 'mobile-poc/bootstrap.js'), 'utf8');
+await writeFile(
+  resolve(publicRoot, 'bootstrap.js'),
+  sourceBootstrap.replace('/dist/mobile/demo.js', '/coachgo-demo/dist/mobile/demo.js?v=20260824-5'),
+  'utf8',
+);
 
 const manifest = JSON.parse(await readFile(resolve(coachGoRoot, 'mobile-poc/manifest.webmanifest'), 'utf8'));
 manifest.name = 'CoachGo 危険監視モバイルPoC';

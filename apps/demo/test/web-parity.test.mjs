@@ -119,7 +119,7 @@ test('homepage targets Shinjuku solo participants with measurable acquisition li
 });
 
 test('corporate homepage presents the three methodmore products accurately', async () => {
-  const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles, coachDemo, coachDemoScript, server] = await Promise.all([
+  const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles, coachDemo, coachBootstrap, coachDemoScript, coachUnderpassModule, server] = await Promise.all([
     readFile(new URL('../public/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/hangout-now.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/divertnavi.html', import.meta.url), 'utf8'),
@@ -128,7 +128,9 @@ test('corporate homepage presents the three methodmore products accurately', asy
     readFile(new URL('../public/corporate.css', import.meta.url), 'utf8'),
     readFile(new URL('../public/divertnavi.css', import.meta.url), 'utf8'),
     readFile(new URL('../public/coachgo-demo/index.html', import.meta.url), 'utf8'),
+    readFile(new URL('../public/coachgo-demo/bootstrap.js', import.meta.url), 'utf8'),
     readFile(new URL('../public/coachgo-demo/dist/mobile/demo.js', import.meta.url), 'utf8'),
+    readFile(new URL('../public/coachgo-demo/dist/mobile/divertNaviUnderpasses.js', import.meta.url), 'utf8'),
     readFile(new URL('../server.mjs', import.meta.url), 'utf8'),
   ]);
 
@@ -142,8 +144,8 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(corporate, /CoachGo/);
   assert.match(corporate, /公開中/);
   assert.match(corporate, /Android MVP 開発中/);
-  assert.match(corporate, /合成モバイルPoC 検証中/);
-  assert.match(corporate, /現在は合成データのみで検証しています。/);
+  assert.match(corporate, /公開データ連携PoC 検証中/);
+  assert.match(corporate, /DivertNaviと同じ全国のアンダーパス公開地点/);
   assert.match(corporate, /href="\/coachgo-demo\/"[^>]*>デモを体験/);
   assert.match(coachDemo, /<title>CoachGo 危険監視PoC<\/title>/);
   assert.match(coachDemo, /id="mapbox-map"/);
@@ -152,12 +154,20 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.doesNotMatch(coachDemo, /開発用シナリオ|危険監視を開始|何を見守りますか？/);
   assert.match(coachDemo, /src="\/coachgo-demo\/runtime-config\.js"/);
   assert.match(coachDemo, /src="\/coachgo-demo\/vendor\/mapbox-gl\.js"/);
-  assert.match(coachDemo, /src="\/coachgo-demo\/dist\/mobile\/demo\.js"/);
+  assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260824-2"/);
+  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260824-5/);
+  assert.match(coachBootstrap, /dataset\.clientError/);
   assert.match(coachDemoScript, /SYNTHETIC_ONLY/);
   assert.match(coachDemoScript, /公開版: 合成アンダーパス1件 \/ 合成交通安全地点1件/);
+  assert.match(coachDemoScript, /buildNationalUnderpassMapPayload/);
+  assert.match(coachDemoScript, /divertNaviUnderpasses\.js\?v=20260824-1/);
+  assert.match(coachDemoScript, /coachgo-underpass-clusters/);
+  assert.match(coachDemoScript, /DivertNavi公開データ: アンダーパス/);
+  assert.match(coachUnderpassModule, /function buildNationalUnderpassMapPayload/);
   assert.match(server, /requestedPath === '\/coachgo-demo'/);
   assert.match(server, /requestedPath === '\/coachgo-demo\/runtime-config\.js'/);
-  assert.match(server, /dataMode: 'SYNTHETIC_ONLY'/);
+  assert.match(server, /underpassDataUrl: '\/divertnavi-app\/data\/underpasses\.generated\.json'/);
+  assert.match(server, /dataMode: 'DIVERTNAVI_PUBLIC'/);
   assert.match(server, /'wasm-unsafe-eval'/);
   assert.match(hangout, /<link rel="canonical" href="https:\/\/method-more\.com\/hangout-now\.html">/);
   assert.match(divertnavi, /<link rel="canonical" href="https:\/\/method-more\.com\/divertnavi\.html">/);

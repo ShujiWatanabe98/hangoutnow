@@ -1,5 +1,6 @@
 import { buildApproachNotification, createSessionUserHazardPoint, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js";
 import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js";
+import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260824-1";
 function syntheticSharedMapPayload() {
     return {
         schemaVersion: 1,
@@ -86,6 +87,10 @@ const mapMarkers = new Map();
 const sessionUserReportMarkers = new Map();
 let userLocationMarker = null;
 const sharedDataMarkers = new Map();
+const UNDERPASS_SOURCE_ID = "coachgo-underpasses";
+const UNDERPASS_CLUSTER_LAYER_ID = "coachgo-underpass-clusters";
+const UNDERPASS_CLUSTER_COUNT_LAYER_ID = "coachgo-underpass-cluster-count";
+const UNDERPASS_POINT_LAYER_ID = "coachgo-underpass-points";
 const selectedCategories = new Set(defaultSelectedCategories());
 let selectedHazard = SYNTHETIC_HAZARD_POINTS[0] ?? null;
 let selectedSharedPoint = null;
@@ -247,14 +252,19 @@ function isDivertNaviMapPayload(value) {
         && Number.isInteger(payload.counts.policePriorityLocations);
 }
 function addSharedDataMarkers() {
-    if (map === null || window.mapboxgl === undefined || divertNaviMapData === null || sharedDataMarkers.size > 0)
+    if (map === null || window.mapboxgl === undefined || divertNaviMapData === null || !initialMapLoadCompleted)
+        return;
+    addUnderpassLayers();
+    if (sharedDataMarkers.size > 0)
         return;
     for (const point of divertNaviMapData.items) {
+        if (point.kind === "UNDERPASS")
+            continue;
         const element = document.createElement("button");
         element.type = "button";
-        element.className = `shared-data-marker ${point.kind === "UNDERPASS" ? "shared-underpass" : "shared-police"}`;
+        element.className = "shared-data-marker shared-police";
         element.dataset.sharedPoint = point.id;
-        element.setAttribute("aria-label", `${point.name}、${point.kind === "UNDERPASS" ? "アンダーパス" : "警察公開の交通安全重点地点"}`);
+        element.setAttribute("aria-label", `${point.name}、警察公開の交通安全重点地点`);
         element.append(createSharedMarkerIcon(point.kind));
         element.addEventListener("click", () => selectSharedPoint(point));
         const marker = new window.mapboxgl.Marker({ element, anchor: "center" })
@@ -264,26 +274,133 @@ function addSharedDataMarkers() {
     }
     renderMap();
 }
+function underpassFeatureCollection() {
+    return {
+        type: "FeatureCollection",
+        features: (divertNaviMapData?.items ?? [])
+            .filter((point) => point.kind === "UNDERPASS")
+            .map((point) => ({
+            type: "Feature",
+            geometry: { type: "Point", coordinates: [point.longitude, point.latitude] },
+            properties: { pointId: point.id, name: point.name },
+        })),
+    };
+}
+function addUnderpassLayers() {
+    if (map === null || divertNaviMapData === null)
+        return;
+    const data = underpassFeatureCollection();
+    const existingSource = map.getSource(UNDERPASS_SOURCE_ID);
+    if (existingSource !== undefined) {
+        existingSource.setData(data);
+        return;
+    }
+    map.addSource(UNDERPASS_SOURCE_ID, {
+        type: "geojson",
+        data,
+        cluster: true,
+        clusterMaxZoom: 12,
+        clusterRadius: 48,
+    });
+    map.addLayer({
+        id: UNDERPASS_CLUSTER_LAYER_ID,
+        type: "circle",
+        source: UNDERPASS_SOURCE_ID,
+        filter: ["has", "point_count"],
+        paint: {
+            "circle-color": "#007bff",
+            "circle-radius": ["step", ["get", "point_count"], 18, 20, 23, 100, 29],
+            "circle-stroke-color": "#ffffff",
+            "circle-stroke-width": 3,
+            "circle-opacity": 0.9,
+        },
+    });
+    map.addLayer({
+        id: UNDERPASS_CLUSTER_COUNT_LAYER_ID,
+        type: "symbol",
+        source: UNDERPASS_SOURCE_ID,
+        filter: ["has", "point_count"],
+        layout: {
+            "text-field": ["get", "point_count_abbreviated"],
+            "text-size": 12,
+            "text-allow-overlap": true,
+        },
+        paint: { "text-color": "#ffffff" },
+    });
+    map.addLayer({
+        id: UNDERPASS_POINT_LAYER_ID,
+        type: "circle",
+        source: UNDERPASS_SOURCE_ID,
+        filter: ["!", ["has", "point_count"]],
+        paint: {
+            "circle-color": "#007bff",
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 7, 15, 12],
+            "circle-stroke-color": "#ffffff",
+            "circle-stroke-width": 3,
+            "circle-opacity": 0.95,
+        },
+    });
+    map.on("click", UNDERPASS_CLUSTER_LAYER_ID, (event) => {
+        const feature = event.features?.[0];
+        if (feature?.geometry?.type !== "Point" || !Array.isArray(feature.geometry.coordinates))
+            return;
+        const [longitude, latitude] = feature.geometry.coordinates;
+        if (typeof longitude !== "number" || typeof latitude !== "number")
+            return;
+        map?.easeTo({ center: [longitude, latitude], zoom: Math.min((map?.getZoom() ?? 10) + 2, 15), duration: 420 });
+    });
+    map.on("click", UNDERPASS_POINT_LAYER_ID, (event) => {
+        const feature = event.features?.[0];
+        const pointId = feature?.properties?.pointId;
+        if (typeof pointId !== "string")
+            return;
+        const point = divertNaviMapData?.items.find((candidate) => candidate.id === pointId);
+        if (point !== undefined)
+            selectSharedPoint(point);
+    });
+    for (const layerId of [UNDERPASS_CLUSTER_LAYER_ID, UNDERPASS_POINT_LAYER_ID]) {
+        map.on("mouseenter", layerId, () => { if (map !== null)
+            map.getCanvas().style.cursor = "pointer"; });
+        map.on("mouseleave", layerId, () => { if (map !== null)
+            map.getCanvas().style.cursor = ""; });
+    }
+}
 async function loadDivertNaviMapData() {
     try {
         const runtimeConfig = window.COACHGO_CONFIG;
         const syntheticOnly = runtimeConfig?.dataMode === "SYNTHETIC_ONLY";
+        const underpassDataUrl = runtimeConfig?.underpassDataUrl;
         const value = syntheticOnly
             ? syntheticSharedMapPayload()
-            : await (async () => {
-                const response = await fetch(runtimeConfig?.mapDataUrl ?? "/api/divertnavi/map-points", {
-                    headers: { accept: "application/json" },
-                });
-                if (!response.ok)
-                    throw new Error(`HTTP ${response.status}`);
-                return response.json();
-            })();
+            : underpassDataUrl
+                ? await (async () => {
+                    const response = await fetch(underpassDataUrl, { headers: { accept: "application/json" } });
+                    if (!response.ok)
+                        throw new Error(`HTTP ${response.status}`);
+                    const publicPayload = buildNationalUnderpassMapPayload(await response.json());
+                    const syntheticPolice = syntheticSharedMapPayload().items.filter((point) => point.kind === "POLICE_PRIORITY");
+                    return {
+                        ...publicPayload,
+                        counts: { ...publicPayload.counts, policePriorityLocations: syntheticPolice.length },
+                        attribution: { ...publicPayload.attribution, police: "CoachGo合成デモデータ" },
+                        limitations: [...publicPayload.limitations, "交通安全地点は合成デモです。"],
+                        items: [...publicPayload.items, ...syntheticPolice],
+                    };
+                })()
+                : await (async () => {
+                    const response = await fetch(runtimeConfig?.mapDataUrl ?? "/api/divertnavi/map-points", {
+                        headers: { accept: "application/json" },
+                    });
+                    if (!response.ok)
+                        throw new Error(`HTTP ${response.status}`);
+                    return response.json();
+                })();
         if (!isDivertNaviMapPayload(value))
             throw new Error("unsupported response");
         divertNaviMapData = value;
         sharedDataStatus.textContent = syntheticOnly
             ? "公開版: 合成アンダーパス1件 / 合成交通安全地点1件"
-            : `DivertNavi公開データ: アンダーパス${value.counts.underpasses}件 / 警察重点地点${value.counts.policePriorityLocations}件`;
+            : `DivertNavi公開データ: アンダーパス${value.counts.underpasses.toLocaleString("ja-JP")}件 / 警察重点地点${value.counts.policePriorityLocations.toLocaleString("ja-JP")}件`;
         sharedDataStatus.dataset.state = "ready";
         sharedDataStatus.dataset.underpassCount = String(value.counts.underpasses);
         sharedDataStatus.dataset.policeCount = String(value.counts.policePriorityLocations);
@@ -295,9 +412,10 @@ async function loadDivertNaviMapData() {
         updateDemoPlaybackAvailability();
         addSharedDataMarkers();
     }
-    catch {
+    catch (error) {
         sharedDataStatus.textContent = "DivertNavi公開データを利用できません。合成地点のみ表示しています。";
         sharedDataStatus.dataset.state = "unavailable";
+        sharedDataStatus.dataset.clientError = error instanceof Error ? error.message : "unknown data error";
     }
 }
 function initializeMapbox() {
@@ -370,6 +488,13 @@ function renderMap() {
     }
     for (const { element, point } of sharedDataMarkers.values()) {
         element.hidden = !selectedCategories.has(point.monitorCategory);
+    }
+    if (map !== null) {
+        const underpassesVisible = selectedCategories.has("ROAD_FLOODING") ? "visible" : "none";
+        for (const layerId of [UNDERPASS_CLUSTER_LAYER_ID, UNDERPASS_CLUSTER_COUNT_LAYER_ID, UNDERPASS_POINT_LAYER_ID]) {
+            if (map.getLayer(layerId) !== undefined)
+                map.setLayoutProperty(layerId, "visibility", underpassesVisible);
+        }
     }
     for (const marker of sessionUserReportMarkers.values())
         marker.remove();
