@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#f7f7f2">
+    <meta name="robots" content="noindex,nofollow,noarchive">
+    <link rel="canonical" href="https://method-more.com/coachgo-demo/">
+    <title>CoachGo 危険監視PoC</title>
+    <link rel="manifest" href="/coachgo-demo/manifest.webmanifest">
+    <link rel="stylesheet" href="/coachgo-demo/vendor/mapbox-gl.css">
+    <link rel="stylesheet" href="/coachgo-demo/styles.css?v=20260823-2">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M5 12.5 19 5l-4.5 14-3.1-5.7L5 12.5Z"></path></svg>
+          </span>
+          <strong>Coach<span>Go</span></strong>
+          <span class="product-chip">MONITOR</span>
+        </div>
+        <div class="topbar-actions">
+          <span id="connection-state" class="connection-state active"><i></i><span>自動見守り中</span></span>
+          <button id="topbar-settings" class="topbar-button" type="button"><span aria-hidden="true">⚙</span> 監視設定</button>
+          <span class="auto-monitor-badge" aria-label="アプリ起動時から危険監視中">AUTO</span>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside id="category-panel" class="control-panel" aria-label="危険監視設定">
+          <div class="panel-scroll">
+            <div class="panel-heading-row">
+              <div><p class="eyebrow">HAZARD MONITOR</p></div>
+              <button id="close-panel" class="icon-button mobile-close" type="button" aria-label="監視設定を閉じる">×</button>
+            </div>
+
+            <section class="category-section" aria-labelledby="category-heading">
+              <div class="section-title-row"><h2 id="category-heading">監視カテゴリー</h2><span id="selected-count">2件</span></div>
+              <p class="section-help">地図で確認し、接近したときに通知する危険を選択</p>
+              <div class="hazard-chips">
+                <button type="button" data-category="ROAD_FLOODING" aria-pressed="true"><span>🌊</span>道路冠水</button>
+                <button type="button" data-category="RIVER_FLOODING" aria-pressed="true"><span>💧</span>河川氾濫</button>
+                <button type="button" data-category="LANDSLIDE" aria-pressed="false"><span>⛰</span>土砂災害</button>
+                <button type="button" data-category="TSUNAMI" aria-pressed="false"><span>🌊</span>津波</button>
+                <button type="button" data-category="POLICE_ENFORCEMENT" aria-pressed="false"><span>🚨</span>警察取締</button>
+              </div>
+            </section>
+
+            <section class="notification-section" aria-labelledby="notification-setting-heading">
+              <div class="section-title-row"><h2 id="notification-setting-heading">通知と権限</h2><span aria-hidden="true">♢</span></div>
+              <p id="permission-status" class="permission-status">接近検知: ON / バックグラウンド通知: ON（合成PoC）</p>
+              <button id="approach-detection-toggle" class="notification-setting-row" type="button" role="switch" aria-checked="true"><span class="setting-icon">📍</span><span><strong>危険地点の接近を検知</strong><small>CoachGoは経路案内を行いません</small></span><span id="approach-detection-state" class="setting-switch" data-state="on" aria-hidden="true"><span>OFF</span><span>ON</span><i></i></span></button>
+              <button id="background-notification-toggle" class="notification-setting-row" type="button" role="switch" aria-checked="true"><span class="setting-icon">🔔</span><span><strong>バックグラウンド通知</strong><small>実機での継続動作は未検証</small></span><span id="background-notification-state" class="setting-switch" data-state="on" aria-hidden="true"><span>OFF</span><span>ON</span><i></i></span></button>
+            </section>
+
+            <section class="latest-alert" aria-labelledby="latest-alert-heading">
+              <p class="eyebrow">NOTIFICATION PREVIEW</p>
+              <h2 id="latest-alert-heading">アンダーパスの浸水に注意</h2>
+              <p>大雨時は水深を確認できないため、進入せず、使用中のナビで別経路を確認してください。</p>
+              <button id="preview-notification" type="button">接近通知を合成再生</button>
+            </section>
+
+          </div>
+        </aside>
+
+        <section id="map-view" class="map-stage" aria-label="危険監視マップ">
+          <div id="map-canvas" class="map-canvas" role="region" aria-label="Mapbox上の危険地点マップ">
+            <div id="mapbox-map" class="mapbox-map"></div>
+            <p id="map-load-state" class="map-load-state" role="status">Mapbox地図を読み込み中</p>
+            <div class="hazard-display-status">
+              <small>日本語 · WASHI AURORA</small>
+              <small id="shared-data-status" role="status" data-state="loading">DivertNavi公開データを検証中</small>
+            </div>
+          </div>
+
+          <div class="map-floating-actions">
+            <button id="recenter-map" class="map-action current-location-control" type="button" aria-label="現在地へ戻る" title="現在地">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5.25"></circle><circle class="location-dot" cx="12" cy="12" r="2.25"></circle><path d="M12 2.75v3M12 18.25v3M2.75 12h3M18.25 12h3"></path></svg>
+            </button>
+            <button id="register-hazard" class="map-action report" type="button"><span aria-hidden="true">＋</span><span>危険を報告</span></button>
+            <button id="demo-playback" class="map-action demo-playback" type="button" data-completed-categories="0" disabled><span aria-hidden="true">▶</span><span id="demo-playback-label">デモ再生</span></button>
+          </div>
+          <p id="demo-playback-status" class="demo-playback-status" role="status" hidden></p>
+          <button id="mobile-settings" class="mobile-settings-button" type="button"><span aria-hidden="true">⚙</span>監視設定</button>
+
+          <article id="hazard-card" class="hazard-card" aria-live="polite">
+            <div><span id="hazard-category" class="category-badge">道路冠水</span><span id="hazard-distance">450m先</span></div>
+            <h2 id="hazard-name">アンダーパス情報を読み込み中</h2>
+            <p id="hazard-evidence">DivertNavi公開地点を検証中</p>
+            <p id="hazard-message">現在の冠水情報ではありません。公開データの読み込み完了後に地点を選択できます。</p>
+          </article>
+
+          <aside id="notification-preview" class="notification-preview" aria-live="assertive" hidden>
+            <div class="notification-icon">C</div><div><p>CoachGo・いま</p><strong id="notification-title"></strong><small id="notification-body"></small></div><button id="dismiss-notification" type="button" aria-label="通知を閉じる">×</button>
+          </aside>
+        </section>
+      </main>
+
+      <dialog id="registration-dialog" class="registration-dialog">
+        <div class="dialog-handle" aria-hidden="true"></div>
+        <div class="dialog-heading"><div><p class="eyebrow">ONE TAP REPORT</p><h2>今いる場所の危険は？</h2></div><button id="close-registration" class="icon-button" type="button" aria-label="閉じる">×</button></div>
+        <p class="dialog-help">カテゴリーを1回押すと、地図中央へ未確認地点として一時登録します。</p>
+        <div id="report-category-grid" class="hazard-report-grid">
+          <button type="button" data-report-category="FLOOD"><span>🌊</span><strong>冠水</strong></button>
+          <button type="button" data-report-category="ACCIDENT"><span>⚠️</span><strong>事故</strong></button>
+          <button type="button" data-report-category="ROADWORK"><span>🚧</span><strong>工事</strong></button>
+          <button type="button" data-report-category="POLICE"><span>🚨</span><strong>取り締まり</strong></button>
+          <button type="button" data-report-category="OBJECT"><span>📦</span><strong>落下物</strong></button>
+          <button type="button" data-report-category="BROKEN_DOWN"><span>🚙</span><strong>故障車</strong></button>
+          <button type="button" data-report-category="CONGESTION"><span>🚗</span><strong>渋滞</strong></button>
+          <button type="button" data-report-category="ROAD_DAMAGE"><span>🕳️</span><strong>路面損傷</strong></button>
+          <button type="button" data-report-category="HAIL" data-additional-report hidden><span>🧊</span><strong>雹</strong></button>
+          <button type="button" data-report-category="HEAVY_RAIN" data-additional-report hidden><span>🌧️</span><strong>激しい雨</strong></button>
+          <button type="button" data-report-category="STRONG_WIND" data-additional-report hidden><span>💨</span><strong>強風</strong></button>
+          <button type="button" data-report-category="HEAVY_SNOW" data-additional-report hidden><span>❄️</span><strong>豪雪・凍結</strong></button>
+          <button type="button" data-report-category="LOW_VISIBILITY" data-additional-report hidden><span>🌫️</span><strong>視界不良</strong></button>
+          <button type="button" data-report-category="ANIMAL" data-additional-report hidden><span>🦌</span><strong>動物</strong></button>
+          <button type="button" data-report-category="WRONG_WAY" data-additional-report hidden><span>⛔</span><strong>逆走車</strong></button>
+          <button type="button" data-report-category="SIGN_ISSUE" data-additional-report hidden><span>🚸</span><strong>標識注意</strong></button>
+        </div>
+        <button id="show-all-reports" class="show-all-reports" type="button" aria-expanded="false">さらに表示（すべての危険） <span aria-hidden="true">›</span></button>
+        <p id="registration-error" class="form-error" role="alert"></p>
+        <p class="privacy-note"><span aria-hidden="true">✓</span> 投稿時点の地図中央だけを使用し、位置履歴は保存しません。</p>
+      </dialog>
+      <aside id="undo-report-toast" class="undo-report-toast" role="status" hidden>
+        <span class="toast-check" aria-hidden="true">✓</span>
+        <span><strong id="undo-report-title"></strong><small>10秒以内なら取り消せます</small></span>
+        <button id="undo-report" type="button">元に戻す</button>
+      </aside>
+      <div id="panel-backdrop" class="panel-backdrop" hidden></div>
+    </div>
+    <script src="/coachgo-demo/runtime-config.js"></script>
+    <script src="/coachgo-demo/vendor/mapbox-gl.js"></script>
+    <script type="module" src="/coachgo-demo/dist/mobile/demo.js"></script>
+  </body>
+</html>

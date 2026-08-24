@@ -1,0 +1,10 @@
+{
+  "name": "CoachGo 危険監視モバイルPoC",
+  "short_name": "CoachGo",
+  "start_url": "/coachgo-demo/",
+  "display": "standalone",
+  "background_color": "#f5f8f6",
+  "theme_color": "#f5f8f6",
+  "lang": "ja",
+  "scope": "/coachgo-demo/"
+}

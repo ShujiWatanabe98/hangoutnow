@@ -1,0 +1,52 @@
+export const COACHGO_MAP_STYLE = "mapbox://styles/mapbox/standard";
+export const COACHGO_MAP_LANGUAGE = "ja";
+export const COACHGO_MAP_SIGNATURE = "WASHI AURORA";
+export const COACHGO_MAP_LOCALE = {
+    "AttributionControl.ToggleAttribution": "地図の帰属情報を表示・非表示",
+    "FullscreenControl.Enter": "全画面表示",
+    "FullscreenControl.Exit": "全画面表示を終了",
+    "GeolocateControl.FindMyLocation": "現在地を表示",
+    "GeolocateControl.LocationNotAvailable": "現在地を取得できません",
+    "LogoControl.Title": "Mapboxホームページ",
+    "Map.Title": "地図",
+    "NavigationControl.ResetBearing": "北を上に戻す",
+    "NavigationControl.ZoomIn": "拡大",
+    "NavigationControl.ZoomOut": "縮小",
+    "ScrollZoomBlocker.CtrlMessage": "Ctrlキーを押しながら地図を拡大・縮小",
+    "ScrollZoomBlocker.CmdMessage": "Commandキーを押しながら地図を拡大・縮小",
+    "TouchPanBlocker.Message": "2本指で地図を移動",
+};
+// CoachGo専用の「和紙・藍・蛍光珊瑚」配色。Mapbox Standardの公開設定だけで構成する。
+export const COACHGO_WASHI_AURORA_CONFIG = {
+    lightPreset: "dawn",
+    theme: "default",
+    font: "Noto Sans CJK JP",
+    show3dObjects: true,
+    show3dBuildings: true,
+    show3dTrees: true,
+    showPedestrianRoads: true,
+    showPlaceLabels: true,
+    showPointOfInterestLabels: true,
+    showRoadLabels: true,
+    showTransitLabels: true,
+    showAdminBoundaries: true,
+    colorModePointOfInterestLabels: "single",
+    backgroundPointOfInterestLabels: "circle",
+    densityPointOfInterestLabels: 2,
+    colorLand: "#f4efe4",
+    colorWater: "#176b87",
+    colorGreenspace: "#b7cf73",
+    colorCommercial: "#ead2ff",
+    colorEducation: "#ffd6a5",
+    colorMedical: "#ffb3c7",
+    colorIndustrial: "#c9c3e8",
+    colorBuildings: "#d8c7b5",
+    colorMotorways: "#ff5a36",
+    colorTrunks: "#ffbd2e",
+    colorRoads: "#fffdf6",
+    colorPlaceLabels: "#21183f",
+    colorRoadLabels: "#3e315f",
+    colorAdminBoundaries: "#7357a6",
+    colorPointOfInterestLabels: "#563d7c",
+};
+//# sourceMappingURL=mapboxStyle.js.map

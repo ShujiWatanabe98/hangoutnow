@@ -118,8 +118,8 @@ test('homepage targets Shinjuku solo participants with measurable acquisition li
   assert.match(server, /location: '\/shinjuku-working-adult-friends\.html'/);
 });
 
-test('corporate homepage separates methodmore from its two product pages', async () => {
-  const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles] = await Promise.all([
+test('corporate homepage presents the three methodmore products accurately', async () => {
+  const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles, coachDemo, coachDemoScript, server] = await Promise.all([
     readFile(new URL('../public/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/hangout-now.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/divertnavi.html', import.meta.url), 'utf8'),
@@ -127,6 +127,9 @@ test('corporate homepage separates methodmore from its two product pages', async
     readFile(new URL('../public/sitemap.xml', import.meta.url), 'utf8'),
     readFile(new URL('../public/corporate.css', import.meta.url), 'utf8'),
     readFile(new URL('../public/divertnavi.css', import.meta.url), 'utf8'),
+    readFile(new URL('../public/coachgo-demo/index.html', import.meta.url), 'utf8'),
+    readFile(new URL('../public/coachgo-demo/dist/mobile/demo.js', import.meta.url), 'utf8'),
+    readFile(new URL('../server.mjs', import.meta.url), 'utf8'),
   ]);
 
   assert.match(corporate, /<title>methodmore｜日常の選択を、もっと前へ。<\/title>/);
@@ -136,8 +139,26 @@ test('corporate homepage separates methodmore from its two product pages', async
   assert.match(corporate, /href="\/divertnavi-app\/">Webアプリを開く<\/a>/);
   assert.match(corporate, /Hangout <em>Now<\/em>/);
   assert.match(corporate, /DivertNavi/);
+  assert.match(corporate, /CoachGo/);
   assert.match(corporate, /公開中/);
   assert.match(corporate, /Android MVP 開発中/);
+  assert.match(corporate, /合成モバイルPoC 検証中/);
+  assert.match(corporate, /現在は合成データのみで検証しています。/);
+  assert.match(corporate, /href="\/coachgo-demo\/"[^>]*>デモを体験/);
+  assert.match(coachDemo, /<title>CoachGo 危険監視PoC<\/title>/);
+  assert.match(coachDemo, /id="mapbox-map"/);
+  assert.match(coachDemo, /class="setting-switch"/);
+  assert.match(coachDemo, /id="demo-playback"/);
+  assert.doesNotMatch(coachDemo, /開発用シナリオ|危険監視を開始|何を見守りますか？/);
+  assert.match(coachDemo, /src="\/coachgo-demo\/runtime-config\.js"/);
+  assert.match(coachDemo, /src="\/coachgo-demo\/vendor\/mapbox-gl\.js"/);
+  assert.match(coachDemo, /src="\/coachgo-demo\/dist\/mobile\/demo\.js"/);
+  assert.match(coachDemoScript, /SYNTHETIC_ONLY/);
+  assert.match(coachDemoScript, /公開版: 合成アンダーパス1件 \/ 合成交通安全地点1件/);
+  assert.match(server, /requestedPath === '\/coachgo-demo'/);
+  assert.match(server, /requestedPath === '\/coachgo-demo\/runtime-config\.js'/);
+  assert.match(server, /dataMode: 'SYNTHETIC_ONLY'/);
+  assert.match(server, /'wasm-unsafe-eval'/);
   assert.match(hangout, /<link rel="canonical" href="https:\/\/method-more\.com\/hangout-now\.html">/);
   assert.match(divertnavi, /<link rel="canonical" href="https:\/\/method-more\.com\/divertnavi\.html">/);
   assert.match(divertnavi, /<title>走るだけで、みんなを守る｜DivertNavi<\/title>/);
@@ -172,6 +193,7 @@ test('corporate homepage separates methodmore from its two product pages', async
   assert.match(sitemap, /https:\/\/method-more\.com\/divertnavi\.html/);
   assert.match(sitemap, /https:\/\/method-more\.com\/divertnavi-privacy\.html/);
   assert.match(corporateStyles, /\.divert-art/);
+  assert.match(corporateStyles, /\.coach-art/);
   assert.match(divertStyles, /@media \(max-width: 620px\)/);
 });
 

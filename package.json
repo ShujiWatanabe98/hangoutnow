@@ -8,6 +8,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "check:shinjuku-launch": "node scripts/check-shinjuku-launch.mjs",
+    "coachgo:sync": "node scripts/sync-coachgo-demo.mjs",
     "dev:api": "npm run dev -w @hangout-now/api",
     "demo:seed": "node scripts/seed-public-demo.mjs",
     "demo:seed:direct": "node scripts/seed-mutual-five-star-demo.mjs",

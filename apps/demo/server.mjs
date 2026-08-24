@@ -9,9 +9,9 @@ const dashboardPathCandidate = process.env.DIVERTNAVI_DASHBOARD_PATH?.trim().rep
 const divertNaviDashboardPath = /^\/divertnavi-app\/[a-z0-9](?:[a-z0-9-]{22,}[a-z0-9])$/.test(dashboardPathCandidate) ? dashboardPathCandidate : '';
 const divertNaviCollector = divertNaviDashboardPath ? import('./divertnavi-collector/service.mjs') : null;
 const weathernewsRadarUrl = 'https://wxtech.weathernews.com/api/v1/tile/prec';
-const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.xml': 'application/xml; charset=utf-8', '.txt': 'text/plain; charset=utf-8' };
+const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.map': 'application/json; charset=utf-8', '.webmanifest': 'application/manifest+json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.xml': 'application/xml; charset=utf-8', '.txt': 'text/plain; charset=utf-8' };
 const securityHeaders = {
-  'content-security-policy': "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://api.mapbox.com https://*.tiles.mapbox.com https://tilecache.rainviewer.com https://hangoutnow-demo.onrender.com https://play.google.com https://tools.applemediaservices.com; frame-src https://maps.google.com; connect-src 'self' https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com https://api.rainviewer.com https://tilecache.rainviewer.com https://api.open-meteo.com https://www.google-analytics.com https://region1.google-analytics.com; font-src 'self'; worker-src blob:; upgrade-insecure-requests",
+  'content-security-policy': "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://api.mapbox.com https://*.tiles.mapbox.com https://tilecache.rainviewer.com https://hangoutnow-demo.onrender.com https://play.google.com https://tools.applemediaservices.com; frame-src https://maps.google.com; connect-src 'self' https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com https://api.rainviewer.com https://tilecache.rainviewer.com https://api.open-meteo.com https://www.google-analytics.com https://region1.google-analytics.com; font-src 'self'; worker-src blob:; upgrade-insecure-requests",
   'cross-origin-opener-policy': 'same-origin-allow-popups',
   'permissions-policy': 'camera=(self), geolocation=(self), microphone=()',
   'referrer-policy': 'strict-origin-when-cross-origin',
@@ -136,8 +136,25 @@ createServer(async (request, response) => {
     response.end(`globalThis.DIVERTNAVI_CONFIG=${JSON.stringify(config)};`);
     return;
   }
+  if (requestedPath === '/coachgo-demo/runtime-config.js') {
+    const mapboxAccessToken = process.env.MAPBOX_APIKEY?.trim() ?? '';
+    const config = {
+      mapboxAccessToken: mapboxAccessToken.startsWith('pk.') ? mapboxAccessToken : null,
+      mapDataUrl: null,
+      dataMode: 'SYNTHETIC_ONLY',
+    };
+    response.writeHead(200, {
+      ...securityHeaders,
+      'content-type': 'text/javascript; charset=utf-8',
+      'cache-control': 'no-store',
+    });
+    response.end(`globalThis.COACHGO_CONFIG=${JSON.stringify(config)};`);
+    return;
+  }
   const pathname = requestedPath === '/'
     ? '/index.html'
+    : requestedPath === '/coachgo-demo' || requestedPath === '/coachgo-demo/'
+      ? '/coachgo-demo/index.html'
     : requestedPath === '/divertnavi-app' || requestedPath === '/divertnavi-app/'
       ? '/divertnavi-app/index.html'
       : divertNaviDashboardPath && normalizedRequestedPath === divertNaviDashboardPath
@@ -147,7 +164,7 @@ createServer(async (request, response) => {
   if (!file.startsWith(root)) { response.writeHead(403, securityHeaders).end(); return; }
   try {
     const fileBody = await readFile(file);
-    const isApplicationPage = requestedPath === '/demo.html' || requestedPath === '/app.html' || requestedPath.startsWith('/divertnavi-app');
+    const isApplicationPage = requestedPath === '/demo.html' || requestedPath === '/app.html' || requestedPath.startsWith('/coachgo-demo') || requestedPath.startsWith('/divertnavi-app');
     const body = extname(file) === '.html' && !isApplicationPage
       ? Buffer.from(fileBody.toString('utf8').replace('<head>', '<head><link rel="stylesheet" href="/cookie-consent.css?v=20260816-2"><link rel="stylesheet" href="/share.css?v=20260821-2"><script src="/analytics.js?v=20260820-2" defer></script><script src="/attribution.js?v=20260821-2" defer></script><script src="/share.js?v=20260821-3" defer></script>'))
       : fileBody;
