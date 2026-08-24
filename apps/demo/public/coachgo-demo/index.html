@@ -9,7 +9,7 @@
     <title>CoachGo 危険監視PoC</title>
     <link rel="manifest" href="/coachgo-demo/manifest.webmanifest">
     <link rel="stylesheet" href="/coachgo-demo/vendor/mapbox-gl.css">
-    <link rel="stylesheet" href="/coachgo-demo/styles.css?v=20260824-7">
+    <link rel="stylesheet" href="/coachgo-demo/styles.css?v=20260824-8">
   </head>
   <body>
     <div class="app-shell">
@@ -73,13 +73,6 @@
           <p id="demo-playback-status" class="demo-playback-status" role="status" hidden></p>
           <p id="location-status" class="location-status" role="status" hidden></p>
 
-          <article id="hazard-card" class="hazard-card" aria-live="polite">
-            <div><span id="hazard-category" class="category-badge">道路冠水</span><span id="hazard-distance">450m先</span></div>
-            <h2 id="hazard-name">アンダーパス情報を読み込み中</h2>
-            <p id="hazard-evidence">DivertNavi公開地点を検証中</p>
-            <p id="hazard-message">現在の冠水情報ではありません。公開データの読み込み完了後に地点を選択できます。</p>
-          </article>
-
           <aside id="notification-preview" class="notification-preview" aria-live="assertive" hidden>
             <div class="notification-icon">C</div><div><p>CoachGo・いま</p><strong id="notification-title"></strong><small id="notification-body"></small></div><button id="dismiss-notification" type="button" aria-label="通知を閉じる">×</button>
           </aside>
@@ -129,6 +122,6 @@
     </div>
     <script src="/coachgo-demo/runtime-config.js"></script>
     <script src="/coachgo-demo/vendor/mapbox-gl.js"></script>
-    <script type="module" src="/coachgo-demo/bootstrap.js?v=20260824-10"></script>
+    <script type="module" src="/coachgo-demo/bootstrap.js?v=20260824-11"></script>
   </body>
 </html>

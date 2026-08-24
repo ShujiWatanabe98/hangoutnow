@@ -59,12 +59,6 @@ function requiredElement(selector) {
 const categoryPanel = requiredElement("#category-panel");
 const panelBackdrop = requiredElement("#panel-backdrop");
 const mapLoadState = requiredElement("#map-load-state");
-const hazardCard = requiredElement("#hazard-card");
-const categoryElement = requiredElement("#hazard-category");
-const distanceElement = requiredElement("#hazard-distance");
-const nameElement = requiredElement("#hazard-name");
-const evidenceElement = requiredElement("#hazard-evidence");
-const messageElement = requiredElement("#hazard-message");
 const sharedDataStatus = requiredElement("#shared-data-status");
 const selectedCount = requiredElement("#selected-count");
 const notificationPreview = requiredElement("#notification-preview");
@@ -106,8 +100,9 @@ const DEMO_DRIVE_CASING_LAYER_ID = "coachgo-yokohama-honatsugi-route-casing";
 const DEMO_DRIVE_LAYER_ID = "coachgo-yokohama-honatsugi-route-line";
 const DEMO_DRIVE_DURATION_MS = 60_000;
 const selectedCategories = new Set(defaultSelectedCategories());
-let selectedHazard = SYNTHETIC_HAZARD_POINTS[0] ?? null;
+let selectedHazard = null;
 let selectedSharedPoint = null;
+let activeMapPopup = null;
 let divertNaviMapData = null;
 let sessionUserReports = [];
 let approachDetectionEnabled = true;
@@ -177,17 +172,6 @@ function renderPermissionStatus() {
 function selectHazard(point) {
     selectedHazard = point;
     selectedSharedPoint = null;
-    const notification = buildApproachNotification(point);
-    categoryElement.textContent =
-        point.sourceKind === "USER_REPORT"
-            ? `${categoryLabels[point.category]}・未確認`
-            : categoryLabels[point.category];
-    categoryElement.classList.toggle("unverified", point.sourceKind === "USER_REPORT");
-    distanceElement.textContent =
-        point.sourceKind === "USER_REPORT" ? "地図中央の登録地点" : `${point.distanceMeters}m先`;
-    nameElement.textContent = point.name;
-    evidenceElement.textContent = point.note ?? point.evidenceLabel;
-    messageElement.textContent = notification.body;
     for (const { element } of mapMarkers.values()) {
         element.classList.toggle("selected", element.dataset.hazard === point.id);
     }
@@ -216,22 +200,73 @@ function sharedNotification(point) {
 function selectSharedPoint(point) {
     selectedSharedPoint = point;
     selectedHazard = null;
-    const notification = sharedNotification(point);
-    categoryElement.textContent = point.kind === "UNDERPASS" ? "アンダーパス" : "警察・交通安全重点地点";
-    categoryElement.classList.remove("unverified");
-    distanceElement.textContent = point.sourceOrganization === "CoachGo合成デモ"
-        ? "合成デモ地点"
-        : point.kind === "POLICE_PRIORITY"
-            ? "神奈川県警公開・概略"
-            : "DivertNavi公開地点";
-    nameElement.textContent = point.name;
-    evidenceElement.textContent = `${point.evidence} / 出典: ${point.sourceOrganization}${point.sourceUpdatedAt === null ? "" : `（${point.sourceUpdatedAt}更新）`}`;
-    messageElement.textContent = notification.body;
     for (const { element } of mapMarkers.values())
         element.classList.remove("selected");
     for (const { element } of sharedDataMarkers.values()) {
         element.classList.toggle("selected", element.dataset.sharedPoint === point.id);
     }
+}
+function clearMapPointSelection() {
+    selectedHazard = null;
+    selectedSharedPoint = null;
+    for (const { element } of mapMarkers.values())
+        element.classList.remove("selected");
+    for (const marker of sessionUserReportMarkers.values())
+        marker.getElement().classList.remove("selected");
+    for (const { element } of sharedDataMarkers.values())
+        element.classList.remove("selected");
+}
+function removeActiveMapPopup() {
+    const popup = activeMapPopup;
+    activeMapPopup = null;
+    popup?.remove();
+    clearMapPointSelection();
+}
+function popupContent(category, title, evidence, message, unverified = false) {
+    const content = document.createElement("div");
+    content.className = "coachgo-hazard-popup";
+    const categoryElement = document.createElement("small");
+    categoryElement.textContent = category;
+    categoryElement.classList.toggle("unverified", unverified);
+    const titleElement = document.createElement("strong");
+    titleElement.textContent = title;
+    const evidenceElement = document.createElement("p");
+    evidenceElement.textContent = evidence;
+    const messageElement = document.createElement("p");
+    messageElement.className = "popup-message";
+    messageElement.textContent = message;
+    content.append(categoryElement, titleElement, evidenceElement, messageElement);
+    return content;
+}
+function displayPopup(coordinates, content) {
+    if (map === null || window.mapboxgl === undefined)
+        return;
+    removeActiveMapPopup();
+    const popup = new window.mapboxgl.Popup({ offset: 14, closeButton: true, closeOnClick: true, maxWidth: "300px" })
+        .setLngLat([coordinates[0], coordinates[1]])
+        .setDOMContent(content)
+        .addTo(map);
+    activeMapPopup = popup;
+    popup.on("close", () => {
+        if (activeMapPopup !== popup)
+            return;
+        activeMapPopup = null;
+        clearMapPointSelection();
+    });
+}
+function showHazardPopup(point) {
+    const notification = buildApproachNotification(point);
+    displayPopup([point.longitude, point.latitude], popupContent(point.sourceKind === "USER_REPORT"
+        ? `${categoryLabels[point.category]}・未確認`
+        : categoryLabels[point.category], point.name, point.note ?? point.evidenceLabel, notification.body, point.sourceKind === "USER_REPORT"));
+    selectHazard(point);
+}
+function showSharedPointPopup(point) {
+    const notification = sharedNotification(point);
+    const category = point.kind === "UNDERPASS" ? "アンダーパス・道路冠水注意箇所" : "警察・交通安全重点地点";
+    const evidence = `${point.evidence} / 出典: ${point.sourceOrganization}${point.sourceUpdatedAt === null ? "" : `（${point.sourceUpdatedAt}更新）`}`;
+    displayPopup([point.longitude, point.latitude], popupContent(category, point.name, evidence, notification.body));
+    selectSharedPoint(point);
 }
 function categoryIcon(category) {
     return (HAZARD_CATEGORIES.find((candidate) => candidate.id === category)?.icon ??
@@ -249,7 +284,10 @@ function createHazardMarkerElement(point) {
     const label = document.createElement("span");
     label.textContent = categoryIcon(point.category);
     marker.append(label);
-    marker.addEventListener("click", () => selectHazard(point));
+    marker.addEventListener("click", (event) => {
+        event.stopPropagation();
+        showHazardPopup(point);
+    });
     return marker;
 }
 function addSyntheticMarkers() {
@@ -319,12 +357,6 @@ function speakMonitorApproach(point) {
     const message = voiceApproachMessage(point);
     demoPlaybackStatus.dataset.lastVoicePoint = point.id;
     demoPlaybackStatus.dataset.lastVoiceAnnouncement = message;
-    const sharedPoint = divertNaviMapData?.items.find((candidate) => candidate.id === point.id);
-    const hazardPoint = allHazards().find((candidate) => candidate.id === point.id);
-    if (sharedPoint !== undefined)
-        selectSharedPoint(sharedPoint);
-    else if (hazardPoint !== undefined)
-        selectHazard(hazardPoint);
     if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) {
         demoPlaybackStatus.dataset.voiceState = "unsupported";
         return;
@@ -402,7 +434,10 @@ function addSharedDataMarkers() {
         icon.setAttribute("aria-hidden", "true");
         icon.textContent = categoryIcon("POLICE_ENFORCEMENT");
         element.append(icon);
-        element.addEventListener("click", () => selectSharedPoint(point));
+        element.addEventListener("click", (event) => {
+            event.stopPropagation();
+            showSharedPointPopup(point);
+        });
         const marker = new window.mapboxgl.Marker({ element, anchor: "center" })
             .setLngLat([point.longitude, point.latitude])
             .addTo(map);
@@ -492,7 +527,7 @@ function addUnderpassLayers() {
             return;
         const point = divertNaviMapData?.items.find((candidate) => candidate.id === pointId);
         if (point !== undefined)
-            selectSharedPoint(point);
+            showSharedPointPopup(point);
     });
     for (const layerId of [UNDERPASS_CLUSTER_LAYER_ID, UNDERPASS_POINT_LAYER_ID]) {
         map.on("mouseenter", layerId, () => { if (map !== null)
@@ -746,11 +781,6 @@ async function loadDivertNaviMapData() {
         sharedDataStatus.dataset.state = "ready";
         sharedDataStatus.dataset.underpassCount = String(value.counts.underpasses);
         sharedDataStatus.dataset.policeCount = String(value.counts.policePriorityLocations);
-        const firstUnderpass = value.items.find((point) => point.kind === "UNDERPASS");
-        if (firstUnderpass !== undefined && selectedCategories.has(firstUnderpass.monitorCategory)) {
-            selectedSharedPoint = firstUnderpass;
-            selectedHazard = null;
-        }
         updateDemoPlaybackAvailability();
         addSharedDataMarkers();
     }
@@ -855,16 +885,11 @@ function renderMap() {
         }
     }
     if (selectedSharedPoint !== null && !selectedCategories.has(selectedSharedPoint.monitorCategory)) {
-        selectedSharedPoint = null;
+        removeActiveMapPopup();
     }
-    if (selectedSharedPoint === null && (selectedHazard === null || !visible.some((point) => point.id === selectedHazard?.id))) {
-        selectedHazard = visible[0] ?? null;
+    if (selectedHazard !== null && !visible.some((point) => point.id === selectedHazard?.id)) {
+        removeActiveMapPopup();
     }
-    hazardCard.hidden = selectedSharedPoint === null && selectedHazard?.sourceKind !== "USER_REPORT";
-    if (selectedSharedPoint !== null)
-        selectSharedPoint(selectedSharedPoint);
-    else if (selectedHazard !== null)
-        selectHazard(selectedHazard);
 }
 requiredElement("#close-panel").addEventListener("click", () => setPanelOpen(false));
 panelBackdrop.addEventListener("click", () => setPanelOpen(false));
@@ -885,12 +910,6 @@ for (const button of document.querySelectorAll("[data-category]")) {
             selectedCategories.delete(category);
         else {
             selectedCategories.add(category);
-            if (category === "POLICE_ENFORCEMENT") {
-                const firstPolice = divertNaviMapData?.items.find((point) => point.kind === "POLICE_PRIORITY");
-                if (firstPolice !== undefined) {
-                    selectSharedPoint(firstPolice);
-                }
-            }
         }
         renderMap();
     });
@@ -957,7 +976,6 @@ function registerSessionHazard(category, coordinates) {
         latitude: coordinates[1],
     });
     sessionUserReports = [...sessionUserReports, report];
-    selectedHazard = report;
     registrationDialog.close();
     setPanelOpen(false);
     renderMap();
@@ -1064,7 +1082,7 @@ requiredElement("#undo-report").addEventListener("click", () => {
         return;
     sessionUserReports = sessionUserReports.filter((report) => report.id !== lastReportId);
     if (selectedHazard?.id === lastReportId)
-        selectedHazard = SYNTHETIC_HAZARD_POINTS[0] ?? null;
+        removeActiveMapPopup();
     lastReportId = null;
     if (undoReportTimer !== null)
         window.clearTimeout(undoReportTimer);

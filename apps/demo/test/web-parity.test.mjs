@@ -157,9 +157,9 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.doesNotMatch(coachDemo, /開発用シナリオ|危険監視を開始|何を見守りますか？/);
   assert.match(coachDemo, /src="\/coachgo-demo\/runtime-config\.js"/);
   assert.match(coachDemo, /src="\/coachgo-demo\/vendor\/mapbox-gl\.js"/);
-  assert.match(coachDemo, /href="\/coachgo-demo\/styles\.css\?v=20260824-7"/);
-  assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260824-10"/);
-  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260824-13/);
+  assert.match(coachDemo, /href="\/coachgo-demo\/styles\.css\?v=20260824-8"/);
+  assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260824-11"/);
+  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260824-14/);
   assert.match(coachBootstrap, /dataset\.clientError/);
   assert.match(coachDemoScript, /SYNTHETIC_ONLY/);
   assert.match(coachDemoScript, /counts: \{ underpasses: 1, policePriorityLocations: 1 \}/);
@@ -178,6 +178,10 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(coachDemoScript, /registerSessionHazard\(match\.category, currentUserLocation\)/);
   assert.doesNotMatch(coachDemoScript, /center: \[139\.617, 35\.591\]/);
   assert.match(coachDemoScript, /SpeechSynthesisUtterance/);
+  assert.doesNotMatch(coachDemo, /id="hazard-card"/);
+  assert.match(coachDemoScript, /new window\.mapboxgl\.Popup/);
+  assert.match(coachDemoScript, /setDOMContent\(content\)/);
+  assert.match(coachDemoScript, /showSharedPointPopup\(point\)/);
   assert.match(coachDemoScript, /prepareNaturalJapaneseUtterance/);
   assert.match(coachNaturalSpeechModule, /name\.includes\("natural"\)/);
   assert.match(coachNaturalSpeechModule, /rate: 0\.9/);
