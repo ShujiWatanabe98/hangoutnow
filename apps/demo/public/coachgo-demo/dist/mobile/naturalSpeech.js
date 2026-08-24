@@ -1,6 +1,6 @@
 export const NATURAL_JAPANESE_SPEECH_SETTINGS = {
     lang: "ja-JP",
-    rate: 1.08,
+    rate: 1.22,
     pitch: 1,
     volume: 1,
 };
@@ -67,8 +67,8 @@ export function createNaturalJapaneseSpeechPlan(message) {
         const isSafetyInstruction = /進入|確認|注意|安全運転|交通ルール/u.test(text);
         return {
             text,
-            rate: isPlaceName ? 1 : isSafetyInstruction ? 1.03 : NATURAL_JAPANESE_SPEECH_SETTINGS.rate,
-            pauseAfterMs: isLast ? 0 : isPlaceName ? 260 : 170,
+            rate: isPlaceName ? 1.16 : isSafetyInstruction ? 1.18 : NATURAL_JAPANESE_SPEECH_SETTINGS.rate,
+            pauseAfterMs: isLast ? 0 : isPlaceName ? 120 : 80,
         };
     });
 }

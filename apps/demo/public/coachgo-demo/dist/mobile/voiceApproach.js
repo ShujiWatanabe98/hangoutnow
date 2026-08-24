@@ -61,6 +61,14 @@ export function nearbyMonitoredPoints(location, route, points, selectedCategorie
             : [];
     }).sort((left, right) => left.distanceMeters - right.distanceMeters);
 }
+export function nearbyMonitoredPointsAtLocation(location, points, selectedCategories) {
+    return points.flatMap((point) => {
+        if (!selectedCategories.has(point.monitorCategory))
+            return [];
+        const distanceMeters = distanceBetweenCoordinatesMeters(location, [point.longitude, point.latitude]);
+        return distanceMeters <= point.alertDistanceMeters ? [{ point, distanceMeters }] : [];
+    }).sort((left, right) => left.distanceMeters - right.distanceMeters);
+}
 export function voiceApproachMessage(point) {
     if (point.kind === "UNDERPASS") {
         return `この先に、道路冠水の監視地点があります。${point.name}付近です。大雨のときは、無理に進入せず、道路の状況を確認してください。`;

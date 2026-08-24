@@ -3,9 +3,9 @@ import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WA
 import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260824-1";
 import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260824-1";
 import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260824-5";
-import { nearbyMonitoredPoints, voiceApproachMessage, } from "./voiceApproach.js?v=20260824-5";
+import { nearbyMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260824-6";
 import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260824-1";
-import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260824-4";
+import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260824-5";
 function syntheticSharedMapPayload() {
     return {
         schemaVersion: 1,
@@ -126,6 +126,8 @@ let reportSequence = 0;
 let lastReportId = null;
 let undoReportTimer = null;
 let currentUserLocation = [...SYNTHETIC_USER_LOCATION];
+let hasLiveUserLocation = false;
+let foregroundLocationWatchId = null;
 let rainViewerLoading = null;
 let demoDriveRoute = null;
 let demoDriveSampler = null;
@@ -407,7 +409,7 @@ function addSyntheticMarkers() {
     locationLabel.textContent = "現在地";
     userLocationElement.append(locationHalo, locationArrow, locationLabel);
     userLocationMarker = new window.mapboxgl.Marker({ element: userLocationElement, anchor: "center" })
-        .setLngLat(SYNTHETIC_USER_LOCATION)
+        .setLngLat(currentUserLocation)
         .addTo(map);
 }
 function updateDemoPlaybackAvailability() {
@@ -425,31 +427,33 @@ function renderDemoPlaybackState() {
         ? "自動デモ再生中　横浜駅 → 本厚木駅"
         : "デモ停止中　横浜駅 → 本厚木駅";
 }
-function voiceMonitorPoints() {
+function voiceMonitorPoints(includeDemoFixtures = demoDriveRunning) {
     const route = demoDriveRoute;
     const sampler = demoDriveSampler;
-    const demoScenarios = route === null || sampler === null ? [] : DEMO_VOICE_SCENARIOS.map((scenario) => {
-        const position = sampler.positionAt(scenario.progress);
-        return {
-            id: scenario.id,
-            monitorCategory: scenario.monitorCategory,
-            name: scenario.name,
-            longitude: position.coordinate[0],
-            latitude: position.coordinate[1],
-            kind: scenario.kind,
-            alertDistanceMeters: 700,
-        };
-    });
-    const shared = (divertNaviMapData?.items ?? []).map((point) => ({
-        id: point.id,
-        monitorCategory: point.monitorCategory,
-        name: point.name,
-        longitude: point.longitude,
-        latitude: point.latitude,
-        kind: point.kind,
-        alertDistanceMeters: point.kind === "POLICE_PRIORITY" ? 800 : 700,
-    }));
-    const hazards = allHazards().flatMap((point) => point.monitorCategory === null ? [] : [{
+    const demoScenarios = !includeDemoFixtures || route === null || sampler === null
+        ? []
+        : DEMO_VOICE_SCENARIOS.map((scenario) => {
+            const position = sampler.positionAt(scenario.progress);
+            return {
+                id: scenario.id,
+                monitorCategory: scenario.monitorCategory,
+                name: scenario.name,
+                longitude: position.coordinate[0],
+                latitude: position.coordinate[1],
+                kind: scenario.kind,
+                alertDistanceMeters: 700,
+            };
+        });
+    const shared = (divertNaviMapData?.items ?? []).flatMap((point) => (!includeDemoFixtures && point.sourceOrganization === "CoachGo合成デモ" ? [] : [{
+            id: point.id,
+            monitorCategory: point.monitorCategory,
+            name: point.name,
+            longitude: point.longitude,
+            latitude: point.latitude,
+            kind: point.kind,
+            alertDistanceMeters: point.kind === "POLICE_PRIORITY" ? 800 : 700,
+        }]));
+    const hazards = allHazards().flatMap((point) => (point.monitorCategory === null || (!includeDemoFixtures && point.sourceKind === "SYNTHETIC_FIXTURE") ? [] : [{
             id: point.id,
             monitorCategory: point.monitorCategory,
             name: point.name,
@@ -457,7 +461,7 @@ function voiceMonitorPoints() {
             latitude: point.latitude,
             kind: "OTHER",
             alertDistanceMeters: 800,
-        }]);
+        }]));
     return [...demoScenarios, ...shared, ...hazards];
 }
 function speakMonitorApproach(point) {
@@ -549,6 +553,61 @@ function checkDemoVoiceApproach(location, now) {
         lastVoiceAnnouncementAt = now;
         speakMonitorApproach(entered.point);
     }
+}
+function checkLiveLocationApproach(location, now) {
+    if (demoDriveRunning || now - lastVoiceProximityCheckAt < VOICE_PROXIMITY_CHECK_INTERVAL_MS)
+        return;
+    lastVoiceProximityCheckAt = now;
+    if (!approachDetectionEnabled) {
+        activeNearbyPointIds.clear();
+        return;
+    }
+    const nearby = nearbyMonitoredPointsAtLocation(location, voiceMonitorPoints(false), selectedCategories);
+    const nearbyIds = new Set(nearby.map(({ point }) => point.id));
+    const entered = nearby.find(({ point }) => !activeNearbyPointIds.has(point.id));
+    activeNearbyPointIds = nearbyIds;
+    if (entered === undefined)
+        return;
+    // The native background task owns real-location iOS notifications. This avoids
+    // a duplicate notification while the foreground WebView is also receiving GPS.
+    if (backgroundNotificationEnabled && window.ReactNativeWebView === undefined) {
+        notifyMonitorApproach(entered.point);
+    }
+    if (hazardVoiceEnabled
+        && window.ReactNativeWebView === undefined
+        && now - lastVoiceAnnouncementAt >= VOICE_ANNOUNCEMENT_COOLDOWN_MS) {
+        lastVoiceAnnouncementAt = now;
+        speakMonitorApproach(entered.point);
+    }
+}
+function stopForegroundLocationMonitoring() {
+    if (foregroundLocationWatchId === null || !("geolocation" in navigator))
+        return;
+    navigator.geolocation.clearWatch(foregroundLocationWatchId);
+    foregroundLocationWatchId = null;
+    connectionState.dataset.locationWatch = "stopped";
+}
+function startForegroundLocationMonitoring() {
+    if (!approachDetectionEnabled || foregroundLocationWatchId !== null)
+        return;
+    if (!("geolocation" in navigator)) {
+        connectionState.dataset.locationWatch = "unsupported";
+        return;
+    }
+    foregroundLocationWatchId = navigator.geolocation.watchPosition((position) => {
+        const longitude = position.coords.longitude;
+        const latitude = position.coords.latitude;
+        if (!Number.isFinite(longitude) || !Number.isFinite(latitude))
+            return;
+        currentUserLocation = [longitude, latitude];
+        hasLiveUserLocation = true;
+        userLocationMarker?.setLngLat(currentUserLocation);
+        connectionState.dataset.locationWatch = "active";
+        checkLiveLocationApproach(currentUserLocation, performance.now());
+    }, (error) => {
+        connectionState.dataset.locationWatch = error.code === error.PERMISSION_DENIED ? "denied" : "error";
+    }, { enableHighAccuracy: true, timeout: 15_000, maximumAge: 5_000 });
+    connectionState.dataset.locationWatch = "starting";
 }
 function createCategoryMarkerImage(icon, background) {
     const canvas = document.createElement("canvas");
@@ -979,6 +1038,11 @@ async function loadDivertNaviMapData() {
         sharedDataStatus.dataset.policeCount = String(value.counts.policePriorityLocations);
         updateDemoPlaybackAvailability();
         addSharedDataMarkers();
+        if (hasLiveUserLocation && !demoDriveRunning) {
+            activeNearbyPointIds.clear();
+            lastVoiceProximityCheckAt = 0;
+            checkLiveLocationApproach(currentUserLocation, performance.now());
+        }
     }
     catch (error) {
         sharedDataStatus.textContent = "DivertNavi公開データを利用できません。合成地点のみ表示しています。";
@@ -1145,13 +1209,23 @@ approachDetectionToggle.addEventListener("click", () => {
     if (!approachDetectionEnabled) {
         notificationPreview.hidden = true;
         cancelNaturalJapaneseSpeech();
+        activeNearbyPointIds.clear();
+        stopForegroundLocationMonitoring();
+    }
+    else {
+        startForegroundLocationMonitoring();
     }
     renderPermissionStatus();
 });
 backgroundNotificationToggle.addEventListener("click", () => {
     backgroundNotificationEnabled = !backgroundNotificationEnabled;
-    if (backgroundNotificationEnabled)
+    if (backgroundNotificationEnabled) {
         requestSystemNotificationPermission();
+        activeNearbyPointIds.clear();
+        lastVoiceProximityCheckAt = 0;
+        if (hasLiveUserLocation)
+            checkLiveLocationApproach(currentUserLocation, performance.now());
+    }
     renderPermissionStatus();
 });
 hazardVoiceToggle.addEventListener("click", () => {
@@ -1160,6 +1234,12 @@ hazardVoiceToggle.addEventListener("click", () => {
         cancelNaturalJapaneseSpeech();
         demoPlaybackStatus.dataset.voiceState = "muted";
         activeNearbyPointIds.clear();
+    }
+    else {
+        activeNearbyPointIds.clear();
+        lastVoiceProximityCheckAt = 0;
+        if (hasLiveUserLocation)
+            checkLiveLocationApproach(currentUserLocation, performance.now());
     }
     renderPermissionStatus();
 });
@@ -1172,6 +1252,11 @@ for (const button of document.querySelectorAll("[data-category]")) {
             selectedCategories.add(category);
         }
         renderMap();
+        activeNearbyPointIds.clear();
+        lastVoiceProximityCheckAt = 0;
+        if (hasLiveUserLocation && !demoDriveRunning) {
+            checkLiveLocationApproach(currentUserLocation, performance.now());
+        }
     });
 }
 demoPlaybackButton.addEventListener("click", () => {
@@ -1180,6 +1265,10 @@ demoPlaybackButton.addEventListener("click", () => {
     if (!demoDriveRunning) {
         cancelNaturalJapaneseSpeech();
         announceDemoStop();
+        activeNearbyPointIds.clear();
+        lastVoiceProximityCheckAt = 0;
+        if (hasLiveUserLocation)
+            checkLiveLocationApproach(currentUserLocation, performance.now());
     }
     else {
         demoDriveProgress = 0;
@@ -1372,7 +1461,9 @@ requiredElement("#recenter-map").addEventListener("click", () => {
             return;
         }
         currentUserLocation = [longitude, latitude];
+        hasLiveUserLocation = true;
         userLocationMarker?.setLngLat(currentUserLocation);
+        checkLiveLocationApproach(currentUserLocation, performance.now());
         map?.easeTo({ center: currentUserLocation, zoom: 15, pitch: 22, bearing: 0, duration: 650 });
         locationStatus.textContent = "現在地を表示しました。";
         window.setTimeout(() => { locationStatus.hidden = true; }, 2_500);
@@ -1386,4 +1477,5 @@ renderPermissionStatus();
 renderMap();
 void loadDivertNaviMapData();
 initializeMapbox();
+startForegroundLocationMonitoring();
 //# sourceMappingURL=demo.js.map
