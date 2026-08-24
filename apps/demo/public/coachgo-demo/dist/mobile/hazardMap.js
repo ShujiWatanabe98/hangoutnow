@@ -112,39 +112,29 @@ export function filterHazardsByCategory(points, selectedCategories) {
         (point.monitorCategory !== null && selectedCategories.has(point.monitorCategory)));
 }
 export function buildApproachNotification(point) {
-    if (point.sourceKind === "USER_REPORT") {
-        const policeDisclaimer = point.category === "POLICE"
-            ? "現在の取締実施を示す情報ではありません。交通ルールを守って走行してください。"
-            : "周囲の状況を確認してください。";
-        return {
-            title: "ユーザー登録の未確認地点に接近",
-            body: `自分で登録した未確認の${point.name}があります。${policeDisclaimer}`,
-            action: "SLOW_DOWN",
-            productionEligible: false,
-        };
-    }
-    if (point.category === "POLICE_ENFORCEMENT") {
-        return {
-            title: "警察取締の公開重点地点に接近",
-            body: `${point.distanceMeters}m先に合成の警察公開重点地点があります。現在の取締実施を示す情報ではありません。交通ルールを守って走行してください。`,
-            action: "SLOW_DOWN",
-            productionEligible: false,
-        };
-    }
-    if (point.structure === "UNDERPASS") {
-        return {
-            title: "アンダーパスの浸水に注意",
-            body: `${point.distanceMeters}m先にアンダーパスがあります。大雨時は水深を確認できないため、進入せず、使用中のナビで別経路を確認してください。`,
-            action: "REROUTE",
-            productionEligible: false,
-        };
-    }
+    if (point.sourceKind !== "USER_REPORT")
+        return null;
+    const policeDisclaimer = point.category === "POLICE"
+        ? "現在の取締実施を示す情報ではありません。交通ルールを守って走行してください。"
+        : "周囲の状況を確認してください。";
     return {
-        title: `${point.name}に注意`,
-        body: `${point.distanceMeters}m先に選択した危険カテゴリーの合成地点があります。周囲を確認し、次の安全な場所で経路を再確認してください。`,
+        title: "ユーザー登録の未確認地点に接近",
+        body: `自分で登録した未確認の${point.name}があります。${policeDisclaimer}`,
         action: "SLOW_DOWN",
         productionEligible: false,
     };
+}
+export function buildHazardPointGuidance(point) {
+    if (point.sourceKind === "USER_REPORT") {
+        return buildApproachNotification(point).body;
+    }
+    if (point.category === "POLICE_ENFORCEMENT") {
+        return "合成の警察公開重点地点です。現在の取締実施を示す情報ではありません。交通ルールを守って走行してください。";
+    }
+    if (point.structure === "UNDERPASS") {
+        return "合成のアンダーパス地点です。大雨時は水深を確認できないため、実在する地点では公的情報を確認してください。";
+    }
+    return "選択した危険カテゴリーの合成表示地点です。実在する危険や現在の発生状況を示しません。";
 }
 export function createSessionUserHazardPoint(input) {
     const category = USER_REPORT_CATEGORIES.find((candidate) => candidate.id === input.category);

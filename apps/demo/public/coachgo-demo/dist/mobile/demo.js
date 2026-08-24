@@ -1,11 +1,11 @@
-import { buildApproachNotification, createSessionUserHazardPoint, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js";
-import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js";
+import { buildHazardPointGuidance, createSessionUserHazardPoint, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260824-5";
+import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260824-2";
 import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260824-1";
 import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260824-1";
-import { advanceDemoProgress, demoRoutePositionAt, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260824-2";
-import { nearbyMonitoredPoints, voiceApproachMessage, } from "./voiceApproach.js?v=20260824-4";
+import { advanceDemoProgress, demoRoutePositionAt, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260824-3";
+import { nearbyMonitoredPoints, voiceApproachMessage, } from "./voiceApproach.js?v=20260824-5";
 import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260824-1";
-import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260824-3";
+import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260824-4";
 function syntheticSharedMapPayload() {
     return {
         schemaVersion: 1,
@@ -104,6 +104,13 @@ const DEMO_DRIVE_SOURCE_ID = "coachgo-yokohama-honatsugi-route";
 const DEMO_DRIVE_CASING_LAYER_ID = "coachgo-yokohama-honatsugi-route-casing";
 const DEMO_DRIVE_LAYER_ID = "coachgo-yokohama-honatsugi-route-line";
 const DEMO_DRIVE_DURATION_MS = 60_000;
+const DEMO_VOICE_SCENARIOS = [
+    { id: "demo-voice-underpass", progress: 0.12, monitorCategory: "ROAD_FLOODING", name: "デモ道路冠水地点", kind: "UNDERPASS" },
+    { id: "demo-voice-river", progress: 0.3, monitorCategory: "RIVER_FLOODING", name: "デモ河川氾濫地点", kind: "OTHER" },
+    { id: "demo-voice-slope", progress: 0.48, monitorCategory: "LANDSLIDE", name: "デモ土砂災害地点", kind: "OTHER" },
+    { id: "demo-voice-tsunami", progress: 0.66, monitorCategory: "TSUNAMI", name: "デモ津波注意地点", kind: "OTHER" },
+    { id: "demo-voice-police", progress: 0.84, monitorCategory: "POLICE_ENFORCEMENT", name: "デモ交通安全重点地点", kind: "POLICE_PRIORITY" },
+];
 const selectedCategories = new Set(defaultSelectedCategories());
 let selectedHazard = null;
 let selectedSharedPoint = null;
@@ -131,6 +138,7 @@ let activeNearbyPointIds = new Set();
 let activeVoiceRecognition = null;
 let preferredJapaneseVoice = null;
 let activeSpeechSequence = 0;
+let lastDemoCameraFollowAt = -Infinity;
 let panelTouchStartY = null;
 let panelTouchLastY = null;
 let panelTouchStartedAt = 0;
@@ -161,12 +169,18 @@ function prepareNaturalJapaneseUtterance(utterance, rate) {
 }
 function cancelNaturalJapaneseSpeech() {
     activeSpeechSequence += 1;
+    window.ReactNativeWebView?.postMessage(JSON.stringify({ type: "COACHGO_NATIVE_SPEECH_STOP" }));
     if ("speechSynthesis" in window)
         window.speechSynthesis.cancel();
 }
 function speakNaturalJapanese(message) {
     if (!hazardVoiceEnabled) {
         demoPlaybackStatus.dataset.voiceState = "muted";
+        return;
+    }
+    if (window.ReactNativeWebView !== undefined) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: "COACHGO_NATIVE_SPEAK", message }));
+        demoPlaybackStatus.dataset.voiceState = "native";
         return;
     }
     if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) {
@@ -239,7 +253,7 @@ function setPanelOpen(open) {
         categoryPanel.removeAttribute("inert");
 }
 function renderPermissionStatus() {
-    permissionStatusElement.textContent = `接近検知: ${approachDetectionEnabled ? "ON" : "OFF"} / バックグラウンド通知: ${backgroundNotificationEnabled ? "ON" : "OFF"} / 読み上げ: ${hazardVoiceEnabled ? "ON" : "OFF"}（合成PoC）`;
+    permissionStatusElement.textContent = `接近検知: ${approachDetectionEnabled ? "ON" : "OFF"} / バックグラウンド通知: ${backgroundNotificationEnabled ? "ON" : "OFF"} / 読み上げ: ${hazardVoiceEnabled ? "ON" : "OFF"}（合成地点は通知対象外）`;
     connectionState.classList.toggle("active", approachDetectionEnabled);
     connectionState.querySelector("span").textContent = approachDetectionEnabled
         ? "自動見守り中"
@@ -262,22 +276,16 @@ function selectHazard(point) {
         element.classList.toggle("selected", element.dataset.hazard === point.id);
     }
 }
-function sharedNotification(point) {
+function sharedPointGuidance(point) {
     const synthetic = point.sourceOrganization === "CoachGo合成デモ";
     if (point.kind === "UNDERPASS") {
-        return {
-            title: synthetic ? "合成アンダーパス地点に接近" : "アンダーパスの冠水に注意",
-            body: synthetic
-                ? "実在地点ではない合成デモです。大雨時は水深を確認できないため、進入せず、公的情報を確認してください。"
-                : "国土交通省が公開する道路冠水想定箇所です。現在の冠水情報ではありません。大雨時は進入前に道路管理者などの公的情報を確認してください。",
-        };
+        return synthetic
+            ? "実在地点ではない合成デモです。通知対象ではありません。"
+            : "国土交通省が公開する道路冠水想定箇所です。現在の冠水情報ではありません。大雨時は進入前に道路管理者などの公的情報を確認してください。";
     }
-    return {
-        title: synthetic ? "合成交通安全地点に接近" : "交通安全重点地点に接近",
-        body: synthetic
-            ? "実在地点ではない合成デモです。現在の取締り実施を示す情報ではありません。速度と交通ルールを守って走行してください。"
-            : "警察公開の交通安全重点地点を概略表示しています。現在取締り実施中を示す情報ではありません。速度と交通ルールを守って走行してください。",
-    };
+    return synthetic
+        ? "実在地点ではない合成デモです。通知対象ではなく、現在の取締り実施も示しません。"
+        : "警察公開の交通安全重点地点を概略表示しています。現在取締り実施中を示す情報ではありません。速度と交通ルールを守って走行してください。";
 }
 function selectSharedPoint(point) {
     selectedSharedPoint = point;
@@ -337,17 +345,15 @@ function displayPopup(coordinates, content) {
     });
 }
 function showHazardPopup(point) {
-    const notification = buildApproachNotification(point);
     displayPopup([point.longitude, point.latitude], popupContent(point.sourceKind === "USER_REPORT"
         ? `${categoryLabels[point.category]}・未確認`
-        : categoryLabels[point.category], point.name, point.note ?? point.evidenceLabel, notification.body, point.sourceKind === "USER_REPORT"));
+        : categoryLabels[point.category], point.name, point.note ?? point.evidenceLabel, buildHazardPointGuidance(point), point.sourceKind === "USER_REPORT"));
     selectHazard(point);
 }
 function showSharedPointPopup(point) {
-    const notification = sharedNotification(point);
     const category = point.kind === "UNDERPASS" ? "アンダーパス・道路冠水注意箇所" : "警察・交通安全重点地点";
     const evidence = `${point.evidence} / 出典: ${point.sourceOrganization}${point.sourceUpdatedAt === null ? "" : `（${point.sourceUpdatedAt}更新）`}`;
-    displayPopup([point.longitude, point.latitude], popupContent(category, point.name, evidence, notification.body));
+    displayPopup([point.longitude, point.latitude], popupContent(category, point.name, evidence, sharedPointGuidance(point)));
     selectSharedPoint(point);
 }
 function categoryIcon(category) {
@@ -415,6 +421,19 @@ function renderDemoPlaybackState() {
         : "デモ停止中　横浜駅 → 本厚木駅";
 }
 function voiceMonitorPoints() {
+    const route = demoDriveRoute;
+    const demoScenarios = route === null ? [] : DEMO_VOICE_SCENARIOS.map((scenario) => {
+        const position = demoRoutePositionAt(route, scenario.progress);
+        return {
+            id: scenario.id,
+            monitorCategory: scenario.monitorCategory,
+            name: scenario.name,
+            longitude: position.coordinate[0],
+            latitude: position.coordinate[1],
+            kind: scenario.kind,
+            alertDistanceMeters: 700,
+        };
+    });
     const shared = (divertNaviMapData?.items ?? []).map((point) => ({
         id: point.id,
         monitorCategory: point.monitorCategory,
@@ -433,7 +452,7 @@ function voiceMonitorPoints() {
             kind: "OTHER",
             alertDistanceMeters: 800,
         }]);
-    return [...shared, ...hazards];
+    return [...demoScenarios, ...shared, ...hazards];
 }
 function speakMonitorApproach(point) {
     const message = voiceApproachMessage(point);
@@ -706,6 +725,32 @@ function focusContinuousDemoRoute() {
     demoPlaybackStatus.classList.add("focused");
     window.setTimeout(() => demoPlaybackStatus.classList.remove("focused"), 900);
 }
+function focusDemoVehicle(duration = 750) {
+    if (map === null || demoDriveRoute === null)
+        return;
+    const position = demoRoutePositionAt(demoDriveRoute, demoDriveProgress);
+    map.easeTo({
+        center: [position.coordinate[0], position.coordinate[1]],
+        zoom: 15.2,
+        pitch: 48,
+        bearing: position.bearing,
+        duration,
+    });
+    lastDemoCameraFollowAt = performance.now();
+}
+function followDemoVehicle(position, now) {
+    if (map === null || !demoDriveRunning || now - lastDemoCameraFollowAt < 250)
+        return;
+    lastDemoCameraFollowAt = now;
+    map.easeTo({
+        center: [position.coordinate[0], position.coordinate[1]],
+        zoom: Math.max(map.getZoom(), 15.2),
+        pitch: 48,
+        bearing: position.bearing,
+        duration: 300,
+        easing: (progress) => progress,
+    });
+}
 function createDemoVehicleMarker() {
     if (map === null || window.mapboxgl === undefined || demoDriveMarker !== null)
         return;
@@ -738,6 +783,7 @@ function animateContinuousDemoDrive() {
         demoDriveMarker.setLngLat([position.coordinate[0], position.coordinate[1]]);
         if (demoVehicleGraphic !== null)
             demoVehicleGraphic.style.transform = `rotate(${position.bearing}deg)`;
+        followDemoVehicle(position, now);
         demoPlaybackStatus.dataset.demoProgress = String(Math.floor(demoDriveProgress * 100));
         demoPlaybackStatus.dataset.vehicleLongitude = position.coordinate[0].toFixed(6);
         demoPlaybackButton.dataset.completedCategories = String(Math.floor(demoDriveProgress * 100));
@@ -1057,7 +1103,7 @@ demoPlaybackButton.addEventListener("click", () => {
         cancelNaturalJapaneseSpeech();
     renderDemoPlaybackState();
     if (demoDriveRunning)
-        focusContinuousDemoRoute();
+        focusDemoVehicle();
 });
 requiredElement("#dismiss-notification").addEventListener("click", () => {
     notificationPreview.hidden = true;
