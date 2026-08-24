@@ -65,29 +65,48 @@ function bearing(from, to) {
     return Math.atan2(longitude, latitude) * 180 / Math.PI;
 }
 export function demoRoutePositionAt(coordinates, progress) {
+    return createDemoRouteSampler(coordinates).positionAt(progress);
+}
+export function createDemoRouteSampler(coordinates) {
     if (coordinates.length < 2)
         throw new Error("demo route requires at least two coordinates");
-    const normalizedProgress = Math.max(0, Math.min(1, progress));
-    const lengths = coordinates.slice(1).map((coordinate, index) => segmentLength(coordinates[index], coordinate));
-    const total = lengths.reduce((sum, length) => sum + length, 0);
+    const segments = coordinates.slice(1).flatMap((coordinate, index) => {
+        const from = coordinates[index];
+        const length = segmentLength(from, coordinate);
+        return length === 0 ? [] : [{ from, to: coordinate, length }];
+    });
+    const total = segments.reduce((sum, segment) => sum + segment.length, 0);
     if (total <= 0)
         throw new Error("demo route length must be positive");
-    let remaining = total * normalizedProgress;
-    for (const [index, length] of lengths.entries()) {
-        const from = coordinates[index];
-        const to = coordinates[index + 1];
-        if (remaining <= length || index === lengths.length - 1) {
-            const ratio = length === 0 ? 0 : Math.min(1, remaining / length);
+    const cumulativeEnds = [];
+    let cumulativeLength = 0;
+    for (const segment of segments) {
+        cumulativeLength += segment.length;
+        cumulativeEnds.push(cumulativeLength);
+    }
+    return {
+        positionAt(progress) {
+            const target = total * Math.max(0, Math.min(1, progress));
+            let low = 0;
+            let high = cumulativeEnds.length - 1;
+            while (low < high) {
+                const middle = Math.floor((low + high) / 2);
+                if (cumulativeEnds[middle] < target)
+                    low = middle + 1;
+                else
+                    high = middle;
+            }
+            const segment = segments[low];
+            const distanceBefore = low === 0 ? 0 : cumulativeEnds[low - 1];
+            const ratio = Math.max(0, Math.min(1, (target - distanceBefore) / segment.length));
             return {
                 coordinate: [
-                    from[0] + (to[0] - from[0]) * ratio,
-                    from[1] + (to[1] - from[1]) * ratio,
+                    segment.from[0] + (segment.to[0] - segment.from[0]) * ratio,
+                    segment.from[1] + (segment.to[1] - segment.from[1]) * ratio,
                 ],
-                bearing: bearing(from, to),
+                bearing: bearing(segment.from, segment.to),
             };
         }
-        remaining -= length;
-    }
-    return { coordinate: coordinates[coordinates.length - 1], bearing: 0 };
+    };
 }
 //# sourceMappingURL=continuousDemoDrive.js.map

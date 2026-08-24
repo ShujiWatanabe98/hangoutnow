@@ -2,7 +2,7 @@ import { buildHazardPointGuidance, createSessionUserHazardPoint, defaultSelected
 import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260824-2";
 import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260824-1";
 import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260824-1";
-import { advanceDemoProgress, demoRoutePositionAt, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260824-4";
+import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260824-5";
 import { nearbyMonitoredPoints, voiceApproachMessage, } from "./voiceApproach.js?v=20260824-5";
 import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260824-1";
 import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260824-4";
@@ -128,6 +128,7 @@ let undoReportTimer = null;
 let currentUserLocation = [...SYNTHETIC_USER_LOCATION];
 let rainViewerLoading = null;
 let demoDriveRoute = null;
+let demoDriveSampler = null;
 let demoDriveMarker = null;
 let demoVehicleGraphic = null;
 let demoDriveAnimationStarted = false;
@@ -148,7 +149,7 @@ let panelTouchStartedAt = 0;
 let panelTouchDragging = false;
 const VOICE_PROXIMITY_CHECK_INTERVAL_MS = 750;
 const VOICE_ANNOUNCEMENT_COOLDOWN_MS = 12_000;
-const DEMO_CAMERA_FRAME_INTERVAL_MS = 50;
+const DEMO_CAMERA_FRAME_INTERVAL_MS = 1_000 / 60;
 const MOBILE_PANEL_QUERY = "(max-width: 760px)";
 function refreshPreferredJapaneseVoice() {
     if (!("speechSynthesis" in window))
@@ -426,8 +427,9 @@ function renderDemoPlaybackState() {
 }
 function voiceMonitorPoints() {
     const route = demoDriveRoute;
-    const demoScenarios = route === null ? [] : DEMO_VOICE_SCENARIOS.map((scenario) => {
-        const position = demoRoutePositionAt(route, scenario.progress);
+    const sampler = demoDriveSampler;
+    const demoScenarios = route === null || sampler === null ? [] : DEMO_VOICE_SCENARIOS.map((scenario) => {
+        const position = sampler.positionAt(scenario.progress);
         return {
             id: scenario.id,
             monitorCategory: scenario.monitorCategory,
@@ -795,9 +797,9 @@ function focusContinuousDemoRoute() {
     window.setTimeout(() => demoPlaybackStatus.classList.remove("focused"), 900);
 }
 function focusDemoVehicle(duration = 750) {
-    if (map === null || demoDriveRoute === null)
+    if (map === null || demoDriveSampler === null)
         return;
-    const position = demoRoutePositionAt(demoDriveRoute, demoDriveProgress);
+    const position = demoDriveSampler.positionAt(demoDriveProgress);
     map.easeTo({
         center: [position.coordinate[0], position.coordinate[1]],
         zoom: 15.2,
@@ -842,15 +844,15 @@ function createDemoVehicleMarker() {
         .addTo(map);
 }
 function animateContinuousDemoDrive() {
-    if (demoDriveRoute === null || demoDriveMarker === null)
+    if (demoDriveRoute === null || demoDriveSampler === null || demoDriveMarker === null)
         return;
     const tick = (now) => {
-        if (demoDriveRoute === null || demoDriveMarker === null)
+        if (demoDriveRoute === null || demoDriveSampler === null || demoDriveMarker === null)
             return;
         const elapsed = demoDriveLastFrameAt === null ? 0 : now - demoDriveLastFrameAt;
         demoDriveLastFrameAt = now;
         demoDriveProgress = advanceDemoProgress(demoDriveProgress, elapsed, DEMO_DRIVE_DURATION_MS, demoDriveRunning);
-        const position = demoRoutePositionAt(demoDriveRoute, demoDriveProgress);
+        const position = demoDriveSampler.positionAt(demoDriveProgress);
         demoDriveMarker.setLngLat([position.coordinate[0], position.coordinate[1]]);
         followDemoVehicle(position, now);
         if (demoVehicleGraphic !== null) {
@@ -885,6 +887,7 @@ async function initializeContinuousDemoDrive(token) {
         demoDriveRoute = FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE;
         demoPlaybackStatus.dataset.clientError = error instanceof Error ? error.message : "unknown Directions error";
     }
+    demoDriveSampler = createDemoRouteSampler(demoDriveRoute);
     if (map === null)
         return;
     map.addSource(DEMO_DRIVE_SOURCE_ID, {
