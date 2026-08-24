@@ -3,8 +3,9 @@ import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WA
 import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260824-1";
 import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260824-1";
 import { advanceDemoProgress, demoRoutePositionAt, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260824-2";
-import { nearbyMonitoredPoints, voiceApproachMessage, } from "./voiceApproach.js?v=20260824-1";
+import { nearbyMonitoredPoints, voiceApproachMessage, } from "./voiceApproach.js?v=20260824-2";
 import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260824-1";
+import { NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260824-1";
 function syntheticSharedMapPayload() {
     return {
         schemaVersion: 1,
@@ -127,8 +128,34 @@ let lastVoiceProximityCheckAt = 0;
 let lastVoiceAnnouncementAt = -Infinity;
 let activeNearbyPointIds = new Set();
 let activeVoiceRecognition = null;
+let preferredJapaneseVoice = null;
 const VOICE_PROXIMITY_CHECK_INTERVAL_MS = 750;
 const VOICE_ANNOUNCEMENT_COOLDOWN_MS = 12_000;
+function refreshPreferredJapaneseVoice() {
+    if (!("speechSynthesis" in window))
+        return;
+    preferredJapaneseVoice = selectNaturalJapaneseVoice(window.speechSynthesis.getVoices());
+    demoPlaybackStatus.dataset.voiceName = preferredJapaneseVoice?.name ?? "browser-default-ja-JP";
+}
+function prepareNaturalJapaneseUtterance(utterance) {
+    const settings = NATURAL_JAPANESE_SPEECH_SETTINGS;
+    const voice = preferredJapaneseVoice
+        ?? selectNaturalJapaneseVoice(window.speechSynthesis.getVoices());
+    utterance.lang = settings.lang;
+    utterance.rate = settings.rate;
+    utterance.pitch = settings.pitch;
+    utterance.volume = settings.volume;
+    if (voice !== null) {
+        preferredJapaneseVoice = voice;
+        utterance.voice = voice;
+        demoPlaybackStatus.dataset.voiceName = voice.name;
+    }
+    demoPlaybackStatus.dataset.voiceRate = String(settings.rate);
+}
+if ("speechSynthesis" in window) {
+    refreshPreferredJapaneseVoice();
+    window.speechSynthesis.addEventListener("voiceschanged", refreshPreferredJapaneseVoice);
+}
 function allHazards() {
     return [...SYNTHETIC_HAZARD_POINTS, ...sessionUserReports];
 }
@@ -304,8 +331,7 @@ function speakMonitorApproach(point) {
     }
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(message);
-    utterance.lang = "ja-JP";
-    utterance.rate = 0.95;
+    prepareNaturalJapaneseUtterance(utterance);
     utterance.onstart = () => { demoPlaybackStatus.dataset.voiceState = "speaking"; };
     utterance.onend = () => { demoPlaybackStatus.dataset.voiceState = "ready"; };
     utterance.onerror = () => { demoPlaybackStatus.dataset.voiceState = "error"; };
@@ -906,8 +932,8 @@ function speakReportConfirmation(label) {
     if (!("speechSynthesis" in window))
         return;
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(`${label}を未確認地点として登録しました。情報提供ありがとうございます。`);
-    utterance.lang = "ja-JP";
+    const utterance = new SpeechSynthesisUtterance(`${label}を、未確認の危険地点として登録しました。ご協力、ありがとうございます。`);
+    prepareNaturalJapaneseUtterance(utterance);
     window.speechSynthesis.speak(utterance);
 }
 function showUndoReport(report) {
