@@ -9,7 +9,7 @@
     <title>CoachGo 危険監視PoC</title>
     <link rel="manifest" href="/coachgo-demo/manifest.webmanifest">
     <link rel="stylesheet" href="/coachgo-demo/vendor/mapbox-gl.css">
-    <link rel="stylesheet" href="/coachgo-demo/styles.css?v=20260824-8">
+    <link rel="stylesheet" href="/coachgo-demo/styles.css?v=20260824-9">
   </head>
   <body>
     <div class="app-shell">
@@ -67,8 +67,8 @@
             <button id="recenter-map" class="map-action current-location-control" type="button" aria-label="現在地を表示" title="現在地">
               <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5.25"></circle><circle class="location-dot" cx="12" cy="12" r="2.25"></circle><path d="M12 2.75v3M12 18.25v3M2.75 12h3M18.25 12h3"></path></svg>
             </button>
-            <button id="register-hazard" class="map-action report" type="button" aria-label="危険を投稿"><span>投稿</span></button>
-            <button id="demo-playback" class="map-action demo-playback" type="button" data-completed-categories="0" aria-label="横浜駅から本厚木駅のデモ走行を再生" aria-pressed="false" disabled><span id="demo-playback-label">再生</span></button>
+            <button id="register-hazard" class="map-action report" type="button" aria-label="危険を投稿"><span class="report-action-label" aria-hidden="true"><span>＋</span><span>投稿</span></span></button>
+            <button id="demo-playback" class="map-action demo-playback" type="button" data-completed-categories="0" aria-label="横浜駅から本厚木駅のデモ走行を再生" aria-pressed="false" disabled><span class="demo-playback-label" aria-hidden="true"><span>デモ</span><span id="demo-playback-label">再生</span></span></button>
           </div>
           <p id="demo-playback-status" class="demo-playback-status" role="status" hidden></p>
           <p id="location-status" class="location-status" role="status" hidden></p>
