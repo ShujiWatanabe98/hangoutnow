@@ -160,8 +160,12 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(coachDemo, /href="\/coachgo-demo\/styles\.css\?v=20260824-9"/);
   assert.match(coachDemo, /class="report-action-label" aria-hidden="true"><span>＋<\/span><span>投稿<\/span>/);
   assert.match(coachDemo, /class="demo-playback-label" aria-hidden="true"><span>デモ<\/span><span id="demo-playback-label">再生<\/span>/);
-  assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260824-11"/);
-  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260824-15/);
+  assert.match(coachDemo, /<h2 id="notification-setting-heading">通知設定<\/h2>/);
+  assert.doesNotMatch(coachDemo, />通知と権限<\/h2>/);
+  assert.match(coachDemo, /id="hazard-voice-toggle"/);
+  assert.match(coachDemo, /<strong>危険地点の読み上げ<\/strong>/);
+  assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260824-12"/);
+  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260824-16/);
   assert.match(coachBootstrap, /dataset\.clientError/);
   assert.match(coachDemoScript, /SYNTHETIC_ONLY/);
   assert.match(coachDemoScript, /counts: \{ underpasses: 1, policePriorityLocations: 1 \}/);
@@ -186,6 +190,8 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(coachDemoScript, /showSharedPointPopup\(point\)/);
   assert.match(coachDemoScript, /prepareNaturalJapaneseUtterance/);
   assert.match(coachDemoScript, /voiceSegmentCount/);
+  assert.match(coachDemoScript, /if \(!hazardVoiceEnabled\)/);
+  assert.match(coachDemoScript, /voiceState = "muted"/);
   assert.match(coachNaturalSpeechModule, /name\.includes\("natural"\)/);
   assert.match(coachNaturalSpeechModule, /name\.includes\("neural"\)/);
   assert.match(coachNaturalSpeechModule, /rate: 0\.96/);

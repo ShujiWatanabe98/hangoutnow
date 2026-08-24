@@ -72,6 +72,8 @@ const approachDetectionToggle = requiredElement("#approach-detection-toggle");
 const approachDetectionState = requiredElement("#approach-detection-state");
 const backgroundNotificationToggle = requiredElement("#background-notification-toggle");
 const backgroundNotificationState = requiredElement("#background-notification-state");
+const hazardVoiceToggle = requiredElement("#hazard-voice-toggle");
+const hazardVoiceState = requiredElement("#hazard-voice-state");
 const undoReportToast = requiredElement("#undo-report-toast");
 const undoReportTitle = requiredElement("#undo-report-title");
 const permissionStatusElement = requiredElement("#permission-status");
@@ -107,6 +109,7 @@ let divertNaviMapData = null;
 let sessionUserReports = [];
 let approachDetectionEnabled = true;
 let backgroundNotificationEnabled = true;
+let hazardVoiceEnabled = true;
 let reportSequence = 0;
 let lastReportId = null;
 let undoReportTimer = null;
@@ -154,6 +157,10 @@ function cancelNaturalJapaneseSpeech() {
         window.speechSynthesis.cancel();
 }
 function speakNaturalJapanese(message) {
+    if (!hazardVoiceEnabled) {
+        demoPlaybackStatus.dataset.voiceState = "muted";
+        return;
+    }
     if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) {
         demoPlaybackStatus.dataset.voiceState = "unsupported";
         return;
@@ -207,7 +214,7 @@ function setPanelOpen(open) {
     panelBackdrop.hidden = !open || !window.matchMedia("(max-width: 760px)").matches;
 }
 function renderPermissionStatus() {
-    permissionStatusElement.textContent = `接近検知: ${approachDetectionEnabled ? "ON" : "OFF"} / バックグラウンド通知: ${backgroundNotificationEnabled ? "ON" : "OFF"}（合成PoC）`;
+    permissionStatusElement.textContent = `接近検知: ${approachDetectionEnabled ? "ON" : "OFF"} / バックグラウンド通知: ${backgroundNotificationEnabled ? "ON" : "OFF"} / 読み上げ: ${hazardVoiceEnabled ? "ON" : "OFF"}（合成PoC）`;
     connectionState.classList.toggle("active", approachDetectionEnabled);
     connectionState.querySelector("span").textContent = approachDetectionEnabled
         ? "自動見守り中"
@@ -216,6 +223,8 @@ function renderPermissionStatus() {
     approachDetectionState.dataset.state = approachDetectionEnabled ? "on" : "off";
     backgroundNotificationToggle.setAttribute("aria-checked", String(backgroundNotificationEnabled));
     backgroundNotificationState.dataset.state = backgroundNotificationEnabled ? "on" : "off";
+    hazardVoiceToggle.setAttribute("aria-checked", String(hazardVoiceEnabled));
+    hazardVoiceState.dataset.state = hazardVoiceEnabled ? "on" : "off";
 }
 function selectHazard(point) {
     selectedHazard = point;
@@ -411,7 +420,7 @@ function checkDemoVoiceApproach(location, now) {
     if (now - lastVoiceProximityCheckAt < VOICE_PROXIMITY_CHECK_INTERVAL_MS)
         return;
     lastVoiceProximityCheckAt = now;
-    if (!approachDetectionEnabled || !demoDriveRunning) {
+    if (!approachDetectionEnabled || !hazardVoiceEnabled || !demoDriveRunning) {
         activeNearbyPointIds.clear();
         return;
     }
@@ -933,12 +942,23 @@ requiredElement("#close-panel").addEventListener("click", () => setPanelOpen(fal
 panelBackdrop.addEventListener("click", () => setPanelOpen(false));
 approachDetectionToggle.addEventListener("click", () => {
     approachDetectionEnabled = !approachDetectionEnabled;
-    if (!approachDetectionEnabled)
+    if (!approachDetectionEnabled) {
         notificationPreview.hidden = true;
+        cancelNaturalJapaneseSpeech();
+    }
     renderPermissionStatus();
 });
 backgroundNotificationToggle.addEventListener("click", () => {
     backgroundNotificationEnabled = !backgroundNotificationEnabled;
+    renderPermissionStatus();
+});
+hazardVoiceToggle.addEventListener("click", () => {
+    hazardVoiceEnabled = !hazardVoiceEnabled;
+    if (!hazardVoiceEnabled) {
+        cancelNaturalJapaneseSpeech();
+        demoPlaybackStatus.dataset.voiceState = "muted";
+        activeNearbyPointIds.clear();
+    }
     renderPermissionStatus();
 });
 for (const button of document.querySelectorAll("[data-category]")) {

@@ -48,10 +48,11 @@
             </section>
 
             <section class="notification-section" aria-labelledby="notification-setting-heading">
-              <div class="section-title-row"><h2 id="notification-setting-heading">通知と権限</h2><span aria-hidden="true">♢</span></div>
-              <p id="permission-status" class="permission-status">接近検知: ON / バックグラウンド通知: ON（合成PoC）</p>
+              <div class="section-title-row"><h2 id="notification-setting-heading">通知設定</h2><span aria-hidden="true">♢</span></div>
+              <p id="permission-status" class="permission-status">接近検知: ON / バックグラウンド通知: ON / 読み上げ: ON（合成PoC）</p>
               <button id="approach-detection-toggle" class="notification-setting-row" type="button" role="switch" aria-checked="true"><span class="setting-icon">📍</span><span><strong>危険地点の接近を検知</strong><small>CoachGoは経路案内を行いません</small></span><span id="approach-detection-state" class="setting-switch" data-state="on" aria-hidden="true"><span>OFF</span><span>ON</span><i></i></span></button>
               <button id="background-notification-toggle" class="notification-setting-row" type="button" role="switch" aria-checked="true"><span class="setting-icon">🔔</span><span><strong>バックグラウンド通知</strong><small>実機での継続動作は未検証</small></span><span id="background-notification-state" class="setting-switch" data-state="on" aria-hidden="true"><span>OFF</span><span>ON</span><i></i></span></button>
+              <button id="hazard-voice-toggle" class="notification-setting-row" type="button" role="switch" aria-checked="true"><span class="setting-icon">🔊</span><span><strong>危険地点の読み上げ</strong><small>接近時の音声案内を切り替えます</small></span><span id="hazard-voice-state" class="setting-switch" data-state="on" aria-hidden="true"><span>OFF</span><span>ON</span><i></i></span></button>
             </section>
 
           </div>
@@ -122,6 +123,6 @@
     </div>
     <script src="/coachgo-demo/runtime-config.js"></script>
     <script src="/coachgo-demo/vendor/mapbox-gl.js"></script>
-    <script type="module" src="/coachgo-demo/bootstrap.js?v=20260824-11"></script>
+    <script type="module" src="/coachgo-demo/bootstrap.js?v=20260824-12"></script>
   </body>
 </html>
