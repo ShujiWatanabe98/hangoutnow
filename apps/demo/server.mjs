@@ -13,7 +13,7 @@ const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=
 const securityHeaders = {
   'content-security-policy': "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://api.mapbox.com https://*.tiles.mapbox.com https://tilecache.rainviewer.com https://hangoutnow-demo.onrender.com https://play.google.com https://tools.applemediaservices.com; frame-src https://maps.google.com; connect-src 'self' https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com https://api.rainviewer.com https://tilecache.rainviewer.com https://api.open-meteo.com https://www.google-analytics.com https://region1.google-analytics.com; font-src 'self'; worker-src blob:; upgrade-insecure-requests",
   'cross-origin-opener-policy': 'same-origin-allow-popups',
-  'permissions-policy': 'camera=(self), geolocation=(self), microphone=()',
+  'permissions-policy': 'camera=(self), geolocation=(self), microphone=(self)',
   'referrer-policy': 'strict-origin-when-cross-origin',
   'x-content-type-options': 'nosniff',
   'x-frame-options': 'DENY',

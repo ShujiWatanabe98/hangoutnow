@@ -156,9 +156,9 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.doesNotMatch(coachDemo, /開発用シナリオ|危険監視を開始|何を見守りますか？/);
   assert.match(coachDemo, /src="\/coachgo-demo\/runtime-config\.js"/);
   assert.match(coachDemo, /src="\/coachgo-demo\/vendor\/mapbox-gl\.js"/);
-  assert.match(coachDemo, /href="\/coachgo-demo\/styles\.css\?v=20260824-5"/);
-  assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260824-7"/);
-  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260824-10/);
+  assert.match(coachDemo, /href="\/coachgo-demo\/styles\.css\?v=20260824-6"/);
+  assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260824-8"/);
+  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260824-11/);
   assert.match(coachBootstrap, /dataset\.clientError/);
   assert.match(coachDemoScript, /SYNTHETIC_ONLY/);
   assert.match(coachDemoScript, /公開版: 合成アンダーパス1件 \/ 合成交通安全地点1件/);
@@ -171,6 +171,10 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(coachDemoScript, /デモ停止中　横浜駅 → 本厚木駅/);
   assert.match(coachDemoScript, /continuousDemoDrive\.js\?v=20260824-2/);
   assert.match(coachDemoScript, /voiceApproach\.js\?v=20260824-1/);
+  assert.match(coachDemoScript, /voiceHazardReport\.js\?v=20260824-1/);
+  assert.match(coachDemoScript, /webkitSpeechRecognition/);
+  assert.match(coachDemoScript, /registerSessionHazard\(match\.category, currentUserLocation\)/);
+  assert.doesNotMatch(coachDemoScript, /center: \[139\.617, 35\.591\]/);
   assert.match(coachDemoScript, /SpeechSynthesisUtterance/);
   assert.match(coachDemoScript, /kanagawaPolicePoints\.js\?v=20260824-1/);
   assert.match(coachDemoScript, /createCategoryMarkerImage/);
@@ -248,6 +252,7 @@ test('public server sends browser security headers', async () => {
   for (const header of ['content-security-policy', 'permissions-policy', 'referrer-policy', 'x-content-type-options', 'x-frame-options']) {
     assert.ok(server.includes(`'${header}'`), `security header is missing: ${header}`);
   }
+  assert.match(server, /'permissions-policy': 'camera=\(self\), geolocation=\(self\), microphone=\(self\)'/);
   assert.match(server, /frame-ancestors 'none'/);
   assert.match(server, /object-src 'none'/);
   assert.match(

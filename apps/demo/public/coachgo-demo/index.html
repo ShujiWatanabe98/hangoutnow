@@ -9,7 +9,7 @@
     <title>CoachGo 危険監視PoC</title>
     <link rel="manifest" href="/coachgo-demo/manifest.webmanifest">
     <link rel="stylesheet" href="/coachgo-demo/vendor/mapbox-gl.css">
-    <link rel="stylesheet" href="/coachgo-demo/styles.css?v=20260824-5">
+    <link rel="stylesheet" href="/coachgo-demo/styles.css?v=20260824-6">
   </head>
   <body>
     <div class="app-shell">
@@ -91,6 +91,14 @@
         <div class="dialog-handle" aria-hidden="true"></div>
         <div class="dialog-heading"><div><p class="eyebrow">ONE TAP REPORT</p><h2>今いる場所の危険は？</h2></div><button id="close-registration" class="icon-button" type="button" aria-label="閉じる">×</button></div>
         <p class="dialog-help">カテゴリーを1回押すと、地図中央へ未確認地点として一時登録します。</p>
+        <section class="voice-report" aria-labelledby="voice-report-title">
+          <button id="voice-report-start" class="voice-report-button" type="button" aria-pressed="false">
+            <span class="voice-report-icon" aria-hidden="true">🎙️</span>
+            <span><strong id="voice-report-title">音声で危険を登録</strong><small>「道路冠水」「事故」「落下物」など</small></span>
+          </button>
+          <p id="voice-report-status" class="voice-report-status" role="status" data-state="idle">マイクを押して、危険の種類を話してください。</p>
+          <p id="voice-report-transcript" class="voice-report-transcript" aria-live="polite" hidden></p>
+        </section>
         <div id="report-category-grid" class="hazard-report-grid">
           <button type="button" data-report-category="FLOOD"><span>🌊</span><strong>冠水</strong></button>
           <button type="button" data-report-category="ACCIDENT"><span>⚠️</span><strong>事故</strong></button>
@@ -111,7 +119,7 @@
         </div>
         <button id="show-all-reports" class="show-all-reports" type="button" aria-expanded="false">さらに表示（すべての危険） <span aria-hidden="true">›</span></button>
         <p id="registration-error" class="form-error" role="alert"></p>
-        <p class="privacy-note"><span aria-hidden="true">✓</span> 投稿時点の地図中央だけを使用し、位置履歴は保存しません。</p>
+        <p class="privacy-note"><span aria-hidden="true">✓</span> 音声はブラウザの音声認識機能で処理し、アプリには保存しません。</p>
       </dialog>
       <aside id="undo-report-toast" class="undo-report-toast" role="status" hidden>
         <span class="toast-check" aria-hidden="true">✓</span>
@@ -122,6 +130,6 @@
     </div>
     <script src="/coachgo-demo/runtime-config.js"></script>
     <script src="/coachgo-demo/vendor/mapbox-gl.js"></script>
-    <script type="module" src="/coachgo-demo/bootstrap.js?v=20260824-7"></script>
+    <script type="module" src="/coachgo-demo/bootstrap.js?v=20260824-8"></script>
   </body>
 </html>

@@ -142,6 +142,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .dialog-heading { display: flex; justify-content: space-between; align-items: flex-start; }
 .dialog-heading h2 { margin: 0; font-size: 22px; }
 .dialog-help { margin: 9px 0 16px; color: var(--text-soft); font-size: 10px; }
+.voice-report { margin: 0 0 14px; padding: 10px; border: 1px solid color-mix(in srgb,var(--blue) 22%,var(--line)); border-radius: 15px; background: color-mix(in srgb,var(--blue) 5%,var(--surface)); }
+.voice-report-button { width: 100%; display: flex; align-items: center; gap: 10px; padding: 0; border: 0; text-align: left; color: var(--text); background: transparent; }
+.voice-report-button > span:last-child { display: grid; gap: 2px; }
+.voice-report-button strong { font-size: 13px; }.voice-report-button small { color: var(--text-soft); font-size: 9px; }
+.voice-report-icon { width: 40px; height: 40px; display: grid; place-items: center; flex: 0 0 40px; border-radius: 50%; color: #fff; background: var(--blue); font-size: 20px; box-shadow: 0 5px 14px color-mix(in srgb,var(--blue) 28%,transparent); }
+.voice-report-button[aria-pressed="true"] .voice-report-icon { animation: voice-pulse 1s ease-in-out infinite; background: var(--red); }
+.voice-report-status { margin: 7px 0 0 50px; color: var(--text-soft); font-size: 9px; line-height: 1.45; }
+.voice-report-status[data-state="error"] { color: var(--red); }.voice-report-status[data-state="registered"] { color: var(--green); font-weight: 700; }
+.voice-report-transcript { margin: 6px 0 0 50px; padding: 6px 8px; border-radius: 8px; color: var(--text); background: var(--surface-strong); font-size: 10px; }
+@keyframes voice-pulse { 50% { transform: scale(1.08); box-shadow: 0 0 0 7px color-mix(in srgb,var(--red) 14%,transparent); } }
 .registration-dialog label { display: grid; gap: 6px; margin-top: 12px; color: var(--text-soft); font-size: 10px; font-weight: 700; }
 .registration-dialog input,.registration-dialog select,.registration-dialog textarea { width: 100%; padding: 11px; border: 1px solid var(--line); border-radius: 11px; color: var(--text); background: var(--surface); }
 .form-error { min-height: 16px; margin: 7px 0; color: var(--red); font-size: 9px; }

@@ -4,6 +4,7 @@ import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=2
 import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260824-1";
 import { advanceDemoProgress, demoRoutePositionAt, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260824-2";
 import { nearbyMonitoredPoints, voiceApproachMessage, } from "./voiceApproach.js?v=20260824-1";
+import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260824-1";
 function syntheticSharedMapPayload() {
     return {
         schemaVersion: 1,
@@ -69,6 +70,9 @@ const notificationPreview = requiredElement("#notification-preview");
 const connectionState = requiredElement("#connection-state");
 const registrationDialog = requiredElement("#registration-dialog");
 const registrationError = requiredElement("#registration-error");
+const voiceReportButton = requiredElement("#voice-report-start");
+const voiceReportStatus = requiredElement("#voice-report-status");
+const voiceReportTranscript = requiredElement("#voice-report-transcript");
 const approachDetectionToggle = requiredElement("#approach-detection-toggle");
 const approachDetectionState = requiredElement("#approach-detection-state");
 const backgroundNotificationToggle = requiredElement("#background-notification-toggle");
@@ -122,6 +126,7 @@ let demoDriveLastFrameAt = null;
 let lastVoiceProximityCheckAt = 0;
 let lastVoiceAnnouncementAt = -Infinity;
 let activeNearbyPointIds = new Set();
+let activeVoiceRecognition = null;
 const VOICE_PROXIMITY_CHECK_INTERVAL_MS = 750;
 const VOICE_ANNOUNCEMENT_COOLDOWN_MS = 12_000;
 function allHazards() {
@@ -858,7 +863,6 @@ for (const button of document.querySelectorAll("[data-category]")) {
                 const firstPolice = divertNaviMapData?.items.find((point) => point.kind === "POLICE_PRIORITY");
                 if (firstPolice !== undefined) {
                     selectSharedPoint(firstPolice);
-                    map?.easeTo({ center: [139.617, 35.591], zoom: 12.3, pitch: 22, bearing: 0, duration: 700 });
                 }
             }
         }
@@ -879,9 +883,14 @@ requiredElement("#dismiss-notification").addEventListener("click", () => {
 });
 requiredElement("#register-hazard").addEventListener("click", () => {
     registrationError.textContent = "";
+    voiceReportStatus.dataset.state = "idle";
+    voiceReportStatus.textContent = "マイクを押して、危険の種類を話してください。";
+    voiceReportTranscript.hidden = true;
+    voiceReportTranscript.textContent = "";
     registrationDialog.showModal();
 });
 requiredElement("#close-registration").addEventListener("click", () => {
+    activeVoiceRecognition?.abort();
     registrationDialog.close();
 });
 requiredElement("#show-all-reports").addEventListener("click", (event) => {
@@ -913,31 +922,117 @@ function showUndoReport(report) {
         undoReportTimer = null;
     }, 10_000);
 }
+function registerSessionHazard(category, coordinates) {
+    reportSequence += 1;
+    const report = createSessionUserHazardPoint({
+        id: `session-user-report-${reportSequence}`,
+        category,
+        longitude: coordinates[0],
+        latitude: coordinates[1],
+    });
+    sessionUserReports = [...sessionUserReports, report];
+    selectedHazard = report;
+    registrationDialog.close();
+    setPanelOpen(false);
+    renderMap();
+    showUndoReport(report);
+    speakReportConfirmation(categoryLabels[category]);
+    return report;
+}
 for (const button of document.querySelectorAll("[data-report-category]")) {
     button.addEventListener("click", () => {
         try {
             const category = button.dataset.reportCategory;
             const center = map?.getCenter();
-            reportSequence += 1;
-            const report = createSessionUserHazardPoint({
-                id: `session-user-report-${reportSequence}`,
-                category,
-                longitude: center?.lng ?? SYNTHETIC_USER_LOCATION[0],
-                latitude: center?.lat ?? SYNTHETIC_USER_LOCATION[1],
-            });
-            sessionUserReports = [...sessionUserReports, report];
-            selectedHazard = report;
-            registrationDialog.close();
-            setPanelOpen(false);
-            renderMap();
-            showUndoReport(report);
-            speakReportConfirmation(categoryLabels[category]);
+            registerSessionHazard(category, [
+                center?.lng ?? SYNTHETIC_USER_LOCATION[0],
+                center?.lat ?? SYNTHETIC_USER_LOCATION[1],
+            ]);
         }
         catch (error) {
             registrationError.textContent = error instanceof Error ? error.message : "登録できませんでした。";
         }
     });
 }
+voiceReportButton.addEventListener("click", () => {
+    if (activeVoiceRecognition !== null) {
+        activeVoiceRecognition.stop();
+        return;
+    }
+    const Recognition = window.SpeechRecognition ?? window.webkitSpeechRecognition;
+    if (Recognition === undefined) {
+        voiceReportStatus.dataset.state = "error";
+        voiceReportStatus.textContent = "このブラウザは音声入力に対応していません。Chromeでお試しください。";
+        return;
+    }
+    let finalTranscript = "";
+    let completed = false;
+    const recognition = new Recognition();
+    activeVoiceRecognition = recognition;
+    recognition.lang = "ja-JP";
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+    recognition.onstart = () => {
+        voiceReportButton.setAttribute("aria-pressed", "true");
+        voiceReportStatus.dataset.state = "listening";
+        voiceReportStatus.textContent = "聞き取り中… 危険の種類を話してください。";
+        voiceReportTranscript.hidden = true;
+        voiceReportTranscript.textContent = "";
+    };
+    recognition.onresult = (event) => {
+        let interimTranscript = "";
+        for (let index = event.resultIndex; index < event.results.length; index += 1) {
+            const result = event.results[index];
+            if (result === undefined)
+                continue;
+            if (result.isFinal)
+                finalTranscript += result[0].transcript;
+            else
+                interimTranscript += result[0].transcript;
+        }
+        const visibleTranscript = `${finalTranscript}${interimTranscript}`.trim();
+        voiceReportTranscript.textContent = `認識: ${visibleTranscript}`;
+        voiceReportTranscript.hidden = visibleTranscript.length === 0;
+        if (finalTranscript.trim().length === 0 || completed)
+            return;
+        const match = recognizeVoiceHazardCategory(finalTranscript);
+        if (match === null) {
+            voiceReportStatus.dataset.state = "error";
+            voiceReportStatus.textContent = "危険カテゴリーを判定できませんでした。もう一度お試しください。";
+            return;
+        }
+        completed = true;
+        voiceReportStatus.dataset.state = "registered";
+        voiceReportStatus.textContent = `${categoryLabels[match.category]}を現在地へ登録します。`;
+        recognition.stop();
+        registerSessionHazard(match.category, currentUserLocation);
+    };
+    recognition.onerror = (event) => {
+        voiceReportStatus.dataset.state = "error";
+        voiceReportStatus.textContent = event.error === "not-allowed" || event.error === "service-not-allowed"
+            ? "音声登録にはマイクの許可が必要です。"
+            : event.error === "no-speech"
+                ? "音声を聞き取れませんでした。もう一度お試しください。"
+                : "音声入力を開始できませんでした。";
+    };
+    recognition.onend = () => {
+        activeVoiceRecognition = null;
+        voiceReportButton.setAttribute("aria-pressed", "false");
+        if (!completed && finalTranscript.trim().length === 0 && voiceReportStatus.dataset.state !== "error") {
+            voiceReportStatus.dataset.state = "idle";
+            voiceReportStatus.textContent = "音声入力が終了しました。マイクを押して再度お試しください。";
+        }
+    };
+    try {
+        recognition.start();
+    }
+    catch {
+        activeVoiceRecognition = null;
+        voiceReportStatus.dataset.state = "error";
+        voiceReportStatus.textContent = "音声入力を開始できませんでした。";
+    }
+});
 requiredElement("#undo-report").addEventListener("click", () => {
     if (lastReportId === null)
         return;
