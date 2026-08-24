@@ -1,6 +1,6 @@
 import { access, copyFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const coachGoRoot = resolve(process.env.COACHGO_SOURCE_DIR || repositoryRoot, process.env.COACHGO_SOURCE_DIR ? '.' : '../coachgo');
@@ -69,15 +69,51 @@ const publicHtml = sourceHtml
   .replace('href="/mobile-poc/styles.css"', 'href="/coachgo-demo/styles.css?v=20260824-11"')
   .replace('src="/runtime-config.js"', 'src="/coachgo-demo/runtime-config.js"')
   .replace('src="/vendor/mapbox-gl.js"', 'src="/coachgo-demo/vendor/mapbox-gl.js"')
-  .replace('src="/mobile-poc/bootstrap.js"', 'src="/coachgo-demo/bootstrap.js?v=20260824-17"');
+  .replace('src="/mobile-poc/bootstrap.js"', 'src="/coachgo-demo/bootstrap.js?v=20260824-18"');
 
 await mkdir(publicRoot, { recursive: true });
 await writeFile(resolve(publicRoot, 'index.html'), publicHtml, 'utf8');
 await copyFile(resolve(coachGoRoot, 'mobile-poc/styles.css'), resolve(publicRoot, 'styles.css'));
+
+const underpassFeed = JSON.parse(await readFile(
+  resolve(repositoryRoot, 'apps/demo/public/divertnavi-app/data/underpasses.generated.json'),
+  'utf8',
+));
+const policeModule = await import(`${pathToFileURL(resolve(sourceRoot, 'mobile/kanagawaPolicePoints.js')).href}?sync=${Date.now()}`);
+const monitorPoints = [
+  ...underpassFeed.items.map((point) => ({
+    id: point.id,
+    monitorCategory: 'ROAD_FLOODING',
+    name: point.name,
+    longitude: point.coordinate[1],
+    latitude: point.coordinate[0],
+    kind: 'UNDERPASS',
+    alertDistanceMeters: point.warningLeadDistanceMeters,
+  })),
+  ...policeModule.KANAGAWA_POLICE_PRIORITY_POINTS.map((point) => ({
+    id: point.id,
+    monitorCategory: point.monitorCategory,
+    name: point.name,
+    longitude: point.longitude,
+    latitude: point.latitude,
+    kind: point.kind,
+    alertDistanceMeters: 800,
+  })),
+];
+await writeFile(resolve(publicRoot, 'monitor-points.generated.json'), `${JSON.stringify({
+  schemaVersion: 1,
+  generatedAt: underpassFeed.generatedAt,
+  limitations: [
+    '道路冠水想定箇所であり、現在の冠水状況ではありません。',
+    '警察公開の交通安全重点地点であり、現在の取締り実施を示す情報ではありません。',
+  ],
+  points: monitorPoints,
+}, null, 2)}\n`, 'utf8');
+
 const sourceBootstrap = await readFile(resolve(coachGoRoot, 'mobile-poc/bootstrap.js'), 'utf8');
 await writeFile(
   resolve(publicRoot, 'bootstrap.js'),
-  sourceBootstrap.replace('/dist/mobile/demo.js', '/coachgo-demo/dist/mobile/demo.js?v=20260824-21'),
+  sourceBootstrap.replace('/dist/mobile/demo.js', '/coachgo-demo/dist/mobile/demo.js?v=20260824-22'),
   'utf8',
 );
 

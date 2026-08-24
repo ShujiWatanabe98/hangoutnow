@@ -119,7 +119,7 @@ test('homepage targets Shinjuku solo participants with measurable acquisition li
 });
 
 test('corporate homepage presents the three methodmore products accurately', async () => {
-  const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles, coachDemo, coachStyles, coachBootstrap, coachDemoScript, coachDriveModule, coachUnderpassModule, coachPoliceModule, coachNaturalSpeechModule, coachVoiceApproachModule, server] = await Promise.all([
+  const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles, coachDemo, coachStyles, coachBootstrap, coachDemoScript, coachDriveModule, coachUnderpassModule, coachPoliceModule, coachNaturalSpeechModule, coachVoiceApproachModule, coachMonitorPointsJson, server] = await Promise.all([
     readFile(new URL('../public/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/hangout-now.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/divertnavi.html', import.meta.url), 'utf8'),
@@ -136,8 +136,10 @@ test('corporate homepage presents the three methodmore products accurately', asy
     readFile(new URL('../public/coachgo-demo/dist/mobile/kanagawaPolicePoints.js', import.meta.url), 'utf8'),
     readFile(new URL('../public/coachgo-demo/dist/mobile/naturalSpeech.js', import.meta.url), 'utf8'),
     readFile(new URL('../public/coachgo-demo/dist/mobile/voiceApproach.js', import.meta.url), 'utf8'),
+    readFile(new URL('../public/coachgo-demo/monitor-points.generated.json', import.meta.url), 'utf8'),
     readFile(new URL('../server.mjs', import.meta.url), 'utf8'),
   ]);
+  const coachMonitorPoints = JSON.parse(coachMonitorPointsJson);
 
   assert.match(corporate, /<title>methodmore｜日常の選択を、もっと前へ。<\/title>/);
   assert.match(corporate, /<link rel="canonical" href="https:\/\/method-more\.com\/">/);
@@ -172,8 +174,8 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(coachStyles, /max-height: calc\(100% - clamp\(64px,12vh,96px\)\)/);
   assert.match(coachDemoScript, /panelScroll\.addEventListener\("touchmove"/);
   assert.match(coachDemoScript, /dragDistance >= 88/);
-  assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260824-17"/);
-  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260824-21/);
+  assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260824-18"/);
+  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260824-22/);
   assert.match(coachBootstrap, /dataset\.clientError/);
   assert.match(coachDemoScript, /SYNTHETIC_ONLY/);
   assert.match(coachDemoScript, /counts: \{ underpasses: 1, policePriorityLocations: 1 \}/);
@@ -207,13 +209,16 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(coachDemoScript, /voiceState = "muted"/);
   assert.match(coachDemoScript, /COACHGO_NATIVE_SPEAK/);
   assert.match(coachDemoScript, /DEMO_VOICE_SCENARIOS/);
+  assert.match(coachDemoScript, /COACHGO_NATIVE_NOTIFICATION/);
+  assert.match(coachDemoScript, /コーチゴーの見守りデモを開始します/);
+  assert.match(coachDemoScript, /停止しました/);
+  assert.match(coachDemoScript, /自動見守り停止中/);
   assert.match(coachDemoScript, /focusDemoVehicle\(\)/);
   assert.match(coachDemoScript, /followDemoVehicle\(position, now\)/);
   assert.match(coachDemoScript, /map\.jumpTo\(\{/);
   assert.doesNotMatch(coachDemoScript, /now - lastDemoCameraFollowAt < 250/);
   assert.match(coachDemoScript, /DEMO_CAMERA_FRAME_INTERVAL_MS = 50/);
   assert.match(coachDemoScript, /screenRelativeBearing\(position\.bearing, mapBearing\)/);
-  assert.match(coachDemoScript, /デモ走行を開始します。危険地点に近づくと音声でお知らせします。/);
   assert.match(coachDemoScript, /zoom: 15\.2/);
   assert.doesNotMatch(coachDemoScript, /合成.+地点に接近/);
   assert.match(coachNaturalSpeechModule, /name\.includes\("natural"\)/);
@@ -236,6 +241,9 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(coachPoliceModule, /神奈川県警察 神奈川警察署/);
   assert.match(coachPoliceModule, /神奈川県警察 横須賀南警察署/);
   assert.equal((coachPoliceModule.match(/"id": "kanagawa-/g) ?? []).length, 44);
+  assert.equal(coachMonitorPoints.schemaVersion, 1);
+  assert.equal(coachMonitorPoints.points.filter((point) => point.kind === 'UNDERPASS').length, 4577);
+  assert.equal(coachMonitorPoints.points.filter((point) => point.kind === 'POLICE_PRIORITY').length, 44);
   assert.match(coachPoliceModule, /現在の取締り実施を示す情報ではありません/);
   assert.match(coachUnderpassModule, /function buildNationalUnderpassMapPayload/);
   assert.match(server, /requestedPath === '\/coachgo-demo'/);

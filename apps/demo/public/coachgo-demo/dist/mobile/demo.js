@@ -65,6 +65,8 @@ const mapLoadState = requiredElement("#map-load-state");
 const sharedDataStatus = requiredElement("#shared-data-status");
 const selectedCount = requiredElement("#selected-count");
 const notificationPreview = requiredElement("#notification-preview");
+const notificationTitle = requiredElement("#notification-title");
+const notificationBody = requiredElement("#notification-body");
 const connectionState = requiredElement("#connection-state");
 const registrationDialog = requiredElement("#registration-dialog");
 const registrationError = requiredElement("#registration-error");
@@ -175,8 +177,8 @@ function cancelNaturalJapaneseSpeech() {
     if ("speechSynthesis" in window)
         window.speechSynthesis.cancel();
 }
-function speakNaturalJapanese(message) {
-    if (!hazardVoiceEnabled) {
+function speakNaturalJapanese(message, force = false) {
+    if (!hazardVoiceEnabled && !force) {
         demoPlaybackStatus.dataset.voiceState = "muted";
         return;
     }
@@ -255,11 +257,11 @@ function setPanelOpen(open) {
         categoryPanel.removeAttribute("inert");
 }
 function renderPermissionStatus() {
-    permissionStatusElement.textContent = `接近検知: ${approachDetectionEnabled ? "ON" : "OFF"} / バックグラウンド通知: ${backgroundNotificationEnabled ? "ON" : "OFF"} / 読み上げ: ${hazardVoiceEnabled ? "ON" : "OFF"}（合成地点は通知対象外）`;
+    permissionStatusElement.textContent = `接近通知: ${approachDetectionEnabled ? "ON" : "OFF"} / バックグラウンド通知: ${backgroundNotificationEnabled ? "ON" : "OFF"} / 読み上げ: ${hazardVoiceEnabled ? "ON" : "OFF"}（選択カテゴリーのみ）`;
     connectionState.classList.toggle("active", approachDetectionEnabled);
     connectionState.querySelector("span").textContent = approachDetectionEnabled
         ? "自動見守り中"
-        : "地図表示中";
+        : "自動見守り停止中";
     approachDetectionToggle.setAttribute("aria-checked", String(approachDetectionEnabled));
     approachDetectionState.dataset.state = approachDetectionEnabled ? "on" : "off";
     backgroundNotificationToggle.setAttribute("aria-checked", String(backgroundNotificationEnabled));
@@ -463,16 +465,71 @@ function speakMonitorApproach(point) {
     speakNaturalJapanese(message);
 }
 function announceDemoStart() {
-    const message = "デモ走行を開始します。危険地点に近づくと音声でお知らせします。";
+    const message = "コーチゴーの見守りデモを開始します";
     demoPlaybackStatus.dataset.lastVoicePoint = "demo-start";
     demoPlaybackStatus.dataset.lastVoiceAnnouncement = message;
-    speakNaturalJapanese(message);
+    speakNaturalJapanese(message, true);
+}
+function announceDemoStop() {
+    const message = "停止しました";
+    demoPlaybackStatus.dataset.lastVoicePoint = "demo-stop";
+    demoPlaybackStatus.dataset.lastVoiceAnnouncement = message;
+    speakNaturalJapanese(message, true);
+}
+function requestSystemNotificationPermission() {
+    if (window.ReactNativeWebView !== undefined) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: "COACHGO_NATIVE_NOTIFICATION_PERMISSION" }));
+        return;
+    }
+    if ("Notification" in window && window.Notification.permission === "default") {
+        void window.Notification.requestPermission();
+    }
+}
+function monitorNotification(point) {
+    const demoPrefix = point.id.startsWith("demo-voice-") ? "見守りデモ：" : "";
+    if (point.kind === "UNDERPASS") {
+        return {
+            title: `${demoPrefix}道路冠水想定箇所に接近`,
+            body: `${point.name}付近です。大雨時は無理に進入せず、道路状況を確認してください。`,
+        };
+    }
+    if (point.kind === "POLICE_PRIORITY") {
+        return {
+            title: `${demoPrefix}交通安全重点地点に接近`,
+            body: `${point.name}付近です。現在の取締り実施を示す情報ではありません。安全運転をお願いします。`,
+        };
+    }
+    return {
+        title: `${demoPrefix}${categoryLabels[point.monitorCategory]}の監視地点に接近`,
+        body: `${point.name}付近です。周囲の状況に十分注意してください。`,
+    };
+}
+function notifyMonitorApproach(point) {
+    const notification = monitorNotification(point);
+    notificationTitle.textContent = notification.title;
+    notificationBody.textContent = notification.body;
+    notificationPreview.hidden = false;
+    demoPlaybackStatus.dataset.lastNotificationPoint = point.id;
+    demoPlaybackStatus.dataset.lastNotificationTitle = notification.title;
+    if (window.ReactNativeWebView !== undefined) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+            type: "COACHGO_NATIVE_NOTIFICATION",
+            id: point.id,
+            category: point.monitorCategory,
+            title: notification.title,
+            body: notification.body,
+        }));
+        return;
+    }
+    if ("Notification" in window && window.Notification.permission === "granted") {
+        new window.Notification(notification.title, { body: notification.body, tag: `coachgo-${point.id}` });
+    }
 }
 function checkDemoVoiceApproach(location, now) {
     if (now - lastVoiceProximityCheckAt < VOICE_PROXIMITY_CHECK_INTERVAL_MS)
         return;
     lastVoiceProximityCheckAt = now;
-    if (!approachDetectionEnabled || !hazardVoiceEnabled || !demoDriveRunning) {
+    if (!approachDetectionEnabled || !demoDriveRunning) {
         activeNearbyPointIds.clear();
         return;
     }
@@ -482,10 +539,14 @@ function checkDemoVoiceApproach(location, now) {
     const nearbyIds = new Set(nearby.map(({ point }) => point.id));
     const entered = nearby.find(({ point }) => !activeNearbyPointIds.has(point.id));
     activeNearbyPointIds = nearbyIds;
-    if (entered === undefined || now - lastVoiceAnnouncementAt < VOICE_ANNOUNCEMENT_COOLDOWN_MS)
+    if (entered === undefined)
         return;
-    lastVoiceAnnouncementAt = now;
-    speakMonitorApproach(entered.point);
+    if (backgroundNotificationEnabled)
+        notifyMonitorApproach(entered.point);
+    if (hazardVoiceEnabled && now - lastVoiceAnnouncementAt >= VOICE_ANNOUNCEMENT_COOLDOWN_MS) {
+        lastVoiceAnnouncementAt = now;
+        speakMonitorApproach(entered.point);
+    }
 }
 function createCategoryMarkerImage(icon, background) {
     const canvas = document.createElement("canvas");
@@ -1086,6 +1147,8 @@ approachDetectionToggle.addEventListener("click", () => {
 });
 backgroundNotificationToggle.addEventListener("click", () => {
     backgroundNotificationEnabled = !backgroundNotificationEnabled;
+    if (backgroundNotificationEnabled)
+        requestSystemNotificationPermission();
     renderPermissionStatus();
 });
 hazardVoiceToggle.addEventListener("click", () => {
@@ -1113,14 +1176,18 @@ demoPlaybackButton.addEventListener("click", () => {
     demoDriveLastFrameAt = null;
     if (!demoDriveRunning) {
         cancelNaturalJapaneseSpeech();
+        announceDemoStop();
     }
     else {
+        demoDriveProgress = 0;
         activeNearbyPointIds.clear();
         lastVoiceAnnouncementAt = -Infinity;
         lastVoiceProximityCheckAt = 0;
     }
     renderDemoPlaybackState();
     if (demoDriveRunning) {
+        if (backgroundNotificationEnabled)
+            requestSystemNotificationPermission();
         focusDemoVehicle();
         announceDemoStart();
     }
