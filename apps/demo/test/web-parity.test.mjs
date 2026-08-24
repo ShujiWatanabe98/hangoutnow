@@ -159,7 +159,7 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(coachDemo, /src="\/coachgo-demo\/vendor\/mapbox-gl\.js"/);
   assert.match(coachDemo, /href="\/coachgo-demo\/styles\.css\?v=20260824-8"/);
   assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260824-11"/);
-  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260824-14/);
+  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260824-15/);
   assert.match(coachBootstrap, /dataset\.clientError/);
   assert.match(coachDemoScript, /SYNTHETIC_ONLY/);
   assert.match(coachDemoScript, /counts: \{ underpasses: 1, policePriorityLocations: 1 \}/);
@@ -171,8 +171,8 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(coachDemoScript, /自動デモ再生中　横浜駅 → 本厚木駅/);
   assert.match(coachDemoScript, /デモ停止中　横浜駅 → 本厚木駅/);
   assert.match(coachDemoScript, /continuousDemoDrive\.js\?v=20260824-2/);
-  assert.match(coachDemoScript, /naturalSpeech\.js\?v=20260824-1/);
-  assert.match(coachDemoScript, /voiceApproach\.js\?v=20260824-2/);
+  assert.match(coachDemoScript, /naturalSpeech\.js\?v=20260824-2/);
+  assert.match(coachDemoScript, /voiceApproach\.js\?v=20260824-3/);
   assert.match(coachDemoScript, /voiceHazardReport\.js\?v=20260824-1/);
   assert.match(coachDemoScript, /webkitSpeechRecognition/);
   assert.match(coachDemoScript, /registerSessionHazard\(match\.category, currentUserLocation\)/);
@@ -183,8 +183,11 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(coachDemoScript, /setDOMContent\(content\)/);
   assert.match(coachDemoScript, /showSharedPointPopup\(point\)/);
   assert.match(coachDemoScript, /prepareNaturalJapaneseUtterance/);
+  assert.match(coachDemoScript, /voiceSegmentCount/);
   assert.match(coachNaturalSpeechModule, /name\.includes\("natural"\)/);
-  assert.match(coachNaturalSpeechModule, /rate: 0\.9/);
+  assert.match(coachNaturalSpeechModule, /name\.includes\("neural"\)/);
+  assert.match(coachNaturalSpeechModule, /rate: 0\.96/);
+  assert.match(coachNaturalSpeechModule, /pauseAfterMs/);
   assert.match(coachDemoScript, /kanagawaPolicePoints\.js\?v=20260824-1/);
   assert.match(coachDemoScript, /createCategoryMarkerImage/);
   assert.match(coachDemoScript, /POLICE_ENFORCEMENT/);

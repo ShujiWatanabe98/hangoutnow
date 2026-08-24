@@ -1,7 +1,7 @@
 /* global document, HTMLElement */
 document.documentElement.dataset.coachBootstrap = "ready";
 
-import("/coachgo-demo/dist/mobile/demo.js?v=20260824-14").catch((error) => {
+import("/coachgo-demo/dist/mobile/demo.js?v=20260824-15").catch((error) => {
   const status = document.querySelector("#shared-data-status");
   if (!(status instanceof HTMLElement)) return;
   status.dataset.clientError = error instanceof Error ? error.message : "unknown client error";

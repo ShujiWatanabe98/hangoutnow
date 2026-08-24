@@ -1,6 +1,6 @@
 export const NATURAL_JAPANESE_SPEECH_SETTINGS = {
     lang: "ja-JP",
-    rate: 0.9,
+    rate: 0.96,
     pitch: 1,
     volume: 1,
 };
@@ -11,13 +11,19 @@ function voiceQualityScore(voice) {
         return -1;
     let score = language === "ja-jp" ? 300 : 220;
     if (name.includes("natural"))
-        score += 1_000;
+        score += 1_100;
+    if (name.includes("neural"))
+        score += 1_050;
     if (name.includes("premium"))
-        score += 900;
+        score += 1_000;
     if (name.includes("enhanced"))
-        score += 850;
+        score += 950;
+    if (name.includes("online"))
+        score += 500;
     if (name.includes("nanami"))
-        score += 700;
+        score += 760;
+    if (name.includes("keita"))
+        score += 740;
     if (name.includes("google 日本語"))
         score += 650;
     if (name.includes("kyoko"))
@@ -32,6 +38,8 @@ function voiceQualityScore(voice) {
         score += 180;
     if (name.includes("google"))
         score += 160;
+    if (!voice.localService)
+        score += 40;
     if (voice.default)
         score += 20;
     return score;
@@ -47,5 +55,21 @@ export function selectNaturalJapaneseVoice(voices) {
         }
     }
     return selected;
+}
+export function createNaturalJapaneseSpeechPlan(message) {
+    const sentences = message
+        .match(/[^。！？]+[。！？]?/gu)
+        ?.map((sentence) => sentence.trim())
+        .filter((sentence) => sentence.length > 0) ?? [];
+    return sentences.map((text, index) => {
+        const isLast = index === sentences.length - 1;
+        const isPlaceName = /付近です[。！？]$/u.test(text);
+        const isSafetyInstruction = /進入|確認|注意|安全運転|交通ルール/u.test(text);
+        return {
+            text,
+            rate: isPlaceName ? 0.9 : isSafetyInstruction ? 0.93 : NATURAL_JAPANESE_SPEECH_SETTINGS.rate,
+            pauseAfterMs: isLast ? 0 : isPlaceName ? 260 : 170,
+        };
+    });
 }
 //# sourceMappingURL=naturalSpeech.js.map

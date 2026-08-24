@@ -18,16 +18,16 @@ export function nearbyMonitoredPoints(location, points, selectedCategories) {
 }
 export function voiceApproachMessage(point) {
     if (point.kind === "UNDERPASS") {
-        return `この先は、道路冠水の監視地点です。${point.name}付近です。大雨のときは進入せず、道路の状況を確認してください。`;
+        return `この先に、道路冠水の監視地点があります。${point.name}付近です。大雨のときは、無理に進入せず、道路の状況を確認してください。`;
     }
     if (point.kind === "POLICE_PRIORITY") {
-        return `この先は、警察が公開する交通安全の重点地点です。${point.name}付近です。現在の取り締まり情報ではありません。交通ルールを守って走行してください。`;
+        return `この先は、警察が公開している交通安全の重点地点です。${point.name}付近です。現在の取り締まりを示す情報ではありません。安全運転をお願いします。`;
     }
     const labels = {
         RIVER_FLOODING: "河川氾濫",
         LANDSLIDE: "土砂災害",
         TSUNAMI: "津波",
     };
-    return `この先は、${labels[point.monitorCategory] ?? "危険"}の監視地点です。${point.name}付近です。周囲の状況に注意してください。`;
+    return `この先に、${labels[point.monitorCategory] ?? "危険"}の監視地点があります。${point.name}付近です。周囲の状況に、十分注意してください。`;
 }
 //# sourceMappingURL=voiceApproach.js.map

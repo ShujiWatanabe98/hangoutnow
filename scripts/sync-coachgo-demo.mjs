@@ -53,8 +53,8 @@ await writeFile(
     .replace('./continuousDemoDrive.js', './continuousDemoDrive.js?v=20260824-2')
     .replace('./divertNaviUnderpasses.js', './divertNaviUnderpasses.js?v=20260824-1')
     .replace('./kanagawaPolicePoints.js', './kanagawaPolicePoints.js?v=20260824-1')
-    .replace('./naturalSpeech.js', './naturalSpeech.js?v=20260824-1')
-    .replace('./voiceApproach.js', './voiceApproach.js?v=20260824-2')
+    .replace('./naturalSpeech.js', './naturalSpeech.js?v=20260824-2')
+    .replace('./voiceApproach.js', './voiceApproach.js?v=20260824-3')
     .replace('./voiceHazardReport.js', './voiceHazardReport.js?v=20260824-1'),
   'utf8',
 );
@@ -75,7 +75,7 @@ await copyFile(resolve(coachGoRoot, 'mobile-poc/styles.css'), resolve(publicRoot
 const sourceBootstrap = await readFile(resolve(coachGoRoot, 'mobile-poc/bootstrap.js'), 'utf8');
 await writeFile(
   resolve(publicRoot, 'bootstrap.js'),
-  sourceBootstrap.replace('/dist/mobile/demo.js', '/coachgo-demo/dist/mobile/demo.js?v=20260824-14'),
+  sourceBootstrap.replace('/dist/mobile/demo.js', '/coachgo-demo/dist/mobile/demo.js?v=20260824-15'),
   'utf8',
 );
 
