@@ -108,7 +108,7 @@ await writeFile(resolve(publicRoot, 'monitor-points.generated.json'), `${JSON.st
     '警察公開の交通安全重点地点であり、現在の取締り実施を示す情報ではありません。',
   ],
   points: monitorPoints,
-}, null, 2)}\n`, 'utf8');
+})}\n`, 'utf8');
 
 const sourceBootstrap = await readFile(resolve(coachGoRoot, 'mobile-poc/bootstrap.js'), 'utf8');
 await writeFile(
