@@ -2,6 +2,7 @@ import { buildApproachNotification, createSessionUserHazardPoint, defaultSelecte
 import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js";
 import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260824-1";
 import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js";
+import { demoRoutePositionAt, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260824-1";
 function syntheticSharedMapPayload() {
     return {
         schemaVersion: 1,
@@ -45,13 +46,6 @@ function syntheticSharedMapPayload() {
     };
 }
 const SYNTHETIC_USER_LOCATION = [139.728, 35.681];
-const DEMO_NOTIFICATION_CATEGORIES = [
-    "ROAD_FLOODING",
-    "RIVER_FLOODING",
-    "LANDSLIDE",
-    "TSUNAMI",
-    "POLICE_ENFORCEMENT",
-];
 const categoryLabels = Object.fromEntries([...HAZARD_CATEGORIES, ...USER_REPORT_CATEGORIES].map((category) => [category.id, category.label]));
 function requiredElement(selector) {
     const element = document.querySelector(selector);
@@ -71,8 +65,6 @@ const messageElement = requiredElement("#hazard-message");
 const sharedDataStatus = requiredElement("#shared-data-status");
 const selectedCount = requiredElement("#selected-count");
 const notificationPreview = requiredElement("#notification-preview");
-const notificationTitle = requiredElement("#notification-title");
-const notificationBody = requiredElement("#notification-body");
 const connectionState = requiredElement("#connection-state");
 const registrationDialog = requiredElement("#registration-dialog");
 const registrationError = requiredElement("#registration-error");
@@ -84,7 +76,6 @@ const undoReportToast = requiredElement("#undo-report-toast");
 const undoReportTitle = requiredElement("#undo-report-title");
 const permissionStatusElement = requiredElement("#permission-status");
 const demoPlaybackButton = requiredElement("#demo-playback");
-const demoPlaybackLabel = requiredElement("#demo-playback-label");
 const demoPlaybackStatus = requiredElement("#demo-playback-status");
 const locationStatus = requiredElement("#location-status");
 const rainViewerStatus = requiredElement("#rainviewer-status");
@@ -102,6 +93,10 @@ const UNDERPASS_POINT_LAYER_ID = "coachgo-underpass-points";
 const RAINVIEWER_SOURCE_ID = "coachgo-rainviewer-radar";
 const RAINVIEWER_LAYER_ID = "coachgo-rainviewer-radar-layer";
 const RAINVIEWER_METADATA_URL = "https://api.rainviewer.com/public/weather-maps.json";
+const DEMO_DRIVE_SOURCE_ID = "coachgo-yokohama-honatsugi-route";
+const DEMO_DRIVE_CASING_LAYER_ID = "coachgo-yokohama-honatsugi-route-casing";
+const DEMO_DRIVE_LAYER_ID = "coachgo-yokohama-honatsugi-route-line";
+const DEMO_DRIVE_DURATION_MS = 60_000;
 const selectedCategories = new Set(defaultSelectedCategories());
 let selectedHazard = SYNTHETIC_HAZARD_POINTS[0] ?? null;
 let selectedSharedPoint = null;
@@ -112,11 +107,12 @@ let backgroundNotificationEnabled = true;
 let reportSequence = 0;
 let lastReportId = null;
 let undoReportTimer = null;
-let demoPlaybackSequence = 0;
-let demoPlaybackRunning = false;
-let categoriesBeforeDemo = [];
 let currentUserLocation = [...SYNTHETIC_USER_LOCATION];
 let rainViewerLoading = null;
+let demoDriveRoute = null;
+let demoDriveMarker = null;
+let demoVehicleGraphic = null;
+let demoDriveAnimationStarted = false;
 function allHazards() {
     return [...SYNTHETIC_HAZARD_POINTS, ...sessionUserReports];
 }
@@ -241,7 +237,7 @@ function addSyntheticMarkers() {
         .addTo(map);
 }
 function updateDemoPlaybackAvailability() {
-    demoPlaybackButton.disabled = !initialMapLoadCompleted || divertNaviMapData === null;
+    demoPlaybackButton.disabled = !initialMapLoadCompleted || demoDriveRoute === null;
 }
 function createSharedMarkerIcon(kind) {
     const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -447,6 +443,132 @@ function updateRainViewerLayer() {
     }
     rainViewerLoading ??= ensureRainViewerLayer().finally(() => { rainViewerLoading = null; });
 }
+function demoRouteFeature(coordinates) {
+    return {
+        type: "Feature",
+        properties: { from: "横浜駅", to: "本厚木駅" },
+        geometry: { type: "LineString", coordinates },
+    };
+}
+function demoRouteBounds(coordinates) {
+    const longitudes = coordinates.map((coordinate) => coordinate[0]);
+    const latitudes = coordinates.map((coordinate) => coordinate[1]);
+    return [
+        [Math.min(...longitudes), Math.min(...latitudes)],
+        [Math.max(...longitudes), Math.max(...latitudes)],
+    ];
+}
+function focusContinuousDemoRoute() {
+    if (map === null || demoDriveRoute === null)
+        return;
+    map.fitBounds(demoRouteBounds(demoDriveRoute), {
+        padding: { top: 72, right: 95, bottom: 72, left: 95 },
+        pitch: 20,
+        bearing: 0,
+        duration: 700,
+    });
+    demoPlaybackStatus.hidden = false;
+    demoPlaybackStatus.classList.add("focused");
+    window.setTimeout(() => demoPlaybackStatus.classList.remove("focused"), 900);
+}
+function createDemoVehicleMarker() {
+    if (map === null || window.mapboxgl === undefined || demoDriveMarker !== null)
+        return;
+    const element = document.createElement("div");
+    element.className = "continuous-demo-vehicle";
+    element.setAttribute("role", "img");
+    element.setAttribute("aria-label", "横浜駅から本厚木駅へ走行中のデモ車両");
+    const graphic = document.createElement("span");
+    graphic.className = "continuous-demo-vehicle-graphic";
+    graphic.innerHTML = '<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 3 31 30l-11-5-11 5L20 3Z"/><path class="vehicle-window" d="m20 9 5 13-5-2.2-5 2.2 5-13Z"/></svg>';
+    const label = document.createElement("span");
+    label.className = "continuous-demo-vehicle-label";
+    label.textContent = "デモ走行";
+    element.append(graphic, label);
+    demoVehicleGraphic = graphic;
+    demoDriveMarker = new window.mapboxgl.Marker({ element, anchor: "center" })
+        .setLngLat([YOKOHAMA_STATION[0], YOKOHAMA_STATION[1]])
+        .addTo(map);
+}
+function animateContinuousDemoDrive(startedAt) {
+    if (demoDriveRoute === null || demoDriveMarker === null)
+        return;
+    const tick = (now) => {
+        if (demoDriveRoute === null || demoDriveMarker === null)
+            return;
+        const progress = ((now - startedAt) % DEMO_DRIVE_DURATION_MS) / DEMO_DRIVE_DURATION_MS;
+        const position = demoRoutePositionAt(demoDriveRoute, progress);
+        demoDriveMarker.setLngLat([position.coordinate[0], position.coordinate[1]]);
+        if (demoVehicleGraphic !== null)
+            demoVehicleGraphic.style.transform = `rotate(${position.bearing}deg)`;
+        demoPlaybackStatus.dataset.demoProgress = String(Math.floor(progress * 100));
+        demoPlaybackStatus.dataset.vehicleLongitude = position.coordinate[0].toFixed(6);
+        demoPlaybackButton.dataset.completedCategories = String(Math.floor(progress * 100));
+        window.requestAnimationFrame(tick);
+    };
+    window.requestAnimationFrame(tick);
+}
+async function initializeContinuousDemoDrive(token) {
+    if (map === null || demoDriveRoute !== null)
+        return;
+    demoPlaybackStatus.hidden = false;
+    demoPlaybackStatus.dataset.state = "loading";
+    demoPlaybackStatus.textContent = "デモ走行ルートを準備中　横浜駅 → 本厚木駅";
+    let routeMode = "MAPBOX";
+    try {
+        const coordinates = `${YOKOHAMA_STATION[0]},${YOKOHAMA_STATION[1]};${HON_ATSUGI_STATION[0]},${HON_ATSUGI_STATION[1]}`;
+        const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${coordinates}?overview=full&geometries=geojson&access_token=${encodeURIComponent(token)}`;
+        const response = await fetch(url, { headers: { accept: "application/json" } });
+        if (!response.ok)
+            throw new Error(`HTTP ${response.status}`);
+        demoDriveRoute = parseMapboxDrivingRoute(await response.json());
+    }
+    catch (error) {
+        routeMode = "FALLBACK";
+        demoDriveRoute = FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE;
+        demoPlaybackStatus.dataset.clientError = error instanceof Error ? error.message : "unknown Directions error";
+    }
+    if (map === null)
+        return;
+    map.addSource(DEMO_DRIVE_SOURCE_ID, {
+        type: "geojson",
+        data: demoRouteFeature(demoDriveRoute),
+    });
+    map.addLayer({
+        id: DEMO_DRIVE_CASING_LAYER_ID,
+        type: "line",
+        source: DEMO_DRIVE_SOURCE_ID,
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+            "line-color": "#ffffff",
+            "line-width": ["interpolate", ["linear"], ["zoom"], 8, 7, 13, 12],
+            "line-opacity": 0.88,
+        },
+    });
+    map.addLayer({
+        id: DEMO_DRIVE_LAYER_ID,
+        type: "line",
+        source: DEMO_DRIVE_SOURCE_ID,
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+            "line-color": "#155eef",
+            "line-width": ["interpolate", ["linear"], ["zoom"], 8, 4, 13, 8],
+            "line-opacity": 0.9,
+            "line-blur": 0.4,
+        },
+    });
+    createDemoVehicleMarker();
+    demoPlaybackStatus.dataset.state = "running";
+    demoPlaybackStatus.dataset.routeMode = routeMode;
+    demoPlaybackStatus.textContent = "自動デモ走行中　横浜駅 → 本厚木駅";
+    demoPlaybackButton.disabled = false;
+    demoPlaybackButton.setAttribute("aria-label", "横浜駅から本厚木駅のデモ走行を表示");
+    focusContinuousDemoRoute();
+    if (!demoDriveAnimationStarted) {
+        demoDriveAnimationStarted = true;
+        animateContinuousDemoDrive(performance.now());
+    }
+}
 function withKanagawaPolice(payload) {
     const nonPolice = payload.items.filter((point) => point.kind !== "POLICE_PRIORITY");
     return {
@@ -560,6 +682,7 @@ function initializeMapbox() {
             addSharedDataMarkers();
             updateDemoPlaybackAvailability();
             renderMap();
+            void initializeContinuousDemoDrive(token);
         });
     }
     catch {
@@ -616,136 +739,6 @@ function renderMap() {
     else if (selectedHazard !== null)
         selectHazard(selectedHazard);
 }
-function isSharedDemoPoint(point) {
-    return "kind" in point;
-}
-function demoStops() {
-    if (divertNaviMapData === null)
-        return [];
-    const underpass = divertNaviMapData.items.find((point) => point.kind === "UNDERPASS");
-    const police = divertNaviMapData.items.find((point) => point.kind === "POLICE_PRIORITY");
-    const syntheticByCategory = (category) => SYNTHETIC_HAZARD_POINTS.find((point) => point.monitorCategory === category);
-    const candidates = [
-        underpass,
-        syntheticByCategory("RIVER_FLOODING"),
-        syntheticByCategory("LANDSLIDE"),
-        syntheticByCategory("TSUNAMI"),
-        police,
-    ];
-    return candidates.every((point) => point !== undefined) ? candidates : [];
-}
-function demoPointCoordinate(point) {
-    return [point.longitude, point.latitude];
-}
-function showDemoNotification(point) {
-    if (isSharedDemoPoint(point)) {
-        selectSharedPoint(point);
-        const notification = sharedNotification(point);
-        notificationTitle.textContent = `デモ・${notification.title}`;
-        notificationBody.textContent = notification.body;
-    }
-    else {
-        selectHazard(point);
-        const notification = buildApproachNotification(point);
-        notificationTitle.textContent = `デモ・${notification.title}`;
-        notificationBody.textContent = notification.body;
-    }
-    notificationPreview.hidden = false;
-}
-function waitForDemo(milliseconds) {
-    return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
-}
-function animateDemoPosition(from, to, sequence) {
-    map?.easeTo({ center: [to[0], to[1]], zoom: 14, pitch: 34, bearing: -12, duration: 1_100 });
-    return new Promise((resolve) => {
-        const startedAt = performance.now();
-        const tick = (now) => {
-            if (sequence !== demoPlaybackSequence || !demoPlaybackRunning) {
-                resolve(false);
-                return;
-            }
-            const progress = Math.min(1, (now - startedAt) / 1_100);
-            const eased = 1 - (1 - progress) ** 3;
-            userLocationMarker?.setLngLat([
-                from[0] + (to[0] - from[0]) * eased,
-                from[1] + (to[1] - from[1]) * eased,
-            ]);
-            if (progress < 1)
-                window.requestAnimationFrame(tick);
-            else
-                resolve(true);
-        };
-        window.requestAnimationFrame(tick);
-    });
-}
-function restoreCategoriesAfterDemo() {
-    selectedCategories.clear();
-    for (const category of categoriesBeforeDemo)
-        selectedCategories.add(category);
-    renderMap();
-}
-function stopDemoPlayback() {
-    demoPlaybackSequence += 1;
-    demoPlaybackRunning = false;
-    demoPlaybackButton.classList.remove("running");
-    demoPlaybackLabel.textContent = "デモ";
-    demoPlaybackButton.setAttribute("aria-label", "デモを再生");
-    demoPlaybackStatus.hidden = true;
-    notificationPreview.hidden = true;
-    userLocationMarker?.setLngLat(currentUserLocation);
-    map?.easeTo({ center: currentUserLocation, zoom: 12.2, pitch: 34, bearing: -12, duration: 500 });
-    restoreCategoriesAfterDemo();
-}
-async function runDemoPlayback() {
-    const stops = demoStops();
-    if (stops.length !== DEMO_NOTIFICATION_CATEGORIES.length) {
-        demoPlaybackStatus.textContent = "監視地点データを準備できませんでした";
-        demoPlaybackStatus.hidden = false;
-        return;
-    }
-    categoriesBeforeDemo = [...selectedCategories];
-    selectedCategories.clear();
-    for (const category of DEMO_NOTIFICATION_CATEGORIES)
-        selectedCategories.add(category);
-    renderMap();
-    setPanelOpen(false);
-    demoPlaybackRunning = true;
-    demoPlaybackSequence += 1;
-    const sequence = demoPlaybackSequence;
-    demoPlaybackButton.classList.add("running");
-    demoPlaybackLabel.textContent = "停止";
-    demoPlaybackButton.setAttribute("aria-label", "デモを停止");
-    demoPlaybackStatus.hidden = false;
-    notificationPreview.hidden = true;
-    demoPlaybackButton.dataset.completedCategories = "0";
-    let previous = [...currentUserLocation];
-    for (const [index, point] of stops.entries()) {
-        demoPlaybackStatus.textContent = `仮想走行中 ${index + 1}/${stops.length}・${categoryLabels[point.monitorCategory]}`;
-        const destination = demoPointCoordinate(point);
-        if (!(await animateDemoPosition(previous, destination, sequence)))
-            return;
-        showDemoNotification(point);
-        demoPlaybackButton.dataset.completedCategories = String(index + 1);
-        demoPlaybackStatus.textContent = `通知 ${index + 1}/${stops.length}・${categoryLabels[point.monitorCategory]}`;
-        await waitForDemo(1_250);
-        if (sequence !== demoPlaybackSequence || !demoPlaybackRunning)
-            return;
-        notificationPreview.hidden = true;
-        previous = destination;
-    }
-    demoPlaybackRunning = false;
-    demoPlaybackButton.classList.remove("running");
-    demoPlaybackLabel.textContent = "再生";
-    demoPlaybackButton.setAttribute("aria-label", "デモをもう一度再生");
-    demoPlaybackStatus.textContent = "5カテゴリーの接近通知を再生しました";
-    restoreCategoriesAfterDemo();
-    await waitForDemo(1_800);
-    if (sequence !== demoPlaybackSequence || demoPlaybackRunning)
-        return;
-    demoPlaybackStatus.hidden = true;
-    userLocationMarker?.setLngLat(currentUserLocation);
-    map?.easeTo({ center: currentUserLocation, zoom: 12.2, pitch: 34, bearing: -12, duration: 500 });
-}
 requiredElement("#close-panel").addEventListener("click", () => setPanelOpen(false));
 panelBackdrop.addEventListener("click", () => setPanelOpen(false));
 approachDetectionToggle.addEventListener("click", () => {
@@ -760,8 +753,6 @@ backgroundNotificationToggle.addEventListener("click", () => {
 });
 for (const button of document.querySelectorAll("[data-category]")) {
     button.addEventListener("click", () => {
-        if (demoPlaybackRunning)
-            return;
         const category = button.dataset.category;
         if (selectedCategories.has(category))
             selectedCategories.delete(category);
@@ -779,10 +770,7 @@ for (const button of document.querySelectorAll("[data-category]")) {
     });
 }
 demoPlaybackButton.addEventListener("click", () => {
-    if (demoPlaybackRunning)
-        stopDemoPlayback();
-    else
-        void runDemoPlayback();
+    focusContinuousDemoRoute();
 });
 requiredElement("#dismiss-notification").addEventListener("click", () => {
     notificationPreview.hidden = true;
@@ -862,10 +850,6 @@ requiredElement("#undo-report").addEventListener("click", () => {
     renderMap();
 });
 requiredElement("#recenter-map").addEventListener("click", () => {
-    if (demoPlaybackRunning) {
-        stopDemoPlayback();
-        return;
-    }
     locationStatus.hidden = false;
     locationStatus.textContent = "現在地を取得中…";
     if (!("geolocation" in navigator)) {
