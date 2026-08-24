@@ -172,8 +172,8 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(coachStyles, /max-height: calc\(100% - clamp\(64px,12vh,96px\)\)/);
   assert.match(coachDemoScript, /panelScroll\.addEventListener\("touchmove"/);
   assert.match(coachDemoScript, /dragDistance >= 88/);
-  assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260824-16"/);
-  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260824-20/);
+  assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260824-17"/);
+  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260824-21/);
   assert.match(coachBootstrap, /dataset\.clientError/);
   assert.match(coachDemoScript, /SYNTHETIC_ONLY/);
   assert.match(coachDemoScript, /counts: \{ underpasses: 1, policePriorityLocations: 1 \}/);
@@ -211,6 +211,7 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(coachDemoScript, /followDemoVehicle\(position, now\)/);
   assert.match(coachDemoScript, /map\.jumpTo\(\{/);
   assert.doesNotMatch(coachDemoScript, /now - lastDemoCameraFollowAt < 250/);
+  assert.match(coachDemoScript, /DEMO_CAMERA_FRAME_INTERVAL_MS = 50/);
   assert.match(coachDemoScript, /screenRelativeBearing\(position\.bearing, mapBearing\)/);
   assert.match(coachDemoScript, /デモ走行を開始します。危険地点に近づくと音声でお知らせします。/);
   assert.match(coachDemoScript, /zoom: 15\.2/);

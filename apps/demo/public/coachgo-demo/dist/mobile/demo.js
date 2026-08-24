@@ -139,12 +139,14 @@ let activeVoiceRecognition = null;
 let preferredJapaneseVoice = null;
 let activeSpeechSequence = 0;
 let demoCameraFollowStartsAt = -Infinity;
+let lastDemoCameraFrameAt = -Infinity;
 let panelTouchStartY = null;
 let panelTouchLastY = null;
 let panelTouchStartedAt = 0;
 let panelTouchDragging = false;
 const VOICE_PROXIMITY_CHECK_INTERVAL_MS = 750;
 const VOICE_ANNOUNCEMENT_COOLDOWN_MS = 12_000;
+const DEMO_CAMERA_FRAME_INTERVAL_MS = 50;
 const MOBILE_PANEL_QUERY = "(max-width: 760px)";
 function refreshPreferredJapaneseVoice() {
     if (!("speechSynthesis" in window))
@@ -743,10 +745,15 @@ function focusDemoVehicle(duration = 750) {
         duration,
     });
     demoCameraFollowStartsAt = performance.now() + duration;
+    lastDemoCameraFrameAt = -Infinity;
 }
 function followDemoVehicle(position, now) {
-    if (map === null || !demoDriveRunning || now < demoCameraFollowStartsAt)
+    if (map === null
+        || !demoDriveRunning
+        || now < demoCameraFollowStartsAt
+        || now - lastDemoCameraFrameAt < DEMO_CAMERA_FRAME_INTERVAL_MS)
         return;
+    lastDemoCameraFrameAt = now;
     map.jumpTo({
         center: [position.coordinate[0], position.coordinate[1]],
         zoom: Math.max(map.getZoom(), 15.2),
