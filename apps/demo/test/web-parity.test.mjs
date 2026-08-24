@@ -119,7 +119,7 @@ test('homepage targets Shinjuku solo participants with measurable acquisition li
 });
 
 test('corporate homepage presents the three methodmore products accurately', async () => {
-  const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles, coachDemo, coachBootstrap, coachDemoScript, coachDriveModule, coachUnderpassModule, coachPoliceModule, coachNaturalSpeechModule, server] = await Promise.all([
+  const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles, coachDemo, coachBootstrap, coachDemoScript, coachDriveModule, coachUnderpassModule, coachPoliceModule, coachNaturalSpeechModule, coachVoiceApproachModule, server] = await Promise.all([
     readFile(new URL('../public/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/hangout-now.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/divertnavi.html', import.meta.url), 'utf8'),
@@ -134,6 +134,7 @@ test('corporate homepage presents the three methodmore products accurately', asy
     readFile(new URL('../public/coachgo-demo/dist/mobile/divertNaviUnderpasses.js', import.meta.url), 'utf8'),
     readFile(new URL('../public/coachgo-demo/dist/mobile/kanagawaPolicePoints.js', import.meta.url), 'utf8'),
     readFile(new URL('../public/coachgo-demo/dist/mobile/naturalSpeech.js', import.meta.url), 'utf8'),
+    readFile(new URL('../public/coachgo-demo/dist/mobile/voiceApproach.js', import.meta.url), 'utf8'),
     readFile(new URL('../server.mjs', import.meta.url), 'utf8'),
   ]);
 
@@ -164,8 +165,8 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.doesNotMatch(coachDemo, />通知と権限<\/h2>/);
   assert.match(coachDemo, /id="hazard-voice-toggle"/);
   assert.match(coachDemo, /<strong>危険地点の読み上げ<\/strong>/);
-  assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260824-12"/);
-  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260824-16/);
+  assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260824-13"/);
+  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260824-17/);
   assert.match(coachBootstrap, /dataset\.clientError/);
   assert.match(coachDemoScript, /SYNTHETIC_ONLY/);
   assert.match(coachDemoScript, /counts: \{ underpasses: 1, policePriorityLocations: 1 \}/);
@@ -178,7 +179,11 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(coachDemoScript, /デモ停止中　横浜駅 → 本厚木駅/);
   assert.match(coachDemoScript, /continuousDemoDrive\.js\?v=20260824-2/);
   assert.match(coachDemoScript, /naturalSpeech\.js\?v=20260824-2/);
-  assert.match(coachDemoScript, /voiceApproach\.js\?v=20260824-3/);
+  assert.match(coachDemoScript, /voiceApproach\.js\?v=20260824-4/);
+  assert.match(coachDemoScript, /nearbyMonitoredPoints\(location, demoDriveRoute, voiceMonitorPoints\(\), selectedCategories\)/);
+  assert.match(coachVoiceApproachModule, /routePassageCorridorMeters = 75/);
+  assert.match(coachVoiceApproachModule, /distanceAlongRouteMeters - currentProjection\.distanceAlongRouteMeters/);
+  assert.match(coachVoiceApproachModule, /distanceMeters >= 0 && distanceMeters <= point\.alertDistanceMeters/);
   assert.match(coachDemoScript, /voiceHazardReport\.js\?v=20260824-1/);
   assert.match(coachDemoScript, /webkitSpeechRecognition/);
   assert.match(coachDemoScript, /registerSessionHazard\(match\.category, currentUserLocation\)/);

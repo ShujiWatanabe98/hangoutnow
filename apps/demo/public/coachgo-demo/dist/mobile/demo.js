@@ -3,7 +3,7 @@ import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WA
 import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260824-1";
 import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260824-1";
 import { advanceDemoProgress, demoRoutePositionAt, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260824-2";
-import { nearbyMonitoredPoints, voiceApproachMessage, } from "./voiceApproach.js?v=20260824-3";
+import { nearbyMonitoredPoints, voiceApproachMessage, } from "./voiceApproach.js?v=20260824-4";
 import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260824-1";
 import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260824-2";
 function syntheticSharedMapPayload() {
@@ -424,7 +424,9 @@ function checkDemoVoiceApproach(location, now) {
         activeNearbyPointIds.clear();
         return;
     }
-    const nearby = nearbyMonitoredPoints(location, voiceMonitorPoints(), selectedCategories);
+    if (demoDriveRoute === null)
+        return;
+    const nearby = nearbyMonitoredPoints(location, demoDriveRoute, voiceMonitorPoints(), selectedCategories);
     const nearbyIds = new Set(nearby.map(({ point }) => point.id));
     const entered = nearby.find(({ point }) => !activeNearbyPointIds.has(point.id));
     activeNearbyPointIds = nearbyIds;
