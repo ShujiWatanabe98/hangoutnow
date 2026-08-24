@@ -518,9 +518,9 @@ function rainViewerFrame(value) {
 async function ensureRainViewerLayer() {
     if (map === null || map.getLayer(RAINVIEWER_LAYER_ID) !== undefined)
         return;
-    rainViewerStatus.hidden = false;
+    rainViewerStatus.hidden = true;
     rainViewerStatus.dataset.state = "loading";
-    rainViewerStatus.textContent = "RainViewerの雨雲データを読み込み中";
+    rainViewerStatus.textContent = "";
     try {
         const response = await fetch(RAINVIEWER_METADATA_URL, { headers: { accept: "application/json" } });
         if (!response.ok)
@@ -533,21 +533,21 @@ async function ensureRainViewerLayer() {
             tiles: [`${frame.host}${frame.path}/256/{z}/{x}/{y}/2/1_1.png`],
             tileSize: 256,
             maxzoom: 7,
-            attribution: '<a href="https://www.rainviewer.com/" target="_blank" rel="noreferrer">Weather data by RainViewer</a>',
+            attribution: '<a href="https://www.rainviewer.com/" target="_blank" rel="noreferrer">RainViewer</a>',
         });
         map.addLayer({
             id: RAINVIEWER_LAYER_ID,
             type: "raster",
             source: RAINVIEWER_SOURCE_ID,
-            paint: { "raster-opacity": 0.62, "raster-fade-duration": 250 },
+            paint: { "raster-opacity": 0.32, "raster-fade-duration": 250 },
         }, map.getLayer(UNDERPASS_CLUSTER_LAYER_ID) !== undefined ? UNDERPASS_CLUSTER_LAYER_ID : undefined);
         map.setLayoutProperty(RAINVIEWER_LAYER_ID, "visibility", selectedCategories.has("RAIN_CLOUD") ? "visible" : "none");
         rainViewerStatus.dataset.state = "ready";
-        rainViewerStatus.textContent = "RainViewerの最新雨雲レーダーを表示中";
+        rainViewerStatus.textContent = "";
     }
     catch (error) {
         rainViewerStatus.dataset.state = "unavailable";
-        rainViewerStatus.textContent = "雨雲データを取得できません。時間をおいて再度お試しください。";
+        rainViewerStatus.textContent = "";
         rainViewerStatus.dataset.clientError = error instanceof Error ? error.message : "unknown RainViewer error";
     }
 }
@@ -560,11 +560,11 @@ function updateRainViewerLayer() {
         rainViewerStatus.hidden = true;
         return;
     }
-    rainViewerStatus.hidden = false;
+    rainViewerStatus.hidden = true;
     if (map?.getLayer(RAINVIEWER_LAYER_ID) !== undefined) {
         map.setLayoutProperty(RAINVIEWER_LAYER_ID, "visibility", "visible");
         rainViewerStatus.dataset.state = "ready";
-        rainViewerStatus.textContent = "RainViewerの最新雨雲レーダーを表示中";
+        rainViewerStatus.textContent = "";
         return;
     }
     rainViewerLoading ??= ensureRainViewerLayer().finally(() => { rainViewerLoading = null; });
@@ -741,9 +741,8 @@ async function loadDivertNaviMapData() {
         if (!isDivertNaviMapPayload(value))
             throw new Error("unsupported response");
         divertNaviMapData = value;
-        sharedDataStatus.textContent = syntheticOnly
-            ? "公開版: 合成アンダーパス1件 / 合成交通安全地点1件"
-            : `DivertNavi公開データ: アンダーパス${value.counts.underpasses.toLocaleString("ja-JP")}件 / 警察重点地点${value.counts.policePriorityLocations.toLocaleString("ja-JP")}件`;
+        sharedDataStatus.textContent = "";
+        sharedDataStatus.hidden = true;
         sharedDataStatus.dataset.state = "ready";
         sharedDataStatus.dataset.underpassCount = String(value.counts.underpasses);
         sharedDataStatus.dataset.policeCount = String(value.counts.policePriorityLocations);
@@ -757,6 +756,7 @@ async function loadDivertNaviMapData() {
     }
     catch (error) {
         sharedDataStatus.textContent = "DivertNavi公開データを利用できません。合成地点のみ表示しています。";
+        sharedDataStatus.hidden = false;
         sharedDataStatus.dataset.state = "unavailable";
         sharedDataStatus.dataset.clientError = error instanceof Error ? error.message : "unknown data error";
     }

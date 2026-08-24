@@ -9,7 +9,7 @@
     <title>CoachGo 危険監視PoC</title>
     <link rel="manifest" href="/coachgo-demo/manifest.webmanifest">
     <link rel="stylesheet" href="/coachgo-demo/vendor/mapbox-gl.css">
-    <link rel="stylesheet" href="/coachgo-demo/styles.css?v=20260824-6">
+    <link rel="stylesheet" href="/coachgo-demo/styles.css?v=20260824-7">
   </head>
   <body>
     <div class="app-shell">
@@ -43,9 +43,8 @@
                 <button type="button" data-category="POLICE_ENFORCEMENT" aria-pressed="false"><span>🚨</span>警察取締</button>
                 <button type="button" data-category="RAIN_CLOUD" aria-pressed="false"><span>🌧️</span>雨雲</button>
               </div>
-              <p id="shared-data-status" class="source-status" role="status" data-state="loading">DivertNavi公開データを検証中</p>
+              <p id="shared-data-status" class="source-status" role="status" data-state="loading" hidden></p>
               <p id="rainviewer-status" class="source-status" role="status" hidden></p>
-              <a class="rainviewer-attribution" href="https://www.rainviewer.com/" target="_blank" rel="noreferrer">Weather data by RainViewer</a>
             </section>
 
             <section class="notification-section" aria-labelledby="notification-setting-heading">
@@ -130,6 +129,6 @@
     </div>
     <script src="/coachgo-demo/runtime-config.js"></script>
     <script src="/coachgo-demo/vendor/mapbox-gl.js"></script>
-    <script type="module" src="/coachgo-demo/bootstrap.js?v=20260824-9"></script>
+    <script type="module" src="/coachgo-demo/bootstrap.js?v=20260824-10"></script>
   </body>
 </html>
