@@ -1,6 +1,7 @@
 import { buildApproachNotification, createSessionUserHazardPoint, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js";
 import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js";
 import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260824-1";
+import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js";
 function syntheticSharedMapPayload() {
     return {
         schemaVersion: 1,
@@ -44,6 +45,13 @@ function syntheticSharedMapPayload() {
     };
 }
 const SYNTHETIC_USER_LOCATION = [139.728, 35.681];
+const DEMO_NOTIFICATION_CATEGORIES = [
+    "ROAD_FLOODING",
+    "RIVER_FLOODING",
+    "LANDSLIDE",
+    "TSUNAMI",
+    "POLICE_ENFORCEMENT",
+];
 const categoryLabels = Object.fromEntries([...HAZARD_CATEGORIES, ...USER_REPORT_CATEGORIES].map((category) => [category.id, category.label]));
 function requiredElement(selector) {
     const element = document.querySelector(selector);
@@ -72,14 +80,14 @@ const approachDetectionToggle = requiredElement("#approach-detection-toggle");
 const approachDetectionState = requiredElement("#approach-detection-state");
 const backgroundNotificationToggle = requiredElement("#background-notification-toggle");
 const backgroundNotificationState = requiredElement("#background-notification-state");
-const previewNotificationButton = requiredElement("#preview-notification");
 const undoReportToast = requiredElement("#undo-report-toast");
 const undoReportTitle = requiredElement("#undo-report-title");
 const permissionStatusElement = requiredElement("#permission-status");
 const demoPlaybackButton = requiredElement("#demo-playback");
 const demoPlaybackLabel = requiredElement("#demo-playback-label");
 const demoPlaybackStatus = requiredElement("#demo-playback-status");
-const demoPlaybackIcon = requiredElement("#demo-playback > span:first-child");
+const locationStatus = requiredElement("#location-status");
+const rainViewerStatus = requiredElement("#rainviewer-status");
 let map = null;
 let initialMapLoadCompleted = false;
 let initialMapLoadTimeout = null;
@@ -91,6 +99,9 @@ const UNDERPASS_SOURCE_ID = "coachgo-underpasses";
 const UNDERPASS_CLUSTER_LAYER_ID = "coachgo-underpass-clusters";
 const UNDERPASS_CLUSTER_COUNT_LAYER_ID = "coachgo-underpass-cluster-count";
 const UNDERPASS_POINT_LAYER_ID = "coachgo-underpass-points";
+const RAINVIEWER_SOURCE_ID = "coachgo-rainviewer-radar";
+const RAINVIEWER_LAYER_ID = "coachgo-rainviewer-radar-layer";
+const RAINVIEWER_METADATA_URL = "https://api.rainviewer.com/public/weather-maps.json";
 const selectedCategories = new Set(defaultSelectedCategories());
 let selectedHazard = SYNTHETIC_HAZARD_POINTS[0] ?? null;
 let selectedSharedPoint = null;
@@ -104,6 +115,8 @@ let undoReportTimer = null;
 let demoPlaybackSequence = 0;
 let demoPlaybackRunning = false;
 let categoriesBeforeDemo = [];
+let currentUserLocation = [...SYNTHETIC_USER_LOCATION];
+let rainViewerLoading = null;
 function allHazards() {
     return [...SYNTHETIC_HAZARD_POINTS, ...sessionUserReports];
 }
@@ -121,7 +134,6 @@ function renderPermissionStatus() {
     approachDetectionState.dataset.state = approachDetectionEnabled ? "on" : "off";
     backgroundNotificationToggle.setAttribute("aria-checked", String(backgroundNotificationEnabled));
     backgroundNotificationState.dataset.state = backgroundNotificationEnabled ? "on" : "off";
-    previewNotificationButton.disabled = !approachDetectionEnabled;
 }
 function selectHazard(point) {
     selectedHazard = point;
@@ -170,7 +182,9 @@ function selectSharedPoint(point) {
     categoryElement.classList.remove("unverified");
     distanceElement.textContent = point.sourceOrganization === "CoachGo合成デモ"
         ? "合成デモ地点"
-        : "DivertNavi公開地点";
+        : point.kind === "POLICE_PRIORITY"
+            ? "神奈川県警公開・概略"
+            : "DivertNavi公開地点";
     nameElement.textContent = point.name;
     evidenceElement.textContent = `${point.evidence} / 出典: ${point.sourceOrganization}${point.sourceUpdatedAt === null ? "" : `（${point.sourceUpdatedAt}更新）`}`;
     messageElement.textContent = notification.body;
@@ -365,6 +379,93 @@ function addUnderpassLayers() {
             map.getCanvas().style.cursor = ""; });
     }
 }
+function rainViewerFrame(value) {
+    if (value === null || typeof value !== "object")
+        throw new Error("RainViewer metadata is invalid");
+    const metadata = value;
+    const past = metadata.radar?.past;
+    const latest = past?.[past.length - 1];
+    if (typeof metadata.host !== "string"
+        || !metadata.host.startsWith("https://")
+        || typeof latest?.path !== "string"
+        || !latest.path.startsWith("/")) {
+        throw new Error("RainViewer latest radar frame is unavailable");
+    }
+    return { host: metadata.host, path: latest.path };
+}
+async function ensureRainViewerLayer() {
+    if (map === null || map.getLayer(RAINVIEWER_LAYER_ID) !== undefined)
+        return;
+    rainViewerStatus.hidden = false;
+    rainViewerStatus.dataset.state = "loading";
+    rainViewerStatus.textContent = "RainViewerの雨雲データを読み込み中";
+    try {
+        const response = await fetch(RAINVIEWER_METADATA_URL, { headers: { accept: "application/json" } });
+        if (!response.ok)
+            throw new Error(`HTTP ${response.status}`);
+        const frame = rainViewerFrame(await response.json());
+        if (map === null)
+            return;
+        map.addSource(RAINVIEWER_SOURCE_ID, {
+            type: "raster",
+            tiles: [`${frame.host}${frame.path}/256/{z}/{x}/{y}/2/1_1.png`],
+            tileSize: 256,
+            maxzoom: 7,
+            attribution: '<a href="https://www.rainviewer.com/" target="_blank" rel="noreferrer">Weather data by RainViewer</a>',
+        });
+        map.addLayer({
+            id: RAINVIEWER_LAYER_ID,
+            type: "raster",
+            source: RAINVIEWER_SOURCE_ID,
+            paint: { "raster-opacity": 0.62, "raster-fade-duration": 250 },
+        }, map.getLayer(UNDERPASS_CLUSTER_LAYER_ID) !== undefined ? UNDERPASS_CLUSTER_LAYER_ID : undefined);
+        map.setLayoutProperty(RAINVIEWER_LAYER_ID, "visibility", selectedCategories.has("RAIN_CLOUD") ? "visible" : "none");
+        rainViewerStatus.dataset.state = "ready";
+        rainViewerStatus.textContent = "RainViewerの最新雨雲レーダーを表示中";
+    }
+    catch (error) {
+        rainViewerStatus.dataset.state = "unavailable";
+        rainViewerStatus.textContent = "雨雲データを取得できません。時間をおいて再度お試しください。";
+        rainViewerStatus.dataset.clientError = error instanceof Error ? error.message : "unknown RainViewer error";
+    }
+}
+function updateRainViewerLayer() {
+    const visible = selectedCategories.has("RAIN_CLOUD");
+    if (!visible) {
+        if (map?.getLayer(RAINVIEWER_LAYER_ID) !== undefined) {
+            map.setLayoutProperty(RAINVIEWER_LAYER_ID, "visibility", "none");
+        }
+        rainViewerStatus.hidden = true;
+        return;
+    }
+    rainViewerStatus.hidden = false;
+    if (map?.getLayer(RAINVIEWER_LAYER_ID) !== undefined) {
+        map.setLayoutProperty(RAINVIEWER_LAYER_ID, "visibility", "visible");
+        rainViewerStatus.dataset.state = "ready";
+        rainViewerStatus.textContent = "RainViewerの最新雨雲レーダーを表示中";
+        return;
+    }
+    rainViewerLoading ??= ensureRainViewerLayer().finally(() => { rainViewerLoading = null; });
+}
+function withKanagawaPolice(payload) {
+    const nonPolice = payload.items.filter((point) => point.kind !== "POLICE_PRIORITY");
+    return {
+        ...payload,
+        counts: {
+            ...payload.counts,
+            policePriorityLocations: KANAGAWA_POLICE_PRIORITY_POINTS.length,
+        },
+        attribution: {
+            ...payload.attribution,
+            police: "神奈川県警察 高津警察署 速度取締り指針を加工して概略表示",
+        },
+        limitations: [
+            ...payload.limitations.filter((item) => !item.includes("警察地点")),
+            "警察地点は公開された速度取締り重点区間の代表点であり、現在取締り実施中を示しません。",
+        ],
+        items: [...nonPolice, ...KANAGAWA_POLICE_PRIORITY_POINTS],
+    };
+}
 async function loadDivertNaviMapData() {
     try {
         const runtimeConfig = window.COACHGO_CONFIG;
@@ -378,14 +479,7 @@ async function loadDivertNaviMapData() {
                     if (!response.ok)
                         throw new Error(`HTTP ${response.status}`);
                     const publicPayload = buildNationalUnderpassMapPayload(await response.json());
-                    const syntheticPolice = syntheticSharedMapPayload().items.filter((point) => point.kind === "POLICE_PRIORITY");
-                    return {
-                        ...publicPayload,
-                        counts: { ...publicPayload.counts, policePriorityLocations: syntheticPolice.length },
-                        attribution: { ...publicPayload.attribution, police: "CoachGo合成デモデータ" },
-                        limitations: [...publicPayload.limitations, "交通安全地点は合成デモです。"],
-                        items: [...publicPayload.items, ...syntheticPolice],
-                    };
+                    return withKanagawaPolice(publicPayload);
                 })()
                 : await (async () => {
                     const response = await fetch(runtimeConfig?.mapDataUrl ?? "/api/divertnavi/map-points", {
@@ -393,7 +487,7 @@ async function loadDivertNaviMapData() {
                     });
                     if (!response.ok)
                         throw new Error(`HTTP ${response.status}`);
-                    return response.json();
+                    return withKanagawaPolice(await response.json());
                 })();
         if (!isDivertNaviMapPayload(value))
             throw new Error("unsupported response");
@@ -496,6 +590,7 @@ function renderMap() {
                 map.setLayoutProperty(layerId, "visibility", underpassesVisible);
         }
     }
+    updateRainViewerLayer();
     for (const marker of sessionUserReportMarkers.values())
         marker.remove();
     sessionUserReportMarkers.clear();
@@ -515,7 +610,7 @@ function renderMap() {
     if (selectedSharedPoint === null && (selectedHazard === null || !visible.some((point) => point.id === selectedHazard?.id))) {
         selectedHazard = visible[0] ?? null;
     }
-    hazardCard.hidden = selectedHazard === null && selectedSharedPoint === null;
+    hazardCard.hidden = selectedSharedPoint === null && selectedHazard?.sourceKind !== "USER_REPORT";
     if (selectedSharedPoint !== null)
         selectSharedPoint(selectedSharedPoint);
     else if (selectedHazard !== null)
@@ -593,37 +688,37 @@ function stopDemoPlayback() {
     demoPlaybackSequence += 1;
     demoPlaybackRunning = false;
     demoPlaybackButton.classList.remove("running");
-    demoPlaybackIcon.textContent = "▶";
-    demoPlaybackLabel.textContent = "デモ再生";
+    demoPlaybackLabel.textContent = "デモ";
+    demoPlaybackButton.setAttribute("aria-label", "デモを再生");
     demoPlaybackStatus.hidden = true;
     notificationPreview.hidden = true;
-    userLocationMarker?.setLngLat(SYNTHETIC_USER_LOCATION);
-    map?.easeTo({ center: SYNTHETIC_USER_LOCATION, zoom: 12.2, pitch: 34, bearing: -12, duration: 500 });
+    userLocationMarker?.setLngLat(currentUserLocation);
+    map?.easeTo({ center: currentUserLocation, zoom: 12.2, pitch: 34, bearing: -12, duration: 500 });
     restoreCategoriesAfterDemo();
 }
 async function runDemoPlayback() {
     const stops = demoStops();
-    if (stops.length !== HAZARD_CATEGORIES.length) {
+    if (stops.length !== DEMO_NOTIFICATION_CATEGORIES.length) {
         demoPlaybackStatus.textContent = "監視地点データを準備できませんでした";
         demoPlaybackStatus.hidden = false;
         return;
     }
     categoriesBeforeDemo = [...selectedCategories];
     selectedCategories.clear();
-    for (const category of HAZARD_CATEGORIES)
-        selectedCategories.add(category.id);
+    for (const category of DEMO_NOTIFICATION_CATEGORIES)
+        selectedCategories.add(category);
     renderMap();
     setPanelOpen(false);
     demoPlaybackRunning = true;
     demoPlaybackSequence += 1;
     const sequence = demoPlaybackSequence;
     demoPlaybackButton.classList.add("running");
-    demoPlaybackIcon.textContent = "■";
-    demoPlaybackLabel.textContent = "デモ停止";
+    demoPlaybackLabel.textContent = "停止";
+    demoPlaybackButton.setAttribute("aria-label", "デモを停止");
     demoPlaybackStatus.hidden = false;
     notificationPreview.hidden = true;
     demoPlaybackButton.dataset.completedCategories = "0";
-    let previous = [...SYNTHETIC_USER_LOCATION];
+    let previous = [...currentUserLocation];
     for (const [index, point] of stops.entries()) {
         demoPlaybackStatus.textContent = `仮想走行中 ${index + 1}/${stops.length}・${categoryLabels[point.monitorCategory]}`;
         const destination = demoPointCoordinate(point);
@@ -640,19 +735,16 @@ async function runDemoPlayback() {
     }
     demoPlaybackRunning = false;
     demoPlaybackButton.classList.remove("running");
-    demoPlaybackIcon.textContent = "▶";
-    demoPlaybackLabel.textContent = "もう一度再生";
+    demoPlaybackLabel.textContent = "再生";
+    demoPlaybackButton.setAttribute("aria-label", "デモをもう一度再生");
     demoPlaybackStatus.textContent = "5カテゴリーの接近通知を再生しました";
     restoreCategoriesAfterDemo();
     await waitForDemo(1_800);
     if (sequence !== demoPlaybackSequence || demoPlaybackRunning)
         return;
     demoPlaybackStatus.hidden = true;
-    userLocationMarker?.setLngLat(SYNTHETIC_USER_LOCATION);
-    map?.easeTo({ center: SYNTHETIC_USER_LOCATION, zoom: 12.2, pitch: 34, bearing: -12, duration: 500 });
-}
-for (const selector of ["#topbar-settings", "#mobile-settings"]) {
-    requiredElement(selector).addEventListener("click", () => setPanelOpen(true));
+    userLocationMarker?.setLngLat(currentUserLocation);
+    map?.easeTo({ center: currentUserLocation, zoom: 12.2, pitch: 34, bearing: -12, duration: 500 });
 }
 requiredElement("#close-panel").addEventListener("click", () => setPanelOpen(false));
 panelBackdrop.addEventListener("click", () => setPanelOpen(false));
@@ -673,8 +765,16 @@ for (const button of document.querySelectorAll("[data-category]")) {
         const category = button.dataset.category;
         if (selectedCategories.has(category))
             selectedCategories.delete(category);
-        else
+        else {
             selectedCategories.add(category);
+            if (category === "POLICE_ENFORCEMENT") {
+                const firstPolice = divertNaviMapData?.items.find((point) => point.kind === "POLICE_PRIORITY");
+                if (firstPolice !== undefined) {
+                    selectSharedPoint(firstPolice);
+                    map?.easeTo({ center: [139.617, 35.591], zoom: 12.3, pitch: 22, bearing: 0, duration: 700 });
+                }
+            }
+        }
         renderMap();
     });
 }
@@ -683,16 +783,6 @@ demoPlaybackButton.addEventListener("click", () => {
         stopDemoPlayback();
     else
         void runDemoPlayback();
-});
-previewNotificationButton.addEventListener("click", () => {
-    if (!approachDetectionEnabled || (selectedHazard === null && selectedSharedPoint === null))
-        return;
-    const notification = selectedSharedPoint === null
-        ? buildApproachNotification(selectedHazard)
-        : sharedNotification(selectedSharedPoint);
-    notificationTitle.textContent = notification.title;
-    notificationBody.textContent = notification.body;
-    notificationPreview.hidden = false;
 });
 requiredElement("#dismiss-notification").addEventListener("click", () => {
     notificationPreview.hidden = true;
@@ -776,7 +866,29 @@ requiredElement("#recenter-map").addEventListener("click", () => {
         stopDemoPlayback();
         return;
     }
-    map?.easeTo({ center: SYNTHETIC_USER_LOCATION, zoom: 12.2, pitch: 34, bearing: -12, duration: 500 });
+    locationStatus.hidden = false;
+    locationStatus.textContent = "現在地を取得中…";
+    if (!("geolocation" in navigator)) {
+        locationStatus.textContent = "この端末では現在地を取得できません。";
+        return;
+    }
+    navigator.geolocation.getCurrentPosition((position) => {
+        const longitude = position.coords.longitude;
+        const latitude = position.coords.latitude;
+        if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) {
+            locationStatus.textContent = "現在地を確認できませんでした。";
+            return;
+        }
+        currentUserLocation = [longitude, latitude];
+        userLocationMarker?.setLngLat(currentUserLocation);
+        map?.easeTo({ center: currentUserLocation, zoom: 15, pitch: 22, bearing: 0, duration: 650 });
+        locationStatus.textContent = "現在地を表示しました。";
+        window.setTimeout(() => { locationStatus.hidden = true; }, 2_500);
+    }, (error) => {
+        locationStatus.textContent = error.code === error.PERMISSION_DENIED
+            ? "現在地の表示には位置情報の許可が必要です。"
+            : "現在地を取得できませんでした。通信状態をご確認ください。";
+    }, { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 });
 });
 renderPermissionStatus();
 renderMap();

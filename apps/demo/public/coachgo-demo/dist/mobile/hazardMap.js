@@ -34,6 +34,13 @@ export const HAZARD_CATEGORIES = [
         icon: "🚨",
         selectedByDefault: false,
     },
+    {
+        id: "RAIN_CLOUD",
+        label: "雨雲",
+        description: "RainViewerの雨雲レーダー",
+        icon: "🌧️",
+        selectedByDefault: false,
+    },
 ];
 export const USER_REPORT_CATEGORIES = [
     { id: "FLOOD", label: "冠水", icon: "🌊", color: "#008cff", primary: true },

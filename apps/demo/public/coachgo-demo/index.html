@@ -9,7 +9,7 @@
     <title>CoachGo 危険監視PoC</title>
     <link rel="manifest" href="/coachgo-demo/manifest.webmanifest">
     <link rel="stylesheet" href="/coachgo-demo/vendor/mapbox-gl.css">
-    <link rel="stylesheet" href="/coachgo-demo/styles.css?v=20260823-2">
+    <link rel="stylesheet" href="/coachgo-demo/styles.css?v=20260824-3">
   </head>
   <body>
     <div class="app-shell">
@@ -19,12 +19,9 @@
             <svg viewBox="0 0 24 24"><path d="M5 12.5 19 5l-4.5 14-3.1-5.7L5 12.5Z"></path></svg>
           </span>
           <strong>Coach<span>Go</span></strong>
-          <span class="product-chip">MONITOR</span>
         </div>
         <div class="topbar-actions">
           <span id="connection-state" class="connection-state active"><i></i><span>自動見守り中</span></span>
-          <button id="topbar-settings" class="topbar-button" type="button"><span aria-hidden="true">⚙</span> 監視設定</button>
-          <span class="auto-monitor-badge" aria-label="アプリ起動時から危険監視中">AUTO</span>
         </div>
       </header>
 
@@ -32,7 +29,6 @@
         <aside id="category-panel" class="control-panel" aria-label="危険監視設定">
           <div class="panel-scroll">
             <div class="panel-heading-row">
-              <div><p class="eyebrow">HAZARD MONITOR</p></div>
               <button id="close-panel" class="icon-button mobile-close" type="button" aria-label="監視設定を閉じる">×</button>
             </div>
 
@@ -45,7 +41,11 @@
                 <button type="button" data-category="LANDSLIDE" aria-pressed="false"><span>⛰</span>土砂災害</button>
                 <button type="button" data-category="TSUNAMI" aria-pressed="false"><span>🌊</span>津波</button>
                 <button type="button" data-category="POLICE_ENFORCEMENT" aria-pressed="false"><span>🚨</span>警察取締</button>
+                <button type="button" data-category="RAIN_CLOUD" aria-pressed="false"><span>🌧️</span>雨雲</button>
               </div>
+              <p id="shared-data-status" class="source-status" role="status" data-state="loading">DivertNavi公開データを検証中</p>
+              <p id="rainviewer-status" class="source-status" role="status" hidden></p>
+              <a class="rainviewer-attribution" href="https://www.rainviewer.com/" target="_blank" rel="noreferrer">Weather data by RainViewer</a>
             </section>
 
             <section class="notification-section" aria-labelledby="notification-setting-heading">
@@ -55,13 +55,6 @@
               <button id="background-notification-toggle" class="notification-setting-row" type="button" role="switch" aria-checked="true"><span class="setting-icon">🔔</span><span><strong>バックグラウンド通知</strong><small>実機での継続動作は未検証</small></span><span id="background-notification-state" class="setting-switch" data-state="on" aria-hidden="true"><span>OFF</span><span>ON</span><i></i></span></button>
             </section>
 
-            <section class="latest-alert" aria-labelledby="latest-alert-heading">
-              <p class="eyebrow">NOTIFICATION PREVIEW</p>
-              <h2 id="latest-alert-heading">アンダーパスの浸水に注意</h2>
-              <p>大雨時は水深を確認できないため、進入せず、使用中のナビで別経路を確認してください。</p>
-              <button id="preview-notification" type="button">接近通知を合成再生</button>
-            </section>
-
           </div>
         </aside>
 
@@ -69,21 +62,17 @@
           <div id="map-canvas" class="map-canvas" role="region" aria-label="Mapbox上の危険地点マップ">
             <div id="mapbox-map" class="mapbox-map"></div>
             <p id="map-load-state" class="map-load-state" role="status">Mapbox地図を読み込み中</p>
-            <div class="hazard-display-status">
-              <small>日本語 · WASHI AURORA</small>
-              <small id="shared-data-status" role="status" data-state="loading">DivertNavi公開データを検証中</small>
-            </div>
           </div>
 
           <div class="map-floating-actions">
-            <button id="recenter-map" class="map-action current-location-control" type="button" aria-label="現在地へ戻る" title="現在地">
+            <button id="recenter-map" class="map-action current-location-control" type="button" aria-label="現在地を表示" title="現在地">
               <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5.25"></circle><circle class="location-dot" cx="12" cy="12" r="2.25"></circle><path d="M12 2.75v3M12 18.25v3M2.75 12h3M18.25 12h3"></path></svg>
             </button>
-            <button id="register-hazard" class="map-action report" type="button"><span aria-hidden="true">＋</span><span>危険を報告</span></button>
-            <button id="demo-playback" class="map-action demo-playback" type="button" data-completed-categories="0" disabled><span aria-hidden="true">▶</span><span id="demo-playback-label">デモ再生</span></button>
+            <button id="register-hazard" class="map-action report" type="button" aria-label="危険を投稿"><span>投稿</span></button>
+            <button id="demo-playback" class="map-action demo-playback" type="button" data-completed-categories="0" aria-label="デモを再生" disabled><span id="demo-playback-label">デモ</span></button>
           </div>
           <p id="demo-playback-status" class="demo-playback-status" role="status" hidden></p>
-          <button id="mobile-settings" class="mobile-settings-button" type="button"><span aria-hidden="true">⚙</span>監視設定</button>
+          <p id="location-status" class="location-status" role="status" hidden></p>
 
           <article id="hazard-card" class="hazard-card" aria-live="polite">
             <div><span id="hazard-category" class="category-badge">道路冠水</span><span id="hazard-distance">450m先</span></div>

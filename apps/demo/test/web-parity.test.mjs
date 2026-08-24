@@ -119,7 +119,7 @@ test('homepage targets Shinjuku solo participants with measurable acquisition li
 });
 
 test('corporate homepage presents the three methodmore products accurately', async () => {
-  const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles, coachDemo, coachBootstrap, coachDemoScript, coachUnderpassModule, server] = await Promise.all([
+  const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles, coachDemo, coachBootstrap, coachDemoScript, coachUnderpassModule, coachPoliceModule, server] = await Promise.all([
     readFile(new URL('../public/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/hangout-now.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/divertnavi.html', import.meta.url), 'utf8'),
@@ -131,6 +131,7 @@ test('corporate homepage presents the three methodmore products accurately', asy
     readFile(new URL('../public/coachgo-demo/bootstrap.js', import.meta.url), 'utf8'),
     readFile(new URL('../public/coachgo-demo/dist/mobile/demo.js', import.meta.url), 'utf8'),
     readFile(new URL('../public/coachgo-demo/dist/mobile/divertNaviUnderpasses.js', import.meta.url), 'utf8'),
+    readFile(new URL('../public/coachgo-demo/dist/mobile/kanagawaPolicePoints.js', import.meta.url), 'utf8'),
     readFile(new URL('../server.mjs', import.meta.url), 'utf8'),
   ]);
 
@@ -155,7 +156,7 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(coachDemo, /src="\/coachgo-demo\/runtime-config\.js"/);
   assert.match(coachDemo, /src="\/coachgo-demo\/vendor\/mapbox-gl\.js"/);
   assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260824-2"/);
-  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260824-5/);
+  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260824-6/);
   assert.match(coachBootstrap, /dataset\.clientError/);
   assert.match(coachDemoScript, /SYNTHETIC_ONLY/);
   assert.match(coachDemoScript, /公開版: 合成アンダーパス1件 \/ 合成交通安全地点1件/);
@@ -163,6 +164,12 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(coachDemoScript, /divertNaviUnderpasses\.js\?v=20260824-1/);
   assert.match(coachDemoScript, /coachgo-underpass-clusters/);
   assert.match(coachDemoScript, /DivertNavi公開データ: アンダーパス/);
+  assert.match(coachDemoScript, /api\.rainviewer\.com\/public\/weather-maps\.json/);
+  assert.match(coachDemo, /data-category="RAIN_CLOUD"/);
+  assert.match(coachDemo, /Weather data by RainViewer/);
+  assert.doesNotMatch(coachDemo, /HAZARD MONITOR|NOTIFICATION PREVIEW|WASHI AURORA|id="topbar-settings"|id="mobile-settings"/);
+  assert.match(coachPoliceModule, /神奈川県警察 高津警察署/);
+  assert.match(coachPoliceModule, /現在の取締り実施を示す情報ではありません/);
   assert.match(coachUnderpassModule, /function buildNationalUnderpassMapPayload/);
   assert.match(server, /requestedPath === '\/coachgo-demo'/);
   assert.match(server, /requestedPath === '\/coachgo-demo\/runtime-config\.js'/);
