@@ -119,7 +119,7 @@ test('homepage targets Shinjuku solo participants with measurable acquisition li
 });
 
 test('corporate homepage presents the three methodmore products accurately', async () => {
-  const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles, coachDemo, coachStyles, coachBootstrap, coachDemoScript, coachDriveModule, coachUnderpassModule, coachPoliceModule, coachNaturalSpeechModule, coachVoiceApproachModule, coachMonitorPointsJson, server] = await Promise.all([
+  const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles, coachDemo, coachStyles, coachBootstrap, coachDemoScript, coachDriveModule, coachUnderpassModule, coachPoliceModule, coachNaturalSpeechModule, coachSmoothLocationModule, coachVoiceApproachModule, coachMonitorPointsJson, server] = await Promise.all([
     readFile(new URL('../public/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/hangout-now.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/divertnavi.html', import.meta.url), 'utf8'),
@@ -135,6 +135,7 @@ test('corporate homepage presents the three methodmore products accurately', asy
     readFile(new URL('../public/coachgo-demo/dist/mobile/divertNaviUnderpasses.js', import.meta.url), 'utf8'),
     readFile(new URL('../public/coachgo-demo/dist/mobile/kanagawaPolicePoints.js', import.meta.url), 'utf8'),
     readFile(new URL('../public/coachgo-demo/dist/mobile/naturalSpeech.js', import.meta.url), 'utf8'),
+    readFile(new URL('../public/coachgo-demo/dist/mobile/smoothUserLocation.js', import.meta.url), 'utf8'),
     readFile(new URL('../public/coachgo-demo/dist/mobile/voiceApproach.js', import.meta.url), 'utf8'),
     readFile(new URL('../public/coachgo-demo/monitor-points.generated.json', import.meta.url), 'utf8'),
     readFile(new URL('../server.mjs', import.meta.url), 'utf8'),
@@ -161,7 +162,7 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.doesNotMatch(coachDemo, /開発用シナリオ|危険監視を開始|何を見守りますか？/);
   assert.match(coachDemo, /src="\/coachgo-demo\/runtime-config\.js"/);
   assert.match(coachDemo, /src="\/coachgo-demo\/vendor\/mapbox-gl\.js"/);
-  assert.match(coachDemo, /href="\/coachgo-demo\/styles\.css\?v=20260824-11"/);
+  assert.match(coachDemo, /href="\/coachgo-demo\/styles\.css\?v=20260825-1"/);
   assert.match(coachDemo, /class="report-action-label" aria-hidden="true"><span>＋<\/span><span>投稿<\/span>/);
   assert.match(coachDemo, /class="demo-playback-label" aria-hidden="true"><span>デモ<\/span><span id="demo-playback-label">再生<\/span>/);
   assert.match(coachDemo, /<h2 id="notification-setting-heading">通知設定<\/h2>/);
@@ -174,8 +175,8 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(coachStyles, /max-height: calc\(100% - clamp\(64px,12vh,96px\)\)/);
   assert.match(coachDemoScript, /panelScroll\.addEventListener\("touchmove"/);
   assert.match(coachDemoScript, /dragDistance >= 88/);
-  assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260824-20"/);
-  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260824-24/);
+  assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260825-1"/);
+  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260825-1/);
   assert.match(coachBootstrap, /dataset\.clientError/);
   assert.match(coachDemoScript, /SYNTHETIC_ONLY/);
   assert.match(coachDemoScript, /counts: \{ underpasses: 1, policePriorityLocations: 1 \}/);
@@ -188,7 +189,8 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(coachDemoScript, /デモ停止中　横浜駅 → 本厚木駅/);
   assert.match(coachDemoScript, /continuousDemoDrive\.js\?v=20260824-5/);
   assert.match(coachDemoScript, /hazardMap\.js\?v=20260824-5/);
-  assert.match(coachDemoScript, /naturalSpeech\.js\?v=20260824-5/);
+  assert.match(coachDemoScript, /naturalSpeech\.js\?v=20260825-1/);
+  assert.match(coachDemoScript, /smoothUserLocation\.js\?v=20260825-1/);
   assert.match(coachDemoScript, /voiceApproach\.js\?v=20260824-6/);
   assert.match(coachDemoScript, /nearbyMonitoredPoints\(location, demoDriveRoute, voiceMonitorPoints\(\), selectedCategories\)/);
   assert.match(coachVoiceApproachModule, /routePassageCorridorMeters = 75/);
@@ -230,9 +232,16 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.doesNotMatch(coachDemoScript, /合成.+地点に接近/);
   assert.match(coachNaturalSpeechModule, /name\.includes\("natural"\)/);
   assert.match(coachNaturalSpeechModule, /name\.includes\("neural"\)/);
-  assert.match(coachNaturalSpeechModule, /rate: 1\.22/);
-  assert.match(coachNaturalSpeechModule, /isPlaceName \? 1\.16/);
+  assert.match(coachNaturalSpeechModule, /rate: 1\.16/);
+  assert.match(coachNaturalSpeechModule, /isPlaceName \? 1\.1/);
   assert.match(coachNaturalSpeechModule, /pauseAfterMs/);
+  assert.match(coachSmoothLocationModule, /STATIONARY_DISTANCE_METERS = 8/);
+  assert.match(coachSmoothLocationModule, /function interpolateUserLocation/);
+  assert.match(coachSmoothLocationModule, /function userLocationMovementBearing/);
+  assert.match(coachDemoScript, /handleUserLocationSample\(location, now, true\)/);
+  assert.match(coachDemoScript, /window\.addEventListener\("coachgo:native-heading"/);
+  assert.match(coachDemoScript, /zoom: 15/);
+  assert.match(coachStyles, /transition: transform 180ms linear/);
   assert.match(coachDemoScript, /let demoDriveRunning = false/);
   assert.doesNotMatch(coachDemoScript, /let demoDriveRunning = true/);
   assert.match(coachDemoScript, /kanagawaPolicePoints\.js\?v=20260824-1/);

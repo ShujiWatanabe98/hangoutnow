@@ -5,7 +5,8 @@ import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=202
 import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260824-5";
 import { nearbyMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260824-6";
 import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260824-1";
-import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260824-5";
+import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260825-1";
+import { interpolateUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260825-1";
 function syntheticSharedMapPayload() {
     return {
         schemaVersion: 1,
@@ -126,8 +127,15 @@ let reportSequence = 0;
 let lastReportId = null;
 let undoReportTimer = null;
 let currentUserLocation = [...SYNTHETIC_USER_LOCATION];
+let renderedUserLocation = [...SYNTHETIC_USER_LOCATION];
+let acceptedUserLocation = null;
 let hasLiveUserLocation = false;
 let foregroundLocationWatchId = null;
+let userLocationArrow = null;
+let userLocationAnimationSequence = 0;
+let deviceHeadingDegrees = null;
+let movementHeadingDegrees = null;
+let movementHeadingValidUntil = -Infinity;
 let rainViewerLoading = null;
 let demoDriveRoute = null;
 let demoDriveSampler = null;
@@ -152,6 +160,7 @@ let panelTouchDragging = false;
 const VOICE_PROXIMITY_CHECK_INTERVAL_MS = 750;
 const VOICE_ANNOUNCEMENT_COOLDOWN_MS = 12_000;
 const DEMO_CAMERA_FRAME_INTERVAL_MS = 1_000 / 60;
+const MOVEMENT_HEADING_HOLD_MS = 3_000;
 const MOBILE_PANEL_QUERY = "(max-width: 760px)";
 function refreshPreferredJapaneseVoice() {
     if (!("speechSynthesis" in window))
@@ -398,7 +407,7 @@ function addSyntheticMarkers() {
     }
     const userLocationElement = document.createElement("div");
     userLocationElement.className = "user-location";
-    userLocationElement.setAttribute("aria-label", "現在地（デモ）");
+    userLocationElement.setAttribute("aria-label", "現在地");
     const locationHalo = document.createElement("span");
     locationHalo.className = "user-location-halo";
     const locationArrow = document.createElement("span");
@@ -408,9 +417,11 @@ function addSyntheticMarkers() {
     locationLabel.className = "user-location-label";
     locationLabel.textContent = "現在地";
     userLocationElement.append(locationHalo, locationArrow, locationLabel);
+    userLocationArrow = locationArrow;
     userLocationMarker = new window.mapboxgl.Marker({ element: userLocationElement, anchor: "center" })
-        .setLngLat(currentUserLocation)
+        .setLngLat([renderedUserLocation[0], renderedUserLocation[1]])
         .addTo(map);
+    updateUserLocationHeading(performance.now());
 }
 function updateDemoPlaybackAvailability() {
     demoPlaybackButton.disabled = !initialMapLoadCompleted || demoDriveRoute === null;
@@ -580,6 +591,105 @@ function checkLiveLocationApproach(location, now) {
         speakMonitorApproach(entered.point);
     }
 }
+function updateUserLocationHeading(now) {
+    if (userLocationArrow === null)
+        return;
+    const moving = movementHeadingDegrees !== null && now <= movementHeadingValidUntil;
+    const heading = moving ? movementHeadingDegrees : deviceHeadingDegrees;
+    userLocationArrow.dataset.motion = moving ? "moving" : "stationary";
+    userLocationArrow.dataset.headingSource = moving ? "movement" : "device";
+    if (heading === null)
+        return;
+    const relativeHeading = screenRelativeUserHeading(heading, map?.getBearing() ?? 0);
+    userLocationArrow.style.transform = `rotate(${relativeHeading}deg)`;
+    userLocationArrow.dataset.heading = String(Math.round(heading));
+}
+function updateDeviceHeading(heading) {
+    if (!Number.isFinite(heading))
+        return;
+    deviceHeadingDegrees = (heading + 360) % 360;
+    updateUserLocationHeading(performance.now());
+}
+function animateUserLocation(target, startedAt, duration) {
+    const from = renderedUserLocation;
+    const sequence = userLocationAnimationSequence + 1;
+    userLocationAnimationSequence = sequence;
+    const frame = (now) => {
+        if (sequence !== userLocationAnimationSequence)
+            return;
+        const progress = Math.max(0, Math.min(1, (now - startedAt) / duration));
+        renderedUserLocation = interpolateUserLocation(from, target, progress);
+        userLocationMarker?.setLngLat([renderedUserLocation[0], renderedUserLocation[1]]);
+        updateUserLocationHeading(now);
+        if (progress < 1) {
+            window.requestAnimationFrame(frame);
+            return;
+        }
+        renderedUserLocation = target;
+        window.setTimeout(() => { updateUserLocationHeading(performance.now()); }, MOVEMENT_HEADING_HOLD_MS);
+    };
+    window.requestAnimationFrame(frame);
+}
+function handleUserLocationSample(target, now, focusOnFirstFix = false) {
+    const firstLiveFix = !hasLiveUserLocation;
+    currentUserLocation = [target[0], target[1]];
+    hasLiveUserLocation = true;
+    if (acceptedUserLocation === null) {
+        acceptedUserLocation = target;
+        renderedUserLocation = target;
+        userLocationMarker?.setLngLat([target[0], target[1]]);
+        connectionState.dataset.locationMotion = "stationary";
+        updateUserLocationHeading(now);
+        if (firstLiveFix && focusOnFirstFix) {
+            map?.easeTo({ center: [target[0], target[1]], zoom: 15, pitch: 22, bearing: 0, duration: 650 });
+        }
+        return;
+    }
+    const distanceMeters = userLocationDistanceMeters(acceptedUserLocation, target);
+    if (!shouldAnimateUserLocation(acceptedUserLocation, target)) {
+        movementHeadingValidUntil = -Infinity;
+        connectionState.dataset.locationMotion = "stationary";
+        updateUserLocationHeading(now);
+        return;
+    }
+    const duration = userLocationAnimationDuration(distanceMeters);
+    movementHeadingDegrees = userLocationMovementBearing(acceptedUserLocation, target);
+    movementHeadingValidUntil = now + duration + MOVEMENT_HEADING_HOLD_MS;
+    acceptedUserLocation = target;
+    connectionState.dataset.locationMotion = "moving";
+    connectionState.dataset.locationDistanceMeters = distanceMeters.toFixed(1);
+    animateUserLocation(target, now, duration);
+}
+function handleDeviceOrientation(event) {
+    const compassEvent = event;
+    if (typeof compassEvent.webkitCompassHeading === "number") {
+        updateDeviceHeading(compassEvent.webkitCompassHeading);
+        return;
+    }
+    if (event.absolute && typeof event.alpha === "number") {
+        const screenAngle = window.screen.orientation?.angle ?? 0;
+        updateDeviceHeading(360 - event.alpha + screenAngle);
+    }
+}
+function requestDeviceHeadingPermission() {
+    const constructor = window.DeviceOrientationEvent;
+    if (typeof constructor?.requestPermission !== "function")
+        return;
+    void constructor.requestPermission()
+        .then((permission) => {
+        connectionState.dataset.headingPermission = permission;
+    })
+        .catch(() => {
+        connectionState.dataset.headingPermission = "error";
+    });
+}
+window.addEventListener("deviceorientationabsolute", handleDeviceOrientation);
+window.addEventListener("deviceorientation", handleDeviceOrientation);
+window.addEventListener("coachgo:native-heading", ((event) => {
+    const detail = event.detail;
+    if (typeof detail?.heading === "number")
+        updateDeviceHeading(detail.heading);
+}));
 function stopForegroundLocationMonitoring() {
     if (foregroundLocationWatchId === null || !("geolocation" in navigator))
         return;
@@ -599,11 +709,11 @@ function startForegroundLocationMonitoring() {
         const latitude = position.coords.latitude;
         if (!Number.isFinite(longitude) || !Number.isFinite(latitude))
             return;
-        currentUserLocation = [longitude, latitude];
-        hasLiveUserLocation = true;
-        userLocationMarker?.setLngLat(currentUserLocation);
+        const location = [longitude, latitude];
+        const now = performance.now();
+        handleUserLocationSample(location, now, true);
         connectionState.dataset.locationWatch = "active";
-        checkLiveLocationApproach(currentUserLocation, performance.now());
+        checkLiveLocationApproach(location, now);
     }, (error) => {
         connectionState.dataset.locationWatch = error.code === error.PERMISSION_DENIED ? "denied" : "error";
     }, { enableHighAccuracy: true, timeout: 15_000, maximumAge: 5_000 });
@@ -1074,10 +1184,10 @@ function initializeMapbox() {
             language: COACHGO_MAP_LANGUAGE,
             locale: { ...COACHGO_MAP_LOCALE },
             localIdeographFontFamily: '"Noto Sans JP", "Hiragino Sans", sans-serif',
-            center: SYNTHETIC_USER_LOCATION,
-            zoom: 12.2,
-            pitch: 34,
-            bearing: -12,
+            center: currentUserLocation,
+            zoom: 15,
+            pitch: 22,
+            bearing: 0,
             antialias: true,
             attributionControl: true,
         });
@@ -1101,6 +1211,7 @@ function initializeMapbox() {
             renderMap();
             void initializeContinuousDemoDrive(token);
         });
+        map.on("rotate", () => { updateUserLocationHeading(performance.now()); });
     }
     catch {
         if (initialMapLoadTimeout !== null)
@@ -1447,6 +1558,7 @@ requiredElement("#undo-report").addEventListener("click", () => {
     renderMap();
 });
 requiredElement("#recenter-map").addEventListener("click", () => {
+    requestDeviceHeadingPermission();
     locationStatus.hidden = false;
     locationStatus.textContent = "現在地を取得中…";
     if (!("geolocation" in navigator)) {
@@ -1460,11 +1572,11 @@ requiredElement("#recenter-map").addEventListener("click", () => {
             locationStatus.textContent = "現在地を確認できませんでした。";
             return;
         }
-        currentUserLocation = [longitude, latitude];
-        hasLiveUserLocation = true;
-        userLocationMarker?.setLngLat(currentUserLocation);
-        checkLiveLocationApproach(currentUserLocation, performance.now());
-        map?.easeTo({ center: currentUserLocation, zoom: 15, pitch: 22, bearing: 0, duration: 650 });
+        const location = [longitude, latitude];
+        const now = performance.now();
+        handleUserLocationSample(location, now);
+        checkLiveLocationApproach(location, now);
+        map?.easeTo({ center: [location[0], location[1]], zoom: 15, pitch: 22, bearing: 0, duration: 650 });
         locationStatus.textContent = "現在地を表示しました。";
         window.setTimeout(() => { locationStatus.hidden = true; }, 2_500);
     }, (error) => {
