@@ -82,8 +82,43 @@ const underpassFeed = JSON.parse(await readFile(
   'utf8',
 ));
 const policeModule = await import(`${pathToFileURL(resolve(sourceRoot, 'mobile/kanagawaPolicePoints.js')).href}?sync=${Date.now()}`);
+const licensedUnderpassSources = new Map([
+  ['国土交通省 北海道開発局', 'https://www.hkd.mlit.go.jp/ky/ki/kouhou/ud49g7000000omnw.html'],
+  ['国土交通省 東北地方整備局', 'https://www.thr.mlit.go.jp/policy.pdf'],
+  ['国土交通省 関東地方整備局', 'https://www.ktr.mlit.go.jp/guide/copyright.html'],
+  ['国土交通省 北陸地方整備局', 'https://www.hrr.mlit.go.jp/help.html'],
+  ['国土交通省 中部地方整備局', 'https://www.cbr.mlit.go.jp/policy.htm'],
+  ['国土交通省 近畿地方整備局', 'https://www.kkr.mlit.go.jp/link.html'],
+  ['国土交通省 中国地方整備局', 'https://www.cgr.mlit.go.jp/about_manual/index.html'],
+  ['国土交通省 九州地方整備局', 'https://www.qsr.mlit.go.jp/pp/index.html'],
+]);
+const licensedUnderpasses = underpassFeed.items.filter((point) => licensedUnderpassSources.has(point.sourceOrganization));
+const excludedUnderpasses = underpassFeed.items.filter((point) => !licensedUnderpassSources.has(point.sourceOrganization));
+const underpassAttribution = [...licensedUnderpassSources].map(([organization, termsUrl]) => ({
+  organization,
+  termsUrl,
+  sourceUrls: [...new Set(
+    licensedUnderpasses
+      .filter((point) => point.sourceOrganization === organization)
+      .map((point) => point.sourceKmlUrl),
+  )].sort(),
+  processingNotice: `${organization}が公開する道路冠水想定箇所KMLをmethodmoreが抽出・正規化して作成`,
+}));
+const policeAttribution = {
+  organization: '神奈川県警察',
+  termsUrl: 'https://www.police.pref.kanagawa.jp/guidance.html',
+  sourceUrls: [...policeModule.KANAGAWA_POLICE_SOURCE_URLS],
+  processingNotice: '神奈川県警察が公開する速度取締り指針をmethodmoreが抽出し、Mapbox Permanent Geocodingで代表点へ加工して作成',
+};
+const excludedByOrganization = new Map();
+for (const point of excludedUnderpasses) {
+  excludedByOrganization.set(
+    point.sourceOrganization,
+    (excludedByOrganization.get(point.sourceOrganization) ?? 0) + 1,
+  );
+}
 const monitorPoints = [
-  ...underpassFeed.items.map((point) => ({
+  ...licensedUnderpasses.map((point) => ({
     id: point.id,
     monitorCategory: 'ROAD_FLOODING',
     name: point.name,
@@ -105,12 +140,57 @@ const monitorPoints = [
 await writeFile(resolve(publicRoot, 'monitor-points.generated.json'), `${JSON.stringify({
   schemaVersion: 1,
   generatedAt: underpassFeed.generatedAt,
+  attribution: [...underpassAttribution, policeAttribution],
+  excluded: [...excludedByOrganization]
+    .map(([organization, count]) => ({ organization, count, reason: '商用利用・加工・再配布条件の一次資料確認が未完了' })),
   limitations: [
     '道路冠水想定箇所であり、現在の冠水状況ではありません。',
     '警察公開の交通安全重点地点であり、現在の取締り実施を示す情報ではありません。',
+    '配布元の更新日が記録されていない地点を含みます。現地標識、通行規制、公的警報を優先してください。',
   ],
   points: monitorPoints,
 })}\n`, 'utf8');
+
+const escapeHtml = (value) => String(value)
+  .replaceAll('&', '&amp;')
+  .replaceAll('<', '&lt;')
+  .replaceAll('>', '&gt;')
+  .replaceAll('"', '&quot;')
+  .replaceAll("'", '&#39;');
+const attributionHtml = [...underpassAttribution, policeAttribution].map((source) => `
+      <article>
+        <h3>${escapeHtml(source.organization)}</h3>
+        <p>${escapeHtml(source.processingNotice)}</p>
+        <p><a href="${escapeHtml(source.termsUrl)}" rel="noreferrer">利用条件</a></p>
+        <details><summary>配布元データ ${source.sourceUrls.length}件</summary><ul>${source.sourceUrls.map((url) => `<li><a href="${escapeHtml(url)}" rel="noreferrer">${escapeHtml(url)}</a></li>`).join('')}</ul></details>
+      </article>`).join('');
+await writeFile(resolve(repositoryRoot, 'apps/demo/public/coachgo-data-sources.html'), `<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="CoachGoが表示・監視に使用する道路冠水想定箇所と交通安全重点地点の出典、加工内容、利用条件を掲載します。">
+  <link rel="canonical" href="https://method-more.com/coachgo-data-sources.html">
+  <title>データ出典 | CoachGo</title>
+  <link rel="stylesheet" href="/legal.css?v=20260823-1">
+</head>
+<body>
+  <header><div class="inner"><a class="brand" href="/coachgo-demo/">Coach<i>Go</i></a></div></header>
+  <main>
+    <h1>CoachGo データ出典</h1>
+    <p class="updated">最終確認日：2026年8月25日</p>
+    <p class="lead">CoachGoは、確認済みの利用条件に従い、公開された道路冠水想定箇所と交通安全重点地点を加工して表示・接近判定に使用します。</p>
+    <p class="warning">現在の冠水・取締り実施・通行可否を示すリアルタイム情報ではありません。現地標識、警察・道路管理者の通行規制、公的警報を優先してください。</p>
+    <h2>利用中のデータ</h2>${attributionHtml}
+    <h2>除外したデータ</h2>
+    <p>利用条件を一次資料で確定できていない${excludedUnderpasses.length}地点（${escapeHtml([...new Set(excludedUnderpasses.map((point) => point.sourceOrganization))].join('、'))}）は、App Store候補の監視データから除外しています。</p>
+    <h2>地図・座標処理</h2>
+    <p>地図表示および一部代表点の恒久ジオコーディングにMapboxを使用しています。地図上にはMapboxの帰属表示を表示します。</p>
+    <nav class="links"><a href="/coachgo-demo/">CoachGo</a><a href="/coachgo-privacy.html">プライバシー</a><a href="/coachgo-support.html">サポート</a></nav>
+  </main>
+  <footer>運営者：methodmore · <a href="mailto:info@method-more.com">info@method-more.com</a><br>© 2026 methodmore</footer>
+</body>
+</html>\n`, 'utf8');
 
 const sourceBootstrap = await readFile(resolve(coachGoRoot, 'mobile-poc/bootstrap.js'), 'utf8');
 await writeFile(

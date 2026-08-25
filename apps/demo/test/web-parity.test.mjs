@@ -119,7 +119,7 @@ test('homepage targets Shinjuku solo participants with measurable acquisition li
 });
 
 test('corporate homepage presents the three methodmore products accurately', async () => {
-  const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles, coachDemo, coachStyles, coachBootstrap, coachDemoScript, coachDriveModule, coachUnderpassModule, coachPoliceModule, coachNaturalSpeechModule, coachSmoothLocationModule, coachVoiceApproachModule, coachMonitorPointsJson, server] = await Promise.all([
+  const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles, coachDemo, coachStyles, coachBootstrap, coachDemoScript, coachDriveModule, coachUnderpassModule, coachPoliceModule, coachNaturalSpeechModule, coachSmoothLocationModule, coachVoiceApproachModule, coachMonitorPointsJson, coachPrivacy, coachSupport, coachDataSources, server] = await Promise.all([
     readFile(new URL('../public/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/hangout-now.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/divertnavi.html', import.meta.url), 'utf8'),
@@ -138,6 +138,9 @@ test('corporate homepage presents the three methodmore products accurately', asy
     readFile(new URL('../public/coachgo-demo/dist/mobile/smoothUserLocation.js', import.meta.url), 'utf8'),
     readFile(new URL('../public/coachgo-demo/dist/mobile/voiceApproach.js', import.meta.url), 'utf8'),
     readFile(new URL('../public/coachgo-demo/monitor-points.generated.json', import.meta.url), 'utf8'),
+    readFile(new URL('../public/coachgo-privacy.html', import.meta.url), 'utf8'),
+    readFile(new URL('../public/coachgo-support.html', import.meta.url), 'utf8'),
+    readFile(new URL('../public/coachgo-data-sources.html', import.meta.url), 'utf8'),
     readFile(new URL('../server.mjs', import.meta.url), 'utf8'),
   ]);
   const coachMonitorPoints = JSON.parse(coachMonitorPointsJson);
@@ -259,8 +262,24 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(coachPoliceModule, /神奈川県警察 横須賀南警察署/);
   assert.equal((coachPoliceModule.match(/"id": "kanagawa-/g) ?? []).length, 44);
   assert.equal(coachMonitorPoints.schemaVersion, 1);
-  assert.equal(coachMonitorPoints.points.filter((point) => point.kind === 'UNDERPASS').length, 4577);
+  assert.equal(coachMonitorPoints.points.filter((point) => point.kind === 'UNDERPASS').length, 4449);
   assert.equal(coachMonitorPoints.points.filter((point) => point.kind === 'POLICE_PRIORITY').length, 44);
+  assert.equal(coachMonitorPoints.points.length, 4493);
+  assert.equal(coachMonitorPoints.attribution.length, 9);
+  assert.deepEqual(coachMonitorPoints.excluded, [
+    { organization: '国土交通省 四国地方整備局', count: 119, reason: '商用利用・加工・再配布条件の一次資料確認が未完了' },
+    { organization: '内閣府 沖縄総合事務局', count: 9, reason: '商用利用・加工・再配布条件の一次資料確認が未完了' },
+  ]);
+  assert.equal(coachMonitorPoints.points.some((point) => point.id.startsWith('underpass-shikoku-') || point.id.startsWith('underpass-okinawa-')), false);
+  for (const copy of ['フォアグラウンドまたはバックグラウンド', '連続した位置履歴', '運営者は録音音声を保存しません', 'Mapbox', 'トラッキング', 'info@method-more.com']) {
+    assert.ok(coachPrivacy.includes(copy), `CoachGo privacy copy is missing: ${copy}`);
+  }
+  for (const copy of ['通知が届かない場合', '「常に」の位置情報許可', '現在の取締り実施を示しません', 'info@method-more.com']) {
+    assert.ok(coachSupport.includes(copy), `CoachGo support copy is missing: ${copy}`);
+  }
+  for (const copy of ['CoachGo データ出典', '現在の冠水・取締り実施・通行可否を示すリアルタイム情報ではありません', '国土交通省 北海道開発局', '国土交通省 九州地方整備局', '神奈川県警察', '除外したデータ']) {
+    assert.ok(coachDataSources.includes(copy), `CoachGo data-source copy is missing: ${copy}`);
+  }
   assert.match(coachPoliceModule, /現在の取締り実施を示す情報ではありません/);
   assert.match(coachUnderpassModule, /function buildNationalUnderpassMapPayload/);
   assert.match(server, /requestedPath === '\/coachgo-demo'/);
@@ -301,6 +320,9 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(sitemap, /https:\/\/method-more\.com\/hangout-now\.html/);
   assert.match(sitemap, /https:\/\/method-more\.com\/divertnavi\.html/);
   assert.match(sitemap, /https:\/\/method-more\.com\/divertnavi-privacy\.html/);
+  assert.match(sitemap, /https:\/\/method-more\.com\/coachgo-privacy\.html/);
+  assert.match(sitemap, /https:\/\/method-more\.com\/coachgo-support\.html/);
+  assert.match(sitemap, /https:\/\/method-more\.com\/coachgo-data-sources\.html/);
   assert.match(corporateStyles, /\.divert-art/);
   assert.match(corporateStyles, /\.coach-art/);
   assert.match(divertStyles, /@media \(max-width: 620px\)/);
