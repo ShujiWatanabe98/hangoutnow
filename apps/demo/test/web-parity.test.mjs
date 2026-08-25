@@ -119,7 +119,7 @@ test('homepage targets Shinjuku solo participants with measurable acquisition li
 });
 
 test('corporate homepage presents the three methodmore products accurately', async () => {
-  const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles, coachDemo, coachStyles, coachBootstrap, coachDemoScript, coachDriveModule, coachUnderpassModule, coachPoliceModule, coachNaturalSpeechModule, coachSmoothLocationModule, coachVoiceApproachModule, coachMonitorPointsJson, coachPrivacy, coachSupport, coachDataSources, server] = await Promise.all([
+  const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles, coachDemo, coachStyles, coachBootstrap, coachDemoScript, coachDriveModule, coachUnderpassModule, coachPoliceModule, coachNaturalSpeechModule, coachSmoothLocationModule, coachVoiceApproachModule, coachMonitorPointsJson, coachUnderpassFeedJson, coachPrivacy, coachSupport, coachDataSources, server] = await Promise.all([
     readFile(new URL('../public/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/hangout-now.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/divertnavi.html', import.meta.url), 'utf8'),
@@ -138,12 +138,14 @@ test('corporate homepage presents the three methodmore products accurately', asy
     readFile(new URL('../public/coachgo-demo/dist/mobile/smoothUserLocation.js', import.meta.url), 'utf8'),
     readFile(new URL('../public/coachgo-demo/dist/mobile/voiceApproach.js', import.meta.url), 'utf8'),
     readFile(new URL('../public/coachgo-demo/monitor-points.generated.json', import.meta.url), 'utf8'),
+    readFile(new URL('../public/coachgo-demo/underpasses.generated.json', import.meta.url), 'utf8'),
     readFile(new URL('../public/coachgo-privacy.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/coachgo-support.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/coachgo-data-sources.html', import.meta.url), 'utf8'),
     readFile(new URL('../server.mjs', import.meta.url), 'utf8'),
   ]);
   const coachMonitorPoints = JSON.parse(coachMonitorPointsJson);
+  const coachUnderpassFeed = JSON.parse(coachUnderpassFeedJson);
 
   assert.match(corporate, /<title>methodmore｜日常の選択を、もっと前へ。<\/title>/);
   assert.match(corporate, /<link rel="canonical" href="https:\/\/method-more\.com\/">/);
@@ -271,6 +273,10 @@ test('corporate homepage presents the three methodmore products accurately', asy
     { organization: '内閣府 沖縄総合事務局', count: 9, reason: '商用利用・加工・再配布条件の一次資料確認が未完了' },
   ]);
   assert.equal(coachMonitorPoints.points.some((point) => point.id.startsWith('underpass-shikoku-') || point.id.startsWith('underpass-okinawa-')), false);
+  assert.equal(coachUnderpassFeed.coverage.itemCount, 4449);
+  assert.equal(coachUnderpassFeed.items.length, 4449);
+  assert.equal(coachUnderpassFeed.sources.length, 42);
+  assert.equal(coachUnderpassFeed.items.some((point) => point.sourceOrganization === '国土交通省 四国地方整備局' || point.sourceOrganization === '内閣府 沖縄総合事務局'), false);
   for (const copy of ['フォアグラウンドまたはバックグラウンド', '連続した位置履歴', '運営者は録音音声を保存しません', 'Mapbox', 'トラッキング', 'info@method-more.com']) {
     assert.ok(coachPrivacy.includes(copy), `CoachGo privacy copy is missing: ${copy}`);
   }
@@ -284,7 +290,7 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(coachUnderpassModule, /function buildNationalUnderpassMapPayload/);
   assert.match(server, /requestedPath === '\/coachgo-demo'/);
   assert.match(server, /requestedPath === '\/coachgo-demo\/runtime-config\.js'/);
-  assert.match(server, /underpassDataUrl: '\/divertnavi-app\/data\/underpasses\.generated\.json'/);
+  assert.match(server, /underpassDataUrl: '\/coachgo-demo\/underpasses\.generated\.json'/);
   assert.match(server, /dataMode: 'DIVERTNAVI_PUBLIC'/);
   assert.match(server, /'wasm-unsafe-eval'/);
   assert.match(hangout, /<link rel="canonical" href="https:\/\/method-more\.com\/hangout-now\.html">/);

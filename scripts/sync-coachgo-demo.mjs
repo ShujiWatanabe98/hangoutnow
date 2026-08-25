@@ -94,6 +94,8 @@ const licensedUnderpassSources = new Map([
 ]);
 const licensedUnderpasses = underpassFeed.items.filter((point) => licensedUnderpassSources.has(point.sourceOrganization));
 const excludedUnderpasses = underpassFeed.items.filter((point) => !licensedUnderpassSources.has(point.sourceOrganization));
+const licensedUnderpassKmlUrls = new Set(licensedUnderpasses.map((point) => point.sourceKmlUrl));
+const licensedUnderpassFeedSources = underpassFeed.sources.filter((source) => licensedUnderpassKmlUrls.has(source.kmlUrl));
 const underpassAttribution = [...licensedUnderpassSources].map(([organization, termsUrl]) => ({
   organization,
   termsUrl,
@@ -137,6 +139,19 @@ const monitorPoints = [
     alertDistanceMeters: 800,
   })),
 ];
+await writeFile(resolve(publicRoot, 'underpasses.generated.json'), `${JSON.stringify({
+  ...underpassFeed,
+  coverage: {
+    ...underpassFeed.coverage,
+    requestedPrefectures: licensedUnderpassFeedSources.length,
+    importedPrefectures: licensedUnderpassFeedSources.filter((source) => source.status === 'ok').length,
+    failedPrefectures: [],
+    itemCount: licensedUnderpasses.length,
+    note: `${underpassFeed.coverage.note} CoachGoでは利用条件を一次資料で確認済みの配布元に限定。`,
+  },
+  sources: licensedUnderpassFeedSources,
+  items: licensedUnderpasses,
+})}\n`, 'utf8');
 await writeFile(resolve(publicRoot, 'monitor-points.generated.json'), `${JSON.stringify({
   schemaVersion: 1,
   generatedAt: underpassFeed.generatedAt,

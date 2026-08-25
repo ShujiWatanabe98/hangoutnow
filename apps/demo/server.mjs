@@ -141,7 +141,7 @@ createServer(async (request, response) => {
     const config = {
       mapboxAccessToken: mapboxAccessToken.startsWith('pk.') ? mapboxAccessToken : null,
       mapDataUrl: null,
-      underpassDataUrl: '/divertnavi-app/data/underpasses.generated.json',
+      underpassDataUrl: '/coachgo-demo/underpasses.generated.json',
       dataMode: 'DIVERTNAVI_PUBLIC',
     };
     response.writeHead(200, {
