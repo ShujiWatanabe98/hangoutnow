@@ -103,10 +103,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .user-location-arrow svg { width: 19px; height: 19px; fill: currentColor; }
 .user-location-label { position: absolute; top: 43px; left: 50%; transform: translateX(-50%); padding: 2px 6px; border: 1px solid rgba(25,103,210,0.18); border-radius: 6px; color: #174ea6; background: rgba(255,255,255,0.95); box-shadow: 0 2px 6px rgba(32,37,44,0.14); white-space: nowrap; font-size: 9px; font-weight: 900; }
 .continuous-demo-vehicle { width: 48px; height: 48px; position: relative; display: grid; place-items: center; pointer-events: none; }
-.continuous-demo-vehicle-graphic { width: 38px; height: 38px; display: grid; place-items: center; border: 3px solid #fff; border-radius: 50%; color: #fff; background: #ff6b20; box-shadow: 0 4px 14px rgba(184,63,10,0.42); transition: transform 100ms linear; }
+.continuous-demo-vehicle-graphic { width: 38px; height: 38px; display: grid; place-items: center; border: 3px solid #fff; border-radius: 50%; color: #fff; background: #ff6b20; box-shadow: 0 4px 14px rgba(184,63,10,0.42); transform-origin: center; will-change: transform; }
 .continuous-demo-vehicle-graphic svg { width: 28px; height: 28px; fill: currentColor; }
 .continuous-demo-vehicle-graphic .vehicle-window { fill: #28323d; }
 .continuous-demo-vehicle-label { position: absolute; top: 46px; left: 50%; transform: translateX(-50%); padding: 3px 7px; border-radius: 8px; color: #7c2b09; background: rgba(255,255,255,0.96); box-shadow: 0 2px 7px rgba(32,37,44,0.16); white-space: nowrap; font-size: 9px; font-weight: 900; }
+.continuous-demo-vehicle-overlay { position: absolute; z-index: 525; top: 50%; left: 50%; transform: translate(-50%,-50%); }
 @keyframes location-pulse { 0% { transform: scale(0.7); opacity: 0.9; } 70%,100% { transform: scale(1.45); opacity: 0; } }
 .mapboxgl-ctrl-attrib { font-size: 8px; }
 

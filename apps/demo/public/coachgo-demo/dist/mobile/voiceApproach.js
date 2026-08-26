@@ -45,6 +45,33 @@ function projectCoordinateToRoute(coordinate, route) {
     }
     return best;
 }
+export function createRouteApproachIndex(route, points, selectedCategories, passageCorridorMeters = routePassageCorridorMeters) {
+    const routeLengthMeters = route.slice(1).reduce((sum, coordinate, index) => (sum + distanceBetweenCoordinatesMeters(route[index], coordinate)), 0);
+    const indexed = points.flatMap((point) => {
+        if (!selectedCategories.has(point.monitorCategory))
+            return [];
+        const projection = projectCoordinateToRoute([point.longitude, point.latitude], route);
+        if (projection === null || projection.distanceFromRouteMeters > passageCorridorMeters)
+            return [];
+        return [{
+                point,
+                distanceAlongRouteMeters: projection.distanceAlongRouteMeters,
+                distanceFromRouteMeters: projection.distanceFromRouteMeters,
+            }];
+    }).sort((left, right) => left.distanceAlongRouteMeters - right.distanceAlongRouteMeters);
+    return { routeLengthMeters, points: indexed };
+}
+export function nearbyIndexedMonitoredPoints(progress, index) {
+    if (index.routeLengthMeters <= 0)
+        return [];
+    const currentDistanceMeters = Math.max(0, Math.min(1, progress)) * index.routeLengthMeters;
+    return index.points.flatMap(({ point, distanceAlongRouteMeters, distanceFromRouteMeters }) => {
+        const distanceMeters = distanceAlongRouteMeters - currentDistanceMeters;
+        return distanceMeters >= 0 && distanceMeters <= point.alertDistanceMeters
+            ? [{ point, distanceMeters, distanceFromRouteMeters }]
+            : [];
+    });
+}
 export function nearbyMonitoredPoints(location, route, points, selectedCategories, passageCorridorMeters = routePassageCorridorMeters) {
     const currentProjection = projectCoordinateToRoute(location, route);
     if (currentProjection === null)

@@ -2,8 +2,8 @@ import { buildHazardPointGuidance, createSessionUserHazardPoint, defaultSelected
 import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260824-2";
 import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260824-1";
 import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260824-1";
-import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260824-5";
-import { nearbyMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260824-6";
+import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260826-1";
+import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260826-1";
 import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260824-1";
 import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260825-1";
 import { interpolateUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260825-1";
@@ -107,6 +107,11 @@ const DEMO_DRIVE_SOURCE_ID = "coachgo-yokohama-honatsugi-route";
 const DEMO_DRIVE_CASING_LAYER_ID = "coachgo-yokohama-honatsugi-route-casing";
 const DEMO_DRIVE_LAYER_ID = "coachgo-yokohama-honatsugi-route-line";
 const DEMO_DRIVE_DURATION_MS = 60_000;
+const DEMO_BEARING_LOOKAHEAD_METERS = 45;
+const DEMO_BEARING_RESPONSE_MS = 190;
+const DEMO_UI_UPDATE_INTERVAL_MS = 250;
+const DEMO_BALANCED_CAMERA_INTERVAL_MS = 1_000 / 30;
+const DEMO_FRAME_QUALITY_SAMPLE_SIZE = 45;
 const DEMO_VOICE_SCENARIOS = [
     { id: "demo-voice-underpass", progress: 0.12, monitorCategory: "ROAD_FLOODING", name: "デモ道路冠水地点", kind: "UNDERPASS" },
     { id: "demo-voice-river", progress: 0.3, monitorCategory: "RIVER_FLOODING", name: "デモ河川氾濫地点", kind: "OTHER" },
@@ -140,11 +145,19 @@ let rainViewerLoading = null;
 let demoDriveRoute = null;
 let demoDriveSampler = null;
 let demoDriveMarker = null;
+let demoDriveMarkerElement = null;
 let demoVehicleGraphic = null;
+let demoVehicleOverlay = null;
+let demoVehicleOverlayGraphic = null;
+let demoRouteApproachIndex = null;
 let demoDriveAnimationStarted = false;
 let demoDriveRunning = false;
 let demoDriveProgress = 0;
 let demoDriveLastFrameAt = null;
+let demoSmoothedBearing = null;
+let demoRenderQuality = "HIGH";
+let demoFrameDurations = [];
+let lastDemoUiUpdateAt = -Infinity;
 let lastVoiceProximityCheckAt = 0;
 let lastVoiceAnnouncementAt = -Infinity;
 let activeNearbyPointIds = new Set();
@@ -159,7 +172,6 @@ let panelTouchStartedAt = 0;
 let panelTouchDragging = false;
 const VOICE_PROXIMITY_CHECK_INTERVAL_MS = 750;
 const VOICE_ANNOUNCEMENT_COOLDOWN_MS = 12_000;
-const DEMO_CAMERA_FRAME_INTERVAL_MS = 1_000 / 60;
 const MOVEMENT_HEADING_HOLD_MS = 3_000;
 const MOBILE_PANEL_QUERY = "(max-width: 760px)";
 function refreshPreferredJapaneseVoice() {
@@ -455,7 +467,9 @@ function voiceMonitorPoints(includeDemoFixtures = demoDriveRunning) {
                 alertDistanceMeters: 700,
             };
         });
-    const shared = (divertNaviMapData?.items ?? []).flatMap((point) => (!includeDemoFixtures && point.sourceOrganization === "CoachGo合成デモ" ? [] : [{
+    if (includeDemoFixtures)
+        return demoScenarios;
+    const shared = (divertNaviMapData?.items ?? []).flatMap((point) => (point.sourceOrganization === "CoachGo合成デモ" ? [] : [{
             id: point.id,
             monitorCategory: point.monitorCategory,
             name: point.name,
@@ -464,7 +478,7 @@ function voiceMonitorPoints(includeDemoFixtures = demoDriveRunning) {
             kind: point.kind,
             alertDistanceMeters: point.kind === "POLICE_PRIORITY" ? 800 : 700,
         }]));
-    const hazards = allHazards().flatMap((point) => (point.monitorCategory === null || (!includeDemoFixtures && point.sourceKind === "SYNTHETIC_FIXTURE") ? [] : [{
+    const hazards = allHazards().flatMap((point) => (point.monitorCategory === null || point.sourceKind === "SYNTHETIC_FIXTURE" ? [] : [{
             id: point.id,
             monitorCategory: point.monitorCategory,
             name: point.name,
@@ -474,6 +488,16 @@ function voiceMonitorPoints(includeDemoFixtures = demoDriveRunning) {
             alertDistanceMeters: 800,
         }]));
     return [...demoScenarios, ...shared, ...hazards];
+}
+function rebuildDemoRouteApproachIndex() {
+    if (demoDriveRoute === null || demoDriveSampler === null) {
+        demoRouteApproachIndex = null;
+        return;
+    }
+    const points = voiceMonitorPoints(true);
+    const demoCategories = new Set(points.map((point) => point.monitorCategory));
+    demoRouteApproachIndex = createRouteApproachIndex(demoDriveRoute, points, demoCategories);
+    demoPlaybackStatus.dataset.indexedDemoPoints = String(demoRouteApproachIndex.points.length);
 }
 function speakMonitorApproach(point) {
     const message = voiceApproachMessage(point);
@@ -528,6 +552,15 @@ function notifyMonitorApproach(point) {
     notificationPreview.hidden = false;
     demoPlaybackStatus.dataset.lastNotificationPoint = point.id;
     demoPlaybackStatus.dataset.lastNotificationTitle = notification.title;
+    if (demoDriveRunning) {
+        const history = (demoPlaybackStatus.dataset.notificationHistory ?? "")
+            .split(",")
+            .filter((id) => id.length > 0);
+        if (!history.includes(point.id)) {
+            history.push(point.id);
+            demoPlaybackStatus.dataset.notificationHistory = history.join(",");
+        }
+    }
     if (window.ReactNativeWebView !== undefined) {
         window.ReactNativeWebView.postMessage(JSON.stringify({
             type: "COACHGO_NATIVE_NOTIFICATION",
@@ -542,7 +575,7 @@ function notifyMonitorApproach(point) {
         new window.Notification(notification.title, { body: notification.body, tag: `coachgo-${point.id}` });
     }
 }
-function checkDemoVoiceApproach(location, now) {
+function checkDemoVoiceApproach(progress, now) {
     if (now - lastVoiceProximityCheckAt < VOICE_PROXIMITY_CHECK_INTERVAL_MS)
         return;
     lastVoiceProximityCheckAt = now;
@@ -550,9 +583,9 @@ function checkDemoVoiceApproach(location, now) {
         activeNearbyPointIds.clear();
         return;
     }
-    if (demoDriveRoute === null)
+    if (demoRouteApproachIndex === null)
         return;
-    const nearby = nearbyMonitoredPoints(location, demoDriveRoute, voiceMonitorPoints(), selectedCategories);
+    const nearby = nearbyIndexedMonitoredPoints(progress, demoRouteApproachIndex);
     const nearbyIds = new Set(nearby.map(({ point }) => point.id));
     const entered = nearby.find(({ point }) => !activeNearbyPointIds.has(point.id));
     activeNearbyPointIds = nearbyIds;
@@ -968,34 +1001,54 @@ function focusContinuousDemoRoute() {
 function focusDemoVehicle(duration = 750) {
     if (map === null || demoDriveSampler === null)
         return;
-    const position = demoDriveSampler.positionAt(demoDriveProgress);
+    const position = demoDriveSampler.positionAt(demoDriveProgress, DEMO_BEARING_LOOKAHEAD_METERS);
+    demoSmoothedBearing = position.bearing;
     map.easeTo({
         center: [position.coordinate[0], position.coordinate[1]],
         zoom: 15.2,
-        pitch: 48,
+        pitch: 44,
         bearing: position.bearing,
         duration,
     });
     demoCameraFollowStartsAt = performance.now() + duration;
     lastDemoCameraFrameAt = -Infinity;
 }
+function resetDemoRenderQuality() {
+    demoRenderQuality = "HIGH";
+    demoFrameDurations = [];
+    lastDemoCameraFrameAt = -Infinity;
+    demoPlaybackStatus.dataset.renderQuality = "high";
+}
+function recordDemoFrameDuration(elapsed) {
+    if (elapsed <= 0 || !Number.isFinite(elapsed))
+        return;
+    demoFrameDurations.push(Math.min(elapsed, 250));
+    if (demoFrameDurations.length < DEMO_FRAME_QUALITY_SAMPLE_SIZE)
+        return;
+    const average = demoFrameDurations.reduce((sum, duration) => sum + duration, 0) / demoFrameDurations.length;
+    const longFrames = demoFrameDurations.filter((duration) => duration >= 34).length;
+    demoFrameDurations = [];
+    demoPlaybackStatus.dataset.averageFrameMs = average.toFixed(1);
+    if (demoRenderQuality === "HIGH" && (average > 22 || longFrames >= 4)) {
+        demoRenderQuality = "BALANCED";
+        demoPlaybackStatus.dataset.renderQuality = "balanced";
+        map?.jumpTo({ pitch: 30 });
+    }
+}
 function followDemoVehicle(position, now) {
+    const cameraInterval = demoRenderQuality === "HIGH" ? 0 : DEMO_BALANCED_CAMERA_INTERVAL_MS;
     if (map === null
         || !demoDriveRunning
         || now < demoCameraFollowStartsAt
-        || now - lastDemoCameraFrameAt < DEMO_CAMERA_FRAME_INTERVAL_MS)
+        || now - lastDemoCameraFrameAt < cameraInterval)
         return;
     lastDemoCameraFrameAt = now;
     map.jumpTo({
         center: [position.coordinate[0], position.coordinate[1]],
-        zoom: Math.max(map.getZoom(), 15.2),
-        pitch: 48,
         bearing: position.bearing,
     });
 }
-function createDemoVehicleMarker() {
-    if (map === null || window.mapboxgl === undefined || demoDriveMarker !== null)
-        return;
+function createDemoVehicleElement(labelText) {
     const element = document.createElement("div");
     element.className = "continuous-demo-vehicle";
     element.setAttribute("role", "img");
@@ -1005,33 +1058,75 @@ function createDemoVehicleMarker() {
     graphic.innerHTML = '<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 3 31 30l-11-5-11 5L20 3Z"/><path class="vehicle-window" d="m20 9 5 13-5-2.2-5 2.2 5-13Z"/></svg>';
     const label = document.createElement("span");
     label.className = "continuous-demo-vehicle-label";
-    label.textContent = "デモ走行";
+    label.textContent = labelText;
     element.append(graphic, label);
-    demoVehicleGraphic = graphic;
-    demoDriveMarker = new window.mapboxgl.Marker({ element, anchor: "center" })
-        .setLngLat([YOKOHAMA_STATION[0], YOKOHAMA_STATION[1]])
-        .addTo(map);
+    return { element, graphic };
 }
-function animateContinuousDemoDrive() {
-    if (demoDriveRoute === null || demoDriveSampler === null || demoDriveMarker === null)
-        return;
-    const tick = (now) => {
-        if (demoDriveRoute === null || demoDriveSampler === null || demoDriveMarker === null)
-            return;
-        const elapsed = demoDriveLastFrameAt === null ? 0 : now - demoDriveLastFrameAt;
-        demoDriveLastFrameAt = now;
-        demoDriveProgress = advanceDemoProgress(demoDriveProgress, elapsed, DEMO_DRIVE_DURATION_MS, demoDriveRunning);
-        const position = demoDriveSampler.positionAt(demoDriveProgress);
+function setDemoVehiclePresentation(running) {
+    if (demoDriveMarkerElement !== null)
+        demoDriveMarkerElement.hidden = running;
+    if (demoVehicleOverlay !== null)
+        demoVehicleOverlay.hidden = !running;
+    if (!running && demoDriveMarker !== null && demoDriveSampler !== null) {
+        const position = demoDriveSampler.positionAt(demoDriveProgress, DEMO_BEARING_LOOKAHEAD_METERS);
         demoDriveMarker.setLngLat([position.coordinate[0], position.coordinate[1]]);
-        followDemoVehicle(position, now);
         if (demoVehicleGraphic !== null) {
             const mapBearing = map?.getBearing() ?? 0;
             demoVehicleGraphic.style.transform = `rotate(${screenRelativeBearing(position.bearing, mapBearing)}deg)`;
         }
-        demoPlaybackStatus.dataset.demoProgress = String(Math.floor(demoDriveProgress * 100));
-        demoPlaybackStatus.dataset.vehicleLongitude = position.coordinate[0].toFixed(6);
-        demoPlaybackButton.dataset.completedCategories = String(Math.floor(demoDriveProgress * 100));
-        checkDemoVoiceApproach(position.coordinate, now);
+    }
+}
+function createDemoVehicleMarker() {
+    if (map === null || window.mapboxgl === undefined || demoDriveMarker !== null)
+        return;
+    const markerVehicle = createDemoVehicleElement("デモ走行");
+    demoDriveMarkerElement = markerVehicle.element;
+    demoVehicleGraphic = markerVehicle.graphic;
+    demoDriveMarker = new window.mapboxgl.Marker({ element: markerVehicle.element, anchor: "center" })
+        .setLngLat([YOKOHAMA_STATION[0], YOKOHAMA_STATION[1]])
+        .addTo(map);
+    const overlayVehicle = createDemoVehicleElement("デモ走行");
+    overlayVehicle.element.classList.add("continuous-demo-vehicle-overlay");
+    overlayVehicle.element.hidden = true;
+    map.getContainer().append(overlayVehicle.element);
+    demoVehicleOverlay = overlayVehicle.element;
+    demoVehicleOverlayGraphic = overlayVehicle.graphic;
+}
+function animateContinuousDemoDrive() {
+    if (demoDriveAnimationStarted
+        || !demoDriveRunning
+        || demoDriveRoute === null
+        || demoDriveSampler === null
+        || demoDriveMarker === null)
+        return;
+    demoDriveAnimationStarted = true;
+    const tick = (now) => {
+        if (!demoDriveRunning || demoDriveRoute === null || demoDriveSampler === null || demoDriveMarker === null) {
+            demoDriveAnimationStarted = false;
+            demoDriveLastFrameAt = null;
+            return;
+        }
+        const elapsed = demoDriveLastFrameAt === null ? 0 : now - demoDriveLastFrameAt;
+        demoDriveLastFrameAt = now;
+        recordDemoFrameDuration(elapsed);
+        demoDriveProgress = advanceDemoProgress(demoDriveProgress, elapsed, DEMO_DRIVE_DURATION_MS, demoDriveRunning);
+        const target = demoDriveSampler.positionAt(demoDriveProgress, DEMO_BEARING_LOOKAHEAD_METERS);
+        demoSmoothedBearing = demoSmoothedBearing === null
+            ? target.bearing
+            : smoothBearing(demoSmoothedBearing, target.bearing, elapsed, DEMO_BEARING_RESPONSE_MS);
+        const position = { coordinate: target.coordinate, bearing: demoSmoothedBearing };
+        followDemoVehicle(position, now);
+        if (demoVehicleOverlayGraphic !== null) {
+            const mapBearing = map?.getBearing() ?? 0;
+            demoVehicleOverlayGraphic.style.transform = `rotate(${screenRelativeBearing(position.bearing, mapBearing)}deg)`;
+        }
+        if (now - lastDemoUiUpdateAt >= DEMO_UI_UPDATE_INTERVAL_MS) {
+            lastDemoUiUpdateAt = now;
+            demoPlaybackStatus.dataset.demoProgress = String(Math.floor(demoDriveProgress * 100));
+            demoPlaybackStatus.dataset.vehicleLongitude = position.coordinate[0].toFixed(6);
+            demoPlaybackButton.dataset.completedCategories = String(Math.floor(demoDriveProgress * 100));
+        }
+        checkDemoVoiceApproach(demoDriveProgress, now);
         window.requestAnimationFrame(tick);
     };
     window.requestAnimationFrame(tick);
@@ -1087,14 +1182,11 @@ async function initializeContinuousDemoDrive(token) {
         },
     });
     createDemoVehicleMarker();
+    rebuildDemoRouteApproachIndex();
     demoPlaybackStatus.dataset.routeMode = routeMode;
     demoPlaybackButton.disabled = false;
     renderDemoPlaybackState();
     focusContinuousDemoRoute();
-    if (!demoDriveAnimationStarted) {
-        demoDriveAnimationStarted = true;
-        animateContinuousDemoDrive();
-    }
 }
 function withKanagawaPolice(payload) {
     const nonPolice = payload.items.filter((point) => point.kind !== "POLICE_PRIORITY");
@@ -1376,6 +1468,7 @@ demoPlaybackButton.addEventListener("click", () => {
     if (!demoDriveRunning) {
         cancelNaturalJapaneseSpeech();
         announceDemoStop();
+        setDemoVehiclePresentation(false);
         activeNearbyPointIds.clear();
         lastVoiceProximityCheckAt = 0;
         if (hasLiveUserLocation)
@@ -1383,6 +1476,11 @@ demoPlaybackButton.addEventListener("click", () => {
     }
     else {
         demoDriveProgress = 0;
+        demoPlaybackStatus.dataset.notificationHistory = "";
+        demoSmoothedBearing = null;
+        lastDemoUiUpdateAt = -Infinity;
+        resetDemoRenderQuality();
+        setDemoVehiclePresentation(true);
         activeNearbyPointIds.clear();
         lastVoiceAnnouncementAt = -Infinity;
         lastVoiceProximityCheckAt = 0;
@@ -1393,6 +1491,7 @@ demoPlaybackButton.addEventListener("click", () => {
             requestSystemNotificationPermission();
         focusDemoVehicle();
         announceDemoStart();
+        animateContinuousDemoDrive();
     }
 });
 requiredElement("#dismiss-notification").addEventListener("click", () => {
