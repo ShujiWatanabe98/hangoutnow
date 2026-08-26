@@ -2,8 +2,8 @@ import { buildHazardPointGuidance, createSessionUserHazardPoint, defaultSelected
 import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260824-2";
 import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260824-1";
 import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260824-1";
-import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260826-1";
-import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260826-1";
+import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260826-2";
+import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260826-2";
 import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260824-1";
 import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260825-1";
 import { interpolateUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260825-1";
@@ -80,6 +80,15 @@ const backgroundNotificationToggle = requiredElement("#background-notification-t
 const backgroundNotificationState = requiredElement("#background-notification-state");
 const hazardVoiceToggle = requiredElement("#hazard-voice-toggle");
 const hazardVoiceState = requiredElement("#hazard-voice-state");
+const largeReportIconToggle = requiredElement("#large-report-icon-toggle");
+const largeReportIconState = requiredElement("#large-report-icon-state");
+const voiceInputToggle = requiredElement("#voice-input-toggle");
+const voiceInputState = requiredElement("#voice-input-state");
+const demoVisibilityToggle = requiredElement("#demo-visibility-toggle");
+const demoVisibilityState = requiredElement("#demo-visibility-state");
+const inputPermissionStatus = requiredElement("#input-permission-status");
+const recenterMapButton = requiredElement("#recenter-map");
+const registerHazardButton = requiredElement("#register-hazard");
 const undoReportToast = requiredElement("#undo-report-toast");
 const undoReportTitle = requiredElement("#undo-report-title");
 const permissionStatusElement = requiredElement("#permission-status");
@@ -107,6 +116,7 @@ const DEMO_DRIVE_SOURCE_ID = "coachgo-yokohama-honatsugi-route";
 const DEMO_DRIVE_CASING_LAYER_ID = "coachgo-yokohama-honatsugi-route-casing";
 const DEMO_DRIVE_LAYER_ID = "coachgo-yokohama-honatsugi-route-line";
 const DEMO_DRIVE_DURATION_MS = 60_000;
+const DEFAULT_LOCATION_ZOOM = 15.8;
 const DEMO_BEARING_LOOKAHEAD_METERS = 45;
 const DEMO_BEARING_RESPONSE_MS = 190;
 const DEMO_UI_UPDATE_INTERVAL_MS = 250;
@@ -128,6 +138,27 @@ let sessionUserReports = [];
 let approachDetectionEnabled = true;
 let backgroundNotificationEnabled = true;
 let hazardVoiceEnabled = true;
+const INPUT_SETTINGS_STORAGE_KEY = "coachgo:input-settings-v1";
+function readStoredInputSettings() {
+    try {
+        const stored = window.localStorage.getItem(INPUT_SETTINGS_STORAGE_KEY);
+        if (stored === null)
+            return { largeReportIcon: false, voiceInput: true, demoVisible: true };
+        const parsed = JSON.parse(stored);
+        return {
+            largeReportIcon: parsed.largeReportIcon === true,
+            voiceInput: parsed.voiceInput !== false,
+            demoVisible: parsed.demoVisible !== false,
+        };
+    }
+    catch {
+        return { largeReportIcon: false, voiceInput: true, demoVisible: true };
+    }
+}
+const storedInputSettings = readStoredInputSettings();
+let largeReportIconEnabled = storedInputSettings.largeReportIcon;
+let voiceInputEnabled = storedInputSettings.voiceInput;
+let demoVisibilityEnabled = storedInputSettings.demoVisible;
 let reportSequence = 0;
 let lastReportId = null;
 let undoReportTimer = null;
@@ -162,6 +193,9 @@ let lastVoiceProximityCheckAt = 0;
 let lastVoiceAnnouncementAt = -Infinity;
 let activeNearbyPointIds = new Set();
 let activeVoiceRecognition = null;
+let activeVoiceCommandRecognition = null;
+let voiceCommandRestartTimer = null;
+let microphonePermissionGranted = false;
 let preferredJapaneseVoice = null;
 let activeSpeechSequence = 0;
 let demoCameraFollowStartsAt = -Infinity;
@@ -292,6 +326,171 @@ function renderPermissionStatus() {
     backgroundNotificationState.dataset.state = backgroundNotificationEnabled ? "on" : "off";
     hazardVoiceToggle.setAttribute("aria-checked", String(hazardVoiceEnabled));
     hazardVoiceState.dataset.state = hazardVoiceEnabled ? "on" : "off";
+}
+function persistInputSettings() {
+    try {
+        window.localStorage.setItem(INPUT_SETTINGS_STORAGE_KEY, JSON.stringify({
+            largeReportIcon: largeReportIconEnabled,
+            voiceInput: voiceInputEnabled,
+            demoVisible: demoVisibilityEnabled,
+        }));
+    }
+    catch {
+        // Storage may be unavailable in a private WebView. The current session still works.
+    }
+}
+function renderInputSettings() {
+    largeReportIconToggle.setAttribute("aria-checked", String(largeReportIconEnabled));
+    largeReportIconState.dataset.state = largeReportIconEnabled ? "on" : "off";
+    for (const button of [recenterMapButton, registerHazardButton, demoPlaybackButton]) {
+        button.classList.toggle("large-input-icon", largeReportIconEnabled);
+    }
+    voiceInputToggle.setAttribute("aria-checked", String(voiceInputEnabled));
+    voiceInputState.dataset.state = voiceInputEnabled ? "on" : "off";
+    voiceReportButton.disabled = !voiceInputEnabled;
+    demoVisibilityToggle.setAttribute("aria-checked", String(demoVisibilityEnabled));
+    demoVisibilityState.dataset.state = demoVisibilityEnabled ? "on" : "off";
+    demoPlaybackButton.hidden = !demoVisibilityEnabled;
+    renderDemoMapVisibility();
+}
+function renderDemoMapVisibility() {
+    const routeVisibility = demoVisibilityEnabled ? "visible" : "none";
+    for (const layerId of [DEMO_DRIVE_CASING_LAYER_ID, DEMO_DRIVE_LAYER_ID]) {
+        if (map?.getLayer(layerId) !== undefined) {
+            map.setLayoutProperty(layerId, "visibility", routeVisibility);
+        }
+    }
+    if (demoDriveMarkerElement !== null) {
+        demoDriveMarkerElement.hidden = !demoVisibilityEnabled || demoDriveRunning;
+    }
+    if (demoVehicleOverlay !== null) {
+        demoVehicleOverlay.hidden = !demoVisibilityEnabled || !demoDriveRunning;
+    }
+    demoPlaybackStatus.hidden = !demoVisibilityEnabled;
+}
+function clearVoiceCommandRestartTimer() {
+    if (voiceCommandRestartTimer === null)
+        return;
+    window.clearTimeout(voiceCommandRestartTimer);
+    voiceCommandRestartTimer = null;
+}
+function stopVoiceCommandRecognition() {
+    clearVoiceCommandRestartTimer();
+    const recognition = activeVoiceCommandRecognition;
+    activeVoiceCommandRecognition = null;
+    recognition?.abort();
+}
+function isRegistrationVoiceCommand(transcript) {
+    return transcript.normalize("NFKC").replace(/[\s、。,.!?！？]/g, "").includes("登録");
+}
+function scheduleVoiceCommandRecognition(delayMs = 650) {
+    clearVoiceCommandRestartTimer();
+    if (!voiceInputEnabled || !microphonePermissionGranted || registrationDialog.open || document.hidden)
+        return;
+    voiceCommandRestartTimer = window.setTimeout(() => {
+        voiceCommandRestartTimer = null;
+        startVoiceCommandRecognition();
+    }, delayMs);
+}
+function startVoiceCommandRecognition() {
+    if (!voiceInputEnabled
+        || !microphonePermissionGranted
+        || registrationDialog.open
+        || document.hidden
+        || activeVoiceCommandRecognition !== null
+        || activeVoiceRecognition !== null)
+        return;
+    const Recognition = window.SpeechRecognition ?? window.webkitSpeechRecognition;
+    if (Recognition === undefined) {
+        inputPermissionStatus.dataset.state = "unavailable";
+        inputPermissionStatus.textContent = "この端末は「登録」の音声待ち受けに対応していません。投稿ボタンをご利用ください。";
+        return;
+    }
+    let commandHandled = false;
+    const recognition = new Recognition();
+    activeVoiceCommandRecognition = recognition;
+    recognition.lang = "ja-JP";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.onstart = () => {
+        inputPermissionStatus.dataset.state = "ready";
+        inputPermissionStatus.textContent = "音声入力ON：「登録」と話すと投稿画面が開きます。";
+    };
+    recognition.onresult = (event) => {
+        let transcript = "";
+        for (let index = event.resultIndex; index < event.results.length; index += 1) {
+            const result = event.results[index];
+            if (result?.isFinal)
+                transcript += result[0].transcript;
+        }
+        if (!isRegistrationVoiceCommand(transcript) || commandHandled)
+            return;
+        commandHandled = true;
+        recognition.stop();
+        openRegistrationDialog(true);
+    };
+    recognition.onerror = (event) => {
+        if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+            microphonePermissionGranted = false;
+            inputPermissionStatus.dataset.state = "error";
+            inputPermissionStatus.textContent = "音声入力にはマイクの許可が必要です。端末の設定から許可してください。";
+            return;
+        }
+        if (event.error !== "no-speech" && event.error !== "aborted") {
+            inputPermissionStatus.dataset.state = "unavailable";
+            inputPermissionStatus.textContent = "音声待ち受けを一時停止しました。自動的に再試行します。";
+        }
+    };
+    recognition.onend = () => {
+        if (activeVoiceCommandRecognition === recognition)
+            activeVoiceCommandRecognition = null;
+        if (!commandHandled)
+            scheduleVoiceCommandRecognition();
+    };
+    try {
+        recognition.start();
+    }
+    catch {
+        activeVoiceCommandRecognition = null;
+        inputPermissionStatus.dataset.state = "unavailable";
+        inputPermissionStatus.textContent = "音声待ち受けを開始できませんでした。投稿ボタンをご利用ください。";
+    }
+}
+async function requestMicrophonePermissionAtStartup() {
+    if (!voiceInputEnabled) {
+        inputPermissionStatus.dataset.state = "off";
+        inputPermissionStatus.textContent = "音声入力はOFFです。";
+        return;
+    }
+    if (navigator.mediaDevices?.getUserMedia === undefined) {
+        inputPermissionStatus.dataset.state = "unavailable";
+        inputPermissionStatus.textContent = "この端末ではマイク許可を確認できません。投稿ボタンをご利用ください。";
+        return;
+    }
+    inputPermissionStatus.dataset.state = "loading";
+    inputPermissionStatus.textContent = "音声入力のため、マイクの許可を確認しています。";
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        for (const track of stream.getTracks())
+            track.stop();
+        if (!voiceInputEnabled) {
+            inputPermissionStatus.dataset.state = "off";
+            inputPermissionStatus.textContent = "音声入力はOFFです。投稿ボタンとカテゴリー選択は利用できます。";
+            return;
+        }
+        microphonePermissionGranted = true;
+        inputPermissionStatus.dataset.state = "ready";
+        inputPermissionStatus.textContent = "音声入力ON：「登録」と話すと投稿画面が開きます。";
+        scheduleVoiceCommandRecognition(250);
+    }
+    catch {
+        if (!voiceInputEnabled)
+            return;
+        microphonePermissionGranted = false;
+        inputPermissionStatus.dataset.state = "error";
+        inputPermissionStatus.textContent = "音声入力にはマイクの許可が必要です。投稿ボタンは引き続き利用できます。";
+    }
 }
 function selectHazard(point) {
     selectedHazard = point;
@@ -674,7 +873,7 @@ function handleUserLocationSample(target, now, focusOnFirstFix = false) {
         connectionState.dataset.locationMotion = "stationary";
         updateUserLocationHeading(now);
         if (firstLiveFix && focusOnFirstFix) {
-            map?.easeTo({ center: [target[0], target[1]], zoom: 15, pitch: 22, bearing: 0, duration: 650 });
+            map?.easeTo({ center: [target[0], target[1]], zoom: DEFAULT_LOCATION_ZOOM, pitch: 22, bearing: 0, duration: 650 });
         }
         return;
     }
@@ -1186,7 +1385,7 @@ async function initializeContinuousDemoDrive(token) {
     demoPlaybackStatus.dataset.routeMode = routeMode;
     demoPlaybackButton.disabled = false;
     renderDemoPlaybackState();
-    focusContinuousDemoRoute();
+    renderDemoMapVisibility();
 }
 function withKanagawaPolice(payload) {
     const nonPolice = payload.items.filter((point) => point.kind !== "POLICE_PRIORITY");
@@ -1277,7 +1476,7 @@ function initializeMapbox() {
             locale: { ...COACHGO_MAP_LOCALE },
             localIdeographFontFamily: '"Noto Sans JP", "Hiragino Sans", sans-serif',
             center: currentUserLocation,
-            zoom: 15,
+            zoom: DEFAULT_LOCATION_ZOOM,
             pitch: 22,
             bearing: 0,
             antialias: true,
@@ -1446,6 +1645,34 @@ hazardVoiceToggle.addEventListener("click", () => {
     }
     renderPermissionStatus();
 });
+largeReportIconToggle.addEventListener("click", () => {
+    largeReportIconEnabled = !largeReportIconEnabled;
+    persistInputSettings();
+    renderInputSettings();
+});
+voiceInputToggle.addEventListener("click", () => {
+    voiceInputEnabled = !voiceInputEnabled;
+    persistInputSettings();
+    if (!voiceInputEnabled) {
+        stopVoiceCommandRecognition();
+        activeVoiceRecognition?.abort();
+        inputPermissionStatus.dataset.state = "off";
+        inputPermissionStatus.textContent = "音声入力はOFFです。投稿ボタンとカテゴリー選択は利用できます。";
+    }
+    else {
+        void requestMicrophonePermissionAtStartup();
+    }
+    renderInputSettings();
+});
+demoVisibilityToggle.addEventListener("click", () => {
+    demoVisibilityEnabled = !demoVisibilityEnabled;
+    if (!demoVisibilityEnabled && demoDriveRunning)
+        demoPlaybackButton.click();
+    persistInputSettings();
+    renderInputSettings();
+    if (demoVisibilityEnabled)
+        focusContinuousDemoRoute();
+});
 for (const button of document.querySelectorAll("[data-category]")) {
     button.addEventListener("click", () => {
         const category = button.dataset.category;
@@ -1497,16 +1724,25 @@ demoPlaybackButton.addEventListener("click", () => {
 requiredElement("#dismiss-notification").addEventListener("click", () => {
     notificationPreview.hidden = true;
 });
-requiredElement("#register-hazard").addEventListener("click", () => {
+function openRegistrationDialog(startListening) {
+    stopVoiceCommandRecognition();
     registrationError.textContent = "";
     voiceReportStatus.dataset.state = "idle";
-    voiceReportStatus.textContent = "マイクを押して、危険の種類を話してください。";
+    voiceReportStatus.textContent = voiceInputEnabled
+        ? "危険の種類を話してください。"
+        : "音声入力はOFFです。カテゴリーを押して登録してください。";
     voiceReportTranscript.hidden = true;
     voiceReportTranscript.textContent = "";
-    registrationDialog.showModal();
+    if (!registrationDialog.open)
+        registrationDialog.showModal();
+    if (startListening && voiceInputEnabled) {
+        window.setTimeout(() => startHazardVoiceRecognition(), 220);
+    }
+}
+registerHazardButton.addEventListener("click", () => {
+    openRegistrationDialog(voiceInputEnabled);
 });
 requiredElement("#close-registration").addEventListener("click", () => {
-    activeVoiceRecognition?.abort();
     registrationDialog.close();
 });
 requiredElement("#show-all-reports").addEventListener("click", (event) => {
@@ -1542,11 +1778,15 @@ function registerSessionHazard(category, coordinates) {
         latitude: coordinates[1],
     });
     sessionUserReports = [...sessionUserReports, report];
+    const recognition = activeVoiceRecognition;
+    activeVoiceRecognition = null;
+    recognition?.stop();
     registrationDialog.close();
     setPanelOpen(false);
     renderMap();
     showUndoReport(report);
     speakReportConfirmation(categoryLabels[category]);
+    scheduleVoiceCommandRecognition(1_000);
     return report;
 }
 for (const button of document.querySelectorAll("[data-report-category]")) {
@@ -1564,11 +1804,17 @@ for (const button of document.querySelectorAll("[data-report-category]")) {
         }
     });
 }
-voiceReportButton.addEventListener("click", () => {
+function startHazardVoiceRecognition() {
+    if (!voiceInputEnabled) {
+        voiceReportStatus.dataset.state = "error";
+        voiceReportStatus.textContent = "音声入力がOFFです。入力設定からONにしてください。";
+        return;
+    }
     if (activeVoiceRecognition !== null) {
         activeVoiceRecognition.stop();
         return;
     }
+    stopVoiceCommandRecognition();
     const Recognition = window.SpeechRecognition ?? window.webkitSpeechRecognition;
     if (Recognition === undefined) {
         voiceReportStatus.dataset.state = "error";
@@ -1615,7 +1861,6 @@ voiceReportButton.addEventListener("click", () => {
         completed = true;
         voiceReportStatus.dataset.state = "registered";
         voiceReportStatus.textContent = `${categoryLabels[match.category]}を現在地へ登録します。`;
-        recognition.stop();
         registerSessionHazard(match.category, currentUserLocation);
     };
     recognition.onerror = (event) => {
@@ -1642,6 +1887,21 @@ voiceReportButton.addEventListener("click", () => {
         voiceReportStatus.dataset.state = "error";
         voiceReportStatus.textContent = "音声入力を開始できませんでした。";
     }
+}
+voiceReportButton.addEventListener("click", () => {
+    startHazardVoiceRecognition();
+});
+registrationDialog.addEventListener("close", () => {
+    const recognition = activeVoiceRecognition;
+    activeVoiceRecognition = null;
+    recognition?.abort();
+    scheduleVoiceCommandRecognition();
+});
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden)
+        stopVoiceCommandRecognition();
+    else
+        scheduleVoiceCommandRecognition(250);
 });
 requiredElement("#undo-report").addEventListener("click", () => {
     if (lastReportId === null)
@@ -1656,7 +1916,7 @@ requiredElement("#undo-report").addEventListener("click", () => {
     undoReportToast.hidden = true;
     renderMap();
 });
-requiredElement("#recenter-map").addEventListener("click", () => {
+recenterMapButton.addEventListener("click", () => {
     requestDeviceHeadingPermission();
     locationStatus.hidden = false;
     locationStatus.textContent = "現在地を取得中…";
@@ -1675,7 +1935,7 @@ requiredElement("#recenter-map").addEventListener("click", () => {
         const now = performance.now();
         handleUserLocationSample(location, now);
         checkLiveLocationApproach(location, now);
-        map?.easeTo({ center: [location[0], location[1]], zoom: 15, pitch: 22, bearing: 0, duration: 650 });
+        map?.easeTo({ center: [location[0], location[1]], zoom: DEFAULT_LOCATION_ZOOM, pitch: 22, bearing: 0, duration: 650 });
         locationStatus.textContent = "現在地を表示しました。";
         window.setTimeout(() => { locationStatus.hidden = true; }, 2_500);
     }, (error) => {
@@ -1685,8 +1945,10 @@ requiredElement("#recenter-map").addEventListener("click", () => {
     }, { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 });
 });
 renderPermissionStatus();
+renderInputSettings();
 renderMap();
 void loadDivertNaviMapData();
 initializeMapbox();
 startForegroundLocationMonitoring();
+void requestMicrophonePermissionAtStartup();
 //# sourceMappingURL=demo.js.map
