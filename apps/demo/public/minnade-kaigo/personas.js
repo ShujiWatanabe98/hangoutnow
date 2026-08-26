@@ -33,9 +33,9 @@
         { icon: '👨', title: '長男・直人さん', text: '土曜日は一緒に近所の喫茶店まで歩く練習をします。', date: dayLabel(-1), time: '20:10' }
       ],
       incomingShares: [
-        { source: 'hospital', icon: '📋', title: 'Smareha連携（デモ）・退院時サマリ', text: '退院時FIMは運動72/91点、認知32/35点。食事と整容は自立、入浴と屋外歩行は見守りが必要という架空の評価設定です。', date: dayLabel(-10), time: '10:00' },
-        { source: 'hospital', icon: '📈', title: 'Smareha連携（デモ）・最終リハビリ評価', text: 'BBS 42/56点、10m快適歩行15.8秒（T字杖）の架空データ。疲労時に右足の振り出しが小さくなる傾向を共有しています。', date: dayLabel(-9), time: '14:30' },
-        { source: 'hospital', icon: '🎯', title: 'Smareha連携（デモ）・在宅での継続目標', text: '玄関から近所の喫茶店まで、途中で休憩しながら家族の見守りで歩くことを長期目標として共有しています。', date: dayLabel(-8), time: '11:15' },
+        { source: 'hospital', icon: '📋', title: 'リハシステム連携（デモ）・退院時サマリ', text: '退院時FIMは運動72/91点、認知32/35点。食事と整容は自立、入浴と屋外歩行は見守りが必要という架空の評価設定です。', date: dayLabel(-10), time: '10:00' },
+        { source: 'hospital', icon: '📈', title: 'リハシステム連携（デモ）・最終リハビリ評価', text: 'BBS 42/56点、10m快適歩行15.8秒（T字杖）の架空データ。疲労時に右足の振り出しが小さくなる傾向を共有しています。', date: dayLabel(-9), time: '14:30' },
+        { source: 'hospital', icon: '🎯', title: 'リハシステム連携（デモ）・在宅での継続目標', text: '玄関から近所の喫茶店まで、途中で休憩しながら家族の見守りで歩くことを長期目標として共有しています。', date: dayLabel(-8), time: '11:15' },
         { source: 'hospital', icon: '🏥', title: '緑丘リハビリテーション病院・山岸PT', text: '疲れが出ると右足がすりやすいため、外出は途中で休める場所を決めて続けてください。', date: dayLabel(-2), time: '15:40' },
         { source: 'care', icon: '🌿', title: 'デイケア陽だまり桜台・中村介護職', text: '浴室のまたぎ動作が安定しました。午後は歩行練習後も笑顔で過ごされました。', date: dayLabel(-1), time: '16:25' }
       ],
@@ -82,9 +82,9 @@
         { icon: '👧', title: '長女・彩さん', text: '今夜の将棋は19時から。孫にも返事を待つことを伝えています。', date: dayLabel(0), time: '9:05' }
       ],
       incomingShares: [
-        { source: 'hospital', icon: '📋', title: 'Smareha連携（デモ）・退院時サマリ', text: '退院時FIMは運動84/91点、認知27/35点。移動と身の回り動作は概ね自立し、複雑な会話では待つ支援が必要という架空の評価設定です。', date: dayLabel(-12), time: '9:45' },
-        { source: 'hospital', icon: '🗣️', title: 'Smareha連携（デモ）・言語評価', text: 'SLTAでは短文理解は安定。呼称と自発話は言葉が出るまで時間を要するため、質問を一つずつ提示するという架空の評価設定です。', date: dayLabel(-11), time: '13:20' },
-        { source: 'hospital', icon: '🎯', title: 'Smareha連携（デモ）・在宅での継続目標', text: '買い物メモを使って用件を伝えることと、孫との将棋で本人の返答を待ちながら会話を続けることを共有しています。', date: dayLabel(-10), time: '15:10' },
+        { source: 'hospital', icon: '📋', title: 'リハシステム連携（デモ）・退院時サマリ', text: '退院時FIMは運動84/91点、認知27/35点。移動と身の回り動作は概ね自立し、複雑な会話では待つ支援が必要という架空の評価設定です。', date: dayLabel(-12), time: '9:45' },
+        { source: 'hospital', icon: '🗣️', title: 'リハシステム連携（デモ）・言語評価', text: 'SLTAでは短文理解は安定。呼称と自発話は言葉が出るまで時間を要するため、質問を一つずつ提示するという架空の評価設定です。', date: dayLabel(-11), time: '13:20' },
+        { source: 'hospital', icon: '🎯', title: 'リハシステム連携（デモ）・在宅での継続目標', text: '買い物メモを使って用件を伝えることと、孫との将棋で本人の返答を待ちながら会話を続けることを共有しています。', date: dayLabel(-10), time: '15:10' },
         { source: 'hospital', icon: '🏥', title: '東京みらい脳神経リハビリ病院・神谷ST', text: '言葉を先回りせず、質問は一度に一つにすると修さん自身の発話が増えています。', date: dayLabel(-3), time: '14:10' },
         { source: 'care', icon: '🗣️', title: '通所リハビリ青葉テラス・奥田OT', text: '買い物場面の練習で、品名をメモして店員へ見せる方法を自分から使えました。', date: dayLabel(-1), time: '16:40' }
       ],
@@ -131,9 +131,9 @@
         { icon: '👩', title: '奈緒さん', text: '連絡帳と着替えを送迎バッグに入れました。今日は薄手の上着も持参します。', date: dayLabel(0), time: '7:35' }
       ],
       incomingShares: [
-        { source: 'hospital', icon: '📋', title: 'Smareha連携（デモ）・退院時サマリ', text: '退院時FIMは運動68/91点、認知31/35点。食事は自立、立ち上がり・移乗・入浴は見守りが必要という架空の評価設定です。', date: dayLabel(-9), time: '10:20' },
-        { source: 'hospital', icon: '📈', title: 'Smareha連携（デモ）・最終リハビリ評価', text: 'BBS 34/56点、10m快適歩行21.6秒（歩行器）の架空データ。方向転換と疲労後のふらつきを重点項目として共有しています。', date: dayLabel(-8), time: '14:05' },
-        { source: 'hospital', icon: '🎯', title: 'Smareha連携（デモ）・在宅での継続目標', text: '椅子に座って安全に鉢植えの世話を続け、立ち上がりと方向転換は家族が近くで見守ることを共有しています。', date: dayLabel(-7), time: '11:40' },
+        { source: 'hospital', icon: '📋', title: 'リハシステム連携（デモ）・退院時サマリ', text: '退院時FIMは運動68/91点、認知31/35点。食事は自立、立ち上がり・移乗・入浴は見守りが必要という架空の評価設定です。', date: dayLabel(-9), time: '10:20' },
+        { source: 'hospital', icon: '📈', title: 'リハシステム連携（デモ）・最終リハビリ評価', text: 'BBS 34/56点、10m快適歩行21.6秒（歩行器）の架空データ。方向転換と疲労後のふらつきを重点項目として共有しています。', date: dayLabel(-8), time: '14:05' },
+        { source: 'hospital', icon: '🎯', title: 'リハシステム連携（デモ）・在宅での継続目標', text: '椅子に座って安全に鉢植えの世話を続け、立ち上がりと方向転換は家族が近くで見守ることを共有しています。', date: dayLabel(-7), time: '11:40' },
         { source: 'hospital', icon: '🏥', title: '彩北リハビリテーション病院・若林PT', text: '疲れた日の方向転換は小さく急がず、いったん立ち止まってから向きを変える方法を続けてください。', date: dayLabel(-4), time: '11:20' },
         { source: 'care', icon: '🌸', title: 'ケアホーム結の庭・橋本介護職', text: '午前の体操に最後まで参加。午後は休憩を挟み、椅子に座って園芸活動を楽しまれました。', date: dayLabel(-1), time: '15:55' }
       ],

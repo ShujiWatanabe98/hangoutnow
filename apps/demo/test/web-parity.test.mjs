@@ -172,7 +172,7 @@ test('corporate homepage presents the four methodmore products accurately', asyn
   assert.match(corporate, /<a href="\/minnade-kaigo\/">みんなで介護<\/a>/);
   assert.match(careDemo, /<title>みんなで介護<\/title>/);
   assert.match(careDemo, /<h1>みんなで介護<\/h1>/);
-  assert.match(careDemo, /personas\.js\?v=20260826-2/);
+  assert.match(careDemo, /personas\.js\?v=20260826-3/);
   assert.match(careDemo, /data-demo="demo1"/);
   assert.match(careDemo, /data-demo="demo2"/);
   assert.match(careDemo, /data-demo="demo3"/);
@@ -188,10 +188,11 @@ test('corporate homepage presents the four methodmore products accurately', asyn
   for (const copy of ['青木 和子', '吉田 修', '藤本 千代', '緑丘リハビリテーション病院', '東京みらい脳神経リハビリ病院', '彩北リハビリテーション病院', 'デイケア陽だまり桜台', '通所リハビリ青葉テラス', 'ケアホーム結の庭']) {
     assert.ok(carePersonas.includes(copy), `みんなで介護のペルソナ設定がありません: ${copy}`);
   }
-  for (const copy of ['Smareha連携（デモ）・退院時サマリ', 'Smareha連携（デモ）・最終リハビリ評価', 'Smareha連携（デモ）・言語評価', 'Smareha連携（デモ）・在宅での継続目標', 'FIM', 'BBS', '10m快適歩行', 'SLTA']) {
-    assert.ok(carePersonas.includes(copy), `Smareha共有のデモ情報がありません: ${copy}`);
+  for (const copy of ['リハシステム連携（デモ）・退院時サマリ', 'リハシステム連携（デモ）・最終リハビリ評価', 'リハシステム連携（デモ）・言語評価', 'リハシステム連携（デモ）・在宅での継続目標', 'FIM', 'BBS', '10m快適歩行', 'SLTA']) {
+    assert.ok(carePersonas.includes(copy), `リハシステム共有のデモ情報がありません: ${copy}`);
   }
-  assert.equal((carePersonas.match(/Smareha連携（デモ）/g) ?? []).length, 9);
+  assert.equal((carePersonas.match(/リハシステム連携（デモ）/g) ?? []).length, 9);
+  assert.doesNotMatch(carePersonas, /Smareha連携/);
   const careManifest = JSON.parse(careManifestJson);
   assert.equal(careManifest.name, 'みんなで介護');
   assert.equal(careManifest.start_url, '/minnade-kaigo/');
