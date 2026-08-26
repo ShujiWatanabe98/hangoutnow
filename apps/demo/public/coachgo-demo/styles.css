@@ -193,6 +193,20 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .show-all-reports { width: 100%; min-height: 42px; display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 10px; border: 1px solid var(--line); border-radius: 12px; color: var(--blue); background: var(--surface); font-size: 11px; font-weight: 800; }
 .show-all-reports[aria-expanded="true"] span { transform: rotate(90deg); }
 .privacy-note { margin: 10px 0 0; display: flex; justify-content: center; align-items: center; gap: 5px; color: var(--text-soft); font-size: 9px; }
+.microphone-permission-dialog { width: min(440px,calc(100% - 28px)); border: 0; border-radius: 22px; padding: 24px; color: var(--text); background: var(--surface-strong); box-shadow: 0 24px 80px rgba(0,0,0,0.32); }
+.microphone-permission-dialog::backdrop { background: rgba(20,25,30,0.58); backdrop-filter: blur(4px); }
+.microphone-permission-heading { display: flex; align-items: center; gap: 12px; }
+.microphone-permission-heading h2 { margin: 0; font-size: 22px; }
+.microphone-permission-icon { width: 48px; height: 48px; display: grid; place-items: center; flex: 0 0 48px; border-radius: 50%; color: #fff; background: var(--blue); font-size: 23px; box-shadow: 0 7px 20px color-mix(in srgb,var(--blue) 30%,transparent); }
+.microphone-permission-description { margin: 16px 0 10px; font-size: 13px; font-weight: 700; line-height: 1.6; }
+.microphone-permission-guidance { padding: 12px 14px; border-radius: 13px; color: #214f77; background: #eef7ff; font-size: 11px; line-height: 1.65; white-space: pre-line; }
+.microphone-permission-guidance[data-state="denied"] { color: #7b3427; background: #fff2ee; }
+.microphone-permission-actions { display: grid; gap: 8px; margin-top: 16px; }
+.microphone-permission-actions button { width: 100%; min-height: 46px; border-radius: 12px; font-size: 12px; font-weight: 800; }
+.grant-microphone-permission { border: 0; color: #fff; background: var(--blue); }
+.grant-microphone-permission:disabled { opacity: 0.55; }
+.close-microphone-permission { border: 1px solid var(--line); color: var(--text-soft); background: var(--surface); }
+.microphone-permission-note { margin: 12px 0 0; color: var(--text-soft); font-size: 9px; line-height: 1.55; text-align: center; }
 .coachgo-legal-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--line); }
 .coachgo-legal-links a { padding: 7px 10px; border-radius: 999px; color: var(--blue); background: var(--surface-muted); text-decoration: none; font-size: 9px; font-weight: 800; }
 .undo-report-toast { position: fixed; z-index: 2100; left: 50%; bottom: 28px; min-width: 360px; display: flex; align-items: center; gap: 10px; transform: translateX(-50%); padding: 11px 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-strong); box-shadow: var(--shadow); }
@@ -223,6 +237,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .location-status { top: 184px; right: 13px; }
   .demo-playback-status { top: 105px; width: max-content; max-width: calc(100% - 140px); text-align: center; }
   .registration-dialog { align-self: end; width: 100%; max-width: none; margin: 0; border-radius: 22px 22px 0 0; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+  .microphone-permission-dialog { width: calc(100% - 24px); padding: 20px; }
   .dialog-handle { display: block; width: 38px; height: 4px; margin: 0 auto 13px; border-radius: 4px; background: var(--line); }
   .hazard-report-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .undo-report-toast { width: calc(100% - 24px); min-width: 0; bottom: calc(12px + env(safe-area-inset-bottom)); }

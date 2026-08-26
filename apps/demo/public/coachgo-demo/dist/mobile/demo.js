@@ -1,12 +1,12 @@
-import { buildHazardPointGuidance, createSessionUserHazardPoint, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260826-5";
-import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260826-5";
-import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260826-5";
-import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260826-5";
-import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260826-5";
-import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260826-5";
-import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260826-5";
-import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260826-5";
-import { interpolateUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260826-5";
+import { buildHazardPointGuidance, createSessionUserHazardPoint, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260826-6";
+import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260826-6";
+import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260826-6";
+import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260826-6";
+import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260826-6";
+import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260826-6";
+import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260826-6";
+import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260826-6";
+import { interpolateUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260826-6";
 function syntheticSharedMapPayload() {
     return {
         schemaVersion: 1,
@@ -74,6 +74,11 @@ const registrationError = requiredElement("#registration-error");
 const voiceReportButton = requiredElement("#voice-report-start");
 const voiceReportStatus = requiredElement("#voice-report-status");
 const voiceReportTranscript = requiredElement("#voice-report-transcript");
+const microphonePermissionDialog = requiredElement("#microphone-permission-dialog");
+const microphonePermissionDescription = requiredElement("#microphone-permission-description");
+const microphonePermissionGuidance = requiredElement("#microphone-permission-guidance");
+const grantMicrophonePermissionButton = requiredElement("#grant-microphone-permission");
+const closeMicrophonePermissionButton = requiredElement("#close-microphone-permission");
 const approachDetectionToggle = requiredElement("#approach-detection-toggle");
 const approachDetectionState = requiredElement("#approach-detection-state");
 const backgroundNotificationToggle = requiredElement("#background-notification-toggle");
@@ -200,6 +205,7 @@ let activeVoiceCommandRecognition = null;
 let voiceCommandRestartTimer = null;
 let microphonePermissionGranted = false;
 let microphonePermissionRequestPending = false;
+let microphonePermissionReason = "startup";
 let preferredJapaneseVoice = null;
 let activeSpeechSequence = 0;
 let demoCameraFollowStartsAt = -Infinity;
@@ -545,6 +551,41 @@ async function requestMicrophonePermission() {
         voiceReportStatus.textContent = "音声登録にはマイクの許可が必要です。サイト設定でマイクを許可して、もう一度押してください。";
         return false;
     }
+}
+async function readMicrophonePermissionState() {
+    if (navigator.permissions?.query === undefined)
+        return "unknown";
+    try {
+        const status = await navigator.permissions.query({ name: "microphone" });
+        return status.state;
+    }
+    catch {
+        return "unknown";
+    }
+}
+function showMicrophonePermissionDialog(reason, denied) {
+    microphonePermissionReason = reason;
+    microphonePermissionDescription.textContent = reason === "voice-report"
+        ? "音声で危険を登録するには、マイクの使用許可が必要です。"
+        : "音声入力がONのため、マイクの使用許可を確認します。";
+    microphonePermissionGuidance.dataset.state = denied ? "denied" : "prompt";
+    microphonePermissionGuidance.textContent = denied
+        ? "マイクは現在ブロックされています。\n\niPhone / iPad（Safari）：アドレスバーの「ぁあ」→ Webサイトの設定 → マイク → 許可\nChrome / Android：アドレスバー左のサイト情報 → 権限 → マイク → 許可\n\n設定後、この画面に戻って下のボタンを押してください。"
+        : "下の「マイクを許可する」を押し、次に表示されるブラウザの確認画面で「許可」を選択してください。";
+    grantMicrophonePermissionButton.textContent = denied ? "設定後に許可を確認" : "マイクを許可する";
+    if (!microphonePermissionDialog.open)
+        microphonePermissionDialog.showModal();
+}
+async function ensureMicrophonePermission(reason) {
+    if (microphonePermissionGranted)
+        return true;
+    const permissionState = await readMicrophonePermissionState();
+    if (permissionState === "granted") {
+        microphonePermissionGranted = true;
+        return true;
+    }
+    showMicrophonePermissionDialog(reason, permissionState === "denied");
+    return false;
 }
 function selectHazard(point) {
     selectedHazard = point;
@@ -1698,11 +1739,13 @@ voiceInputToggle.addEventListener("click", () => {
     if (!voiceInputEnabled) {
         stopVoiceCommandRecognition();
         activeVoiceRecognition?.abort();
+        if (microphonePermissionDialog.open)
+            microphonePermissionDialog.close();
         inputPermissionStatus.dataset.state = "off";
         inputPermissionStatus.textContent = "音声入力はOFFです。投稿ボタンとカテゴリー選択は利用できます。";
     }
     else {
-        void requestMicrophonePermission().then((permissionGranted) => {
+        void ensureMicrophonePermission("settings").then((permissionGranted) => {
             if (permissionGranted) {
                 scheduleVoiceCommandRecognition(250);
                 renderInputSettings();
@@ -1870,11 +1913,7 @@ async function startHazardVoiceRecognition() {
         voiceReportStatus.textContent = "このブラウザは音声入力に対応していません。Chromeでお試しください。";
         return;
     }
-    microphonePermissionRequestPending = true;
-    voiceReportButton.disabled = true;
-    const permissionGranted = await requestMicrophonePermission();
-    microphonePermissionRequestPending = false;
-    voiceReportButton.disabled = !voiceInputEnabled;
+    const permissionGranted = await ensureMicrophonePermission("voice-report");
     if (!permissionGranted || !registrationDialog.open)
         return;
     let finalTranscript = "";
@@ -1950,6 +1989,31 @@ async function startHazardVoiceRecognition() {
 voiceReportButton.addEventListener("click", () => {
     void startHazardVoiceRecognition();
 });
+grantMicrophonePermissionButton.addEventListener("click", async () => {
+    if (microphonePermissionRequestPending)
+        return;
+    microphonePermissionRequestPending = true;
+    grantMicrophonePermissionButton.disabled = true;
+    grantMicrophonePermissionButton.textContent = "許可を確認しています…";
+    const permissionGranted = await requestMicrophonePermission();
+    microphonePermissionRequestPending = false;
+    grantMicrophonePermissionButton.disabled = false;
+    if (!permissionGranted) {
+        showMicrophonePermissionDialog(microphonePermissionReason, true);
+        return;
+    }
+    microphonePermissionDialog.close();
+    renderInputSettings();
+    if (microphonePermissionReason === "voice-report" && registrationDialog.open) {
+        void startHazardVoiceRecognition();
+    }
+    else {
+        scheduleVoiceCommandRecognition(250);
+    }
+});
+closeMicrophonePermissionButton.addEventListener("click", () => {
+    microphonePermissionDialog.close();
+});
 registrationDialog.addEventListener("close", () => {
     const recognition = activeVoiceRecognition;
     activeVoiceRecognition = null;
@@ -2010,7 +2074,7 @@ void loadDivertNaviMapData();
 initializeMapbox();
 async function requestEnabledPermissionsAtStartup() {
     if (voiceInputEnabled) {
-        const microphoneGranted = await requestMicrophonePermission();
+        const microphoneGranted = await ensureMicrophonePermission("startup");
         if (microphoneGranted) {
             scheduleVoiceCommandRecognition(250);
             renderInputSettings();

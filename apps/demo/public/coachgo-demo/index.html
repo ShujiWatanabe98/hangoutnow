@@ -9,7 +9,7 @@
     <title>CoachGo 危険監視PoC</title>
     <link rel="manifest" href="/coachgo-demo/manifest.webmanifest">
     <link rel="stylesheet" href="/coachgo-demo/vendor/mapbox-gl.css">
-    <link rel="stylesheet" href="/coachgo-demo/styles.css?v=20260826-5">
+    <link rel="stylesheet" href="/coachgo-demo/styles.css?v=20260826-6">
   </head>
   <body>
     <div class="app-shell">
@@ -130,6 +130,19 @@
         <p id="registration-error" class="form-error" role="alert"></p>
         <p class="privacy-note"><span aria-hidden="true">✓</span> 音声はブラウザの音声認識機能で処理し、アプリには保存しません。</p>
       </dialog>
+      <dialog id="microphone-permission-dialog" class="microphone-permission-dialog" aria-labelledby="microphone-permission-title">
+        <div class="microphone-permission-heading">
+          <span class="microphone-permission-icon" aria-hidden="true">🎙️</span>
+          <div><p class="eyebrow">MICROPHONE PERMISSION</p><h2 id="microphone-permission-title">マイク設定</h2></div>
+        </div>
+        <p id="microphone-permission-description" class="microphone-permission-description">音声で危険を登録するには、マイクの使用許可が必要です。</p>
+        <div id="microphone-permission-guidance" class="microphone-permission-guidance" role="status">次に表示されるブラウザの確認画面で「許可」を選択してください。</div>
+        <div class="microphone-permission-actions">
+          <button id="grant-microphone-permission" class="grant-microphone-permission" type="button">マイクを許可する</button>
+          <button id="close-microphone-permission" class="close-microphone-permission" type="button">あとで</button>
+        </div>
+        <p class="microphone-permission-note">ブラウザや端末の設定画面はWebアプリから直接開けないため、拒否済みの場合は設定手順をご案内します。</p>
+      </dialog>
       <aside id="undo-report-toast" class="undo-report-toast" role="status" hidden>
         <span class="toast-check" aria-hidden="true">✓</span>
         <span><strong id="undo-report-title"></strong><small>10秒以内なら取り消せます</small></span>
@@ -139,6 +152,6 @@
     </div>
     <script src="/coachgo-demo/runtime-config.js"></script>
     <script src="/coachgo-demo/vendor/mapbox-gl.js"></script>
-    <script type="module" src="/coachgo-demo/bootstrap.js?v=20260826-5"></script>
+    <script type="module" src="/coachgo-demo/bootstrap.js?v=20260826-6"></script>
   </body>
 </html>
