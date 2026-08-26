@@ -9,7 +9,7 @@
     <title>CoachGo 危険監視PoC</title>
     <link rel="manifest" href="/coachgo-demo/manifest.webmanifest">
     <link rel="stylesheet" href="/coachgo-demo/vendor/mapbox-gl.css">
-    <link rel="stylesheet" href="/coachgo-demo/styles.css?v=20260826-4">
+    <link rel="stylesheet" href="/coachgo-demo/styles.css?v=20260826-5">
   </head>
   <body>
     <div class="app-shell">
@@ -52,7 +52,7 @@
             </section>
 
             <section class="notification-section" aria-label="通知設定">
-              <p id="permission-status" class="permission-status" hidden></p>
+              <p id="permission-status" class="permission-status" role="status" hidden></p>
               <button id="approach-detection-toggle" class="notification-setting-row" type="button" role="switch" aria-checked="true"><span class="setting-icon">📍</span><span><strong>危険地点の接近を通知</strong><small>見守り全体を開始・停止します。CoachGoは経路案内を行いません</small></span><span id="approach-detection-state" class="setting-switch" data-state="on" aria-hidden="true"><span>OFF</span><span>ON</span><i></i></span></button>
               <button id="background-notification-toggle" class="notification-setting-row" type="button" role="switch" aria-checked="true"><span class="setting-icon">🔔</span><span><strong>バックグラウンド通知</strong><small>選択カテゴリーへの接近時に端末へ通知します</small></span><span id="background-notification-state" class="setting-switch" data-state="on" aria-hidden="true"><span>OFF</span><span>ON</span><i></i></span></button>
               <button id="hazard-voice-toggle" class="notification-setting-row" type="button" role="switch" aria-checked="true"><span class="setting-icon">🔊</span><span><strong>危険地点の読み上げ</strong><small>選択カテゴリーへの接近時に読み上げます</small></span><span id="hazard-voice-state" class="setting-switch" data-state="on" aria-hidden="true"><span>OFF</span><span>ON</span><i></i></span></button>
@@ -105,7 +105,7 @@
             <span class="voice-report-icon" aria-hidden="true">🎙️</span>
             <span><strong id="voice-report-title">音声で危険を登録</strong><small>「道路冠水」「事故」「落下物」など</small></span>
           </button>
-          <p id="voice-report-status" class="voice-report-status" role="status" data-state="idle">マイクを押して、危険の種類を話してください。</p>
+          <p id="voice-report-status" class="voice-report-status" role="status" data-state="idle">マイクを押すと、必要な場合はブラウザが使用許可を確認します。</p>
           <p id="voice-report-transcript" class="voice-report-transcript" aria-live="polite" hidden></p>
         </section>
         <div id="report-category-grid" class="hazard-report-grid">
@@ -139,6 +139,6 @@
     </div>
     <script src="/coachgo-demo/runtime-config.js"></script>
     <script src="/coachgo-demo/vendor/mapbox-gl.js"></script>
-    <script type="module" src="/coachgo-demo/bootstrap.js?v=20260826-4"></script>
+    <script type="module" src="/coachgo-demo/bootstrap.js?v=20260826-5"></script>
   </body>
 </html>
