@@ -166,6 +166,13 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(coachDemo, /id="mapbox-map"/);
   assert.match(coachDemo, /class="setting-switch"/);
   assert.match(coachDemo, /id="demo-playback"/);
+  assert.match(coachDemo, /id="selected-count">3件<\/span>/);
+  assert.match(coachDemo, /data-category="ROAD_FLOODING" aria-pressed="true"/);
+  assert.match(coachDemo, /data-category="RIVER_FLOODING" aria-pressed="false"/);
+  assert.match(coachDemo, /data-category="LANDSLIDE" aria-pressed="false"/);
+  assert.match(coachDemo, /data-category="TSUNAMI" aria-pressed="false"/);
+  assert.match(coachDemo, /data-category="POLICE_ENFORCEMENT" aria-pressed="true"/);
+  assert.match(coachDemo, /data-category="RAIN_CLOUD" aria-pressed="true"/);
   assert.doesNotMatch(coachDemo, /開発用シナリオ|危険監視を開始|何を見守りますか？/);
   assert.match(coachDemo, /src="\/coachgo-demo\/runtime-config\.js"/);
   assert.match(coachDemo, /src="\/coachgo-demo\/vendor\/mapbox-gl\.js"/);
@@ -182,8 +189,8 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(coachStyles, /max-height: calc\(100% - clamp\(64px,12vh,96px\)\)/);
   assert.match(coachDemoScript, /panelScroll\.addEventListener\("touchmove"/);
   assert.match(coachDemoScript, /dragDistance >= 88/);
-  assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260826-1"/);
-  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260826-1/);
+  assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260826-2"/);
+  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260826-2/);
   assert.match(coachBootstrap, /dataset\.clientError/);
   assert.match(coachDemoScript, /SYNTHETIC_ONLY/);
   assert.match(coachDemoScript, /counts: \{ underpasses: 1, policePriorityLocations: 1 \}/);
@@ -195,7 +202,7 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(coachDemoScript, /自動デモ再生中　横浜駅 → 本厚木駅/);
   assert.match(coachDemoScript, /デモ停止中　横浜駅 → 本厚木駅/);
   assert.match(coachDemoScript, /continuousDemoDrive\.js\?v=20260826-1/);
-  assert.match(coachDemoScript, /hazardMap\.js\?v=20260824-5/);
+  assert.match(coachDemoScript, /hazardMap\.js\?v=20260826-2/);
   assert.match(coachDemoScript, /naturalSpeech\.js\?v=20260825-1/);
   assert.match(coachDemoScript, /smoothUserLocation\.js\?v=20260825-1/);
   assert.match(coachDemoScript, /voiceApproach\.js\?v=20260826-1/);

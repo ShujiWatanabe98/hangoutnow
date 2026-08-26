@@ -38,15 +38,15 @@
             </div>
 
             <section class="category-section" aria-labelledby="category-heading">
-              <div class="section-title-row"><h2 id="category-heading">監視カテゴリー</h2><span id="selected-count">2件</span></div>
+              <div class="section-title-row"><h2 id="category-heading">監視カテゴリー</h2><span id="selected-count">3件</span></div>
               <p class="section-help">地図で確認し、接近したときに通知する危険を選択</p>
               <div class="hazard-chips">
                 <button type="button" data-category="ROAD_FLOODING" aria-pressed="true"><span>🌊</span>道路冠水</button>
-                <button type="button" data-category="RIVER_FLOODING" aria-pressed="true"><span>💧</span>河川氾濫</button>
+                <button type="button" data-category="RIVER_FLOODING" aria-pressed="false"><span>💧</span>河川氾濫</button>
                 <button type="button" data-category="LANDSLIDE" aria-pressed="false"><span>⛰</span>土砂災害</button>
                 <button type="button" data-category="TSUNAMI" aria-pressed="false"><span>🌊</span>津波</button>
-                <button type="button" data-category="POLICE_ENFORCEMENT" aria-pressed="false"><span>🚨</span>警察取締</button>
-                <button type="button" data-category="RAIN_CLOUD" aria-pressed="false"><span>🌧️</span>雨雲</button>
+                <button type="button" data-category="POLICE_ENFORCEMENT" aria-pressed="true"><span>🚨</span>警察取締</button>
+                <button type="button" data-category="RAIN_CLOUD" aria-pressed="true"><span>🌧️</span>雨雲</button>
               </div>
               <p id="shared-data-status" class="source-status" role="status" data-state="loading" hidden></p>
               <p id="rainviewer-status" class="source-status" role="status" hidden></p>
@@ -134,6 +134,6 @@
     </div>
     <script src="/coachgo-demo/runtime-config.js"></script>
     <script src="/coachgo-demo/vendor/mapbox-gl.js"></script>
-    <script type="module" src="/coachgo-demo/bootstrap.js?v=20260826-1"></script>
+    <script type="module" src="/coachgo-demo/bootstrap.js?v=20260826-2"></script>
   </body>
 </html>
