@@ -1,12 +1,12 @@
-import { buildHazardPointGuidance, createSessionUserHazardPoint, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260826-6";
-import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260826-6";
-import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260826-6";
-import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260826-6";
-import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260826-6";
-import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260826-6";
-import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260826-6";
-import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260826-6";
-import { interpolateUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260826-6";
+import { buildHazardPointGuidance, createSessionUserHazardPoint, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260826-7";
+import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260826-7";
+import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260826-7";
+import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260826-7";
+import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260826-7";
+import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260826-7";
+import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260826-7";
+import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260826-7";
+import { interpolateUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260826-7";
 function syntheticSharedMapPayload() {
     return {
         schemaVersion: 1,
@@ -477,9 +477,7 @@ function startVoiceCommandRecognition() {
     };
     recognition.onerror = (event) => {
         if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-            microphonePermissionGranted = false;
-            inputPermissionStatus.dataset.state = "error";
-            inputPermissionStatus.textContent = "音声入力にはマイクの許可が必要です。端末の設定から許可してください。";
+            disableVoiceInputAfterMicrophoneFailure();
             return;
         }
         if (event.error !== "no-speech" && event.error !== "aborted") {
@@ -502,6 +500,18 @@ function startVoiceCommandRecognition() {
         inputPermissionStatus.textContent = "音声待ち受けを開始できませんでした。投稿ボタンをご利用ください。";
     }
 }
+function disableVoiceInputAfterMicrophoneFailure() {
+    microphonePermissionGranted = false;
+    voiceInputEnabled = false;
+    stopVoiceCommandRecognition();
+    persistInputSettings();
+    renderInputSettings();
+    inputPermissionStatus.hidden = false;
+    inputPermissionStatus.dataset.state = "error";
+    inputPermissionStatus.textContent = "マイクの使用許可が得られなかったため、音声入力をOFFにしました。";
+    voiceReportStatus.dataset.state = "error";
+    voiceReportStatus.textContent = "マイクを許可できなかったため、設定の音声入力をOFFにしました。";
+}
 async function requestMicrophonePermission() {
     if (!voiceInputEnabled) {
         inputPermissionStatus.hidden = false;
@@ -515,11 +525,7 @@ async function requestMicrophonePermission() {
         return true;
     }
     if (navigator.mediaDevices?.getUserMedia === undefined) {
-        inputPermissionStatus.hidden = false;
-        inputPermissionStatus.dataset.state = "unavailable";
-        inputPermissionStatus.textContent = "この端末ではマイク許可を確認できません。投稿ボタンをご利用ください。";
-        voiceReportStatus.dataset.state = "error";
-        voiceReportStatus.textContent = "このブラウザではマイクの使用許可を確認できません。";
+        disableVoiceInputAfterMicrophoneFailure();
         return false;
     }
     inputPermissionStatus.hidden = false;
@@ -544,11 +550,7 @@ async function requestMicrophonePermission() {
     catch {
         if (!voiceInputEnabled)
             return false;
-        microphonePermissionGranted = false;
-        inputPermissionStatus.dataset.state = "error";
-        inputPermissionStatus.textContent = "マイクが許可されませんでした。ブラウザのサイト設定でマイクを許可してください。";
-        voiceReportStatus.dataset.state = "error";
-        voiceReportStatus.textContent = "音声登録にはマイクの許可が必要です。サイト設定でマイクを許可して、もう一度押してください。";
+        disableVoiceInputAfterMicrophoneFailure();
         return false;
     }
 }
@@ -565,6 +567,8 @@ async function readMicrophonePermissionState() {
 }
 function showMicrophonePermissionDialog(reason, denied) {
     microphonePermissionReason = reason;
+    grantMicrophonePermissionButton.hidden = false;
+    closeMicrophonePermissionButton.textContent = "あとで";
     microphonePermissionDescription.textContent = reason === "voice-report"
         ? "音声で危険を登録するには、マイクの使用許可が必要です。"
         : "音声入力がONのため、マイクの使用許可を確認します。";
@@ -576,6 +580,16 @@ function showMicrophonePermissionDialog(reason, denied) {
     if (!microphonePermissionDialog.open)
         microphonePermissionDialog.showModal();
 }
+function showMicrophonePermissionDisabledDialog(reason) {
+    microphonePermissionReason = reason;
+    microphonePermissionDescription.textContent = "マイクの使用許可が得られなかったため、音声入力をOFFにしました。";
+    microphonePermissionGuidance.dataset.state = "disabled";
+    microphonePermissionGuidance.textContent = "再度音声入力を使う場合は、ブラウザまたは端末のマイク設定を「許可」に変更してから、CoachGoの設定で音声入力をONにしてください。";
+    grantMicrophonePermissionButton.hidden = true;
+    closeMicrophonePermissionButton.textContent = "閉じる";
+    if (!microphonePermissionDialog.open)
+        microphonePermissionDialog.showModal();
+}
 async function ensureMicrophonePermission(reason) {
     if (microphonePermissionGranted)
         return true;
@@ -584,7 +598,12 @@ async function ensureMicrophonePermission(reason) {
         microphonePermissionGranted = true;
         return true;
     }
-    showMicrophonePermissionDialog(reason, permissionState === "denied");
+    if (permissionState === "denied") {
+        disableVoiceInputAfterMicrophoneFailure();
+        showMicrophonePermissionDisabledDialog(reason);
+        return false;
+    }
+    showMicrophonePermissionDialog(reason, false);
     return false;
 }
 function selectHazard(point) {
@@ -1961,7 +1980,9 @@ async function startHazardVoiceRecognition() {
     recognition.onerror = (event) => {
         voiceReportStatus.dataset.state = "error";
         if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-            microphonePermissionGranted = false;
+            disableVoiceInputAfterMicrophoneFailure();
+            showMicrophonePermissionDisabledDialog("voice-report");
+            return;
         }
         voiceReportStatus.textContent = event.error === "not-allowed" || event.error === "service-not-allowed"
             ? "音声登録にはマイクの許可が必要です。サイト設定でマイクを許可してください。"
@@ -1999,7 +2020,7 @@ grantMicrophonePermissionButton.addEventListener("click", async () => {
     microphonePermissionRequestPending = false;
     grantMicrophonePermissionButton.disabled = false;
     if (!permissionGranted) {
-        showMicrophonePermissionDialog(microphonePermissionReason, true);
+        showMicrophonePermissionDisabledDialog(microphonePermissionReason);
         return;
     }
     microphonePermissionDialog.close();

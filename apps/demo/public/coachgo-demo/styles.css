@@ -200,7 +200,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .microphone-permission-icon { width: 48px; height: 48px; display: grid; place-items: center; flex: 0 0 48px; border-radius: 50%; color: #fff; background: var(--blue); font-size: 23px; box-shadow: 0 7px 20px color-mix(in srgb,var(--blue) 30%,transparent); }
 .microphone-permission-description { margin: 16px 0 10px; font-size: 13px; font-weight: 700; line-height: 1.6; }
 .microphone-permission-guidance { padding: 12px 14px; border-radius: 13px; color: #214f77; background: #eef7ff; font-size: 11px; line-height: 1.65; white-space: pre-line; }
-.microphone-permission-guidance[data-state="denied"] { color: #7b3427; background: #fff2ee; }
+.microphone-permission-guidance[data-state="denied"], .microphone-permission-guidance[data-state="disabled"] { color: #7b3427; background: #fff2ee; }
 .microphone-permission-actions { display: grid; gap: 8px; margin-top: 16px; }
 .microphone-permission-actions button { width: 100%; min-height: 46px; border-radius: 12px; font-size: 12px; font-weight: 800; }
 .grant-microphone-permission { border: 0; color: #fff; background: var(--blue); }
