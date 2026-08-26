@@ -1,12 +1,12 @@
-import { buildHazardPointGuidance, createSessionUserHazardPoint, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260826-7";
-import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260826-7";
-import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260826-7";
-import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260826-7";
-import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260826-7";
-import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260826-7";
-import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260826-7";
-import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260826-7";
-import { interpolateUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260826-7";
+import { buildHazardPointGuidance, createSessionUserHazardPoint, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260826-8";
+import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260826-8";
+import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260826-8";
+import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260826-8";
+import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260826-8";
+import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260826-8";
+import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260826-8";
+import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260826-8";
+import { interpolateUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260826-8";
 function syntheticSharedMapPayload() {
     return {
         schemaVersion: 1,
@@ -1781,6 +1781,8 @@ demoVisibilityToggle.addEventListener("click", () => {
     renderInputSettings();
     if (demoVisibilityEnabled)
         focusContinuousDemoRoute();
+    else
+        returnToCurrentLocation();
 });
 for (const button of document.querySelectorAll("[data-category]")) {
     button.addEventListener("click", () => {
@@ -2060,10 +2062,19 @@ requiredElement("#undo-report").addEventListener("click", () => {
     undoReportToast.hidden = true;
     renderMap();
 });
-recenterMapButton.addEventListener("click", () => {
+function showCurrentLocationOnMap(location, message) {
+    map?.easeTo({ center: [location[0], location[1]], zoom: DEFAULT_LOCATION_ZOOM, pitch: 22, bearing: 0, duration: 650 });
+    locationStatus.textContent = message;
+    window.setTimeout(() => { locationStatus.hidden = true; }, 2_500);
+}
+function returnToCurrentLocation() {
     requestDeviceHeadingPermission();
     locationStatus.hidden = false;
     locationStatus.textContent = "現在地を取得中…";
+    if (hasLiveUserLocation) {
+        showCurrentLocationOnMap(currentUserLocation, "現在地に戻りました。");
+        return;
+    }
     if (!("geolocation" in navigator)) {
         locationStatus.textContent = "この端末では現在地を取得できません。";
         return;
@@ -2079,15 +2090,14 @@ recenterMapButton.addEventListener("click", () => {
         const now = performance.now();
         handleUserLocationSample(location, now);
         checkLiveLocationApproach(location, now);
-        map?.easeTo({ center: [location[0], location[1]], zoom: DEFAULT_LOCATION_ZOOM, pitch: 22, bearing: 0, duration: 650 });
-        locationStatus.textContent = "現在地を表示しました。";
-        window.setTimeout(() => { locationStatus.hidden = true; }, 2_500);
+        showCurrentLocationOnMap(location, "現在地を表示しました。");
     }, (error) => {
         locationStatus.textContent = error.code === error.PERMISSION_DENIED
             ? "現在地の表示には位置情報の許可が必要です。"
             : "現在地を取得できませんでした。通信状態をご確認ください。";
     }, { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 });
-});
+}
+recenterMapButton.addEventListener("click", returnToCurrentLocation);
 renderPermissionStatus();
 renderInputSettings();
 renderMap();
