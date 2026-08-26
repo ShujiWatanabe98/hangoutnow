@@ -118,8 +118,8 @@ test('homepage targets Shinjuku solo participants with measurable acquisition li
   assert.match(server, /location: '\/shinjuku-working-adult-friends\.html'/);
 });
 
-test('corporate homepage presents the three methodmore products accurately', async () => {
-  const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles, coachDemo, coachStyles, coachBootstrap, coachDemoScript, coachDriveModule, coachUnderpassModule, coachPoliceModule, coachNaturalSpeechModule, coachSmoothLocationModule, coachVoiceApproachModule, coachMonitorPointsJson, coachUnderpassFeedJson, coachPrivacy, coachSupport, coachDataSources, server] = await Promise.all([
+test('corporate homepage presents the four methodmore products accurately', async () => {
+  const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles, coachDemo, coachStyles, coachBootstrap, coachDemoScript, coachDriveModule, coachUnderpassModule, coachPoliceModule, coachNaturalSpeechModule, coachSmoothLocationModule, coachVoiceApproachModule, coachMonitorPointsJson, coachUnderpassFeedJson, coachPrivacy, coachSupport, coachDataSources, careDemo, careStyles, careApp, carePersonas, careManifestJson, server] = await Promise.all([
     readFile(new URL('../public/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/hangout-now.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/divertnavi.html', import.meta.url), 'utf8'),
@@ -142,6 +142,11 @@ test('corporate homepage presents the three methodmore products accurately', asy
     readFile(new URL('../public/coachgo-privacy.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/coachgo-support.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/coachgo-data-sources.html', import.meta.url), 'utf8'),
+    readFile(new URL('../public/minnade-kaigo/index.html', import.meta.url), 'utf8'),
+    readFile(new URL('../public/minnade-kaigo/styles.css', import.meta.url), 'utf8'),
+    readFile(new URL('../public/minnade-kaigo/app.js', import.meta.url), 'utf8'),
+    readFile(new URL('../public/minnade-kaigo/personas.js', import.meta.url), 'utf8'),
+    readFile(new URL('../public/minnade-kaigo/manifest.json', import.meta.url), 'utf8'),
     readFile(new URL('../server.mjs', import.meta.url), 'utf8'),
   ]);
   const coachMonitorPoints = JSON.parse(coachMonitorPointsJson);
@@ -155,6 +160,7 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(corporate, /Hangout <em>Now<\/em>/);
   assert.match(corporate, /DivertNavi/);
   assert.match(corporate, /CoachGo/);
+  assert.match(corporate, /みんなで介護/);
   assert.match(corporate, /公開中/);
   assert.match(corporate, /Android MVP 開発中/);
   assert.match(corporate, /Webアプリ 公開中/);
@@ -162,6 +168,28 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(corporate, /DivertNaviと同じ全国のアンダーパス公開地点/);
   assert.match(corporate, /href="\/coachgo-demo\/"[^>]*>Webアプリを開く/);
   assert.match(corporate, /<a href="\/coachgo-demo\/">CoachGo<\/a>/);
+  assert.match(corporate, /href="\/minnade-kaigo\/"[^>]*>Webデモを開く/);
+  assert.match(corporate, /<a href="\/minnade-kaigo\/">みんなで介護<\/a>/);
+  assert.match(careDemo, /<title>みんなで介護<\/title>/);
+  assert.match(careDemo, /<h1>みんなで介護<\/h1>/);
+  assert.match(careDemo, /data-demo="demo1"/);
+  assert.match(careDemo, /data-demo="demo2"/);
+  assert.match(careDemo, /data-demo="demo3"/);
+  assert.match(careDemo, /病院からの共有/);
+  assert.match(careDemo, /介護関係者の共有/);
+  assert.match(careDemo, /登場人物・病院・介護施設はすべて架空のデモ設定です/);
+  assert.match(careDemo, /id="quickUpdateMic"[^>]* hidden/);
+  assert.match(careDemo, /id="shareRecord"[^>]* hidden/);
+  assert.match(careDemo, /id="shoppingVoice" hidden/);
+  assert.match(careDemo, /<dialog id="recordDialog" class="sheet" hidden>/);
+  assert.match(careStyles, /\[hidden\]\s*\{\s*display:\s*none\s*!important/);
+  assert.match(careApp, /state\.shareSource = button\.dataset\.shareSource/);
+  for (const copy of ['青木 和子', '吉田 修', '藤本 千代', '緑丘リハビリテーション病院', '東京みらい脳神経リハビリ病院', '彩北リハビリテーション病院', 'デイケア陽だまり桜台', '通所リハビリ青葉テラス', 'ケアホーム結の庭']) {
+    assert.ok(carePersonas.includes(copy), `みんなで介護のペルソナ設定がありません: ${copy}`);
+  }
+  const careManifest = JSON.parse(careManifestJson);
+  assert.equal(careManifest.name, 'みんなで介護');
+  assert.equal(careManifest.start_url, '/minnade-kaigo/');
   assert.match(coachDemo, /<title>CoachGo 危険監視PoC<\/title>/);
   assert.match(coachDemo, /id="mapbox-map"/);
   assert.match(coachDemo, /class="setting-switch"/);
@@ -305,6 +333,8 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(coachPoliceModule, /現在の取締り実施を示す情報ではありません/);
   assert.match(coachUnderpassModule, /function buildNationalUnderpassMapPayload/);
   assert.match(server, /requestedPath === '\/coachgo-demo'/);
+  assert.match(server, /requestedPath === '\/minnade-kaigo'/);
+  assert.match(server, /requestedPath\.startsWith\('\/minnade-kaigo'\)/);
   assert.match(server, /requestedPath === '\/coachgo-demo\/runtime-config\.js'/);
   assert.match(server, /underpassDataUrl: '\/coachgo-demo\/underpasses\.generated\.json'/);
   assert.match(server, /dataMode: 'DIVERTNAVI_PUBLIC'/);
@@ -345,8 +375,10 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(sitemap, /https:\/\/method-more\.com\/coachgo-privacy\.html/);
   assert.match(sitemap, /https:\/\/method-more\.com\/coachgo-support\.html/);
   assert.match(sitemap, /https:\/\/method-more\.com\/coachgo-data-sources\.html/);
+  assert.match(sitemap, /https:\/\/method-more\.com\/minnade-kaigo\//);
   assert.match(corporateStyles, /\.divert-art/);
   assert.match(corporateStyles, /\.coach-art/);
+  assert.match(corporateStyles, /\.care-art/);
   assert.match(divertStyles, /@media \(max-width: 620px\)/);
 });
 

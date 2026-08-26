@@ -158,6 +158,8 @@ createServer(async (request, response) => {
       ? '/coachgo-demo/index.html'
     : requestedPath === '/divertnavi-app' || requestedPath === '/divertnavi-app/'
       ? '/divertnavi-app/index.html'
+    : requestedPath === '/minnade-kaigo' || requestedPath === '/minnade-kaigo/'
+      ? '/minnade-kaigo/index.html'
       : divertNaviDashboardPath && normalizedRequestedPath === divertNaviDashboardPath
         ? '/divertnavi-app/index.html'
       : requestedPath;
@@ -165,7 +167,7 @@ createServer(async (request, response) => {
   if (!file.startsWith(root)) { response.writeHead(403, securityHeaders).end(); return; }
   try {
     const fileBody = await readFile(file);
-    const isApplicationPage = requestedPath === '/demo.html' || requestedPath === '/app.html' || requestedPath.startsWith('/coachgo-demo') || requestedPath.startsWith('/divertnavi-app');
+    const isApplicationPage = requestedPath === '/demo.html' || requestedPath === '/app.html' || requestedPath.startsWith('/coachgo-demo') || requestedPath.startsWith('/divertnavi-app') || requestedPath.startsWith('/minnade-kaigo');
     const body = extname(file) === '.html' && !isApplicationPage
       ? Buffer.from(fileBody.toString('utf8').replace('<head>', '<head><link rel="stylesheet" href="/cookie-consent.css?v=20260816-2"><link rel="stylesheet" href="/share.css?v=20260821-2"><script src="/analytics.js?v=20260820-2" defer></script><script src="/attribution.js?v=20260821-2" defer></script><script src="/share.js?v=20260821-3" defer></script>'))
       : fileBody;
