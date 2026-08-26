@@ -6,8 +6,20 @@ dist/
 .next/
 .expo/
 .expo-export-check/
+.expo-export-check-*/
+apps/mobile/.expo-export-check-*/
 coverage/
 tmp/
 *.log
+*.tsbuildinfo
 appleappkey.txt
 render.txt
+
+# Never commit local Apple/Twilio credentials or recovery material.
+/downloadkey/
+AuthKey_*.p8
+*recovery_code*.txt
+
+# Local Expo CLI stub and generated App Store submission packages.
+/app.json
+/artifacts/app-store/

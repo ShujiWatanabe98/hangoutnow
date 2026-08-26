@@ -1,12 +1,12 @@
-import { buildHazardPointGuidance, createSessionUserHazardPoint, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260826-2";
-import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260824-2";
-import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260824-1";
-import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260824-1";
-import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260826-2";
-import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260826-2";
-import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260824-1";
-import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260825-1";
-import { interpolateUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260825-1";
+import { buildHazardPointGuidance, createSessionUserHazardPoint, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260826-4";
+import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260826-4";
+import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260826-4";
+import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260826-4";
+import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260826-4";
+import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260826-4";
+import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260826-4";
+import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260826-4";
+import { interpolateUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260826-4";
 function syntheticSharedMapPayload() {
     return {
         schemaVersion: 1,
@@ -100,15 +100,18 @@ const rainViewerStatus = requiredElement("#rainviewer-status");
 let map = null;
 let initialMapLoadCompleted = false;
 let initialMapLoadTimeout = null;
-const mapMarkers = new Map();
-const sessionUserReportMarkers = new Map();
 let userLocationMarker = null;
-const sharedDataMarkers = new Map();
 const UNDERPASS_SOURCE_ID = "coachgo-underpasses";
 const UNDERPASS_CLUSTER_LAYER_ID = "coachgo-underpass-clusters";
 const UNDERPASS_CLUSTER_COUNT_LAYER_ID = "coachgo-underpass-cluster-count";
 const UNDERPASS_POINT_LAYER_ID = "coachgo-underpass-points";
 const ROAD_FLOODING_MARKER_IMAGE_ID = "coachgo-road-flooding-category-icon";
+const HAZARD_CLUSTER_MAX_ZOOM = 12;
+const HAZARD_CLUSTER_RADIUS = 48;
+const CLUSTERED_HAZARD_CATEGORIES = [
+    ...HAZARD_CATEGORIES.filter((category) => category.id !== "RAIN_CLOUD").map((category) => category.id),
+    ...USER_REPORT_CATEGORIES.map((category) => category.id),
+];
 const RAINVIEWER_SOURCE_ID = "coachgo-rainviewer-radar";
 const RAINVIEWER_LAYER_ID = "coachgo-rainviewer-radar-layer";
 const RAINVIEWER_METADATA_URL = "https://api.rainviewer.com/public/weather-maps.json";
@@ -495,13 +498,6 @@ async function requestMicrophonePermissionAtStartup() {
 function selectHazard(point) {
     selectedHazard = point;
     selectedSharedPoint = null;
-    for (const { element } of mapMarkers.values()) {
-        element.classList.toggle("selected", element.dataset.hazard === point.id);
-    }
-    for (const marker of sessionUserReportMarkers.values()) {
-        const element = marker.getElement();
-        element.classList.toggle("selected", element.dataset.hazard === point.id);
-    }
 }
 function sharedPointGuidance(point) {
     const synthetic = point.sourceOrganization === "CoachGo合成デモ";
@@ -517,21 +513,10 @@ function sharedPointGuidance(point) {
 function selectSharedPoint(point) {
     selectedSharedPoint = point;
     selectedHazard = null;
-    for (const { element } of mapMarkers.values())
-        element.classList.remove("selected");
-    for (const { element } of sharedDataMarkers.values()) {
-        element.classList.toggle("selected", element.dataset.sharedPoint === point.id);
-    }
 }
 function clearMapPointSelection() {
     selectedHazard = null;
     selectedSharedPoint = null;
-    for (const { element } of mapMarkers.values())
-        element.classList.remove("selected");
-    for (const marker of sessionUserReportMarkers.values())
-        marker.getElement().classList.remove("selected");
-    for (const { element } of sharedDataMarkers.values())
-        element.classList.remove("selected");
 }
 function removeActiveMapPopup() {
     const popup = activeMapPopup;
@@ -588,34 +573,9 @@ function categoryIcon(category) {
         USER_REPORT_CATEGORIES.find((candidate) => candidate.id === category)?.icon ??
         "!");
 }
-function createHazardMarkerElement(point) {
-    const marker = document.createElement("button");
-    marker.type = "button";
-    marker.className = `${point.sourceKind === "USER_REPORT" ? "user-report-marker" : "hazard-marker"} ${point.category.toLowerCase().replaceAll("_", "-")}`;
-    marker.dataset.hazard = point.id;
-    marker.setAttribute("aria-label", point.sourceKind === "USER_REPORT"
-        ? `${point.name}、ユーザー登録の未確認地点`
-        : `${point.name}、${categoryLabels[point.category]}、合成地点`);
-    const label = document.createElement("span");
-    label.textContent = categoryIcon(point.category);
-    marker.append(label);
-    marker.addEventListener("click", (event) => {
-        event.stopPropagation();
-        showHazardPopup(point);
-    });
-    return marker;
-}
-function addSyntheticMarkers() {
-    if (map === null || window.mapboxgl === undefined || mapMarkers.size > 0)
+function addUserLocationMarker() {
+    if (map === null || window.mapboxgl === undefined || userLocationMarker !== null)
         return;
-    for (const point of SYNTHETIC_HAZARD_POINTS) {
-        const element = createHazardMarkerElement(point);
-        const marker = new window.mapboxgl.Marker({ element, anchor: "center" })
-            .setLngLat([point.longitude, point.latitude])
-            .addTo(map);
-        element.setAttribute("role", "button");
-        mapMarkers.set(point.id, { marker, element });
-    }
     const userLocationElement = document.createElement("div");
     userLocationElement.className = "user-location";
     userLocationElement.setAttribute("aria-label", "現在地");
@@ -981,125 +941,162 @@ function isDivertNaviMapPayload(value) {
         && Number.isInteger(payload.counts.underpasses)
         && Number.isInteger(payload.counts.policePriorityLocations);
 }
-function addSharedDataMarkers() {
-    if (map === null || window.mapboxgl === undefined || divertNaviMapData === null || !initialMapLoadCompleted)
-        return;
-    addUnderpassLayers();
-    if (sharedDataMarkers.size > 0)
-        return;
-    for (const point of divertNaviMapData.items) {
-        if (point.kind === "UNDERPASS")
-            continue;
-        const element = document.createElement("button");
-        element.type = "button";
-        element.className = "shared-data-marker shared-police";
-        element.dataset.sharedPoint = point.id;
-        element.setAttribute("aria-label", `${point.name}、警察公開の交通安全重点地点`);
-        const icon = document.createElement("span");
-        icon.setAttribute("aria-hidden", "true");
-        icon.textContent = categoryIcon("POLICE_ENFORCEMENT");
-        element.append(icon);
-        element.addEventListener("click", (event) => {
-            event.stopPropagation();
-            showSharedPointPopup(point);
-        });
-        const marker = new window.mapboxgl.Marker({ element, anchor: "center" })
-            .setLngLat([point.longitude, point.latitude])
-            .addTo(map);
-        sharedDataMarkers.set(point.id, { marker, element, point });
-    }
-    renderMap();
+function categoryMarkerColor(category) {
+    const reportCategory = USER_REPORT_CATEGORIES.find((candidate) => candidate.id === category);
+    if (reportCategory !== undefined)
+        return reportCategory.color;
+    const monitorColors = {
+        ROAD_FLOODING: "#007bff",
+        RIVER_FLOODING: "#1f9aaa",
+        LANDSLIDE: "#a86b2e",
+        TSUNAMI: "#7c5ce5",
+        POLICE_ENFORCEMENT: "#7540c8",
+        RAIN_CLOUD: "#3478d4",
+    };
+    return monitorColors[category];
 }
-function underpassFeatureCollection() {
+function categoryClusterLayerIds(category) {
+    if (category === "ROAD_FLOODING") {
+        return {
+            source: UNDERPASS_SOURCE_ID,
+            cluster: UNDERPASS_CLUSTER_LAYER_ID,
+            count: UNDERPASS_CLUSTER_COUNT_LAYER_ID,
+            point: UNDERPASS_POINT_LAYER_ID,
+            image: ROAD_FLOODING_MARKER_IMAGE_ID,
+        };
+    }
+    const slug = category.toLowerCase().replaceAll("_", "-");
     return {
-        type: "FeatureCollection",
-        features: (divertNaviMapData?.items ?? [])
-            .filter((point) => point.kind === "UNDERPASS")
-            .map((point) => ({
-            type: "Feature",
-            geometry: { type: "Point", coordinates: [point.longitude, point.latitude] },
-            properties: { pointId: point.id, name: point.name },
-        })),
+        source: `coachgo-${slug}-points`,
+        cluster: `coachgo-${slug}-clusters`,
+        count: `coachgo-${slug}-cluster-count`,
+        point: `coachgo-${slug}-unclustered`,
+        image: `coachgo-${slug}-category-icon`,
     };
 }
-function addUnderpassLayers() {
-    if (map === null || divertNaviMapData === null)
-        return;
-    const data = underpassFeatureCollection();
-    const existingSource = map.getSource(UNDERPASS_SOURCE_ID);
-    if (existingSource !== undefined) {
-        existingSource.setData(data);
-        return;
-    }
-    map.addSource(UNDERPASS_SOURCE_ID, {
-        type: "geojson",
-        data,
-        cluster: true,
-        clusterMaxZoom: 12,
-        clusterRadius: 48,
-    });
-    if (!map.hasImage(ROAD_FLOODING_MARKER_IMAGE_ID)) {
-        map.addImage(ROAD_FLOODING_MARKER_IMAGE_ID, createCategoryMarkerImage(categoryIcon("ROAD_FLOODING"), "#007bff"), { pixelRatio: 2 });
-    }
-    map.addLayer({
-        id: UNDERPASS_CLUSTER_LAYER_ID,
-        type: "symbol",
-        source: UNDERPASS_SOURCE_ID,
-        filter: ["has", "point_count"],
-        layout: {
-            "icon-image": ROAD_FLOODING_MARKER_IMAGE_ID,
-            "icon-size": ["step", ["get", "point_count"], 0.95, 20, 1.12, 100, 1.28],
-            "icon-allow-overlap": true,
-        },
-    });
-    map.addLayer({
-        id: UNDERPASS_CLUSTER_COUNT_LAYER_ID,
-        type: "symbol",
-        source: UNDERPASS_SOURCE_ID,
-        filter: ["has", "point_count"],
-        layout: {
-            "text-field": ["get", "point_count_abbreviated"],
-            "text-size": 12,
-            "text-offset": [0, 2.2],
-            "text-allow-overlap": true,
-        },
-        paint: { "text-color": "#0068d8", "text-halo-color": "#ffffff", "text-halo-width": 2 },
-    });
-    map.addLayer({
-        id: UNDERPASS_POINT_LAYER_ID,
-        type: "symbol",
-        source: UNDERPASS_SOURCE_ID,
-        filter: ["!", ["has", "point_count"]],
-        layout: {
-            "icon-image": ROAD_FLOODING_MARKER_IMAGE_ID,
-            "icon-size": ["interpolate", ["linear"], ["zoom"], 10, 0.65, 15, 0.95],
-            "icon-allow-overlap": false,
-        },
-    });
-    map.on("click", UNDERPASS_CLUSTER_LAYER_ID, (event) => {
-        const feature = event.features?.[0];
-        if (feature?.geometry?.type !== "Point" || !Array.isArray(feature.geometry.coordinates))
-            return;
-        const [longitude, latitude] = feature.geometry.coordinates;
-        if (typeof longitude !== "number" || typeof latitude !== "number")
-            return;
-        map?.easeTo({ center: [longitude, latitude], zoom: Math.min((map?.getZoom() ?? 10) + 2, 15), duration: 420 });
-    });
-    map.on("click", UNDERPASS_POINT_LAYER_ID, (event) => {
-        const feature = event.features?.[0];
-        const pointId = feature?.properties?.pointId;
-        if (typeof pointId !== "string")
-            return;
+function clusteredHazardFeatureCollection(category) {
+    const hazardFeatures = allHazards()
+        .filter((point) => point.category === category)
+        .map((point) => ({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [point.longitude, point.latitude] },
+        properties: { pointId: point.id, pointType: "hazard" },
+    }));
+    const sharedFeatures = (divertNaviMapData?.items ?? [])
+        .filter((point) => point.monitorCategory === category)
+        .map((point) => ({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [point.longitude, point.latitude] },
+        properties: { pointId: point.id, pointType: "shared" },
+    }));
+    return { type: "FeatureCollection", features: [...hazardFeatures, ...sharedFeatures] };
+}
+function clusteredCategoryVisible(category) {
+    const monitorCategory = HAZARD_CATEGORIES.find((candidate) => candidate.id === category);
+    return monitorCategory === undefined || selectedCategories.has(monitorCategory.id);
+}
+function showClusteredPoint(pointId, pointType) {
+    if (pointType === "shared") {
         const point = divertNaviMapData?.items.find((candidate) => candidate.id === pointId);
         if (point !== undefined)
             showSharedPointPopup(point);
-    });
-    for (const layerId of [UNDERPASS_CLUSTER_LAYER_ID, UNDERPASS_POINT_LAYER_ID]) {
-        map.on("mouseenter", layerId, () => { if (map !== null)
-            map.getCanvas().style.cursor = "pointer"; });
-        map.on("mouseleave", layerId, () => { if (map !== null)
-            map.getCanvas().style.cursor = ""; });
+        return;
     }
+    const point = allHazards().find((candidate) => candidate.id === pointId);
+    if (point !== undefined)
+        showHazardPopup(point);
+}
+function addClusteredHazardCategory(category) {
+    if (map === null)
+        return;
+    const data = clusteredHazardFeatureCollection(category);
+    const ids = categoryClusterLayerIds(category);
+    const existingSource = map.getSource(ids.source);
+    if (existingSource !== undefined) {
+        existingSource.setData(data);
+    }
+    else {
+        if (data.features.length === 0)
+            return;
+        map.addSource(ids.source, {
+            type: "geojson",
+            data,
+            cluster: true,
+            clusterMaxZoom: HAZARD_CLUSTER_MAX_ZOOM,
+            clusterRadius: HAZARD_CLUSTER_RADIUS,
+        });
+        if (!map.hasImage(ids.image)) {
+            map.addImage(ids.image, createCategoryMarkerImage(categoryIcon(category), categoryMarkerColor(category)), { pixelRatio: 2 });
+        }
+        map.addLayer({
+            id: ids.cluster,
+            type: "symbol",
+            source: ids.source,
+            filter: ["has", "point_count"],
+            layout: {
+                "icon-image": ids.image,
+                "icon-size": ["step", ["get", "point_count"], 0.95, 20, 1.12, 100, 1.28],
+                "icon-allow-overlap": true,
+            },
+        });
+        map.addLayer({
+            id: ids.count,
+            type: "symbol",
+            source: ids.source,
+            filter: ["has", "point_count"],
+            layout: {
+                "text-field": ["get", "point_count_abbreviated"],
+                "text-size": 12,
+                "text-offset": [0, 2.2],
+                "text-allow-overlap": true,
+            },
+            paint: { "text-color": categoryMarkerColor(category), "text-halo-color": "#ffffff", "text-halo-width": 2 },
+        });
+        map.addLayer({
+            id: ids.point,
+            type: "symbol",
+            source: ids.source,
+            filter: ["!", ["has", "point_count"]],
+            layout: {
+                "icon-image": ids.image,
+                "icon-size": ["interpolate", ["linear"], ["zoom"], 10, 0.65, 15, 0.95],
+                "icon-allow-overlap": false,
+            },
+        });
+        map.on("click", ids.cluster, (event) => {
+            const feature = event.features?.[0];
+            if (feature?.geometry?.type !== "Point" || !Array.isArray(feature.geometry.coordinates))
+                return;
+            const [longitude, latitude] = feature.geometry.coordinates;
+            if (typeof longitude !== "number" || typeof latitude !== "number")
+                return;
+            map?.easeTo({ center: [longitude, latitude], zoom: Math.min((map?.getZoom() ?? 10) + 2, 15), duration: 420 });
+        });
+        map.on("click", ids.point, (event) => {
+            const feature = event.features?.[0];
+            const pointId = feature?.properties?.pointId;
+            const pointType = feature?.properties?.pointType;
+            if (typeof pointId === "string" && typeof pointType === "string")
+                showClusteredPoint(pointId, pointType);
+        });
+        for (const layerId of [ids.cluster, ids.point]) {
+            map.on("mouseenter", layerId, () => { if (map !== null)
+                map.getCanvas().style.cursor = "pointer"; });
+            map.on("mouseleave", layerId, () => { if (map !== null)
+                map.getCanvas().style.cursor = ""; });
+        }
+    }
+    const visibility = clusteredCategoryVisible(category) ? "visible" : "none";
+    for (const layerId of [ids.cluster, ids.count, ids.point]) {
+        if (map.getLayer(layerId) !== undefined)
+            map.setLayoutProperty(layerId, "visibility", visibility);
+    }
+}
+function renderClusteredHazardLayers() {
+    if (map === null || !initialMapLoadCompleted)
+        return;
+    for (const category of CLUSTERED_HAZARD_CATEGORIES)
+        addClusteredHazardCategory(category);
 }
 function rainViewerFrame(value) {
     if (value === null || typeof value !== "object")
@@ -1438,7 +1435,7 @@ async function loadDivertNaviMapData() {
         sharedDataStatus.dataset.underpassCount = String(value.counts.underpasses);
         sharedDataStatus.dataset.policeCount = String(value.counts.policePriorityLocations);
         updateDemoPlaybackAvailability();
-        addSharedDataMarkers();
+        renderMap();
         if (hasLiveUserLocation && !demoDriveRunning) {
             activeNearbyPointIds.clear();
             lastVoiceProximityCheckAt = 0;
@@ -1496,8 +1493,7 @@ function initializeMapbox() {
             initialMapLoadTimeout = null;
             mapLoadState.hidden = true;
             mapLoadState.classList.remove("error");
-            addSyntheticMarkers();
-            addSharedDataMarkers();
+            addUserLocationMarker();
             updateDemoPlaybackAvailability();
             renderMap();
             void initializeContinuousDemoDrive(token);
@@ -1519,33 +1515,8 @@ function renderMap() {
         const category = button.dataset.category;
         button.setAttribute("aria-pressed", String(selectedCategories.has(category)));
     }
-    for (const { element } of mapMarkers.values()) {
-        element.hidden = !visible.some((point) => point.id === element.dataset.hazard);
-    }
-    for (const { element, point } of sharedDataMarkers.values()) {
-        element.hidden = !selectedCategories.has(point.monitorCategory);
-    }
-    if (map !== null) {
-        const underpassesVisible = selectedCategories.has("ROAD_FLOODING") ? "visible" : "none";
-        for (const layerId of [UNDERPASS_CLUSTER_LAYER_ID, UNDERPASS_CLUSTER_COUNT_LAYER_ID, UNDERPASS_POINT_LAYER_ID]) {
-            if (map.getLayer(layerId) !== undefined)
-                map.setLayoutProperty(layerId, "visibility", underpassesVisible);
-        }
-    }
+    renderClusteredHazardLayers();
     updateRainViewerLayer();
-    for (const marker of sessionUserReportMarkers.values())
-        marker.remove();
-    sessionUserReportMarkers.clear();
-    if (map !== null && window.mapboxgl !== undefined) {
-        for (const report of sessionUserReports.filter((point) => visible.includes(point))) {
-            const element = createHazardMarkerElement(report);
-            const marker = new window.mapboxgl.Marker({ element, anchor: "center" })
-                .setLngLat([report.longitude, report.latitude])
-                .addTo(map);
-            element.setAttribute("role", "button");
-            sessionUserReportMarkers.set(report.id, marker);
-        }
-    }
     if (selectedSharedPoint !== null && !selectedCategories.has(selectedSharedPoint.monitorCategory)) {
         removeActiveMapPopup();
     }
