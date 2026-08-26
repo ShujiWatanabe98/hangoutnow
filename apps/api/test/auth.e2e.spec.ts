@@ -11,8 +11,9 @@ import { AuthController, UsersController } from '../src/auth/auth.controller';
 import { HostStatusService } from '../src/host-status/host-status.service';
 import { AuthService } from '../src/auth/auth.service';
 import { RegisterDto } from '../src/auth/auth.dto';
-import { AcquisitionInput, AuthRepository, StoredOAuthLoginTicket, StoredRefreshToken, StoredUser } from '../src/auth/auth.types';
+import { AcquisitionInput, AuthRepository, StoredOAuthCredential, StoredOAuthLoginTicket, StoredRefreshToken, StoredUser } from '../src/auth/auth.types';
 import { ImageStorageService } from '../src/storage/image-storage.service';
+import { ContentModerationService } from '../src/moderation/content-moderation.service';
 
 async function testPhoto(color: string): Promise<string> {
   const body = await sharp({ create: { width: 640, height: 480, channels: 3, background: color } }).png().toBuffer();
@@ -23,7 +24,7 @@ class MemoryAuthRepository extends AuthRepository {
   private users: StoredUser[] = [];
   private tokens: StoredRefreshToken[] = [];
   private oauthTickets: StoredOAuthLoginTicket[] = [];
-  private oauthIdentities: Array<{provider:string;subject:string;userId:string}> = [];
+  private oauthIdentities: Array<{provider:string;subject:string;userId:string;refreshTokenEncrypted?:string|null}> = [];
   readonly acquisitions: Array<AcquisitionInput & {userId:string}> = [];
   async findUserByEmail(email: string) { return this.users.find((user) => user.email === email) ?? null; }
   async findUserById(id: string) { return this.users.find((user) => user.id === id) ?? null; }
@@ -42,6 +43,8 @@ class MemoryAuthRepository extends AuthRepository {
   async deleteUser(userId:string){this.users=this.users.filter((user)=>user.id!==userId);this.tokens=this.tokens.filter((token)=>token.userId!==userId)}
   async findOAuthIdentity(provider:string,subject:string){const identity=this.oauthIdentities.find((item)=>item.provider===provider&&item.subject===subject);return identity?this.findUserById(identity.userId):null}
   async createOAuthIdentity(provider:string,subject:string,userId:string){this.oauthIdentities.push({provider,subject,userId})}
+  async upsertOAuthCredential(provider:string,subject:string,userId:string,refreshTokenEncrypted:string){const current=this.oauthIdentities.find((item)=>item.provider===provider&&item.subject===subject);if(current){current.userId=userId;current.refreshTokenEncrypted=refreshTokenEncrypted}else this.oauthIdentities.push({provider,subject,userId,refreshTokenEncrypted})}
+  async findOAuthCredentials(userId:string,provider:string):Promise<StoredOAuthCredential[]>{return this.oauthIdentities.flatMap((item)=>item.userId===userId&&item.provider===provider&&item.refreshTokenEncrypted?[{provider:item.provider,subject:item.subject,refreshTokenEncrypted:item.refreshTokenEncrypted}]:[])}
   async saveOAuthLoginTicket(input:StoredOAuthLoginTicket){this.oauthTickets.push(input)}
   async findOAuthLoginTicket(tokenHash:string){return this.oauthTickets.find((item)=>item.tokenHash===tokenHash)??null}
   async consumeOAuthLoginTicket(id:string){const item=this.oauthTickets.find((row)=>row.id===id);if(item)item.usedAt=new Date()}
@@ -53,13 +56,13 @@ describe('authentication and profile', () => {
     const moduleRef = await Test.createTestingModule({
       imports: [JwtModule.register({ secret: 'test-secret-that-is-long-enough-for-tests' })],
       controllers: [AuthController, UsersController],
-      providers: [AuthService, AccessTokenGuard, ImageStorageService, { provide: HostStatusService, useValue: { forUser: async () => ({ tier: 'BRONZE', label: 'ブロンズ' }) } }, { provide: AuthRepository, useClass: MemoryAuthRepository }],
+      providers: [AuthService, AccessTokenGuard, ImageStorageService, ContentModerationService, { provide: HostStatusService, useValue: { forUser: async () => ({ tier: 'BRONZE', label: 'ブロンズ' }) } }, { provide: AuthRepository, useClass: MemoryAuthRepository }],
     }).compile();
     const instance = moduleRef.createNestApplication();
     instance.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
     await instance.init(); return instance;
   }
-  afterEach(async () => { await app?.close(); app = undefined; vi.unstubAllGlobals(); delete process.env.LINE_LOGIN_CHANNEL_ID; delete process.env.LINE_LOGIN_CHANNEL_SECRET; delete process.env.GOOGLE_LOGIN_CLIENT_ID; delete process.env.GOOGLE_LOGIN_CLIENT_SECRET; delete process.env.APPLE_LOGIN_CLIENT_ID; delete process.env.APPLE_TEAM_ID; delete process.env.APPLE_KEY_ID; delete process.env.APPLE_PRIVATE_KEY; delete process.env.X_LOGIN_CLIENT_ID; delete process.env.X_LOGIN_CLIENT_SECRET; });
+  afterEach(async () => { await app?.close(); app = undefined; vi.unstubAllGlobals(); delete process.env.LINE_LOGIN_CHANNEL_ID; delete process.env.LINE_LOGIN_CHANNEL_SECRET; delete process.env.GOOGLE_LOGIN_CLIENT_ID; delete process.env.GOOGLE_LOGIN_CLIENT_SECRET; delete process.env.APPLE_LOGIN_CLIENT_ID; delete process.env.APPLE_TEAM_ID; delete process.env.APPLE_KEY_ID; delete process.env.APPLE_PRIVATE_KEY; delete process.env.OAUTH_TOKEN_ENCRYPTION_KEY; delete process.env.X_LOGIN_CLIENT_ID; delete process.env.X_LOGIN_CLIENT_SECRET; });
 
   it('logs in both public demo roles through the dedicated endpoint', async () => {
     app = await createApp();
@@ -110,9 +113,10 @@ describe('authentication and profile', () => {
   it('registers with a verified Apple identity and rejects ticket reuse', async()=>{
     const {privateKey,publicKey}=await generateKeyPair('ES256',{extractable:true});
     const publicJwk=await exportJWK(publicKey);publicJwk.kid='apple-key-id';publicJwk.alg='ES256';publicJwk.use='sig';
-    process.env.APPLE_LOGIN_CLIENT_ID='com.methodmore.hangoutnow.web';process.env.APPLE_TEAM_ID='APPLETEAM1';process.env.APPLE_KEY_ID='apple-key-id';process.env.APPLE_PRIVATE_KEY=await exportPKCS8(privateKey);
+    process.env.APPLE_LOGIN_CLIENT_ID='com.methodmore.hangoutnow.web';process.env.APPLE_TEAM_ID='APPLETEAM1';process.env.APPLE_KEY_ID='apple-key-id';process.env.APPLE_PRIVATE_KEY=await exportPKCS8(privateKey);process.env.OAUTH_TOKEN_ENCRYPTION_KEY='test-token-encryption-key';
     const idToken=await new SignJWT({nonce:'apple-nonce'}).setProtectedHeader({alg:'ES256',kid:'apple-key-id'}).setIssuer('https://appleid.apple.com').setAudience(process.env.APPLE_LOGIN_CLIENT_ID).setSubject('apple-user-1').setIssuedAt().setExpirationTime('5m').sign(privateKey);
-    vi.stubGlobal('fetch',vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({id_token:idToken}),{status:200,headers:{'content-type':'application/json'}})).mockResolvedValueOnce(new Response(JSON.stringify({keys:[publicJwk]}),{status:200,headers:{'content-type':'application/json','cache-control':'max-age=60'}})));
+    const fetchMock=vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({id_token:idToken,refresh_token:'apple-refresh-token'}),{status:200,headers:{'content-type':'application/json'}})).mockResolvedValueOnce(new Response(JSON.stringify({keys:[publicJwk]}),{status:200,headers:{'content-type':'application/json','cache-control':'max-age=60'}})).mockResolvedValueOnce(new Response(null,{status:200}));
+    vi.stubGlobal('fetch',fetchMock);
     app=await createApp();
     const auth=app.get(AuthService);const jwt=app.get(JwtService);const webReturnTo='https://method-more.com/app.html';
     await expect(auth.appleAuthorizeUrl('https://evil.example/app.html')).rejects.toThrow('Appleログインの戻り先が正しくありません');
@@ -121,6 +125,10 @@ describe('authentication and profile', () => {
     const redirect=await auth.appleCallback('apple-authorization-code',state,JSON.stringify({name:{firstName:'Apple',lastName:'User'}}));expect(redirect.startsWith(`${webReturnTo}?provider=apple&ticket=`)).toBe(true);const ticket=new URL(redirect).searchParams.get('ticket');expect(ticket).toBeTruthy();
     const registered=await request(app.getHttpServer()).post('/auth/apple/redeem').send({ticket}).expect(200);expect(registered.body.user.displayName).toBe('Apple User');expect(registered.body.user.birthDate).toBeNull();
     await request(app.getHttpServer()).post('/auth/apple/redeem').send({ticket,birthDate:'1990-01-01'}).expect(401);
+    await request(app.getHttpServer()).delete('/users/me').set('Authorization',`Bearer ${registered.body.accessToken as string}`).expect(204);
+    const revokeCall=fetchMock.mock.calls.find((call)=>String(call[0])==='https://appleid.apple.com/auth/revoke');
+    expect(revokeCall).toBeTruthy();
+    expect(String((revokeCall?.[1] as RequestInit|undefined)?.body)).toContain('token=apple-refresh-token');
   },15_000);
 
   it('registers with a verified Google identity and rejects ticket reuse', async()=>{
@@ -138,6 +146,7 @@ describe('authentication and profile', () => {
 
   it('registers an adult and allows authenticated profile updates', async () => {
     app = await createApp();
+    await request(app.getHttpServer()).post('/auth/register').send({ email: 'blocked-name@example.com', password: 'a-secure-password', displayName: '死　ね', birthDate: '1990-01-01' }).expect(400);
     const registered = await request(app.getHttpServer()).post('/auth/register').send({ email: 'USER@example.com', password: 'a-secure-password', displayName: 'Shuji', birthDate: '1990-01-01' }).expect(201);
     expect(registered.body.user.email).toBe('user@example.com');
     expect(registered.body.user.passwordHash).toBeUndefined();

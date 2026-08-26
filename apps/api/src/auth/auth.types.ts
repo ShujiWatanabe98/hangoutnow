@@ -35,7 +35,8 @@ export interface PublicUser {
 
 export interface StoredUser extends PublicUser { passwordHash: string; }
 export interface StoredRefreshToken { id: string; userId: string; tokenHash: string; expiresAt: Date; revokedAt: Date | null; }
-export interface StoredOAuthLoginTicket { id: string; tokenHash: string; provider: string; subject: string; displayName: string | null; profilePhoto: string | null; userId: string | null; expiresAt: Date; usedAt: Date | null; }
+export interface StoredOAuthLoginTicket { id: string; tokenHash: string; provider: string; subject: string; displayName: string | null; profilePhoto: string | null; providerRefreshTokenEncrypted?: string | null; userId: string | null; expiresAt: Date; usedAt: Date | null; }
+export interface StoredOAuthCredential { provider: string; subject: string; refreshTokenEncrypted: string; }
 export interface AcquisitionInput { source: string; medium: string; campaign: string; content: string; }
 
 export abstract class AuthRepository {
@@ -49,6 +50,8 @@ export abstract class AuthRepository {
   abstract deleteUser(userId: string): Promise<void>;
   abstract findOAuthIdentity(provider: string, subject: string): Promise<StoredUser | null>;
   abstract createOAuthIdentity(provider: string, subject: string, userId: string): Promise<void>;
+  abstract upsertOAuthCredential(provider: string, subject: string, userId: string, refreshTokenEncrypted: string): Promise<void>;
+  abstract findOAuthCredentials(userId: string, provider: string): Promise<StoredOAuthCredential[]>;
   abstract saveOAuthLoginTicket(input: StoredOAuthLoginTicket): Promise<void>;
   abstract findOAuthLoginTicket(tokenHash: string): Promise<StoredOAuthLoginTicket | null>;
   abstract consumeOAuthLoginTicket(id: string): Promise<void>;

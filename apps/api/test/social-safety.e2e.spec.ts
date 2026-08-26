@@ -18,6 +18,7 @@ import { RealtimeGateway } from '../src/notifications/realtime.gateway';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { SafetyController } from '../src/safety/safety.controller';
 import { SafetyService } from '../src/safety/safety.service';
+import { ContentModerationService } from '../src/moderation/content-moderation.service';
 
 type Verification = 'UNVERIFIED' | 'VERIFIED';
 type HangoutStatus = 'OPEN' | 'FULL' | 'STARTED' | 'FINISHED' | 'CANCELLED';
@@ -347,6 +348,7 @@ describe('social journey safety boundaries', () => {
         ChatService,
         SafetyService,
         NotificationService,
+        ContentModerationService,
         AccessTokenGuard,
         { provide: PrismaService, useValue: db as unknown as PrismaService },
         { provide: AuthService, useClass: TestAuthService },
@@ -383,6 +385,24 @@ describe('social journey safety boundaries', () => {
       hostMaleCount: 4, hostFemaleCount: 4,
     }).expect(201);
     expect(response.body).toMatchObject({ hostMaleCount: 0, hostFemaleCount: 1, hostParticipantCount: 1, maxParticipants: 2 });
+  });
+
+  it('filters objectionable text before Hangout, join, and chat content is stored', async () => {
+    await request(app.getHttpServer()).post('/hangouts').set(auth('host')).send({
+      title: '死　ね', category: 'CAFE', serviceArea: 'SHINJUKU', startInMinutes: 60,
+      publicLocationName: '新宿駅周辺', locationName: '新宿のカフェ', maxParticipants: 3,
+    }).expect(400);
+    expect(db.hangouts).toHaveLength(0);
+
+    const hangoutId = await createHangout();
+    await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('guest')).send({ message: '危険なので殺す' }).expect(400);
+    expect(db.joinRequests).toHaveLength(0);
+
+    const joined = await request(app.getHttpServer()).post(`/hangouts/${hangoutId}/join`).set(auth('guest')).send({ message: '参加したいです' }).expect(201);
+    await request(app.getHttpServer()).post(`/join-requests/${joined.body.id as string}/accept`).set(auth('host')).expect(201);
+    const roomId = db.rooms[0]!.id;
+    await request(app.getHttpServer()).post(`/chat-rooms/${roomId}/messages`).set(auth('guest')).send({ body: '死　ね' }).expect(400);
+    expect(db.messages).toHaveLength(0);
   });
 
   it('hides demo Hangouts from production users and shows all Hangouts to demo users', async () => {

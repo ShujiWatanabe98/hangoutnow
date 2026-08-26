@@ -1151,10 +1151,16 @@ test('web authentication prioritizes providers and mirrors profile image feedbac
 
 test('native authentication prioritizes non-phone providers', async () => {
   const mobile = await readFile(new URL('../../mobile/src/App.tsx', import.meta.url), 'utf8');
+  const mobileConfig = await readFile(new URL('../../mobile/app.json', import.meta.url), 'utf8');
+  const mobilePackage = await readFile(new URL('../../mobile/package.json', import.meta.url), 'utf8');
   const authenticationCard = mobile.slice(mobile.indexOf('<Text style={styles.authTitle}'), mobile.indexOf('<Text style={styles.authAgreement}>'));
 
   assert.ok(authenticationCard.indexOf('{providerSection}') < authenticationCard.indexOf('<Field label="メールアドレス"'), 'providers must appear before email authentication');
   assert.match(authenticationCard, /アカウントをお持ちの方はログイン/);
   assert.doesNotMatch(mobile, /auth\/phone|PhoneVerificationScreen|電話番号|SMS認証/);
+  assert.match(mobile, /AppleAuthentication\.isAvailableAsync\(\)/);
+  assert.match(mobile, /<AppleAuthentication\.AppleAuthenticationButton/);
+  assert.match(mobileConfig, /"expo-apple-authentication"/);
+  assert.match(mobilePackage, /"expo-apple-authentication"/);
   assert.ok(!mobile.includes('Alert.alert("画像を更新しました"'), 'successful profile image selection must not show an alert');
 });

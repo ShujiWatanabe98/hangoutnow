@@ -104,6 +104,7 @@ model OAuthIdentity {
   provider  String
   subject   String
   userId    String   @map("user_id") @db.Uuid
+  refreshTokenEncrypted String? @map("refresh_token_encrypted") @db.Text
   createdAt DateTime @default(now()) @map("created_at")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -119,6 +120,7 @@ model OAuthLoginTicket {
   subject      String
   displayName  String?   @map("display_name")
   profilePhoto String?   @map("profile_photo") @db.Text
+  providerRefreshTokenEncrypted String? @map("provider_refresh_token_encrypted") @db.Text
   userId       String?   @map("user_id") @db.Uuid
   expiresAt    DateTime  @map("expires_at")
   usedAt       DateTime? @map("used_at")

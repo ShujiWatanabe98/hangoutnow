@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { v7 as uuidv7 } from 'uuid';
 import { PrismaService } from '../prisma/prisma.service';
-import { AcquisitionInput, AuthRepository, StoredOAuthLoginTicket, StoredRefreshToken, StoredUser } from './auth.types';
+import { AcquisitionInput, AuthRepository, StoredOAuthCredential, StoredOAuthLoginTicket, StoredRefreshToken, StoredUser } from './auth.types';
 
 const includeInterests = { interests: { include: { interest: true } } } as const;
 
@@ -68,6 +68,17 @@ export class PrismaAuthRepository extends AuthRepository {
     return identity?this.mapUser(identity.user):null;
   }
   async createOAuthIdentity(provider:string,subject:string,userId:string):Promise<void>{await this.prisma.oAuthIdentity.create({data:{id:uuidv7(),provider,subject,userId}})}
+  async upsertOAuthCredential(provider:string,subject:string,userId:string,refreshTokenEncrypted:string):Promise<void>{
+    await this.prisma.oAuthIdentity.upsert({
+      where:{provider_subject:{provider,subject}},
+      create:{id:uuidv7(),provider,subject,userId,refreshTokenEncrypted},
+      update:{userId,refreshTokenEncrypted},
+    });
+  }
+  async findOAuthCredentials(userId:string,provider:string):Promise<StoredOAuthCredential[]>{
+    const rows=await this.prisma.oAuthIdentity.findMany({where:{userId,provider,refreshTokenEncrypted:{not:null}},select:{provider:true,subject:true,refreshTokenEncrypted:true}});
+    return rows.flatMap((row)=>row.refreshTokenEncrypted?[{provider:row.provider,subject:row.subject,refreshTokenEncrypted:row.refreshTokenEncrypted}]:[]);
+  }
   async saveOAuthLoginTicket(input:StoredOAuthLoginTicket):Promise<void>{await this.prisma.oAuthLoginTicket.create({data:input})}
   async findOAuthLoginTicket(tokenHash:string):Promise<StoredOAuthLoginTicket|null>{return this.prisma.oAuthLoginTicket.findUnique({where:{tokenHash}})}
   async consumeOAuthLoginTicket(id:string):Promise<void>{await this.prisma.oAuthLoginTicket.update({where:{id},data:{usedAt:new Date()}})}

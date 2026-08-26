@@ -1,12 +1,13 @@
-import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, Optional, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { compare, hash } from 'bcryptjs';
-import { createHash, randomBytes } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import { v7 as uuidv7 } from 'uuid';
 import { createRemoteJWKSet, importPKCS8, jwtVerify, SignJWT } from 'jose';
 import { AcquisitionInput, AuthRepository, PublicUser, StoredUser } from './auth.types';
 import { AcquisitionDto, AppleRedeemDto, DemoLoginDto, DemoRole, GoogleRedeemDto, LineRedeemDto, LoginDto, RegisterDto, UpdateProfileDto, XRedeemDto } from './auth.dto';
 import { ImageStorageService } from '../storage/image-storage.service';
+import { ContentModerationService } from '../moderation/content-moderation.service';
 
 interface TokenPair { accessToken: string; refreshToken: string; expiresIn: number; }
 export interface AuthResponse extends TokenPair { user: PublicUser; }
@@ -16,10 +17,16 @@ export class AuthService {
   private readonly accessTtlSeconds = 15 * 60;
   private readonly refreshTtlMs = 30 * 24 * 60 * 60 * 1000;
 
-  constructor(@Inject(AuthRepository) private readonly repository: AuthRepository, @Inject(JwtService) private readonly jwt: JwtService, @Inject(ImageStorageService) private readonly images: ImageStorageService) {}
+  constructor(
+    @Inject(AuthRepository) private readonly repository: AuthRepository,
+    @Inject(JwtService) private readonly jwt: JwtService,
+    @Inject(ImageStorageService) private readonly images: ImageStorageService,
+    @Optional() @Inject(ContentModerationService) private readonly contentModeration = new ContentModerationService(),
+  ) {}
 
   async register(input: RegisterDto): Promise<AuthResponse> {
     const email = input.email.trim().toLowerCase();
+    this.contentModeration.assertAllowed(input.displayName);
     if (!this.isAdult(input.birthDate)) throw new BadRequestException('18歳以上の方のみ登録できます');
     if (await this.repository.findUserByEmail(email)) throw new ConflictException('このメールアドレスはすでに登録されています');
     let user = await this.repository.createUser({
@@ -81,6 +88,7 @@ export class AuthService {
     if (!user) {
       if (input.birthDate && !this.isAdult(input.birthDate)) throw new BadRequestException('18歳以上の方のみ登録できます');
       const displayName = (input.displayName || row.displayName || 'LINEユーザー').trim();
+      this.contentModeration.assertAllowed(displayName);
       const subjectKey = createHash('sha256').update(row.subject).digest('hex').slice(0, 32);
       user = await this.repository.createUser({ email: `line.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: input.birthDate ? new Date(`${input.birthDate}T00:00:00.000Z`) : null, gender: input.gender, acquisition: this.acquisition(input.acquisition) });
       await this.repository.createOAuthIdentity('LINE', row.subject, user.id);
@@ -128,6 +136,7 @@ export class AuthService {
     if (!user) {
       if (input.birthDate && !this.isAdult(input.birthDate)) throw new BadRequestException('18歳以上の方のみ登録できます');
       const displayName = (input.displayName || row.displayName || 'Googleユーザー').trim();
+      this.contentModeration.assertAllowed(displayName);
       const subjectKey = createHash('sha256').update(row.subject).digest('hex').slice(0, 32);
       user = await this.repository.createUser({ email: `google.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: input.birthDate ? new Date(`${input.birthDate}T00:00:00.000Z`) : null, gender: input.gender, acquisition: this.acquisition(input.acquisition) });
       await this.repository.createOAuthIdentity('GOOGLE', row.subject, user.id);
@@ -156,7 +165,7 @@ export class AuthService {
     if (statePayload.kind !== 'apple_state' || !statePayload.returnTo || !this.isAllowedAppleReturnTo(statePayload.returnTo) || !statePayload.nonce) throw new UnauthorizedException('Appleログイン情報を確認できませんでした');
     const clientSecret = await this.appleClientSecret(clientId);
     const tokenResponse = await fetch('https://appleid.apple.com/auth/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: this.appleCallbackUrl(), client_id: clientId, client_secret: clientSecret }) });
-    const tokens = await tokenResponse.json() as { id_token?: string; error?: string };
+    const tokens = await tokenResponse.json() as { id_token?: string; refresh_token?: string; error?: string };
     if (!tokenResponse.ok || !tokens.id_token) throw new UnauthorizedException('Appleログインに失敗しました。もう一度お試しください');
     const verified = await jwtVerify(tokens.id_token, createRemoteJWKSet(new URL('https://appleid.apple.com/auth/keys')), { issuer: 'https://appleid.apple.com', audience: clientId });
     if (typeof verified.payload.sub !== 'string' || verified.payload.nonce !== statePayload.nonce) throw new UnauthorizedException('Appleアカウントを確認できませんでした');
@@ -167,7 +176,7 @@ export class AuthService {
     }
     const existing = await this.repository.findOAuthIdentity('APPLE', verified.payload.sub);
     const ticket = randomBytes(40).toString('base64url');
-    await this.repository.saveOAuthLoginTicket({ id: uuidv7(), tokenHash: this.tokenHash(ticket), provider: 'APPLE', subject: verified.payload.sub, displayName, profilePhoto: null, userId: existing?.id || null, expiresAt: new Date(Date.now() + 10 * 60_000), usedAt: null });
+    await this.repository.saveOAuthLoginTicket({ id: uuidv7(), tokenHash: this.tokenHash(ticket), provider: 'APPLE', subject: verified.payload.sub, displayName, profilePhoto: null, providerRefreshTokenEncrypted: tokens.refresh_token ? this.encryptProviderToken(tokens.refresh_token) : null, userId: existing?.id || null, expiresAt: new Date(Date.now() + 10 * 60_000), usedAt: null });
     return `${statePayload.returnTo}${statePayload.returnTo.includes('?') ? '&' : '?'}provider=apple&ticket=${encodeURIComponent(ticket)}`;
   }
 
@@ -178,11 +187,13 @@ export class AuthService {
     if (!user) {
       if (input.birthDate && !this.isAdult(input.birthDate)) throw new BadRequestException('18歳以上の方のみ登録できます');
       const displayName = (input.displayName || row.displayName || 'Appleユーザー').trim();
+      this.contentModeration.assertAllowed(displayName);
       const subjectKey = createHash('sha256').update(row.subject).digest('hex').slice(0, 32);
       user = await this.repository.createUser({ email: `apple.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: input.birthDate ? new Date(`${input.birthDate}T00:00:00.000Z`) : null, gender: input.gender, acquisition: this.acquisition(input.acquisition) });
       await this.repository.createOAuthIdentity('APPLE', row.subject, user.id);
       user = await this.applyRegistrationPhotos(user, input.profilePhotos??(input.profilePhoto?[input.profilePhoto]:[]));
     }
+    if (row.providerRefreshTokenEncrypted) await this.repository.upsertOAuthCredential('APPLE', row.subject, user.id, row.providerRefreshTokenEncrypted);
     await this.repository.consumeOAuthLoginTicket(row.id);
     return { user: this.publicUser(user), ...(await this.issueTokens(user.id)) };
   }
@@ -229,6 +240,7 @@ export class AuthService {
     if (!user) {
       if (input.birthDate && !this.isAdult(input.birthDate)) throw new BadRequestException('18歳以上の方のみ登録できます');
       const displayName = (input.displayName || row.displayName || 'Xユーザー').trim();
+      this.contentModeration.assertAllowed(displayName);
       const subjectKey = createHash('sha256').update(row.subject).digest('hex').slice(0, 32);
       user = await this.repository.createUser({ email: `x.${subjectKey}@oauth.hangoutnow.invalid`, passwordHash: await hash(randomBytes(48).toString('base64url'), 10), displayName, birthDate: input.birthDate ? new Date(`${input.birthDate}T00:00:00.000Z`) : null, gender: input.gender, acquisition: this.acquisition(input.acquisition) });
       await this.repository.createOAuthIdentity('X', row.subject, user.id);
@@ -252,7 +264,7 @@ export class AuthService {
   }
 
   async getProfile(userId: string): Promise<PublicUser> { return this.publicUser(await this.requireUser(userId)); }
-  async deleteAccount(userId:string):Promise<void>{const user=await this.requireUser(userId);if(user.email.endsWith('@hangoutnow.example'))throw new ForbiddenException('共用デモアカウントは削除できません');for(const photo of new Set([user.profilePhoto,...user.profilePhotos].filter((value):value is string=>Boolean(value))))await this.images.deleteProfilePhoto(userId,photo);await this.repository.deleteUser(userId)}
+  async deleteAccount(userId:string):Promise<void>{const user=await this.requireUser(userId);if(user.email.endsWith('@hangoutnow.example'))throw new ForbiddenException('共用デモアカウントは削除できません');await this.revokeAppleCredentials(userId);for(const photo of new Set([user.profilePhoto,...user.profilePhotos].filter((value):value is string=>Boolean(value))))await this.images.deleteProfilePhoto(userId,photo);await this.repository.deleteUser(userId)}
 
   private async applyRegistrationPhotos(user: StoredUser, photos: string[]): Promise<StoredUser> {
     if (!photos.length) return user;
@@ -260,6 +272,7 @@ export class AuthService {
     return this.repository.updateProfile(user.id, { profilePhoto: profilePhotos[0]??null, profilePhotos });
   }
   async updateProfile(userId: string, input: UpdateProfileDto): Promise<PublicUser> {
+    this.contentModeration.assertAllowed(input.displayName,input.bio,input.homeArea,input.interests,input.preferredAreas,input.preferredActivities,input.socialStyles,input.participationGoals,input.firstTimePreferences,input.avoidPreferences,input.scheduleFlexibility,input.preferredLanguages);
     if(input.profilePhotos&&input.profilePhotos.length>3)throw new BadRequestException('プロフィール画像は3枚まで登録できます');
     if ((input.preferredAgeMin != null && (input.preferredAgeMin < 18 || input.preferredAgeMin > 100)) || (input.preferredAgeMax != null && (input.preferredAgeMax < 18 || input.preferredAgeMax > 100))) throw new BadRequestException('希望年齢は18歳から100歳で入力してください');
     if (input.preferredAgeMin != null && input.preferredAgeMax != null && input.preferredAgeMin > input.preferredAgeMax) throw new BadRequestException('希望年齢の下限は上限以下にしてください');
@@ -283,6 +296,41 @@ export class AuthService {
     return { accessToken: await this.jwt.signAsync({ sub: userId }, { expiresIn: this.accessTtlSeconds }), refreshToken, expiresIn: this.accessTtlSeconds };
   }
   private tokenHash(token: string): string { return createHash('sha256').update(token).digest('hex'); }
+  private encryptProviderToken(token: string): string {
+    const iv=randomBytes(12);
+    const cipher=createCipheriv('aes-256-gcm',this.tokenEncryptionKey(),iv);
+    const encrypted=Buffer.concat([cipher.update(token,'utf8'),cipher.final()]);
+    return ['v1',iv.toString('base64url'),cipher.getAuthTag().toString('base64url'),encrypted.toString('base64url')].join(':');
+  }
+  private decryptProviderToken(value: string): string {
+    const [version,ivValue,tagValue,encryptedValue]=value.split(':');
+    if(version!=='v1'||!ivValue||!tagValue||!encryptedValue)throw new ServiceUnavailableException('Appleログインの連携解除情報を確認できませんでした');
+    try{
+      const decipher=createDecipheriv('aes-256-gcm',this.tokenEncryptionKey(),Buffer.from(ivValue,'base64url'));
+      decipher.setAuthTag(Buffer.from(tagValue,'base64url'));
+      return Buffer.concat([decipher.update(Buffer.from(encryptedValue,'base64url')),decipher.final()]).toString('utf8');
+    }catch{throw new ServiceUnavailableException('Appleログインの連携解除情報を確認できませんでした')}
+  }
+  private tokenEncryptionKey(): Buffer {
+    const secret=process.env.OAUTH_TOKEN_ENCRYPTION_KEY||process.env.JWT_ACCESS_SECRET;
+    if(!secret)throw new ServiceUnavailableException('Appleログインの連携解除を準備できませんでした');
+    return createHash('sha256').update('hangout-now/oauth-token/v1\0').update(secret).digest();
+  }
+  private async revokeAppleCredentials(userId:string):Promise<void>{
+    const credentials=await this.repository.findOAuthCredentials(userId,'APPLE');
+    if(!credentials.length)return;
+    const clientId=process.env.APPLE_LOGIN_CLIENT_ID;
+    if(!clientId)throw new ServiceUnavailableException('Appleログインの連携解除を準備できませんでした');
+    const clientSecret=await this.appleClientSecret(clientId);
+    for(const credential of credentials){
+      const response=await fetch('https://appleid.apple.com/auth/revoke',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:clientId,client_secret:clientSecret,token:this.decryptProviderToken(credential.refreshTokenEncrypted),token_type_hint:'refresh_token'})});
+      if(response.ok)continue;
+      let error='';
+      try{error=((await response.json()) as {error?:string}).error??''}catch{/* Apple can return an empty error body. */}
+      if(error==='invalid_grant'||error==='invalid_token')continue;
+      throw new ServiceUnavailableException('Appleログインの連携解除を完了できませんでした。時間をおいてもう一度お試しください');
+    }
+  }
   private acquisition(value?: AcquisitionDto): AcquisitionInput | undefined {
     return value ? { source: value.source, medium: value.medium, campaign: value.campaign, content: value.content } : undefined;
   }

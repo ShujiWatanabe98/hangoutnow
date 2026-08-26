@@ -1,8 +1,9 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { HangoutStatus, JoinRequestStatus } from '@prisma/client';
 import { v7 as uuidv7 } from 'uuid';
 import { NotificationService } from '../notifications/notification.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ContentModerationService } from '../moderation/content-moderation.service';
 
 const publicUser = { id: true, displayName: true, profilePhoto: true, profilePhotos: true, verification: true } as const;
 
@@ -11,6 +12,7 @@ export class ChatService {
   constructor(
     @Inject(PrismaService) private readonly db: PrismaService,
     @Inject(NotificationService) private readonly notifications: NotificationService,
+    @Optional() @Inject(ContentModerationService) private readonly contentModeration = new ContentModerationService(),
   ) {}
 
   async rooms(uid: string) {
@@ -52,6 +54,7 @@ export class ChatService {
 
   async send(uid: string, roomId: string, body: string) {
     const room = await this.groupAccess(uid, roomId);
+    this.contentModeration.assertAllowed(body);
     const message = await this.db.message.create({ data: { id: uuidv7(), roomId, senderUserId: uid, body: body.trim() }, include: { sender: { select: publicUser } } });
     const recipients = new Set([room.hangout.hostUserId, ...room.hangout.joinRequests.map((request) => request.userId)]);
     recipients.delete(uid);
@@ -99,6 +102,7 @@ export class ChatService {
 
   async sendDirect(uid: string, roomId: string, body: string) {
     const room = await this.directAccess(uid, roomId);
+    this.contentModeration.assertAllowed(body);
     const recipient = room.userOneId === uid ? room.userTwoId : room.userOneId;
     const message = await this.db.$transaction(async (tx) => {
       const created = await tx.directMessage.create({ data: { id: uuidv7(), directChatId: roomId, senderUserId: uid, body: body.trim() }, include: { sender: { select: publicUser } } });

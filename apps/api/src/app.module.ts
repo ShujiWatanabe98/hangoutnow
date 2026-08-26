@@ -32,6 +32,7 @@ import { NewsletterEmailService } from './newsletter/newsletter-email.service';
 import { MatchingService } from './matching/matching.service';
 import { MatchingAdminController } from './matching/matching-admin.controller';
 import { MatchingAdminService } from './matching/matching-admin.service';
+import { ContentModerationService } from './moderation/content-moderation.service';
 
 @Module({
   imports: [JwtModule.registerAsync({
@@ -42,6 +43,6 @@ import { MatchingAdminService } from './matching/matching-admin.service';
     },
   }), ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }])],
   controllers: [HealthController, AuthController, UsersController, HangoutController, JoinRequestController, ChatController, DirectChatController, DemoController, SafetyController, ReportAdminController, MatchingAdminController, NotificationAdminController, NotificationController, AnalyticsController, MatchFeedbackController, NewsletterController],
-  providers: [PrismaService, HangoutService, MatchingService, MatchingAdminService, ChatService, DemoService, HostStatusService, SafetyService, NotificationService, NotificationAdminService, AnalyticsService, NewsletterService, NewsletterEmailService, RealtimeGateway, ImageStorageService, PrismaAuthRepository, { provide: AuthRepository, useExisting: PrismaAuthRepository }, AuthService, AccessTokenGuard, { provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [PrismaService, HangoutService, MatchingService, MatchingAdminService, ChatService, DemoService, HostStatusService, SafetyService, NotificationService, NotificationAdminService, AnalyticsService, NewsletterService, NewsletterEmailService, RealtimeGateway, ImageStorageService, ContentModerationService, PrismaAuthRepository, { provide: AuthRepository, useExisting: PrismaAuthRepository }, AuthService, AccessTokenGuard, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}
