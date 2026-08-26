@@ -192,8 +192,8 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(coachStyles, /\.map-action\.large-input-icon \{ width: 72px; height: 72px; min-width: 72px; \}/);
   assert.match(coachDemoScript, /panelScroll\.addEventListener\("touchmove"/);
   assert.match(coachDemoScript, /dragDistance >= 88/);
-  assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260826-2"/);
-  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260826-2/);
+  assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260826-3"/);
+  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260826-3/);
   assert.match(coachBootstrap, /dataset\.clientError/);
   assert.match(coachDemoScript, /SYNTHETIC_ONLY/);
   assert.match(coachDemoScript, /counts: \{ underpasses: 1, policePriorityLocations: 1 \}/);
