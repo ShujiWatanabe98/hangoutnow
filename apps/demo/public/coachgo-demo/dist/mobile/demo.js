@@ -1,9 +1,9 @@
-import { buildHazardPointGuidance, createSessionUserHazardPoint, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260824-5";
+import { buildHazardPointGuidance, createSessionUserHazardPoint, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260826-2";
 import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260824-2";
 import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260824-1";
 import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260824-1";
-import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260824-5";
-import { nearbyMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260824-6";
+import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260826-2";
+import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260826-2";
 import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260824-1";
 import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260825-1";
 import { interpolateUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260825-1";
@@ -80,6 +80,15 @@ const backgroundNotificationToggle = requiredElement("#background-notification-t
 const backgroundNotificationState = requiredElement("#background-notification-state");
 const hazardVoiceToggle = requiredElement("#hazard-voice-toggle");
 const hazardVoiceState = requiredElement("#hazard-voice-state");
+const largeReportIconToggle = requiredElement("#large-report-icon-toggle");
+const largeReportIconState = requiredElement("#large-report-icon-state");
+const voiceInputToggle = requiredElement("#voice-input-toggle");
+const voiceInputState = requiredElement("#voice-input-state");
+const demoVisibilityToggle = requiredElement("#demo-visibility-toggle");
+const demoVisibilityState = requiredElement("#demo-visibility-state");
+const inputPermissionStatus = requiredElement("#input-permission-status");
+const recenterMapButton = requiredElement("#recenter-map");
+const registerHazardButton = requiredElement("#register-hazard");
 const undoReportToast = requiredElement("#undo-report-toast");
 const undoReportTitle = requiredElement("#undo-report-title");
 const permissionStatusElement = requiredElement("#permission-status");
@@ -107,6 +116,12 @@ const DEMO_DRIVE_SOURCE_ID = "coachgo-yokohama-honatsugi-route";
 const DEMO_DRIVE_CASING_LAYER_ID = "coachgo-yokohama-honatsugi-route-casing";
 const DEMO_DRIVE_LAYER_ID = "coachgo-yokohama-honatsugi-route-line";
 const DEMO_DRIVE_DURATION_MS = 60_000;
+const DEFAULT_LOCATION_ZOOM = 15.8;
+const DEMO_BEARING_LOOKAHEAD_METERS = 45;
+const DEMO_BEARING_RESPONSE_MS = 190;
+const DEMO_UI_UPDATE_INTERVAL_MS = 250;
+const DEMO_BALANCED_CAMERA_INTERVAL_MS = 1_000 / 30;
+const DEMO_FRAME_QUALITY_SAMPLE_SIZE = 45;
 const DEMO_VOICE_SCENARIOS = [
     { id: "demo-voice-underpass", progress: 0.12, monitorCategory: "ROAD_FLOODING", name: "デモ道路冠水地点", kind: "UNDERPASS" },
     { id: "demo-voice-river", progress: 0.3, monitorCategory: "RIVER_FLOODING", name: "デモ河川氾濫地点", kind: "OTHER" },
@@ -123,6 +138,27 @@ let sessionUserReports = [];
 let approachDetectionEnabled = true;
 let backgroundNotificationEnabled = true;
 let hazardVoiceEnabled = true;
+const INPUT_SETTINGS_STORAGE_KEY = "coachgo:input-settings-v1";
+function readStoredInputSettings() {
+    try {
+        const stored = window.localStorage.getItem(INPUT_SETTINGS_STORAGE_KEY);
+        if (stored === null)
+            return { largeReportIcon: false, voiceInput: true, demoVisible: true };
+        const parsed = JSON.parse(stored);
+        return {
+            largeReportIcon: parsed.largeReportIcon === true,
+            voiceInput: parsed.voiceInput !== false,
+            demoVisible: parsed.demoVisible !== false,
+        };
+    }
+    catch {
+        return { largeReportIcon: false, voiceInput: true, demoVisible: true };
+    }
+}
+const storedInputSettings = readStoredInputSettings();
+let largeReportIconEnabled = storedInputSettings.largeReportIcon;
+let voiceInputEnabled = storedInputSettings.voiceInput;
+let demoVisibilityEnabled = storedInputSettings.demoVisible;
 let reportSequence = 0;
 let lastReportId = null;
 let undoReportTimer = null;
@@ -140,15 +176,26 @@ let rainViewerLoading = null;
 let demoDriveRoute = null;
 let demoDriveSampler = null;
 let demoDriveMarker = null;
+let demoDriveMarkerElement = null;
 let demoVehicleGraphic = null;
+let demoVehicleOverlay = null;
+let demoVehicleOverlayGraphic = null;
+let demoRouteApproachIndex = null;
 let demoDriveAnimationStarted = false;
 let demoDriveRunning = false;
 let demoDriveProgress = 0;
 let demoDriveLastFrameAt = null;
+let demoSmoothedBearing = null;
+let demoRenderQuality = "HIGH";
+let demoFrameDurations = [];
+let lastDemoUiUpdateAt = -Infinity;
 let lastVoiceProximityCheckAt = 0;
 let lastVoiceAnnouncementAt = -Infinity;
 let activeNearbyPointIds = new Set();
 let activeVoiceRecognition = null;
+let activeVoiceCommandRecognition = null;
+let voiceCommandRestartTimer = null;
+let microphonePermissionGranted = false;
 let preferredJapaneseVoice = null;
 let activeSpeechSequence = 0;
 let demoCameraFollowStartsAt = -Infinity;
@@ -159,7 +206,6 @@ let panelTouchStartedAt = 0;
 let panelTouchDragging = false;
 const VOICE_PROXIMITY_CHECK_INTERVAL_MS = 750;
 const VOICE_ANNOUNCEMENT_COOLDOWN_MS = 12_000;
-const DEMO_CAMERA_FRAME_INTERVAL_MS = 1_000 / 60;
 const MOVEMENT_HEADING_HOLD_MS = 3_000;
 const MOBILE_PANEL_QUERY = "(max-width: 760px)";
 function refreshPreferredJapaneseVoice() {
@@ -280,6 +326,171 @@ function renderPermissionStatus() {
     backgroundNotificationState.dataset.state = backgroundNotificationEnabled ? "on" : "off";
     hazardVoiceToggle.setAttribute("aria-checked", String(hazardVoiceEnabled));
     hazardVoiceState.dataset.state = hazardVoiceEnabled ? "on" : "off";
+}
+function persistInputSettings() {
+    try {
+        window.localStorage.setItem(INPUT_SETTINGS_STORAGE_KEY, JSON.stringify({
+            largeReportIcon: largeReportIconEnabled,
+            voiceInput: voiceInputEnabled,
+            demoVisible: demoVisibilityEnabled,
+        }));
+    }
+    catch {
+        // Storage may be unavailable in a private WebView. The current session still works.
+    }
+}
+function renderInputSettings() {
+    largeReportIconToggle.setAttribute("aria-checked", String(largeReportIconEnabled));
+    largeReportIconState.dataset.state = largeReportIconEnabled ? "on" : "off";
+    for (const button of [recenterMapButton, registerHazardButton, demoPlaybackButton]) {
+        button.classList.toggle("large-input-icon", largeReportIconEnabled);
+    }
+    voiceInputToggle.setAttribute("aria-checked", String(voiceInputEnabled));
+    voiceInputState.dataset.state = voiceInputEnabled ? "on" : "off";
+    voiceReportButton.disabled = !voiceInputEnabled;
+    demoVisibilityToggle.setAttribute("aria-checked", String(demoVisibilityEnabled));
+    demoVisibilityState.dataset.state = demoVisibilityEnabled ? "on" : "off";
+    demoPlaybackButton.hidden = !demoVisibilityEnabled;
+    renderDemoMapVisibility();
+}
+function renderDemoMapVisibility() {
+    const routeVisibility = demoVisibilityEnabled ? "visible" : "none";
+    for (const layerId of [DEMO_DRIVE_CASING_LAYER_ID, DEMO_DRIVE_LAYER_ID]) {
+        if (map?.getLayer(layerId) !== undefined) {
+            map.setLayoutProperty(layerId, "visibility", routeVisibility);
+        }
+    }
+    if (demoDriveMarkerElement !== null) {
+        demoDriveMarkerElement.hidden = !demoVisibilityEnabled || demoDriveRunning;
+    }
+    if (demoVehicleOverlay !== null) {
+        demoVehicleOverlay.hidden = !demoVisibilityEnabled || !demoDriveRunning;
+    }
+    demoPlaybackStatus.hidden = !demoVisibilityEnabled;
+}
+function clearVoiceCommandRestartTimer() {
+    if (voiceCommandRestartTimer === null)
+        return;
+    window.clearTimeout(voiceCommandRestartTimer);
+    voiceCommandRestartTimer = null;
+}
+function stopVoiceCommandRecognition() {
+    clearVoiceCommandRestartTimer();
+    const recognition = activeVoiceCommandRecognition;
+    activeVoiceCommandRecognition = null;
+    recognition?.abort();
+}
+function isRegistrationVoiceCommand(transcript) {
+    return transcript.normalize("NFKC").replace(/[\s、。,.!?！？]/g, "").includes("登録");
+}
+function scheduleVoiceCommandRecognition(delayMs = 650) {
+    clearVoiceCommandRestartTimer();
+    if (!voiceInputEnabled || !microphonePermissionGranted || registrationDialog.open || document.hidden)
+        return;
+    voiceCommandRestartTimer = window.setTimeout(() => {
+        voiceCommandRestartTimer = null;
+        startVoiceCommandRecognition();
+    }, delayMs);
+}
+function startVoiceCommandRecognition() {
+    if (!voiceInputEnabled
+        || !microphonePermissionGranted
+        || registrationDialog.open
+        || document.hidden
+        || activeVoiceCommandRecognition !== null
+        || activeVoiceRecognition !== null)
+        return;
+    const Recognition = window.SpeechRecognition ?? window.webkitSpeechRecognition;
+    if (Recognition === undefined) {
+        inputPermissionStatus.dataset.state = "unavailable";
+        inputPermissionStatus.textContent = "この端末は「登録」の音声待ち受けに対応していません。投稿ボタンをご利用ください。";
+        return;
+    }
+    let commandHandled = false;
+    const recognition = new Recognition();
+    activeVoiceCommandRecognition = recognition;
+    recognition.lang = "ja-JP";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.onstart = () => {
+        inputPermissionStatus.dataset.state = "ready";
+        inputPermissionStatus.textContent = "音声入力ON：「登録」と話すと投稿画面が開きます。";
+    };
+    recognition.onresult = (event) => {
+        let transcript = "";
+        for (let index = event.resultIndex; index < event.results.length; index += 1) {
+            const result = event.results[index];
+            if (result?.isFinal)
+                transcript += result[0].transcript;
+        }
+        if (!isRegistrationVoiceCommand(transcript) || commandHandled)
+            return;
+        commandHandled = true;
+        recognition.stop();
+        openRegistrationDialog(true);
+    };
+    recognition.onerror = (event) => {
+        if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+            microphonePermissionGranted = false;
+            inputPermissionStatus.dataset.state = "error";
+            inputPermissionStatus.textContent = "音声入力にはマイクの許可が必要です。端末の設定から許可してください。";
+            return;
+        }
+        if (event.error !== "no-speech" && event.error !== "aborted") {
+            inputPermissionStatus.dataset.state = "unavailable";
+            inputPermissionStatus.textContent = "音声待ち受けを一時停止しました。自動的に再試行します。";
+        }
+    };
+    recognition.onend = () => {
+        if (activeVoiceCommandRecognition === recognition)
+            activeVoiceCommandRecognition = null;
+        if (!commandHandled)
+            scheduleVoiceCommandRecognition();
+    };
+    try {
+        recognition.start();
+    }
+    catch {
+        activeVoiceCommandRecognition = null;
+        inputPermissionStatus.dataset.state = "unavailable";
+        inputPermissionStatus.textContent = "音声待ち受けを開始できませんでした。投稿ボタンをご利用ください。";
+    }
+}
+async function requestMicrophonePermissionAtStartup() {
+    if (!voiceInputEnabled) {
+        inputPermissionStatus.dataset.state = "off";
+        inputPermissionStatus.textContent = "音声入力はOFFです。";
+        return;
+    }
+    if (navigator.mediaDevices?.getUserMedia === undefined) {
+        inputPermissionStatus.dataset.state = "unavailable";
+        inputPermissionStatus.textContent = "この端末ではマイク許可を確認できません。投稿ボタンをご利用ください。";
+        return;
+    }
+    inputPermissionStatus.dataset.state = "loading";
+    inputPermissionStatus.textContent = "音声入力のため、マイクの許可を確認しています。";
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        for (const track of stream.getTracks())
+            track.stop();
+        if (!voiceInputEnabled) {
+            inputPermissionStatus.dataset.state = "off";
+            inputPermissionStatus.textContent = "音声入力はOFFです。投稿ボタンとカテゴリー選択は利用できます。";
+            return;
+        }
+        microphonePermissionGranted = true;
+        inputPermissionStatus.dataset.state = "ready";
+        inputPermissionStatus.textContent = "音声入力ON：「登録」と話すと投稿画面が開きます。";
+        scheduleVoiceCommandRecognition(250);
+    }
+    catch {
+        if (!voiceInputEnabled)
+            return;
+        microphonePermissionGranted = false;
+        inputPermissionStatus.dataset.state = "error";
+        inputPermissionStatus.textContent = "音声入力にはマイクの許可が必要です。投稿ボタンは引き続き利用できます。";
+    }
 }
 function selectHazard(point) {
     selectedHazard = point;
@@ -455,7 +666,9 @@ function voiceMonitorPoints(includeDemoFixtures = demoDriveRunning) {
                 alertDistanceMeters: 700,
             };
         });
-    const shared = (divertNaviMapData?.items ?? []).flatMap((point) => (!includeDemoFixtures && point.sourceOrganization === "CoachGo合成デモ" ? [] : [{
+    if (includeDemoFixtures)
+        return demoScenarios;
+    const shared = (divertNaviMapData?.items ?? []).flatMap((point) => (point.sourceOrganization === "CoachGo合成デモ" ? [] : [{
             id: point.id,
             monitorCategory: point.monitorCategory,
             name: point.name,
@@ -464,7 +677,7 @@ function voiceMonitorPoints(includeDemoFixtures = demoDriveRunning) {
             kind: point.kind,
             alertDistanceMeters: point.kind === "POLICE_PRIORITY" ? 800 : 700,
         }]));
-    const hazards = allHazards().flatMap((point) => (point.monitorCategory === null || (!includeDemoFixtures && point.sourceKind === "SYNTHETIC_FIXTURE") ? [] : [{
+    const hazards = allHazards().flatMap((point) => (point.monitorCategory === null || point.sourceKind === "SYNTHETIC_FIXTURE" ? [] : [{
             id: point.id,
             monitorCategory: point.monitorCategory,
             name: point.name,
@@ -474,6 +687,16 @@ function voiceMonitorPoints(includeDemoFixtures = demoDriveRunning) {
             alertDistanceMeters: 800,
         }]));
     return [...demoScenarios, ...shared, ...hazards];
+}
+function rebuildDemoRouteApproachIndex() {
+    if (demoDriveRoute === null || demoDriveSampler === null) {
+        demoRouteApproachIndex = null;
+        return;
+    }
+    const points = voiceMonitorPoints(true);
+    const demoCategories = new Set(points.map((point) => point.monitorCategory));
+    demoRouteApproachIndex = createRouteApproachIndex(demoDriveRoute, points, demoCategories);
+    demoPlaybackStatus.dataset.indexedDemoPoints = String(demoRouteApproachIndex.points.length);
 }
 function speakMonitorApproach(point) {
     const message = voiceApproachMessage(point);
@@ -528,6 +751,15 @@ function notifyMonitorApproach(point) {
     notificationPreview.hidden = false;
     demoPlaybackStatus.dataset.lastNotificationPoint = point.id;
     demoPlaybackStatus.dataset.lastNotificationTitle = notification.title;
+    if (demoDriveRunning) {
+        const history = (demoPlaybackStatus.dataset.notificationHistory ?? "")
+            .split(",")
+            .filter((id) => id.length > 0);
+        if (!history.includes(point.id)) {
+            history.push(point.id);
+            demoPlaybackStatus.dataset.notificationHistory = history.join(",");
+        }
+    }
     if (window.ReactNativeWebView !== undefined) {
         window.ReactNativeWebView.postMessage(JSON.stringify({
             type: "COACHGO_NATIVE_NOTIFICATION",
@@ -542,7 +774,7 @@ function notifyMonitorApproach(point) {
         new window.Notification(notification.title, { body: notification.body, tag: `coachgo-${point.id}` });
     }
 }
-function checkDemoVoiceApproach(location, now) {
+function checkDemoVoiceApproach(progress, now) {
     if (now - lastVoiceProximityCheckAt < VOICE_PROXIMITY_CHECK_INTERVAL_MS)
         return;
     lastVoiceProximityCheckAt = now;
@@ -550,9 +782,9 @@ function checkDemoVoiceApproach(location, now) {
         activeNearbyPointIds.clear();
         return;
     }
-    if (demoDriveRoute === null)
+    if (demoRouteApproachIndex === null)
         return;
-    const nearby = nearbyMonitoredPoints(location, demoDriveRoute, voiceMonitorPoints(), selectedCategories);
+    const nearby = nearbyIndexedMonitoredPoints(progress, demoRouteApproachIndex);
     const nearbyIds = new Set(nearby.map(({ point }) => point.id));
     const entered = nearby.find(({ point }) => !activeNearbyPointIds.has(point.id));
     activeNearbyPointIds = nearbyIds;
@@ -641,7 +873,7 @@ function handleUserLocationSample(target, now, focusOnFirstFix = false) {
         connectionState.dataset.locationMotion = "stationary";
         updateUserLocationHeading(now);
         if (firstLiveFix && focusOnFirstFix) {
-            map?.easeTo({ center: [target[0], target[1]], zoom: 15, pitch: 22, bearing: 0, duration: 650 });
+            map?.easeTo({ center: [target[0], target[1]], zoom: DEFAULT_LOCATION_ZOOM, pitch: 22, bearing: 0, duration: 650 });
         }
         return;
     }
@@ -968,34 +1200,54 @@ function focusContinuousDemoRoute() {
 function focusDemoVehicle(duration = 750) {
     if (map === null || demoDriveSampler === null)
         return;
-    const position = demoDriveSampler.positionAt(demoDriveProgress);
+    const position = demoDriveSampler.positionAt(demoDriveProgress, DEMO_BEARING_LOOKAHEAD_METERS);
+    demoSmoothedBearing = position.bearing;
     map.easeTo({
         center: [position.coordinate[0], position.coordinate[1]],
         zoom: 15.2,
-        pitch: 48,
+        pitch: 44,
         bearing: position.bearing,
         duration,
     });
     demoCameraFollowStartsAt = performance.now() + duration;
     lastDemoCameraFrameAt = -Infinity;
 }
+function resetDemoRenderQuality() {
+    demoRenderQuality = "HIGH";
+    demoFrameDurations = [];
+    lastDemoCameraFrameAt = -Infinity;
+    demoPlaybackStatus.dataset.renderQuality = "high";
+}
+function recordDemoFrameDuration(elapsed) {
+    if (elapsed <= 0 || !Number.isFinite(elapsed))
+        return;
+    demoFrameDurations.push(Math.min(elapsed, 250));
+    if (demoFrameDurations.length < DEMO_FRAME_QUALITY_SAMPLE_SIZE)
+        return;
+    const average = demoFrameDurations.reduce((sum, duration) => sum + duration, 0) / demoFrameDurations.length;
+    const longFrames = demoFrameDurations.filter((duration) => duration >= 34).length;
+    demoFrameDurations = [];
+    demoPlaybackStatus.dataset.averageFrameMs = average.toFixed(1);
+    if (demoRenderQuality === "HIGH" && (average > 22 || longFrames >= 4)) {
+        demoRenderQuality = "BALANCED";
+        demoPlaybackStatus.dataset.renderQuality = "balanced";
+        map?.jumpTo({ pitch: 30 });
+    }
+}
 function followDemoVehicle(position, now) {
+    const cameraInterval = demoRenderQuality === "HIGH" ? 0 : DEMO_BALANCED_CAMERA_INTERVAL_MS;
     if (map === null
         || !demoDriveRunning
         || now < demoCameraFollowStartsAt
-        || now - lastDemoCameraFrameAt < DEMO_CAMERA_FRAME_INTERVAL_MS)
+        || now - lastDemoCameraFrameAt < cameraInterval)
         return;
     lastDemoCameraFrameAt = now;
     map.jumpTo({
         center: [position.coordinate[0], position.coordinate[1]],
-        zoom: Math.max(map.getZoom(), 15.2),
-        pitch: 48,
         bearing: position.bearing,
     });
 }
-function createDemoVehicleMarker() {
-    if (map === null || window.mapboxgl === undefined || demoDriveMarker !== null)
-        return;
+function createDemoVehicleElement(labelText) {
     const element = document.createElement("div");
     element.className = "continuous-demo-vehicle";
     element.setAttribute("role", "img");
@@ -1005,33 +1257,75 @@ function createDemoVehicleMarker() {
     graphic.innerHTML = '<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 3 31 30l-11-5-11 5L20 3Z"/><path class="vehicle-window" d="m20 9 5 13-5-2.2-5 2.2 5-13Z"/></svg>';
     const label = document.createElement("span");
     label.className = "continuous-demo-vehicle-label";
-    label.textContent = "デモ走行";
+    label.textContent = labelText;
     element.append(graphic, label);
-    demoVehicleGraphic = graphic;
-    demoDriveMarker = new window.mapboxgl.Marker({ element, anchor: "center" })
-        .setLngLat([YOKOHAMA_STATION[0], YOKOHAMA_STATION[1]])
-        .addTo(map);
+    return { element, graphic };
 }
-function animateContinuousDemoDrive() {
-    if (demoDriveRoute === null || demoDriveSampler === null || demoDriveMarker === null)
-        return;
-    const tick = (now) => {
-        if (demoDriveRoute === null || demoDriveSampler === null || demoDriveMarker === null)
-            return;
-        const elapsed = demoDriveLastFrameAt === null ? 0 : now - demoDriveLastFrameAt;
-        demoDriveLastFrameAt = now;
-        demoDriveProgress = advanceDemoProgress(demoDriveProgress, elapsed, DEMO_DRIVE_DURATION_MS, demoDriveRunning);
-        const position = demoDriveSampler.positionAt(demoDriveProgress);
+function setDemoVehiclePresentation(running) {
+    if (demoDriveMarkerElement !== null)
+        demoDriveMarkerElement.hidden = running;
+    if (demoVehicleOverlay !== null)
+        demoVehicleOverlay.hidden = !running;
+    if (!running && demoDriveMarker !== null && demoDriveSampler !== null) {
+        const position = demoDriveSampler.positionAt(demoDriveProgress, DEMO_BEARING_LOOKAHEAD_METERS);
         demoDriveMarker.setLngLat([position.coordinate[0], position.coordinate[1]]);
-        followDemoVehicle(position, now);
         if (demoVehicleGraphic !== null) {
             const mapBearing = map?.getBearing() ?? 0;
             demoVehicleGraphic.style.transform = `rotate(${screenRelativeBearing(position.bearing, mapBearing)}deg)`;
         }
-        demoPlaybackStatus.dataset.demoProgress = String(Math.floor(demoDriveProgress * 100));
-        demoPlaybackStatus.dataset.vehicleLongitude = position.coordinate[0].toFixed(6);
-        demoPlaybackButton.dataset.completedCategories = String(Math.floor(demoDriveProgress * 100));
-        checkDemoVoiceApproach(position.coordinate, now);
+    }
+}
+function createDemoVehicleMarker() {
+    if (map === null || window.mapboxgl === undefined || demoDriveMarker !== null)
+        return;
+    const markerVehicle = createDemoVehicleElement("デモ走行");
+    demoDriveMarkerElement = markerVehicle.element;
+    demoVehicleGraphic = markerVehicle.graphic;
+    demoDriveMarker = new window.mapboxgl.Marker({ element: markerVehicle.element, anchor: "center" })
+        .setLngLat([YOKOHAMA_STATION[0], YOKOHAMA_STATION[1]])
+        .addTo(map);
+    const overlayVehicle = createDemoVehicleElement("デモ走行");
+    overlayVehicle.element.classList.add("continuous-demo-vehicle-overlay");
+    overlayVehicle.element.hidden = true;
+    map.getContainer().append(overlayVehicle.element);
+    demoVehicleOverlay = overlayVehicle.element;
+    demoVehicleOverlayGraphic = overlayVehicle.graphic;
+}
+function animateContinuousDemoDrive() {
+    if (demoDriveAnimationStarted
+        || !demoDriveRunning
+        || demoDriveRoute === null
+        || demoDriveSampler === null
+        || demoDriveMarker === null)
+        return;
+    demoDriveAnimationStarted = true;
+    const tick = (now) => {
+        if (!demoDriveRunning || demoDriveRoute === null || demoDriveSampler === null || demoDriveMarker === null) {
+            demoDriveAnimationStarted = false;
+            demoDriveLastFrameAt = null;
+            return;
+        }
+        const elapsed = demoDriveLastFrameAt === null ? 0 : now - demoDriveLastFrameAt;
+        demoDriveLastFrameAt = now;
+        recordDemoFrameDuration(elapsed);
+        demoDriveProgress = advanceDemoProgress(demoDriveProgress, elapsed, DEMO_DRIVE_DURATION_MS, demoDriveRunning);
+        const target = demoDriveSampler.positionAt(demoDriveProgress, DEMO_BEARING_LOOKAHEAD_METERS);
+        demoSmoothedBearing = demoSmoothedBearing === null
+            ? target.bearing
+            : smoothBearing(demoSmoothedBearing, target.bearing, elapsed, DEMO_BEARING_RESPONSE_MS);
+        const position = { coordinate: target.coordinate, bearing: demoSmoothedBearing };
+        followDemoVehicle(position, now);
+        if (demoVehicleOverlayGraphic !== null) {
+            const mapBearing = map?.getBearing() ?? 0;
+            demoVehicleOverlayGraphic.style.transform = `rotate(${screenRelativeBearing(position.bearing, mapBearing)}deg)`;
+        }
+        if (now - lastDemoUiUpdateAt >= DEMO_UI_UPDATE_INTERVAL_MS) {
+            lastDemoUiUpdateAt = now;
+            demoPlaybackStatus.dataset.demoProgress = String(Math.floor(demoDriveProgress * 100));
+            demoPlaybackStatus.dataset.vehicleLongitude = position.coordinate[0].toFixed(6);
+            demoPlaybackButton.dataset.completedCategories = String(Math.floor(demoDriveProgress * 100));
+        }
+        checkDemoVoiceApproach(demoDriveProgress, now);
         window.requestAnimationFrame(tick);
     };
     window.requestAnimationFrame(tick);
@@ -1087,14 +1381,11 @@ async function initializeContinuousDemoDrive(token) {
         },
     });
     createDemoVehicleMarker();
+    rebuildDemoRouteApproachIndex();
     demoPlaybackStatus.dataset.routeMode = routeMode;
     demoPlaybackButton.disabled = false;
     renderDemoPlaybackState();
-    focusContinuousDemoRoute();
-    if (!demoDriveAnimationStarted) {
-        demoDriveAnimationStarted = true;
-        animateContinuousDemoDrive();
-    }
+    renderDemoMapVisibility();
 }
 function withKanagawaPolice(payload) {
     const nonPolice = payload.items.filter((point) => point.kind !== "POLICE_PRIORITY");
@@ -1185,7 +1476,7 @@ function initializeMapbox() {
             locale: { ...COACHGO_MAP_LOCALE },
             localIdeographFontFamily: '"Noto Sans JP", "Hiragino Sans", sans-serif',
             center: currentUserLocation,
-            zoom: 15,
+            zoom: DEFAULT_LOCATION_ZOOM,
             pitch: 22,
             bearing: 0,
             antialias: true,
@@ -1354,6 +1645,34 @@ hazardVoiceToggle.addEventListener("click", () => {
     }
     renderPermissionStatus();
 });
+largeReportIconToggle.addEventListener("click", () => {
+    largeReportIconEnabled = !largeReportIconEnabled;
+    persistInputSettings();
+    renderInputSettings();
+});
+voiceInputToggle.addEventListener("click", () => {
+    voiceInputEnabled = !voiceInputEnabled;
+    persistInputSettings();
+    if (!voiceInputEnabled) {
+        stopVoiceCommandRecognition();
+        activeVoiceRecognition?.abort();
+        inputPermissionStatus.dataset.state = "off";
+        inputPermissionStatus.textContent = "音声入力はOFFです。投稿ボタンとカテゴリー選択は利用できます。";
+    }
+    else {
+        void requestMicrophonePermissionAtStartup();
+    }
+    renderInputSettings();
+});
+demoVisibilityToggle.addEventListener("click", () => {
+    demoVisibilityEnabled = !demoVisibilityEnabled;
+    if (!demoVisibilityEnabled && demoDriveRunning)
+        demoPlaybackButton.click();
+    persistInputSettings();
+    renderInputSettings();
+    if (demoVisibilityEnabled)
+        focusContinuousDemoRoute();
+});
 for (const button of document.querySelectorAll("[data-category]")) {
     button.addEventListener("click", () => {
         const category = button.dataset.category;
@@ -1376,6 +1695,7 @@ demoPlaybackButton.addEventListener("click", () => {
     if (!demoDriveRunning) {
         cancelNaturalJapaneseSpeech();
         announceDemoStop();
+        setDemoVehiclePresentation(false);
         activeNearbyPointIds.clear();
         lastVoiceProximityCheckAt = 0;
         if (hasLiveUserLocation)
@@ -1383,6 +1703,11 @@ demoPlaybackButton.addEventListener("click", () => {
     }
     else {
         demoDriveProgress = 0;
+        demoPlaybackStatus.dataset.notificationHistory = "";
+        demoSmoothedBearing = null;
+        lastDemoUiUpdateAt = -Infinity;
+        resetDemoRenderQuality();
+        setDemoVehiclePresentation(true);
         activeNearbyPointIds.clear();
         lastVoiceAnnouncementAt = -Infinity;
         lastVoiceProximityCheckAt = 0;
@@ -1393,21 +1718,31 @@ demoPlaybackButton.addEventListener("click", () => {
             requestSystemNotificationPermission();
         focusDemoVehicle();
         announceDemoStart();
+        animateContinuousDemoDrive();
     }
 });
 requiredElement("#dismiss-notification").addEventListener("click", () => {
     notificationPreview.hidden = true;
 });
-requiredElement("#register-hazard").addEventListener("click", () => {
+function openRegistrationDialog(startListening) {
+    stopVoiceCommandRecognition();
     registrationError.textContent = "";
     voiceReportStatus.dataset.state = "idle";
-    voiceReportStatus.textContent = "マイクを押して、危険の種類を話してください。";
+    voiceReportStatus.textContent = voiceInputEnabled
+        ? "危険の種類を話してください。"
+        : "音声入力はOFFです。カテゴリーを押して登録してください。";
     voiceReportTranscript.hidden = true;
     voiceReportTranscript.textContent = "";
-    registrationDialog.showModal();
+    if (!registrationDialog.open)
+        registrationDialog.showModal();
+    if (startListening && voiceInputEnabled) {
+        window.setTimeout(() => startHazardVoiceRecognition(), 220);
+    }
+}
+registerHazardButton.addEventListener("click", () => {
+    openRegistrationDialog(voiceInputEnabled);
 });
 requiredElement("#close-registration").addEventListener("click", () => {
-    activeVoiceRecognition?.abort();
     registrationDialog.close();
 });
 requiredElement("#show-all-reports").addEventListener("click", (event) => {
@@ -1443,11 +1778,15 @@ function registerSessionHazard(category, coordinates) {
         latitude: coordinates[1],
     });
     sessionUserReports = [...sessionUserReports, report];
+    const recognition = activeVoiceRecognition;
+    activeVoiceRecognition = null;
+    recognition?.stop();
     registrationDialog.close();
     setPanelOpen(false);
     renderMap();
     showUndoReport(report);
     speakReportConfirmation(categoryLabels[category]);
+    scheduleVoiceCommandRecognition(1_000);
     return report;
 }
 for (const button of document.querySelectorAll("[data-report-category]")) {
@@ -1465,11 +1804,17 @@ for (const button of document.querySelectorAll("[data-report-category]")) {
         }
     });
 }
-voiceReportButton.addEventListener("click", () => {
+function startHazardVoiceRecognition() {
+    if (!voiceInputEnabled) {
+        voiceReportStatus.dataset.state = "error";
+        voiceReportStatus.textContent = "音声入力がOFFです。入力設定からONにしてください。";
+        return;
+    }
     if (activeVoiceRecognition !== null) {
         activeVoiceRecognition.stop();
         return;
     }
+    stopVoiceCommandRecognition();
     const Recognition = window.SpeechRecognition ?? window.webkitSpeechRecognition;
     if (Recognition === undefined) {
         voiceReportStatus.dataset.state = "error";
@@ -1516,7 +1861,6 @@ voiceReportButton.addEventListener("click", () => {
         completed = true;
         voiceReportStatus.dataset.state = "registered";
         voiceReportStatus.textContent = `${categoryLabels[match.category]}を現在地へ登録します。`;
-        recognition.stop();
         registerSessionHazard(match.category, currentUserLocation);
     };
     recognition.onerror = (event) => {
@@ -1543,6 +1887,21 @@ voiceReportButton.addEventListener("click", () => {
         voiceReportStatus.dataset.state = "error";
         voiceReportStatus.textContent = "音声入力を開始できませんでした。";
     }
+}
+voiceReportButton.addEventListener("click", () => {
+    startHazardVoiceRecognition();
+});
+registrationDialog.addEventListener("close", () => {
+    const recognition = activeVoiceRecognition;
+    activeVoiceRecognition = null;
+    recognition?.abort();
+    scheduleVoiceCommandRecognition();
+});
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden)
+        stopVoiceCommandRecognition();
+    else
+        scheduleVoiceCommandRecognition(250);
 });
 requiredElement("#undo-report").addEventListener("click", () => {
     if (lastReportId === null)
@@ -1557,7 +1916,7 @@ requiredElement("#undo-report").addEventListener("click", () => {
     undoReportToast.hidden = true;
     renderMap();
 });
-requiredElement("#recenter-map").addEventListener("click", () => {
+recenterMapButton.addEventListener("click", () => {
     requestDeviceHeadingPermission();
     locationStatus.hidden = false;
     locationStatus.textContent = "現在地を取得中…";
@@ -1576,7 +1935,7 @@ requiredElement("#recenter-map").addEventListener("click", () => {
         const now = performance.now();
         handleUserLocationSample(location, now);
         checkLiveLocationApproach(location, now);
-        map?.easeTo({ center: [location[0], location[1]], zoom: 15, pitch: 22, bearing: 0, duration: 650 });
+        map?.easeTo({ center: [location[0], location[1]], zoom: DEFAULT_LOCATION_ZOOM, pitch: 22, bearing: 0, duration: 650 });
         locationStatus.textContent = "現在地を表示しました。";
         window.setTimeout(() => { locationStatus.hidden = true; }, 2_500);
     }, (error) => {
@@ -1586,8 +1945,10 @@ requiredElement("#recenter-map").addEventListener("click", () => {
     }, { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 });
 });
 renderPermissionStatus();
+renderInputSettings();
 renderMap();
 void loadDivertNaviMapData();
 initializeMapbox();
 startForegroundLocationMonitoring();
+void requestMicrophonePermissionAtStartup();
 //# sourceMappingURL=demo.js.map

@@ -11,7 +11,7 @@ export const HAZARD_CATEGORIES = [
         label: "河川氾濫",
         description: "河川沿いの浸水想定",
         icon: "🌊",
-        selectedByDefault: true,
+        selectedByDefault: false,
     },
     {
         id: "LANDSLIDE",
@@ -32,14 +32,14 @@ export const HAZARD_CATEGORIES = [
         label: "警察取締",
         description: "警察が公開する重点地点等",
         icon: "🚨",
-        selectedByDefault: false,
+        selectedByDefault: true,
     },
     {
         id: "RAIN_CLOUD",
         label: "雨雲",
         description: "RainViewerの雨雲レーダー",
         icon: "🌧️",
-        selectedByDefault: false,
+        selectedByDefault: true,
     },
 ];
 export const USER_REPORT_CATEGORIES = [
