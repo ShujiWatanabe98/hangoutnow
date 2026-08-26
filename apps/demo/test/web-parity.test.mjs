@@ -157,9 +157,11 @@ test('corporate homepage presents the three methodmore products accurately', asy
   assert.match(corporate, /CoachGo/);
   assert.match(corporate, /公開中/);
   assert.match(corporate, /Android MVP 開発中/);
-  assert.match(corporate, /公開データ連携PoC 検証中/);
+  assert.match(corporate, /Webアプリ 公開中/);
+  assert.doesNotMatch(corporate, /公開データ連携PoC 検証中|CoachGoの公開データ連携PoCを体験する/);
   assert.match(corporate, /DivertNaviと同じ全国のアンダーパス公開地点/);
-  assert.match(corporate, /href="\/coachgo-demo\/"[^>]*>デモを体験/);
+  assert.match(corporate, /href="\/coachgo-demo\/"[^>]*>Webアプリを開く/);
+  assert.match(corporate, /<a href="\/coachgo-demo\/">CoachGo<\/a>/);
   assert.match(coachDemo, /<title>CoachGo 危険監視PoC<\/title>/);
   assert.match(coachDemo, /id="mapbox-map"/);
   assert.match(coachDemo, /class="setting-switch"/);
