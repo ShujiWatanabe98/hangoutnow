@@ -6,6 +6,7 @@ import * as SecureStore from "expo-secure-store";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import * as WebBrowser from "expo-web-browser";
+import * as AppleAuthentication from "expo-apple-authentication";
 import Constants from "expo-constants";
 import { ActivityIndicator, Alert, Animated, FlatList, Image, ImageBackground, InputAccessoryView, Keyboard, KeyboardAvoidingView, Linking, Modal, PanResponder, Platform, Pressable, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { WebView } from "react-native-webview";
@@ -1366,6 +1367,21 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle
   const [providerNote, setProviderNote] = useState("");
   const [authInputError, setAuthInputError] = useState("");
   const [registrationPhotos, setRegistrationPhotos] = useState<string[]>([]);
+  const [appleAuthenticationAvailable, setAppleAuthenticationAvailable] = useState(false);
+  useEffect(() => {
+    if (Platform.OS !== "ios") return;
+    let active = true;
+    void AppleAuthentication.isAvailableAsync()
+      .then((available) => {
+        if (active) setAppleAuthenticationAvailable(available);
+      })
+      .catch(() => {
+        if (active) setAppleAuthenticationAvailable(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
   const resetProviderState = () => { setProviderNote(""); };
   const changeMode = (next: AuthMode) => { resetProviderState(); setAuthInputError(""); setMode(next); };
   const registrationInput = (): OAuthRegistrationInput | null => {
@@ -1409,15 +1425,29 @@ function AuthScreen({ loading, error, onLogin, onRegister, onLine, onX, onGoogle
   </View>;
   const providerSection = <>
     {(["Google", "Apple", "X", "LINE"] as const).map((provider) => (
-      <Pressable
-        key={provider}
-        disabled={loading}
-        style={[styles.providerButton, provider === "X" && styles.xProviderButton]}
-        onPress={() => submitProvider(provider)}
-      >
-        <Text style={[styles.providerMark, provider === "X" && styles.xProviderText]}>{provider === "Google" ? "G" : provider === "Apple" ? "●" : provider === "X" ? "X" : provider === "LINE" ? "L" : "☎"}</Text>
-        <Text style={[styles.providerButtonText, provider === "X" && styles.xProviderText]}>{`${provider}${mode === "register" ? "でアカウント作成" : "でログイン"}`}</Text>
-      </Pressable>
+      provider === "Apple" && Platform.OS === "ios" ? (
+        appleAuthenticationAvailable ? <AppleAuthentication.AppleAuthenticationButton
+          key={provider}
+          buttonType={mode === "register" ? AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP : AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+          buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+          cornerRadius={14}
+          style={styles.appleProviderButton}
+          accessibilityState={{ disabled: loading }}
+          onPress={() => {
+            if (!loading) submitProvider(provider);
+          }}
+        /> : null
+      ) : (
+        <Pressable
+          key={provider}
+          disabled={loading}
+          style={[styles.providerButton, provider === "X" && styles.xProviderButton]}
+          onPress={() => submitProvider(provider)}
+        >
+          {provider !== "Apple" ? <Text style={[styles.providerMark, provider === "X" && styles.xProviderText]}>{provider === "Google" ? "G" : provider === "X" ? "X" : "L"}</Text> : null}
+          <Text style={[styles.providerButtonText, provider === "X" && styles.xProviderText]}>{`${provider}${mode === "register" ? "でアカウント作成" : "でログイン"}`}</Text>
+        </Pressable>
+      )
     ))}
     <Text style={styles.providerNote}>{providerNote}</Text>
   </>;
@@ -2844,6 +2874,7 @@ const styles = StyleSheet.create({
   authDividerLine: { flex: 1, height: 1, backgroundColor: "#dce2dc" },
   authDividerText: { color: "#7a837d", fontSize: 12, fontWeight: "800" },
   providerButton: { minHeight: 48, marginBottom: 9, borderWidth: 1, borderColor: "#d8ded9", borderRadius: 14, backgroundColor: "#f8faf8", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9 },
+  appleProviderButton: { width: "100%", height: 48, marginBottom: 9 },
   xProviderButton: { minHeight: 54, backgroundColor: "#17221d", borderColor: "#17221d", shadowColor: "#17221d", shadowOpacity: 0.2, shadowRadius: 6, elevation: 2 },
   xProviderText: { color: "#fff" },
   providerButtonDisabled: { opacity: 0.55, backgroundColor: "#eef0ee" },
