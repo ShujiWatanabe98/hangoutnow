@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#23675b">
+  <title>みんなで介護</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" href="./icon.svg">
+  <link rel="stylesheet" href="./styles.css?v=20260826-1">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <button class="avatar" id="patientAvatarButton" aria-label="選択中の患者を表示"><img id="patientAvatar" alt=""></button>
+      <div><p class="eyebrow">退院後の暮らしをつなぐ</p><h1>みんなで介護</h1></div>
+      <button class="icon-button" id="notifyButton" aria-label="通知">🔔<span class="dot"></span></button>
+    </header>
+
+    <main>
+      <section class="screen active" data-screen="home">
+        <div class="hello"><div><p>こんにちは</p><h2 id="homePatientHeading">今日の患者さんの様子</h2></div><span>🌿</span></div>
+        <div class="demo-switcher" aria-label="患者デモを選択">
+          <button type="button" class="active" data-demo="demo1" aria-pressed="true">デモ1</button>
+          <button type="button" data-demo="demo2" aria-pressed="false">デモ2</button>
+          <button type="button" data-demo="demo3" aria-pressed="false">デモ3</button>
+        </div>
+        <p class="fiction-note">登場人物・病院・介護施設はすべて架空のデモ設定です</p>
+        <article class="patient-story" id="patientStory"></article>
+        <form id="quickUpdateForm" class="quick-update-form">
+          <input id="quickUpdateInput" maxlength="240" placeholder="今日の様子を入力" aria-label="今日の患者の様子を入力">
+          <button type="button" id="quickUpdateMic" aria-label="音声で患者の様子を記録" title="音声で記録" hidden>🎙️</button>
+        </form>
+        <p class="quick-update-status" id="quickUpdateStatus">文字入力はEnterで追加できます</p>
+        <div id="motherUpdates" class="mother-updates" hidden></div>
+        <div class="section-head"><h3>今日の予定</h3><button data-go="calendar">すべて見る</button></div>
+        <div id="todaySchedule"></div>
+      </section>
+
+      <section class="screen" data-screen="share">
+        <div class="page-title"><div><p class="eyebrow">家族みんなの</p><h2>共有</h2></div><button type="button" class="round-add" id="shareRecord" aria-label="録音して記録" hidden>🎙️</button></div>
+        <div class="share-source-tabs" aria-label="共有元">
+          <button type="button" class="active" data-share-source="family" aria-pressed="true">家族の共有</button>
+          <button type="button" data-share-source="hospital" aria-pressed="false">病院からの共有</button>
+          <button type="button" data-share-source="care" aria-pressed="false">介護関係者の共有</button>
+        </div>
+        <div id="timeline"></div>
+      </section>
+
+      <section class="screen" data-screen="calendar">
+        <div class="page-title"><div><p class="eyebrow">家族みんなの</p><h2>介護カレンダー</h2></div><button class="round-add" id="addEvent">＋</button></div>
+        <div class="month-switch"><button id="prevMonth">‹</button><strong id="monthLabel">2026年 8月</strong><button id="nextMonth">›</button></div>
+        <div class="week"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div>
+        <div class="calendar-grid" id="calendarGrid"></div>
+        <div class="legend"><span><i class="lg-care"></i>介護・病院予定</span><span><i class="lg-family"></i>家族予定</span></div>
+        <h3 class="date-heading">8月13日（木）</h3>
+        <div id="dayEvents"></div>
+      </section>
+
+      <section class="screen" data-screen="shopping">
+        <div class="page-title"><div><p class="eyebrow">重複買いを防げます</p><h2>みんなの買い物</h2></div><button class="round-add" id="addShopping">＋</button></div>
+        <div class="progress-card"><div><strong id="progressText">2 / 5</strong><span>購入済み</span></div><div class="progress"><i id="progressBar"></i></div></div>
+        <div class="filter-row"><button class="chip active" data-filter="all">すべて</button><button class="chip" data-filter="open">未購入</button><button class="chip" data-filter="done">購入済み</button></div>
+        <div id="shoppingList"></div>
+        <button class="voice-mini" id="shoppingVoice" hidden>🎙️ 音声で買い物を追加</button>
+      </section>
+
+      <section class="screen" data-screen="family">
+        <div class="page-title"><div><p class="eyebrow">患者を支えるチーム</p><h2>家族・関係者</h2></div><button class="round-add" id="inviteButton">＋</button></div>
+        <div class="family-hero"><img class="big-avatar" id="familyPatientPhoto" alt=""><div class="family-hero-info"><strong id="motherName">患者名</strong><span id="motherDetails">年齢・要介護度</span><small id="motherDiagnosis"></small></div><button type="button" class="member-edit" id="editMother" aria-label="患者情報を編集">編集</button></div>
+        <h3 class="list-label">家族</h3>
+        <div id="familyList"></div>
+        <h3 class="list-label">病院</h3>
+        <div id="hospitalList"></div>
+        <h3 class="list-label">介護関係者</h3>
+        <div id="careList"></div>
+        <button class="invite-wide" id="inviteWide">＋ 家族を招待する</button>
+      </section>
+    </main>
+
+    <nav class="bottom-nav">
+      <button class="active" data-nav="home"><span>⌂</span>ホーム</button>
+      <button data-nav="share"><span>⇄</span>共有</button>
+      <button data-nav="calendar"><span>▣</span>予定</button>
+      <button data-nav="shopping"><span>✓</span>買い物</button>
+      <button data-nav="family"><span>♧</span>家族</button>
+    </nav>
+  </div>
+
+  <dialog id="recordDialog" class="sheet" hidden>
+    <form method="dialog" class="sheet-inner">
+      <div class="grabber"></div><button class="close" value="cancel" aria-label="閉じる">×</button>
+      <p class="eyebrow" id="recordSubject">患者について記録</p><h2 id="recordTitle">話してください</h2>
+      <div class="wave" id="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <p class="timer" id="timer">00:00</p>
+      <textarea id="transcript" placeholder="ここに話した内容が表示されます"></textarea>
+      <p class="support-note" id="speechStatus">マイクを押すと文字起こしが始まります</p>
+      <button type="button" class="record-main" id="recordToggle">🎙️ 録音をはじめる</button>
+      <button type="button" class="primary" id="organizeButton" disabled>AIで整理する</button>
+      <p class="support-note" id="organizeStatus">文字起こしを確認してから整理できます</p>
+    </form>
+  </dialog>
+
+  <dialog id="organizeDialog" class="sheet">
+    <form method="dialog" class="sheet-inner organized">
+      <div class="grabber"></div><button class="close" value="cancel">×</button>
+      <p class="eyebrow" id="organizedBy">AIが整理しました</p><h2>内容を確認してください</h2>
+      <label>日付<input id="summaryDate" type="date"></label>
+      <label>場所<input id="summaryPlace" value="○○病院"></label>
+      <label>診察内容<textarea id="summaryContent"></textarea></label>
+      <label>次回<input id="summaryNext" value="9月10日"></label>
+      <label>やること<input id="summaryTodo" value="ケアマネに報告"></label>
+      <button class="primary" value="default" id="saveSummary">保存して家族に共有</button>
+    </form>
+  </dialog>
+
+  <dialog id="simpleDialog" class="sheet">
+    <form method="dialog" class="sheet-inner">
+      <div class="grabber"></div><button class="close" value="cancel">×</button>
+      <p class="eyebrow" id="simpleEyebrow">新しく追加</p><h2 id="simpleTitle">項目を追加</h2>
+      <div id="simpleFields"></div>
+      <button class="primary" value="default" id="simpleSave">追加する</button>
+    </form>
+  </dialog>
+  <dialog id="memberDialog" class="sheet">
+    <form class="sheet-inner" id="memberForm">
+      <div class="grabber"></div><button type="button" class="close" id="closeMemberDialog" aria-label="閉じる">×</button>
+      <p class="eyebrow">患者を支えるチーム</p><h2 id="memberDialogTitle">メンバーを編集</h2>
+      <div class="member-fields">
+        <label>区分<select id="memberType"><option value="family">家族</option><option value="hospital">病院</option><option value="care">介護関係者</option></select></label>
+        <label>名前<input id="memberName" required maxlength="40" autocomplete="name"></label>
+        <label>関係・役割<input id="memberRole" required maxlength="40" placeholder="例：長女、ケアマネジャー"></label>
+        <label>連絡先<input id="memberContact" maxlength="80" placeholder="電話番号またはメールアドレス"></label>
+        <label>所属・メモ<input id="memberNote" maxlength="80" placeholder="例：担当施設名"></label>
+      </div>
+      <button type="submit" class="primary">保存する</button>
+    </form>
+  </dialog>
+  <dialog id="motherDialog" class="sheet">
+    <form class="sheet-inner" id="motherForm">
+      <div class="grabber"></div><button type="button" class="close" id="closeMotherDialog" aria-label="閉じる">×</button>
+      <p class="eyebrow">見守る方の情報</p><h2>患者情報を編集</h2>
+      <div class="member-fields">
+        <label>名前<input id="motherNameInput" required maxlength="40" autocomplete="name"></label>
+        <label>年齢<input id="motherAgeInput" type="number" required min="0" max="130" inputmode="numeric"></label>
+        <label>要介護度<input id="motherCareLevelInput" required maxlength="20" placeholder="例：要介護1"></label>
+      </div>
+      <button type="submit" class="primary">保存する</button>
+    </form>
+  </dialog>
+  <div class="toast" id="toast" role="status"></div>
+  <script src="./personas.js?v=20260826-1"></script>
+  <script src="./app.js?v=20260826-1"></script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "name": "みんなで介護",
+  "short_name": "みんなで介護",
+  "start_url": "/minnade-kaigo/",
+  "scope": "/minnade-kaigo/",
+  "display": "standalone",
+  "background_color": "#f6f4ee",
+  "theme_color": "#23675b",
+  "description": "脳卒中後の自宅生活を、家族・介護施設・病院でつなぐ架空ペルソナの共有デモ"
+}
