@@ -26,7 +26,7 @@ import {
   X,
 } from "lucide-react";
 import {
-  analyzeVideoFile,
+  analyzeVideoFileWithFallback,
   calculatePoseMaximumMetrics,
   POSE_CONNECTIONS,
   type PoseFrame,
@@ -1420,6 +1420,7 @@ function AssessmentModal({
     "before" | "after" | null
   >(null);
   const [poseProgress, setPoseProgress] = useState(0);
+  const [videoStatus, setVideoStatus] = useState("");
   const beforePoseMetrics = useMemo(
     () =>
       poseAnalyses.before
@@ -1514,6 +1515,7 @@ function AssessmentModal({
       return next;
     });
     setPoseProgress(0);
+    setVideoStatus("");
   }
   async function analyzeLoadedVideos(
     force: boolean,
@@ -1526,14 +1528,23 @@ function AssessmentModal({
       sources.push(["after", afterFile]);
     if (!sources.length) throw new Error("HAL使用前または使用後の動画を選択してください。");
     const next = { ...poseAnalyses };
+    const files = { before: beforeFile, after: afterFile };
     let completed = 0;
     for (const [phase, file] of sources) {
       if (force || !next[phase]) {
-        next[phase] = await analyzeVideoFile(file, (percent) => {
-          setPoseProgress(
-            Math.round(((completed + percent / 100) / sources.length) * 100),
-          );
-        });
+        const prepared = await analyzeVideoFileWithFallback(
+          file,
+          (percent) => {
+            setPoseProgress(
+              Math.round(((completed + percent / 100) / sources.length) * 100),
+            );
+          },
+          () => setVideoStatus(
+            `${phase === "before" ? "HAL使用前" : "HAL使用後"}動画をiPadで再生できるMP4（H.264）へ変換しています…`,
+          ),
+        );
+        next[phase] = prepared.analysis;
+        files[phase] = prepared.file;
         if (!next[phase]?.tracks.length)
           throw new Error(
             `${phase === "before" ? "HAL使用前" : "HAL使用後"}動画から人物を検出できませんでした。全身が映る動画を選択してください。`,
@@ -1542,12 +1553,16 @@ function AssessmentModal({
       completed += 1;
       setPoseProgress(Math.round((completed / sources.length) * 100));
     }
+    setBeforeFile(files.before);
+    setAfterFile(files.after);
     setPoseAnalyses(next);
-    return next;
+    setVideoStatus("");
+    return { analyses: next, files };
   }
   async function runPoseAi(phase: "before" | "after") {
     setPoseAnalyzingPhase(phase);
     setError("");
+    setVideoStatus("");
     setPoseProgress(0);
     try {
       await analyzeLoadedVideos(true, phase);
@@ -1559,6 +1574,7 @@ function AssessmentModal({
       );
     } finally {
       setPoseAnalyzingPhase(null);
+      setVideoStatus("");
     }
   }
   async function submit(event: React.FormEvent) {
@@ -1571,12 +1587,13 @@ function AssessmentModal({
           "HAL使用前動画とHAL使用後動画の両方を選択してください。",
         );
       let finalNotes = notes.trim();
-      const overlays = await analyzeLoadedVideos(false);
+      const analyzed = await analyzeLoadedVideos(false);
+      const overlays = analyzed.analyses;
       if (!overlays.before || !overlays.after)
         throw new Error("使用前・使用後のAI解析結果を作成できませんでした。");
       const comparisonFile = await createComparisonVideo(
-        beforeFile,
-        afterFile,
+        analyzed.files.before!,
+        analyzed.files.after!,
         overlays,
       );
       const poseMaximums = {
@@ -1609,8 +1626,8 @@ function AssessmentModal({
       if (!response.ok)
         throw new Error(body.error ?? "評価を保存できませんでした。");
       setResult(body.assessment);
-      await uploadVideoOnce(body.assessment.id, "before", beforeFile);
-      await uploadVideoOnce(body.assessment.id, "after", afterFile);
+      await uploadVideoOnce(body.assessment.id, "before", analyzed.files.before!);
+      await uploadVideoOnce(body.assessment.id, "after", analyzed.files.after!);
       const uploaded = await uploadVideoOnce(
         body.assessment.id,
         "analysis",
@@ -1640,6 +1657,7 @@ function AssessmentModal({
       );
     } finally {
       setSaving(false);
+      setVideoStatus("");
     }
   }
   async function saveAllAndClose() {
@@ -1970,6 +1988,11 @@ function AssessmentModal({
             {error && (
               <p className="mt-4 rounded-xl bg-[#fff0ed] p-3 text-sm font-bold text-[#b94637]">
                 {error}
+              </p>
+            )}
+            {videoStatus && (
+              <p aria-live="polite" className="mt-4 rounded-xl bg-[#eef7ff] p-3 text-sm font-bold text-[#316b91]">
+                {videoStatus}
               </p>
             )}
             <div className="sticky bottom-0 z-20 -mx-5 mt-5 border-t border-[#dce8e5] bg-white/95 px-5 py-4 backdrop-blur md:-mx-7 md:px-7">

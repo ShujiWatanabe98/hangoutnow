@@ -89,11 +89,87 @@ async function getLandmarker() {
 
 function waitFor(video: HTMLVideoElement, event: "loadedmetadata" | "seeked") {
   return new Promise<void>((resolve, reject) => {
-    const timeout = window.setTimeout(() => reject(new Error("動画の読み込みがタイムアウトしました。")), 10_000);
-    const done = () => { window.clearTimeout(timeout); resolve(); };
+    const cleanup = () => {
+      window.clearTimeout(timeout);
+      video.removeEventListener(event, done);
+      video.removeEventListener("error", failed);
+    };
+    const done = () => { cleanup(); resolve(); };
+    const failed = () => {
+      const mediaError = video.error;
+      cleanup();
+      reject(new Error(
+        mediaError?.code === MediaError.MEDIA_ERR_DECODE
+          ? "動画の映像形式をブラウザで再生できませんでした。"
+          : "動画を読み込めませんでした。",
+      ));
+    };
+    const timeout = window.setTimeout(() => {
+      cleanup();
+      reject(new Error("動画の読み込みがタイムアウトしました。"));
+    }, 15_000);
     video.addEventListener(event, done, { once: true });
-    video.addEventListener("error", () => reject(new Error("動画を読み込めませんでした。")), { once: true });
+    video.addEventListener("error", failed, { once: true });
   });
+}
+
+function isBrowserVideoLoadFailure(reason: unknown) {
+  if (!(reason instanceof Error)) return false;
+  return [
+    "動画を読み込めませんでした",
+    "動画の映像形式をブラウザで再生できませんでした",
+    "動画の読み込みがタイムアウトしました",
+    "動画の再生時間を取得できませんでした",
+  ].some((message) => reason.message.includes(message));
+}
+
+async function normalizeVideoForBrowser(file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  const response = await fetch(publicAssetPath("/api/video-normalize"), {
+    method: "POST",
+    body: form,
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null) as { error?: string } | null;
+    throw new Error(body?.error ?? "動画をブラウザ再生用MP4へ変換できませんでした。");
+  }
+  const blob = await response.blob();
+  const baseName = file.name.replace(/\.[^.]+$/, "") || "walking-video";
+  return new File([blob], `${baseName}.mp4`, {
+    type: "video/mp4",
+    lastModified: Date.now(),
+  });
+}
+
+export type BrowserCompatibleVideoAnalysis = {
+  analysis: VideoPoseAnalysis;
+  file: File;
+  normalized: boolean;
+};
+
+export async function analyzeVideoFileWithFallback(
+  file: File,
+  onProgress?: (percent: number) => void,
+  onNormalize?: () => void,
+): Promise<BrowserCompatibleVideoAnalysis> {
+  try {
+    return {
+      analysis: await analyzeVideoFile(file, onProgress),
+      file,
+      normalized: false,
+    };
+  } catch (reason) {
+    if (!isBrowserVideoLoadFailure(reason)) throw reason;
+    onNormalize?.();
+    onProgress?.(0);
+    const normalizedFile = await normalizeVideoForBrowser(file);
+    return {
+      analysis: await analyzeVideoFile(normalizedFile, onProgress),
+      file: normalizedFile,
+      normalized: true,
+    };
+  }
 }
 
 function pointVisibility(point: NormalizedLandmark) {
@@ -186,21 +262,21 @@ export async function analyzeVideoFile(file: File, onProgress?: (percent: number
   video.muted = true;
   video.playsInline = true;
   video.preload = "auto";
-  const metadataReady = waitFor(video, "loadedmetadata");
-  video.src = objectUrl;
-  await metadataReady;
-  const landmarker = await getLandmarker();
-  const duration = Math.min(video.duration, 120);
-  if (!Number.isFinite(duration) || duration <= 0) throw new Error("動画の再生時間を取得できませんでした。");
-  const interval = Math.max(0.2, duration / 240);
-  const frames: PoseFrame[] = [];
-  const active = new Map<string, { x: number; y: number; lastTime: number }>();
-  const nextTrack = { value: 1 };
-  let previewDataUrl = "";
-  let previewPoses: TrackedPose[] = [];
-  let time = 0;
-  const timestampBaseMs = nextVideoTimestampMs;
   try {
+    const metadataReady = waitFor(video, "loadedmetadata");
+    video.src = objectUrl;
+    await metadataReady;
+    const landmarker = await getLandmarker();
+    const duration = Math.min(video.duration, 120);
+    if (!Number.isFinite(duration) || duration <= 0) throw new Error("動画の再生時間を取得できませんでした。");
+    const interval = Math.max(0.2, duration / 240);
+    const frames: PoseFrame[] = [];
+    const active = new Map<string, { x: number; y: number; lastTime: number }>();
+    const nextTrack = { value: 1 };
+    let previewDataUrl = "";
+    let previewPoses: TrackedPose[] = [];
+    let time = 0;
+    const timestampBaseMs = nextVideoTimestampMs;
     while (time < duration) {
       const nextTime = Math.min(time, Math.max(0, duration - 0.02));
       if (Math.abs(video.currentTime - nextTime) > 0.001 || video.readyState < 2) {
@@ -222,24 +298,26 @@ export async function analyzeVideoFile(file: File, onProgress?: (percent: number
       onProgress?.(Math.min(99, Math.round((time / duration) * 100)));
       await new Promise((resolve) => window.setTimeout(resolve, 0));
     }
-  } finally {
     nextVideoTimestampMs =
       timestampBaseMs + Math.ceil(Math.max(duration, time) * 1000) + 1;
+    const ids = [...new Set(frames.flatMap((frame) => frame.poses.map((pose) => pose.trackId)))];
+    const tracks = ids.map((trackId) => {
+      const poses = frames.flatMap((frame) => frame.poses.filter((pose) => pose.trackId === trackId));
+      return {
+        trackId,
+        appearances: poses.length,
+        coveragePercent: Math.round(poses.length / Math.max(frames.length, 1) * 100),
+        averageConfidence: poses.reduce((sum, pose) => sum + pose.confidence, 0) / Math.max(poses.length, 1),
+        averageX: poses.reduce((sum, pose) => sum + pose.center.x, 0) / Math.max(poses.length, 1),
+      };
+    }).filter((track) => track.coveragePercent >= 12).sort((a, b) => b.appearances - a.appearances);
+    onProgress?.(100);
+    return { durationSeconds: video.duration, width: video.videoWidth, height: video.videoHeight, sampledFps: 1 / interval, frames, tracks, previewDataUrl, previewPoses };
+  } finally {
+    video.removeAttribute("src");
+    video.load();
     URL.revokeObjectURL(objectUrl);
   }
-  const ids = [...new Set(frames.flatMap((frame) => frame.poses.map((pose) => pose.trackId)))];
-  const tracks = ids.map((trackId) => {
-    const poses = frames.flatMap((frame) => frame.poses.filter((pose) => pose.trackId === trackId));
-    return {
-      trackId,
-      appearances: poses.length,
-      coveragePercent: Math.round(poses.length / Math.max(frames.length, 1) * 100),
-      averageConfidence: poses.reduce((sum, pose) => sum + pose.confidence, 0) / Math.max(poses.length, 1),
-      averageX: poses.reduce((sum, pose) => sum + pose.center.x, 0) / Math.max(poses.length, 1),
-    };
-  }).filter((track) => track.coveragePercent >= 12).sort((a, b) => b.appearances - a.appearances);
-  onProgress?.(100);
-  return { durationSeconds: video.duration, width: video.videoWidth, height: video.videoHeight, sampledFps: 1 / interval, frames, tracks, previewDataUrl, previewPoses };
 }
 
 function average(values: number[]) {

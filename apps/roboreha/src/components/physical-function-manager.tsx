@@ -7,7 +7,7 @@ import {
   ScanLine, UserCheck, X,
 } from "lucide-react";
 import {
-  analyzeVideoFile, calculatePoseMaximumMetrics, POSE_CONNECTIONS,
+  analyzeVideoFileWithFallback, calculatePoseMaximumMetrics, POSE_CONNECTIONS,
   ROBOREHA_POSE_ENGINE, summarizeGait,
   type GaitSummary, type PoseFrame, type PoseMaximumMetrics, type VideoPoseAnalysis,
 } from "@/lib/pose-analysis";
@@ -217,9 +217,17 @@ export function PhysicalFunctionManager({ appointments }: { appointments: Appoin
     if (!file) { setError(`${phase === "before" ? "HAL使用前" : "HAL使用後"}の動画を撮影または選択してください。`); return null; }
     setBusy(true); setAnalyzingPhase(phase); setError(""); setMessage(""); setProgress(0);
     try {
-      const analysis = await analyzeVideoFile(file, setProgress);
+      const prepared = await analyzeVideoFileWithFallback(
+        file,
+        setProgress,
+        () => setMessage("この動画をiPadで再生できるMP4（H.264）へ変換しています…"),
+      );
+      const analysis = prepared.analysis;
       if (!analysis.tracks.length) throw new Error("人物を検出できませんでした。全身が映る動画で撮り直してください。");
       const trackId = analysis.tracks[0].trackId;
+      if (prepared.normalized) {
+        setCaptureFiles((current) => ({ ...current, [phase]: prepared.file }));
+      }
       setPoseAnalyses((current) => ({ ...current, [phase]: analysis }));
       setPatientTrackIds((current) => ({ ...current, [phase]: trackId }));
       setComparisonFile(null); setComparisonUrl("");
@@ -235,19 +243,26 @@ export function PhysicalFunctionManager({ appointments }: { appointments: Appoin
     if (!captureFiles.before || !captureFiles.after) { setError("HAL使用前動画とHAL使用後動画の両方を選択してください。"); return; }
     setBusy(true); setError(""); setMessage(""); setProgress(0);
     try {
+      const files = { ...captureFiles };
       const analyses = { ...poseAnalyses };
       const trackIds = { ...patientTrackIds };
       for (const phase of ["before", "after"] as const) {
         if (!analyses[phase]) {
           setAnalyzingPhase(phase);
-          const analysis = await analyzeVideoFile(captureFiles[phase]!, setProgress);
+          const prepared = await analyzeVideoFileWithFallback(
+            files[phase]!,
+            setProgress,
+            () => setMessage(`${phase === "before" ? "HAL使用前" : "HAL使用後"}動画をiPadで再生できるMP4（H.264）へ変換しています…`),
+          );
+          const analysis = prepared.analysis;
+          files[phase] = prepared.file;
           if (!analysis.tracks.length) throw new Error(`${phase === "before" ? "HAL使用前" : "HAL使用後"}動画から人物を検出できませんでした。`);
           analyses[phase] = analysis;
           trackIds[phase] = analysis.tracks[0].trackId;
         }
       }
-      setPoseAnalyses(analyses); setPatientTrackIds(trackIds);
-      const file = await createPhysicalComparisonVideo(captureFiles.before, captureFiles.after, analyses, trackIds);
+      setCaptureFiles(files); setPoseAnalyses(analyses); setPatientTrackIds(trackIds);
+      const file = await createPhysicalComparisonVideo(files.before!, files.after!, analyses, trackIds);
       const url = URL.createObjectURL(file);
       setComparisonFile(file); setComparisonUrl(url);
       const beforeMetrics = calculatePoseMaximumMetrics(analyses.before!, trackIds.before);
