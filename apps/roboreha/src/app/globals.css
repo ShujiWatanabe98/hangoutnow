@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+:root {
+  --ink: #18313a;
+  --muted: #687d84;
+  --line: #dce8e5;
+  --paper: #ffffff;
+  --canvas: #f4f8f7;
+  --teal: #087f71;
+  --teal-dark: #08675f;
+  --mint: #dff4ed;
+  --aqua: #e8f5f8;
+  --coral: #dc6b58;
+  --amber: #b8750c;
+}
+
+* { box-sizing: border-box; }
+
+html { background: var(--canvas); }
+
+body {
+  margin: 0;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 12% 5%, rgba(72, 189, 165, 0.08), transparent 25rem),
+    var(--canvas);
+  font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Yu Gothic", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+button, input, textarea, select { font: inherit; }
+button { cursor: pointer; }
+
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 3px solid rgba(8, 127, 113, 0.3);
+  outline-offset: 2px;
+}
+
+.hide-scrollbar { scrollbar-width: none; }
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+
+.safe-bottom { padding-bottom: max(1.25rem, env(safe-area-inset-bottom)); }
+
+.skeleton {
+  background: linear-gradient(90deg, #edf3f1 25%, #f8fbfa 50%, #edf3f1 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; }
+}

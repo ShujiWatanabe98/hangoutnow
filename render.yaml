@@ -84,6 +84,38 @@ services:
         value: https://hangoutnow-api.onrender.com
       - key: MAPBOX_APIKEY
         sync: false
+      - key: ROBOREHA_ROUTE_PATH
+        value: /roboreha-preview-320b600f541ac09e
+      - key: ROBOREHA_UPSTREAM_ORIGIN
+        value: https://methodmore-roboreha-private.onrender.com
+      - key: ROBOREHA_USERNAME
+        sync: false
+      - key: ROBOREHA_PASSWORD
+        sync: false
+      - key: ROBOREHA_SESSION_SECRET
+        generateValue: true
+      - key: ROBOREHA_PROXY_SECRET
+        sync: false
+
+  - type: web
+    name: methodmore-roboreha-private
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build -w @method-more/roboreha
+    startCommand: npm start -w @method-more/roboreha
+    healthCheckPath: /roboreha-preview-320b600f541ac09e/api/healthz
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: NEXT_PUBLIC_ROBOREHA_BASE_PATH
+        value: /roboreha-preview-320b600f541ac09e
+      - key: DB_SCHEMA
+        value: roboreha
+      - key: DATABASE_URL
+        sync: false
+      - key: ROBOREHA_PROXY_SECRET
+        sync: false
 
   - type: web
     name: hangoutnow-admin

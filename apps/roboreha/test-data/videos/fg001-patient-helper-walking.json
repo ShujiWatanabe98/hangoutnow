@@ -1,0 +1,36 @@
+{
+  "id": "fg001-patient-helper-walking",
+  "purpose": "multi_person_gait_role_separation_reference",
+  "source_page": "https://www.intep.co.jp/service/image/",
+  "source_video_id": "220863696492988",
+  "source_segments_seconds": [
+    { "start": 35.5, "end": 43.2 },
+    { "start": 50.5, "end": 55.2 }
+  ],
+  "output": {
+    "file": "fg001-patient-helper-walking.mp4",
+    "duration_seconds": 12.4,
+    "width": 426,
+    "height": 238,
+    "fps": 30,
+    "audio": false
+  },
+  "subjects": [
+    {
+      "role": "patient",
+      "visual_hint": "green shirt, walking in front"
+    },
+    {
+      "role": "helper",
+      "visual_hint": "gray shirt, walking behind"
+    }
+  ],
+  "hal_present": false,
+  "limitations": [
+    "low-resolution promotional source",
+    "contains two edited walking takes joined by a hard cut",
+    "not suitable for validating HAL-aware pose accuracy",
+    "not suitable as clinical evidence or production training data"
+  ],
+  "usage": "Local development and role-separation smoke testing only. Confirm redistribution and machine-learning usage rights with INTEP before any publication, deployment, or model training."
+}
