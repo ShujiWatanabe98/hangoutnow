@@ -88,14 +88,6 @@ services:
         value: /roboreha-preview-320b600f541ac09e
       - key: ROBOREHA_UPSTREAM_ORIGIN
         value: https://methodmore-roboreha-private.onrender.com
-      - key: ROBOREHA_USERNAME
-        sync: false
-      - key: ROBOREHA_PASSWORD
-        sync: false
-      - key: ROBOREHA_SESSION_SECRET
-        generateValue: true
-      - key: ROBOREHA_PROXY_SECRET
-        sync: false
 
   - type: web
     name: methodmore-roboreha-private
@@ -113,8 +105,6 @@ services:
       - key: DB_SCHEMA
         value: roboreha
       - key: DATABASE_URL
-        sync: false
-      - key: ROBOREHA_PROXY_SECRET
         sync: false
 
   - type: web

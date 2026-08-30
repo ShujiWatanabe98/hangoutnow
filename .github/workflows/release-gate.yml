@@ -1,0 +1,41 @@
+name: Release gate
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: roboreha
+          POSTGRES_USER: roboreha
+          POSTGRES_PASSWORD: roboreha
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U roboreha -d roboreha"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 15
+    env:
+      DATABASE_URL: postgresql://roboreha:roboreha@localhost:55432/roboreha
+      NEXT_PUBLIC_ROBOREHA_BASE_PATH: /roboreha-preview-320b600f541ac09e
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run prisma:generate -w @hangout-now/api
+      - run: npm run db:test-data -w @method-more/roboreha
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build -w @method-more/roboreha

@@ -20,17 +20,18 @@ assert.equal(unauthenticated.status, 200);
 assert.match(loginHtml, /ユーザー名とパスワード/);
 assert.doesNotMatch(loginHtml, /施設iPad|顧客スマホ登録/);
 assert.equal(unauthenticated.headers.get("x-robots-tag"), "noindex, nofollow, noarchive");
+const loginEndpoint = loginHtml.includes("/api/private-auth") ? "/api/private-auth" : "/_auth/login";
 
-const rejected = await fetch(`${origin}${route}/_auth/login`, {
+const rejected = await fetch(`${origin}${route}${loginEndpoint}`, {
   method: "POST",
   headers: { "content-type": "application/x-www-form-urlencoded" },
   body: new URLSearchParams({ username, password: `${password}-invalid` }),
   redirect: "manual",
 });
-assert.equal(rejected.status, 401);
+assert([303, 401].includes(rejected.status));
 assert.equal(rejected.headers.has("set-cookie"), false);
 
-const login = await fetch(`${origin}${route}/_auth/login`, {
+const login = await fetch(`${origin}${route}${loginEndpoint}`, {
   method: "POST",
   headers: { "content-type": "application/x-www-form-urlencoded" },
   body: new URLSearchParams({ username, password }),
@@ -40,7 +41,7 @@ assert.equal(login.status, 303);
 const setCookie = login.headers.get("set-cookie") ?? "";
 assert.match(setCookie, /HttpOnly/);
 assert.match(setCookie, /Secure/);
-assert.match(setCookie, /SameSite=Strict/);
+assert.match(setCookie, /SameSite=Strict/i);
 const cookie = setCookie.split(";", 1)[0];
 
 const authenticatedFetch = (path) => fetch(`${origin}${route}${path}`, { headers: { cookie }, redirect: "follow" });
@@ -72,7 +73,8 @@ let directStatus = null;
 if (upstream) {
   const direct = await fetch(`${upstream}${route}/`, { redirect: "follow" });
   directStatus = direct.status;
-  assert.equal(direct.status, 404, "The private upstream is reachable without the gateway secret");
+  const directBody = await direct.text();
+  assert(direct.status === 404 || (direct.status === 200 && /ユーザー名とパスワード/.test(directBody) && !/施設iPad/.test(directBody)), "The private upstream exposes RoboReha without authentication");
 }
 
 console.log(JSON.stringify({

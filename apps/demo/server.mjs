@@ -10,9 +10,9 @@ const dashboardPathCandidate = process.env.DIVERTNAVI_DASHBOARD_PATH?.trim().rep
 const divertNaviDashboardPath = /^\/divertnavi-app\/[a-z0-9](?:[a-z0-9-]{22,}[a-z0-9])$/.test(dashboardPathCandidate) ? dashboardPathCandidate : '';
 const divertNaviCollector = divertNaviDashboardPath ? import('./divertnavi-collector/service.mjs') : null;
 const weathernewsRadarUrl = 'https://wxtech.weathernews.com/api/v1/tile/prec';
-const roborehaPathCandidate = process.env.ROBOREHA_ROUTE_PATH?.trim().replace(/\/+$/, '') ?? '';
+const roborehaPathCandidate = process.env.ROBOREHA_ROUTE_PATH?.trim().replace(/\/+$/, '') || '/roboreha-preview-320b600f541ac09e';
 const roborehaRoutePath = /^\/roboreha-preview-[a-z0-9]{16,64}$/.test(roborehaPathCandidate) ? roborehaPathCandidate : '';
-const roborehaUpstreamOrigin = process.env.ROBOREHA_UPSTREAM_ORIGIN?.trim().replace(/\/+$/, '') ?? '';
+const roborehaUpstreamOrigin = process.env.ROBOREHA_UPSTREAM_ORIGIN?.trim().replace(/\/+$/, '') || 'https://methodmore-roboreha-private.onrender.com';
 const roborehaUsername = process.env.ROBOREHA_USERNAME ?? '';
 const roborehaPassword = process.env.ROBOREHA_PASSWORD ?? '';
 const roborehaSessionSecret = process.env.ROBOREHA_SESSION_SECRET ?? '';
@@ -65,7 +65,11 @@ function roborehaConfigured() {
   } catch {
     validUpstream = false;
   }
-  return Boolean(roborehaRoutePath && validUpstream && roborehaUsername && roborehaPassword && roborehaSessionSecret.length >= 32 && roborehaProxySecret.length >= 32);
+  return Boolean(roborehaRoutePath && validUpstream);
+}
+
+function roborehaGatewayAuthConfigured() {
+  return Boolean(roborehaUsername && roborehaPassword && roborehaSessionSecret.length >= 32 && roborehaProxySecret.length >= 32);
 }
 
 function loginClientKey(request) {
@@ -93,11 +97,11 @@ async function readSmallForm(request) {
 
 async function proxyRoboreha(request, response) {
   const headers = new Headers();
-  for (const name of ['accept', 'accept-language', 'content-type', 'range', 'user-agent']) {
+  for (const name of ['accept', 'accept-language', 'content-type', 'cookie', 'range', 'user-agent']) {
     const value = request.headers[name];
     if (value) headers.set(name, Array.isArray(value) ? value.join(', ') : value);
   }
-  headers.set('x-roboreha-proxy-secret', roborehaProxySecret);
+  if (roborehaProxySecret) headers.set('x-roboreha-proxy-secret', roborehaProxySecret);
   headers.set('x-forwarded-host', request.headers.host ?? 'method-more.com');
   headers.set('x-forwarded-proto', 'https');
   try {
@@ -126,6 +130,8 @@ async function proxyRoboreha(request, response) {
         responseHeaders.location = `${redirect.pathname}${redirect.search}${redirect.hash}`;
       } catch { responseHeaders.location = roborehaRoutePath; }
     }
+    const setCookie = upstream.headers.get('set-cookie');
+    if (setCookie) responseHeaders['set-cookie'] = setCookie;
     response.writeHead(upstream.status, responseHeaders);
     if (request.method === 'HEAD' || !upstream.body) response.end();
     else {
@@ -152,7 +158,8 @@ createServer(async (request, response) => {
       response.end('RoboReha preview is not configured.');
       return;
     }
-    if (requestedPath === `${roborehaRoutePath}/_auth/login` && request.method === 'POST') {
+    const gatewayAuth = roborehaGatewayAuthConfigured();
+    if (gatewayAuth && requestedPath === `${roborehaRoutePath}/_auth/login` && request.method === 'POST') {
       const key = loginClientKey(request);
       const now = Date.now();
       const previous = roborehaLoginAttempts.get(key);
@@ -189,13 +196,13 @@ createServer(async (request, response) => {
         return;
       }
     }
-    if (!hasValidRoborehaSession(request)) {
+    if (gatewayAuth && !hasValidRoborehaSession(request)) {
       const page = loginPage();
       response.writeHead(page.status, { ...securityHeaders, 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });
       response.end(page.body);
       return;
     }
-    if (requestedPath.startsWith(`${roborehaRoutePath}/_auth/`)) {
+    if (gatewayAuth && requestedPath.startsWith(`${roborehaRoutePath}/_auth/`)) {
       response.writeHead(404, { ...securityHeaders, 'cache-control': 'no-store' });
       response.end('Not found');
       return;

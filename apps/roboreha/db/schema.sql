@@ -817,3 +817,11 @@ CREATE INDEX IF NOT EXISTS ai_chat_consents_customer_idx
   ON ai_chat_consents (customer_id, accepted_at DESC) WHERE revoked_at IS NULL;
 CREATE INDEX IF NOT EXISTS ai_chat_interactions_customer_idx
   ON ai_chat_interactions (customer_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS private_preview_sessions (
+  token_hash text PRIMARY KEY,
+  expires_at timestamptz NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS private_preview_sessions_expiry_idx
+  ON private_preview_sessions (expires_at);
