@@ -107,4 +107,8 @@ test('valid credentials create an HttpOnly session and proxy with the shared sec
   assert.match(await protectedPage.text(), /Protected RoboReha/);
   assert.equal(receivedProxySecret, proxySecret);
   assert.equal(protectedPage.headers.get('x-robots-tag'), 'noindex, nofollow, noarchive');
+  assert.match(
+    protectedPage.headers.get('content-security-policy') ?? '',
+    /media-src 'self' blob:/,
+  );
 });

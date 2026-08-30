@@ -441,6 +441,7 @@ test('public server sends browser security headers', async () => {
     'CSP must allow the production demo asset origin used by Hangout image URLs',
   );
   assert.match(server, /https:\/\/api\.mapbox\.com/);
+  assert.match(server, /media-src 'self' blob:/);
   assert.match(server, /worker-src blob:/);
   assert.match(server, /requestedPath === '\/divertnavi-app\/'/);
   assert.match(server, /requestedPath === '\/divertnavi-app\/config\.js'/);

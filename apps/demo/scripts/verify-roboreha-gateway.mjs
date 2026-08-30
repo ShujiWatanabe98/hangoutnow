@@ -55,6 +55,11 @@ const [entry, facility, customer, admin, dashboard, schedule] = await Promise.al
 ]);
 
 for (const response of [entry, facility, customer, admin, dashboard, schedule]) assert.equal(response.status, 200);
+assert.match(
+  facility.headers.get("content-security-policy") ?? "",
+  /media-src 'self' blob:/,
+  "The public gateway must allow locally selected blob videos to play and be analyzed",
+);
 const entryHtml = await entry.text();
 assert.match(entryHtml, /施設iPad/);
 assert.match(entryHtml, /顧客スマホ登録/);
