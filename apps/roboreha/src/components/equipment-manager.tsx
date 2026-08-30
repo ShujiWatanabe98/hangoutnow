@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
-import { withBasePath } from "@/lib/base-path";
 import {
   Activity,
   AlertTriangle,
@@ -299,7 +298,7 @@ export function EquipmentManager({
             {devices.length}個体
           </span>
         </div>
-        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3 xl:grid-cols-5">
           {devices.map((device) => {
             const ready = device.status === "available";
             return (
@@ -310,7 +309,7 @@ export function EquipmentManager({
                 <div className="relative aspect-[4/3] bg-[#f5f8f7] p-3">
                   {device.image_url ? (
                     <Image
-                      src={withBasePath(device.image_url)}
+                      src={device.image_url}
                       alt={`${modelLabel[device.model_type]} ${sizeLabel(device.size_label)}の機材写真`}
                       fill
                       sizes="(min-width:1280px) 240px, (min-width:768px) 45vw, 90vw"
@@ -327,10 +326,10 @@ export function EquipmentManager({
                     {ready ? "利用可能" : "点検中"}
                   </span>
                 </div>
-                <div className="p-4">
+                <div className="p-3 sm:p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <h4 className="text-lg font-black">
+                      <h4 className="text-base font-black sm:text-lg">
                         {device.asset_code}
                       </h4>
                       <p className="mt-1 text-xs font-bold text-[#087f71]">
@@ -386,7 +385,7 @@ export function EquipmentManager({
                 </div>
                 <button
                   onClick={() => startAdding(category)}
-                  className="flex items-center gap-2 rounded-xl bg-[#173b42] px-3.5 py-2.5 text-xs font-black text-white"
+                  className="flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-[#173b42] px-3.5 text-xs font-black text-white"
                 >
                   <PackagePlus size={16} /> 機種を登録
                 </button>
@@ -395,9 +394,9 @@ export function EquipmentManager({
                 {categoryRows.map((row) => (
                   <div
                     key={row.id}
-                    className={`grid items-end gap-3 p-4 md:px-6 ${category === "hal" ? "md:grid-cols-[1.4fr_1fr_170px_96px]" : "md:grid-cols-[1.25fr_1fr_150px_190px_96px]"}`}
+                    className={`grid grid-cols-2 items-end gap-3 p-4 md:px-6 ${category === "hal" ? "md:grid-cols-[1.4fr_1fr_170px_96px]" : "md:grid-cols-[1.25fr_1fr_150px_190px_96px]"}`}
                   >
-                    <label className="text-[11px] font-bold text-[#71858a]">
+                    <label className="col-span-2 text-[11px] font-bold text-[#71858a] md:col-span-1">
                       機材名
                       <input
                         value={row.equipment_name}
@@ -408,24 +407,24 @@ export function EquipmentManager({
                             event.target.value,
                           )
                         }
-                        className="mt-1.5 w-full rounded-xl border border-[#d5e2df] bg-[#f9fbfa] px-3 py-2.5 text-sm font-bold text-[#18313a]"
+                        className="mt-1.5 min-h-11 w-full rounded-xl border border-[#d5e2df] bg-[#f9fbfa] px-3 py-2.5 text-sm font-bold text-[#18313a]"
                       />
                     </label>
-                    <label className="text-[11px] font-bold text-[#71858a]">
+                    <label className="col-span-2 text-[11px] font-bold text-[#71858a] md:col-span-1">
                       機種・型番
                       <input
                         value={row.model_number}
                         onChange={(event) =>
                           changeRow(row.id, "model_number", event.target.value)
                         }
-                        className="mt-1.5 w-full rounded-xl border border-[#d5e2df] bg-[#f9fbfa] px-3 py-2.5 text-sm font-bold text-[#18313a]"
+                        className="mt-1.5 min-h-11 w-full rounded-xl border border-[#d5e2df] bg-[#f9fbfa] px-3 py-2.5 text-sm font-bold text-[#18313a]"
                       />
                     </label>
                     <div>
                       <span className="text-[11px] font-bold text-[#71858a]">
                         登録台数
                       </span>
-                      <div className="mt-1.5 grid grid-cols-[38px_1fr_38px] overflow-hidden rounded-xl border border-[#d5e2df] bg-white">
+                      <div className="mt-1.5 grid min-h-11 grid-cols-[44px_1fr_44px] overflow-hidden rounded-xl border border-[#d5e2df] bg-white">
                         <button
                           aria-label={`${row.equipment_name}を1台減らす`}
                           onClick={() => changeQuantity(row.id, -1)}
@@ -447,7 +446,7 @@ export function EquipmentManager({
                               Number(event.target.value),
                             )
                           }
-                          className="min-w-0 px-2 py-2.5 text-center font-black outline-none"
+                          className="min-h-11 min-w-0 px-2 py-2.5 text-center font-black outline-none"
                         />
                         <button
                           aria-label={`${row.equipment_name}を1台増やす`}
@@ -474,14 +473,14 @@ export function EquipmentManager({
                               Number(event.target.value),
                             )
                           }
-                          className="mt-1.5 w-full rounded-xl border border-[#d5e2df] bg-[#f9fbfa] px-3 py-2.5 text-center font-black"
+                          className="mt-1.5 min-h-11 w-full rounded-xl border border-[#d5e2df] bg-[#f9fbfa] px-3 py-2.5 text-center font-black"
                         />
                       </label>
                     )}
                     <button
                       disabled={savingId === row.id}
                       onClick={() => setPendingSave(row)}
-                      className="flex h-[43px] items-center justify-center gap-1.5 rounded-xl bg-[#087f71] text-xs font-black text-white disabled:bg-[#aac6c1]"
+                      className="col-span-2 flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-[#087f71] text-xs font-black text-white disabled:bg-[#aac6c1] md:col-span-1"
                     >
                       <Save size={15} />
                       {savingId === row.id ? "保存中" : "保存"}
@@ -504,7 +503,7 @@ export function EquipmentManager({
             role="dialog"
             aria-modal="true"
             aria-labelledby="equipment-save-title"
-            className="w-full max-w-lg rounded-[26px] bg-white p-6 shadow-2xl"
+            className="w-full max-w-lg rounded-[26px] bg-white p-4 shadow-2xl sm:p-6"
           >
             <div className="flex items-start gap-3">
               <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#fff0df] text-[#a7650b]">
@@ -550,7 +549,7 @@ export function EquipmentManager({
         >
           <form
             onSubmit={createItem}
-            className="w-full max-w-lg rounded-[26px] bg-white p-6 shadow-2xl"
+            className="w-full max-w-lg rounded-[26px] bg-white p-4 shadow-2xl sm:p-6"
           >
             <div className="flex items-start justify-between">
               <div>
@@ -565,7 +564,7 @@ export function EquipmentManager({
                 type="button"
                 aria-label="閉じる"
                 onClick={() => setAddingCategory(null)}
-                className="grid size-10 place-items-center rounded-full bg-[#eef4f2]"
+                className="grid size-11 place-items-center rounded-full bg-[#eef4f2]"
               >
                 <X size={20} />
               </button>

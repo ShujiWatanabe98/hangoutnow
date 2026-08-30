@@ -358,7 +358,7 @@ export function PhysicalFunctionManager({ appointments }: { appointments: Appoin
           <SelectField label="HALサイズ" value={halSize} onChange={(value) => setHalSize(value as "S" | "L")} disabled={captureCondition === "without_hal"} options={[["S", "小（S）"], ["L", "大（L）"]]} />
           <SelectField label="介助量" value={assistanceLevel} onChange={setAssistanceLevel} options={Object.entries(assistanceLabel)} />
           <SelectField label="補助具" value={assistiveDevice} onChange={setAssistiveDevice} options={Object.entries(deviceLabel)} />
-          <label className="rounded-xl border border-[#d7e4e1] px-3 py-2 text-[10px] font-bold text-[#71858a]">歩行距離<input type="number" min="1" max="100" step="0.5" value={walkingDistanceM} onChange={(event) => setWalkingDistanceM(event.target.value)} className="mt-1 w-full text-base font-black text-[#173b42] outline-none" /></label>
+          <label className="rounded-xl border border-[#d7e4e1] px-3 py-2 text-[10px] font-bold text-[#71858a]">歩行距離<input type="number" min="1" max="100" step="0.5" value={walkingDistanceM} onChange={(event) => setWalkingDistanceM(event.target.value)} className="mt-1 min-h-11 w-full bg-transparent text-base font-black text-[#173b42] outline-none" /></label>
           <SelectField label="カメラ方向" value={cameraView} onChange={setCameraView} options={[["side", "側方"], ["rear", "後方"], ["front", "前方"], ["diagonal", "斜め"]]} />
         </div>
         <textarea aria-label="測定メモ" placeholder="疲労、疼痛、介助位置、撮影条件など" value={notes} onChange={(event) => setNotes(event.target.value)} className="mt-3 min-h-20 w-full rounded-xl border border-[#d7e4e1] p-3 text-sm" />
@@ -366,7 +366,7 @@ export function PhysicalFunctionManager({ appointments }: { appointments: Appoin
 
       <div className="rounded-[22px] border border-[#dce8e5] bg-white p-4">
         <h3 className="flex items-center gap-2 font-black"><Activity size={19} className="text-[#087f71]" />2. 運動機能</h3>
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">{metricInputs.map((metric) => <label key={metric.key} className="rounded-xl bg-[#f4f7f6] p-2 text-[10px] font-bold text-[#71858a]">{metric.label}<span className="float-right">{metric.unit}</span><input aria-label={metric.label} type="number" min="0" step="0.1" value={values[metric.key] ?? ""} onChange={(event) => setValues((current) => ({ ...current, [metric.key]: event.target.value }))} className="mt-1 w-full bg-transparent text-lg font-black text-[#173b42] outline-none" /></label>)}</div>
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">{metricInputs.map((metric) => <label key={metric.key} className="rounded-xl bg-[#f4f7f6] p-2 text-[10px] font-bold text-[#71858a]">{metric.label}<span className="float-right">{metric.unit}</span><input aria-label={metric.label} type="number" min="0" step="0.1" value={values[metric.key] ?? ""} onChange={(event) => setValues((current) => ({ ...current, [metric.key]: event.target.value }))} className="mt-1 min-h-11 w-full bg-transparent text-lg font-black text-[#173b42] outline-none" /></label>)}</div>
         <details className="mt-3 rounded-xl border border-[#dce8e5] p-3"><summary className="cursor-pointer text-xs font-black text-[#087f71]">測定方法を確認</summary><div className="mt-2 max-h-40 space-y-2 overflow-y-auto">{protocols.map((protocol) => <div key={protocol.code} className="text-xs"><b>{protocol.name}</b><p className="text-[#71858a]">{protocol.instructions}</p></div>)}</div></details>
         <button onClick={handleSave} disabled={busy || !selectedAppointment} className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#173b42] font-black text-white disabled:opacity-40"><Save size={17} />測定値と条件を保存</button>
       </div>
@@ -397,7 +397,7 @@ export function PhysicalFunctionManager({ appointments }: { appointments: Appoin
 }
 
 function SelectField({ label, value, options, onChange, disabled = false }: { label: string; value: string; options: string[][]; onChange: (value: string) => void; disabled?: boolean }) {
-  return <label className="rounded-xl border border-[#d7e4e1] px-2 py-2 text-[10px] font-bold text-[#71858a]">{label}<select value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} className="mt-1 block w-full bg-transparent text-sm font-black text-[#173b42] outline-none disabled:opacity-40">{options.map(([optionValue, optionLabel]) => <option key={optionValue} value={optionValue}>{optionLabel}</option>)}</select></label>;
+  return <label className="rounded-xl border border-[#d7e4e1] px-2 py-2 text-[10px] font-bold text-[#71858a]">{label}<select value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} className="mt-1 block min-h-11 w-full bg-transparent text-sm font-black text-[#173b42] outline-none disabled:opacity-40">{options.map(([optionValue, optionLabel]) => <option key={optionValue} value={optionValue}>{optionLabel}</option>)}</select></label>;
 }
 function StatusChip({ label, value, warn = false }: { label: string; value: string; warn?: boolean }) { return <div className={`rounded-xl px-3 py-2 text-xs ${warn ? "bg-[#fff6df] text-[#98690e]" : "bg-[#e7f5f1] text-[#087f71]"}`}><b>{value}</b><span className="ml-1">{label}</span></div>; }
 

@@ -254,7 +254,7 @@ export function FacilityApp() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setDrawerOpen(true)}
-              className="grid size-10 place-items-center rounded-xl bg-[#edf4f2] md:hidden"
+              className="grid size-11 place-items-center rounded-xl bg-[#edf4f2] md:hidden"
               aria-label="メニュー"
             >
               <Menu size={21} />
@@ -279,7 +279,7 @@ export function FacilityApp() {
             <div className="hidden items-center gap-2 rounded-xl bg-[#fff7df] px-3 py-2 text-xs font-bold text-[#9b690f] sm:flex">
               <AlertTriangle size={15} /> デモ環境
             </div>
-            <button className="grid size-10 place-items-center rounded-xl border border-[#dce8e5] bg-white">
+            <button aria-label="施設内検索" className="grid size-11 place-items-center rounded-xl border border-[#dce8e5] bg-white">
               <Search size={19} />
             </button>
             <div className="hidden text-right sm:block">

@@ -41,6 +41,18 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 
 .safe-bottom { padding-bottom: max(1.25rem, env(safe-area-inset-bottom)); }
 
+@media (max-width: 1024px) {
+  button:not([style*="height"]) {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]),
+  select {
+    min-height: 44px;
+  }
+}
+
 .skeleton {
   background: linear-gradient(90deg, #edf3f1 25%, #f8fbfa 50%, #edf3f1 75%);
   background-size: 200% 100%;
@@ -55,5 +67,3 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; }
 }
-
-.private-login-shell{min-height:100vh;display:grid;place-items:center;padding:20px;background:linear-gradient(145deg,#e8f5f2,#f7faf9 48%,#edf0fb);color:#17353d}.private-login-card{width:min(440px,100%);padding:30px;border:1px solid #d7e6e2;border-radius:28px;background:#fff;box-shadow:0 24px 70px rgba(23,53,61,.14)}.private-login-brand{display:flex;align-items:center;gap:12px}.private-login-brand>span{display:grid;place-items:center;width:48px;height:48px;border-radius:15px;background:#087f71;color:#fff;font-size:25px;font-weight:900}.private-login-brand div{display:grid;gap:2px}.private-login-brand small{color:#087f71;font-size:12px;font-weight:900;letter-spacing:.12em}.private-login-card h1{margin:20px 0 6px;font-size:30px}.private-login-card>p{color:#687d84;line-height:1.7}.private-login-card form{display:grid;gap:14px;margin-top:20px}.private-login-card label{font-size:13px;font-weight:800}.private-login-card input{display:block;width:100%;min-height:54px;margin-top:7px;padding:0 15px;border:2px solid #d7e4e1;border-radius:14px;font-size:18px;outline:none}.private-login-card input:focus{border-color:#087f71;box-shadow:0 0 0 4px #dff4ed}.private-login-card button{min-height:56px;margin-top:6px;border:0;border-radius:15px;background:#087f71;color:#fff;font-size:18px;font-weight:900;cursor:pointer}.private-login-error{padding:12px;border-radius:12px;background:#fff0ed;color:#a94334!important;font-weight:800}.private-login-note{display:block;margin-top:18px;text-align:center;color:#839397;line-height:1.6}

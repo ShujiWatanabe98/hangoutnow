@@ -422,7 +422,7 @@ export function IntakeApp() {
       >
         <div className="flex items-center justify-between">
           <Brand />
-          <Link href="/customer" className="text-sm font-black text-[#087f71]">
+          <Link href="/customer" className="inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-black text-[#087f71]">
             戻る
           </Link>
         </div>
