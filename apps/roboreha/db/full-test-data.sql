@@ -98,6 +98,14 @@ UPDATE appointments SET therapist_id='20000000-0000-0000-0000-000000000002',hal_
  WHERE id='80000000-0000-0000-0000-000000000009';
 UPDATE appointments SET start_at=timestamptz '2026-08-30 15:00:00+09',end_at=timestamptz '2026-08-30 16:00:00+09'
  WHERE id='80000000-0000-0000-0000-000000000008';
+UPDATE appointments SET start_at=timestamptz '2026-08-30 11:30:00+09',end_at=timestamptz '2026-08-30 12:30:00+09'
+ WHERE id='80000000-0000-0000-0000-000000000002';
+UPDATE appointments SET start_at=timestamptz '2026-08-31 10:00:00+09',end_at=timestamptz '2026-08-31 11:30:00+09'
+ WHERE id='80000000-0000-0000-0000-000000000003';
+UPDATE appointments SET start_at=timestamptz '2026-08-30 14:00:00+09',end_at=timestamptz '2026-08-30 15:30:00+09'
+ WHERE id='80000000-0000-0000-0000-000000000004';
+UPDATE appointments SET start_at=timestamptz '2026-08-30 16:00:00+09',end_at=timestamptz '2026-08-30 17:00:00+09'
+ WHERE id='80000000-0000-0000-0000-000000000010';
 UPDATE clinical_sessions cs SET hal_unit_id=a.hal_unit_id,operator_id=a.therapist_id,started_at=a.start_at+interval '5 minutes',ended_at=a.end_at-interval '5 minutes'
  FROM appointments a WHERE cs.appointment_id=a.id AND a.id IN ('80000000-0000-0000-0000-000000000001','80000000-0000-0000-0000-000000000008','80000000-0000-0000-0000-000000000009');
 UPDATE billing_records b SET paid_at=CASE WHEN b.status='paid' THEN a.end_at+interval '10 minutes' ELSE NULL END,updated_at=a.end_at+interval '10 minutes'

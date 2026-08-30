@@ -13,6 +13,7 @@ try {
     await client.query(`CREATE SCHEMA IF NOT EXISTS "${schemaName}"`);
     await client.query(`SET search_path TO "${schemaName}", public`);
   }
+  await client.query("SET TIME ZONE 'Asia/Tokyo'");
   const root = path.resolve(import.meta.dirname, "..");
   const schema = await fs.readFile(path.join(root, "db", "schema.sql"), "utf8");
   const seed = await fs.readFile(path.join(root, "db", "seed.sql"), "utf8");
