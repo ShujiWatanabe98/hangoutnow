@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Activity, ArrowLeft, BookOpenCheck, BrainCircuit, CalendarDays, Check, ChevronLeft, ChevronRight, CircleUserRound, ClipboardList, Clock3, FileVideo, Home, MapPin, MessageCircle, Phone, Plus, RefreshCw, Sparkles, TicketCheck, X } from "lucide-react";
-import { LoadingScreen } from "./loading";
+import { BlockingProgressOverlay, LoadingScreen } from "./loading";
 import { CustomerMessageCenter } from "./message-center";
 import type { StoreFeatureAccess } from "@/lib/store-features";
 
@@ -132,6 +132,7 @@ export function CustomerApp() {
     {bookingOpen && enabled.appointments && <BookingSheet data={bookingData} selectedProductId={selectedProductId} selectedSlot={selectedSlot} loading={loadingSlots} editing={editing} confirmed={confirmed} submitting={submitting} error={error} onProduct={(id) => loadSlots(id)} onSlot={setSelectedSlot} onAiApply={applyAiBooking} onConfirm={confirmBooking} onClear={() => setSelectedSlot(null)} onClose={() => { setBookingOpen(false); setEditing(null); setConfirmed(null); setSelectedSlot(null); }} onPrev={() => shiftWeek(-7)} onNext={() => shiftWeek(7)} />}
     {cancelTarget && <ConfirmCancel appointment={cancelTarget} submitting={submitting} onConfirm={cancelAppointment} onClose={() => setCancelTarget(null)} />}
     {deadlineMessage && <DeadlineNotice message={deadlineMessage} phone={bookingData.store.phone} onClose={() => setDeadlineMessage("")} />}
+    <BlockingProgressOverlay open={submitting} label={cancelTarget ? "予約をキャンセルしています…" : editing ? "予約の変更を保存しています…" : "予約を確定しています…"} detail="二重予約を防ぐため、完了するまで他の操作はできません。" />
   </div>;
 }
 

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Activity, Armchair, BarChart3, ChevronRight, Clock3, Footprints, Gauge, MapPin, Pencil, Plus, UsersRound, X } from "lucide-react";
 import { Brand } from "./brand";
+import { BlockingProgressOverlay } from "./loading";
 import { DEFAULT_STORE_FEATURE_FLAGS, normalizeStoreFeatureFlags, resolveStoreFeatureAccess, STORE_FEATURE_KEYS, STORE_FEATURE_META, type StoreFeatureFlags } from "@/lib/store-features";
 
 type Store = { id: string; code: string; name: string; address: string; phone: string; visit_enabled: boolean; status: "active" | "preparing" | "suspended"; manager_name: string; contact_email: string; feature_flags: StoreFeatureFlags; staff_count: number; customer_count: number; hal_count: number };
@@ -27,6 +28,7 @@ export function AdminApp() {
   const [editing, setEditing] = useState<Store | null | "new">(null);
   const [selected, setSelected] = useState<Detail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(blank);
   const [error, setError] = useState("");
   const load = useCallback(async () => {
@@ -53,15 +55,21 @@ export function AdminApp() {
   }
   async function openDetail(store: Store) {
     setDetailLoading(true); setError("");
-    const response = await fetch(`/api/admin/stores?id=${store.id}`, { cache: "no-store" });
-    const body = await response.json(); setDetailLoading(false);
-    if (!response.ok) { setError(body.error); return; }
-    setSelected(body.detail);
+    try {
+      const response = await fetch(`/api/admin/stores?id=${store.id}`, { cache: "no-store" });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error ?? "センター詳細を読み込めませんでした。");
+      setSelected(body.detail);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "センター詳細を読み込めませんでした。"); }
+    finally { setDetailLoading(false); }
   }
   async function save(event: React.FormEvent) {
-    event.preventDefault(); const isNew = editing === "new";
-    const response = await fetch("/api/admin/stores", { method: isNew ? "POST" : "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, ...(!isNew && editing ? { id: editing.id } : {}) }) });
-    const body = await response.json(); if (!response.ok) { setError(body.error); return; } setEditing(null); await load();
+    event.preventDefault(); const isNew = editing === "new"; setSaving(true); setError("");
+    try {
+      const response = await fetch("/api/admin/stores", { method: isNew ? "POST" : "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, ...(!isNew && editing ? { id: editing.id } : {}) }) });
+      const body = await response.json(); if (!response.ok) throw new Error(body.error ?? "センター情報を保存できませんでした。"); setEditing(null); await load();
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "センター情報を保存できませんでした。"); }
+    finally { setSaving(false); }
   }
 
   const formFeatureAccess = resolveStoreFeatureAccess(form.featureFlags);
@@ -69,6 +77,7 @@ export function AdminApp() {
   return <div className="min-h-screen bg-[#f1f6f5] text-[#17353d]"><header className="flex min-h-16 items-center justify-between gap-3 border-b bg-white px-4 py-3"><div className="flex items-center gap-4"><Brand /><div className="hidden sm:block"><p className="text-[10px] font-bold text-[#71858a]">SYSTEM ADMIN</p><h1 className="font-black">全ロボケアセンター管理</h1></div></div><div className="flex items-center gap-2"><Link href="/facility" className="min-h-10 rounded-xl bg-[#edf5f3] px-4 py-2.5 text-xs font-black text-[#087f71]">施設画面</Link><span className="hidden rounded-full bg-[#173b42] px-3 py-2 text-xs font-black text-white sm:inline">admin</span></div></header><main className="mx-auto max-w-[1500px] p-3 md:p-5"><div className="flex items-center justify-between gap-3"><div><h2 className="text-xl font-black sm:hidden">センター管理</h2><p className="text-xs text-[#60777c]">全拠点の稼働・機器・施術実績を一元管理</p></div><button onClick={() => open()} className="flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-[#087f71] px-4 text-xs font-black text-white"><Plus size={16} />センター登録</button></div><div className="mt-3 grid grid-cols-3 gap-2"><Stat label="センター" value={`${stores.length}拠点`} /><Stat label="稼働中" value={`${stores.filter((store) => store.status === "active").length}拠点`} /><Stat label="登録利用者" value={`${stores.reduce((sum, store) => sum + store.customer_count, 0)}名`} /></div>{error && <p role="alert" className="mt-3 rounded-xl bg-[#fff0ed] p-3 text-sm font-bold text-[#b94637]">{error}</p>}<section className="mt-3 rounded-2xl border border-[#dce8e5] bg-white p-3"><div className="flex items-center justify-between px-1 pb-2"><h2 className="font-black">センターリスト</h2>{detailLoading && <span className="text-xs font-bold text-[#087f71]">詳細を読み込み中…</span>}</div><div className="space-y-2">{stores.map((store) => <article key={store.id} className="grid items-center gap-3 rounded-2xl border border-[#e2ebe9] p-3 md:grid-cols-[1.3fr_1fr_1.2fr_auto]"><div><div className="flex items-center gap-2"><p className="font-black">{store.name}</p><span className={`rounded-full px-2 py-0.5 text-[9px] font-black ${store.status === "active" ? "bg-[#e7f5f1] text-[#087f71]" : store.status === "preparing" ? "bg-[#fff3d5] text-[#9a6810]" : "bg-[#fff0ed] text-[#bd4f3f]"}`}>{labels[store.status]}</span></div><p className="mt-1 flex items-center gap-1 text-[10px] text-[#71858a]"><MapPin size={11} />{store.address}</p></div><div><b className="text-sm">{store.manager_name || "責任者未設定"}</b><p className="text-[10px] text-[#71858a]">{store.phone}・{store.contact_email}</p></div><div><p className="text-xs font-bold">スタッフ {store.staff_count}名 / 利用者 {store.customer_count}名 / HAL {store.hal_count}台</p><p className="text-[10px] text-[#71858a]">訪問対応 {store.visit_enabled ? "あり" : "なし"}</p></div><div className="flex justify-end gap-2"><button onClick={() => openDetail(store)} className="flex min-h-10 items-center gap-1 rounded-lg bg-[#173b42] px-3 text-xs font-black text-white">詳細<ChevronRight size={14} /></button><button aria-label={`${store.name}を編集`} onClick={() => open(store)} className="grid size-10 place-items-center rounded-lg bg-[#edf5f3] text-[#087f71]"><Pencil size={14} /></button></div></article>)}</div></section></main>
     {editing && <div className="fixed inset-0 z-50 overflow-y-auto bg-[#09262c]/55 p-3"><form onSubmit={save} className="mx-auto my-3 w-full max-w-4xl rounded-3xl bg-white p-5"><div className="flex justify-between"><div><p className="text-[10px] font-black text-[#087f71]">CENTER MASTER</p><h2 className="text-xl font-black">{editing === "new" ? "センター登録" : "センター編集"}</h2></div><button type="button" aria-label="閉じる" onClick={() => setEditing(null)}><X /></button></div><div className="mt-4 grid gap-3 sm:grid-cols-2"><Field label="拠点コード" value={form.code} onChange={(value) => setForm({ ...form, code: value })} /><Field label="センター名" value={form.name} onChange={(value) => setForm({ ...form, name: value })} /><div className="sm:col-span-2"><Field label="住所" value={form.address} onChange={(value) => setForm({ ...form, address: value })} /></div><Field label="電話番号" value={form.phone} onChange={(value) => setForm({ ...form, phone: value })} /><Field label="責任者" value={form.managerName} onChange={(value) => setForm({ ...form, managerName: value })} /><Field label="連絡先メール" value={form.contactEmail} onChange={(value) => setForm({ ...form, contactEmail: value })} /><label className="text-xs font-bold">稼働状態<select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as Store["status"] })} className="mt-1 min-h-12 w-full rounded-xl border p-3"><option value="active">稼働中</option><option value="preparing">準備中</option><option value="suspended">停止中</option></select></label><label className="flex items-center gap-2 rounded-xl bg-[#f3f7f6] p-3 text-xs font-bold"><input type="checkbox" checked={form.visitEnabled} onChange={(event) => setForm({ ...form, visitEnabled: event.target.checked })} />訪問リハ対応</label></div><section className="mt-5 rounded-2xl border border-[#dce8e5] bg-[#f7faf9] p-4"><div className="flex flex-wrap items-end justify-between gap-2"><div><h3 className="font-black">利用する機能</h3><p className="mt-1 text-xs text-[#71858a]">前提機能がOFFの場合、連動する機能は自動停止し編集できません。</p></div><span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#087f71]">有効 {Object.values(formFeatureAccess.effective).filter(Boolean).length} / {STORE_FEATURE_KEYS.length}</span></div><div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{STORE_FEATURE_KEYS.map((key) => { const blocked = formFeatureAccess.blockedBy[key]; const disabled = blocked.length > 0; return <label key={key} className={`flex min-h-[92px] items-start gap-3 rounded-xl border p-3 ${disabled ? "cursor-not-allowed border-[#dde3e2] bg-[#edf0ef] text-[#8c989a]" : "cursor-pointer border-[#dce8e5] bg-white"}`}><input type="checkbox" aria-label={`${STORE_FEATURE_META[key].label}機能`} checked={formFeatureAccess.effective[key]} disabled={disabled} onChange={(event) => setForm({ ...form, featureFlags: { ...form.featureFlags, [key]: event.target.checked } })} className="mt-1 size-5 accent-[#087f71]" /><span className="min-w-0"><span className="flex items-center gap-2 font-black">{STORE_FEATURE_META[key].label}<span className={`rounded-full px-2 py-0.5 text-[9px] ${formFeatureAccess.effective[key] ? "bg-[#e1f4ee] text-[#087f71]" : "bg-[#e1e5e4] text-[#718084]"}`}>{formFeatureAccess.effective[key] ? "ON" : "OFF"}</span></span><span className="mt-1 block text-[10px] leading-4">{disabled ? `${blocked.map((item) => STORE_FEATURE_META[item].label).join("・")}がOFFのため自動停止` : STORE_FEATURE_META[key].description}</span></span></label>; })}</div></section><button className="mt-4 min-h-12 w-full rounded-xl bg-[#087f71] font-black text-white">保存する</button></form></div>}
     {selected && <CenterDetail detail={selected} onClose={() => setSelected(null)} />}
+    <BlockingProgressOverlay open={saving} label="センター設定を保存しています…" detail="機能設定と施設情報を反映しています。完了するまでお待ちください。" />
   </div>;
 }
 

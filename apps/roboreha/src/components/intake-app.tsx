@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Check, CheckCircle2, ClipboardList } from "lucide-react";
 import { Brand } from "./brand";
+import { BlockingProgressOverlay } from "./loading";
 import {
   appendSuggestion,
   RotatingTextSuggestions,
@@ -74,6 +75,7 @@ export function IntakeApp() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [customerId, setCustomerId] = useState("");
   const [done, setDone] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState(initialForm);
   const [template, setTemplate] = useState<QuestionnaireTemplate | null>(null);
@@ -382,17 +384,21 @@ export function IntakeApp() {
         ?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
-    const response = await fetch("/api/intake", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ customerId, ...form, customResponses }),
-    });
-    const body = await response.json();
-    if (!response.ok) {
-      setError(body.error);
-      return;
+    setSubmitting(true);
+    try {
+      const response = await fetch("/api/intake", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerId, ...form, customResponses }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error ?? "問診を送信できませんでした。");
+      setDone(true);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "問診を送信できませんでした。");
+    } finally {
+      setSubmitting(false);
     }
-    setDone(true);
   }
 
   if (done)
@@ -613,12 +619,13 @@ export function IntakeApp() {
           </p>
         )}
         <button
-          disabled={!customerId}
+          disabled={!customerId || submitting}
           className="mt-5 min-h-14 w-full rounded-xl bg-[#087f71] py-3.5 text-base font-black text-white disabled:bg-[#9abeb8]"
         >
-          問診を送信する
+          {submitting ? "問診を送信しています…" : "問診を送信する"}
         </button>
       </form>
+      <BlockingProgressOverlay open={submitting} label="問診を送信しています…" detail="回答内容を安全に保存しています。完了するまで画面を閉じないでください。" />
     </main>
   );
 }

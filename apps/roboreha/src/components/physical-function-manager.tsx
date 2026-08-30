@@ -11,6 +11,7 @@ import {
   ROBOREHA_POSE_ENGINE, summarizeGait,
   type GaitSummary, type PoseFrame, type PoseMaximumMetrics, type VideoPoseAnalysis,
 } from "@/lib/pose-analysis";
+import { BlockingProgressOverlay } from "./loading";
 
 type Appointment = {
   id: string;
@@ -141,6 +142,7 @@ export function PhysicalFunctionManager({ appointments }: { appointments: Appoin
   const [captureOpen, setCaptureOpen] = useState(true);
   const [progress, setProgress] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [processingLabel, setProcessingLabel] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [detail, setDetail] = useState<Session | null>(null);
@@ -197,10 +199,10 @@ export function PhysicalFunctionManager({ appointments }: { appointments: Appoin
   }
 
   async function handleSave() {
-    setBusy(true); setError(""); setMessage("");
+    setBusy(true); setProcessingLabel("身体機能の測定値を保存しています…"); setError(""); setMessage("");
     try { await saveSession(); setMessage("身体機能の測定値と条件を保存しました。"); }
     catch (reason) { setError(reason instanceof Error ? reason.message : "保存できませんでした。"); }
-    finally { setBusy(false); }
+    finally { setBusy(false); setProcessingLabel(""); }
   }
 
   function selectCaptureFile(phase: CapturePhase, file: File | null) {
@@ -215,7 +217,7 @@ export function PhysicalFunctionManager({ appointments }: { appointments: Appoin
   async function analyzePhase(phase: CapturePhase) {
     const file = captureFiles[phase];
     if (!file) { setError(`${phase === "before" ? "HAL使用前" : "HAL使用後"}の動画を撮影または選択してください。`); return null; }
-    setBusy(true); setAnalyzingPhase(phase); setError(""); setMessage(""); setProgress(0);
+    setBusy(true); setProcessingLabel(`${phase === "before" ? "HAL使用前" : "HAL使用後"}動画をAI解析しています…`); setAnalyzingPhase(phase); setError(""); setMessage(""); setProgress(0);
     try {
       const prepared = await analyzeVideoFileWithFallback(
         file,
@@ -236,12 +238,12 @@ export function PhysicalFunctionManager({ appointments }: { appointments: Appoin
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "姿勢推定を実行できませんでした。");
       return null;
-    } finally { setBusy(false); setAnalyzingPhase(null); }
+    } finally { setBusy(false); setProcessingLabel(""); setAnalyzingPhase(null); }
   }
 
   async function prepareComparison() {
     if (!captureFiles.before || !captureFiles.after) { setError("HAL使用前動画とHAL使用後動画の両方を選択してください。"); return; }
-    setBusy(true); setError(""); setMessage(""); setProgress(0);
+    setBusy(true); setProcessingLabel("HAL使用前後の比較動画を作成しています…"); setError(""); setMessage(""); setProgress(0);
     try {
       const files = { ...captureFiles };
       const analyses = { ...poseAnalyses };
@@ -271,7 +273,7 @@ export function PhysicalFunctionManager({ appointments }: { appointments: Appoin
       setNotes((current) => current.includes("【AI比較所見】") ? current : `${current.trim()}${current.trim() ? "\n" : ""}${comparisonRecordText(generated)}`);
       setMessage("HAL使用前後のオーバーレイ比較動画を作成しました。画面内で確認してから保存できます。");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "HAL前後動画を作成できませんでした。"); }
-    finally { setBusy(false); setAnalyzingPhase(null); }
+    finally { setBusy(false); setProcessingLabel(""); setAnalyzingPhase(null); }
   }
 
   async function uploadPhysicalVideo(sessionId: string, phase: "baseline" | "hal_assisted" | "analysis", file: File, analysis?: VideoPoseAnalysis) {
@@ -306,7 +308,7 @@ export function PhysicalFunctionManager({ appointments }: { appointments: Appoin
     if ((captureFiles.before || captureFiles.after || comparisonFile) && !consentConfirmed) {
       setError("動画保存の同意確認を行ってください。"); return;
     }
-    setBusy(true); setError(""); setMessage("");
+    setBusy(true); setProcessingLabel("評価記録と動画を保存しています…"); setError(""); setMessage("");
     try {
       const sessionId = await saveSession();
       for (const phase of ["before", "after"] as const) {
@@ -329,7 +331,7 @@ export function PhysicalFunctionManager({ appointments }: { appointments: Appoin
       setMessage("測定値、使用前・使用後動画、AI解析、比較動画、所見を保存しました。");
       setCaptureOpen(false);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "身体機能記録を保存できませんでした。"); }
-    finally { setBusy(false); }
+    finally { setBusy(false); setProcessingLabel(""); }
   }
 
   const customerSessions = useMemo(
@@ -393,6 +395,7 @@ export function PhysicalFunctionManager({ appointments }: { appointments: Appoin
       <div className="mt-3 grid gap-3 lg:grid-cols-2">{sessions.map((session) => <SessionCard key={session.id} session={session} onDetail={setDetail} />)}{!sessions.length && <p className="col-span-full rounded-xl border border-dashed p-8 text-center text-sm text-[#829397]">身体機能記録はまだありません</p>}</div>
     </section>
     {detail && <SessionDetail session={detail} onClose={() => setDetail(null)} onSaved={async () => { setDetail(null); await load(); }} />}
+    <BlockingProgressOverlay open={busy} label={processingLabel || "身体機能記録を処理しています…"} detail={analyzingPhase ? "動画から歩行姿勢を推定しています。画面を閉じずにお待ちください。" : "動画や測定結果を安全に処理しています。完了するまで他の操作はできません。"} progress={analyzingPhase ? progress : undefined} />
   </div>;
 }
 

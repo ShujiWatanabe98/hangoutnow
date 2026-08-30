@@ -16,6 +16,7 @@ import {
   Save,
   X,
 } from "lucide-react";
+import { BlockingProgressOverlay } from "./loading";
 
 type Category = "hal" | "treadmill" | "bench";
 type EquipmentModel = {
@@ -670,6 +671,7 @@ export function EquipmentManager({
           {notice}
         </div>
       )}
+      <BlockingProgressOverlay open={savingId !== null} label={savingId === "new" ? "機材を登録しています…" : "機材情報を保存しています…"} detail="予約枠への影響を確認して機材情報を更新しています。完了するまでお待ちください。" />
     </div>
   );
 }

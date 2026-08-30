@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { Brand } from "./brand";
 import { EquipmentManager } from "./equipment-manager";
-import { LoadingScreen } from "./loading";
+import { BlockingProgressOverlay, LoadingScreen } from "./loading";
 import { ScheduleCalendar } from "./schedule-calendar";
 import { CustomersManager } from "./customers-manager";
 import { BillingManager } from "./billing-manager";
@@ -758,6 +758,7 @@ function CheckinModal({
           </form>
         )}
       </section>
+      <BlockingProgressOverlay open={submitting} label="受付情報を保存して安全判定しています…" detail="バイタル記録と安全基準を確認しています。完了するまでお待ちください。" />
     </div>
   );
 }

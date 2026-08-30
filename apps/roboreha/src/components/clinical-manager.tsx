@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, CircleStop, Clock3, FileText, Play, Stethoscope, X } from "lucide-react";
+import { BlockingProgressOverlay } from "./loading";
 
 type Exercise = { exercise?: string; minutes?: number; steps?: number; completed?: boolean };
 type Item = {
@@ -63,10 +64,13 @@ export function ClinicalManager() {
 
   async function act(id: string, action: "start" | "finish") {
     setSaving(true); setError("");
-    const response = await fetch("/api/clinical-sessions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appointmentId: id, action, exercise: "HAL歩行・機能訓練" }) });
-    const body = await response.json(); setSaving(false);
-    if (!response.ok) { setError(body.error); return; }
-    setDetail(null); await load();
+    try {
+      const response = await fetch("/api/clinical-sessions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appointmentId: id, action, exercise: "HAL歩行・機能訓練" }) });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error ?? "施術記録を更新できませんでした。");
+      setDetail(null); await load();
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "施術記録を更新できませんでした。"); }
+    finally { setSaving(false); }
   }
 
   const todayItems = useMemo(() => items.filter((item) => dateKey(item.start_at) === today).sort((a, b) => a.start_at.localeCompare(b.start_at)), [items]);
@@ -86,6 +90,7 @@ export function ClinicalManager() {
       {historyItems.length > HISTORY_PAGE_SIZE && <nav aria-label="施術履歴ページ" className="mt-3 flex flex-wrap items-center justify-center gap-2 rounded-2xl border border-[#dce8e5] bg-white p-3"><button aria-label="前の履歴ページ" disabled={effectiveHistoryPage === 1} onClick={() => setHistoryPage((current) => Math.max(1, current - 1))} className="grid size-11 place-items-center rounded-xl bg-[#edf4f2] text-[#087f71] disabled:opacity-35"><ChevronLeft size={18} /></button><span className="min-w-24 text-center text-sm font-black">{effectiveHistoryPage} / {historyPages}ページ</span><button aria-label="次の履歴ページ" disabled={effectiveHistoryPage === historyPages} onClick={() => setHistoryPage((current) => Math.min(historyPages, current + 1))} className="grid size-11 place-items-center rounded-xl bg-[#edf4f2] text-[#087f71] disabled:opacity-35"><ChevronRight size={18} /></button><span className="w-full text-center text-[10px] font-bold text-[#71858a]">1ページ {HISTORY_PAGE_SIZE}件表示・全{historyItems.length}件</span></nav>}
     </div>
     {detail && <ClinicalDetail item={detail} saving={saving} onClose={() => setDetail(null)} onAction={act} />}
+    <BlockingProgressOverlay open={saving} label="施術記録を更新しています…" detail="開始・終了時刻と会計連携を更新しています。完了するまでお待ちください。" />
   </div>;
 }
 

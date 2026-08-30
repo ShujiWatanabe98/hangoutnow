@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, ChevronLeft, ClipboardList, LockKeyhole, Phone, UserPlus } from "lucide-react";
 import { Brand } from "./brand";
+import { BlockingProgressOverlay } from "./loading";
 import { RotatingTextSuggestions, appendSuggestion } from "./rotating-text-suggestions";
 import { DIAGNOSIS_OPTIONS } from "@/lib/rehab-text-suggestions";
 
@@ -220,6 +221,7 @@ export function CustomerRegistrationApp() {
           <p className="mt-5 text-center text-xs leading-5 text-[#71858a]">入力内容は、ぐんまロボケアセンターの利用登録に使用します。</p>
         </div>
       </div>
+      <BlockingProgressOverlay open={submitting} label="利用者情報を登録しています…" detail="登録番号を発行しています。完了するまで画面を閉じないでください。" />
     </main>
   );
 }

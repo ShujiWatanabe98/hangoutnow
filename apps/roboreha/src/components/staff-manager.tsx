@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, Pencil, Plus, Trash2, UserCog, X } from "lucide-react";
+import { BlockingProgressOverlay, InlineLoadingState } from "./loading";
 
 type Staff = { id: string; employee_code: string; name: string; role: string; qualification: string; active: boolean; future_appointment_count: number; next_appointment_at: string | null };
 type Shift = { id: string; staff_id: string; work_date: string; shift_start: string; shift_end: string; status: "scheduled" | "confirmed" | "cancelled" };
@@ -121,7 +122,7 @@ export function StaffManager({ onDataChanged }: { onDataChanged?: () => void }) 
     return { planned, actual, days: completed.length, byStaff };
   }, [data]);
 
-  if (!data) return <p className="p-8 text-center">スタッフ情報を読み込み中です…</p>;
+  if (!data) return <InlineLoadingState label="スタッフ情報を読み込んでいます" />;
 
   return <div className="mx-auto max-w-[1500px]">
     <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-black tracking-[.15em] text-[#087f71]">STAFF & ATTENDANCE</p><h2 className="text-2xl font-black">スタッフ管理</h2></div><div className="flex gap-2"><div className="rounded-xl bg-white p-1">{[["staff", "スタッフ"], ["attendance", "出退勤"]].map((item) => <button key={item[0]} onClick={() => setMode(item[0] as typeof mode)} className={`min-h-10 rounded-lg px-4 text-xs font-black ${mode === item[0] ? "bg-[#173b42] text-white" : "text-[#71858a]"}`}>{item[1]}</button>)}</div>{mode === "staff" && <button onClick={() => openStaff()} className="flex min-h-11 items-center gap-2 rounded-xl bg-[#087f71] px-4 text-xs font-black text-white"><Plus size={16} />登録</button>}</div></div>
@@ -146,6 +147,7 @@ export function StaffManager({ onDataChanged }: { onDataChanged?: () => void }) 
     {selected && <AttendanceModal staff={selected.staff} date={selected.date} shift={findShift(selected.staff.id, selected.date)} attendance={findAttendance(selected.staff.id, selected.date)} today={data.range.today} form={shiftForm} setForm={setShiftForm} saving={saving} error={error} onClose={() => setSelected(null)} onSave={saveShift} onAction={attendanceAction} />}
     {deleteImpact && <div className="fixed inset-0 z-[70] grid place-items-center bg-[#09262c]/60 p-3"><section role="dialog" aria-modal="true" aria-labelledby="staff-delete-impact-title" className="w-full max-w-lg rounded-3xl bg-white p-6"><div className="flex items-start justify-between"><div><p className="text-xs font-black text-[#bd4f3f]">削除できません</p><h3 id="staff-delete-impact-title" className="mt-1 text-xl font-black">将来の予約があります</h3></div><button aria-label="警告を閉じる" onClick={() => setDeleteImpact(null)} className="grid size-10 place-items-center rounded-xl bg-[#edf4f2]"><X /></button></div><p className="mt-4 rounded-2xl bg-[#fff0ed] p-4 text-sm font-bold leading-6 text-[#9f3f32]">{deleteImpact.error}</p><div className="mt-3 grid grid-cols-2 gap-2"><SummaryCard label="影響する予約" value={`${deleteImpact.futureAppointmentCount}件`} note="将来の有効予約" /><SummaryCard label="予約期間" value={deleteImpact.firstAppointmentAt ? displayDate(deleteImpact.firstAppointmentAt) : "—"} note={deleteImpact.lastAppointmentAt ? `〜 ${displayDate(deleteImpact.lastAppointmentAt)}` : ""} /></div>{deleteImpact.customerNames?.length>0 && <p className="mt-3 rounded-xl bg-[#f3f7f6] p-3 text-xs font-bold text-[#60777c]">対象利用者：{deleteImpact.customerNames.join("、")}{deleteImpact.futureAppointmentCount>deleteImpact.customerNames.length ? " ほか" : ""}</p>}<p className="mt-3 text-xs font-bold leading-5 text-[#60777c]">予約スケジュールで担当スタッフを変更するか、予約をキャンセルした後に、もう一度削除してください。</p><button onClick={() => setDeleteImpact(null)} className="mt-5 min-h-12 w-full rounded-xl bg-[#173b42] font-black text-white">確認しました</button></section></div>}
     {notice && <div role="status" className="fixed right-5 top-20 z-[80] rounded-full bg-[#173b42] px-5 py-3 text-sm font-black text-white shadow-xl">{notice}<button aria-label="通知を閉じる" onClick={() => setNotice("")} className="ml-3">×</button></div>}
+    <BlockingProgressOverlay open={saving} label="スタッフ情報を保存しています…" detail="出退勤・勤務予定と予約への影響を確認しています。完了するまでお待ちください。" />
   </div>;
 }
 

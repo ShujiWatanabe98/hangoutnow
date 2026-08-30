@@ -34,6 +34,7 @@ import {
   type VideoPoseAnalysis,
 } from "@/lib/pose-analysis";
 import { RotatingTextSuggestions } from "./rotating-text-suggestions";
+import { BlockingProgressOverlay } from "./loading";
 
 type TodayAppointment = {
   id: string;
@@ -433,6 +434,41 @@ export function CustomersManager({
               {todayAppointments.length}名
             </span>
           </div>
+          {todaysCautions.length > 0 && (
+            <section
+              aria-label="本日の注意事項"
+              className="mb-5 rounded-2xl border border-[#efcf85] bg-[#fff9e9] p-4"
+            >
+              <div className="flex items-center gap-2 text-[#8b5b08]">
+                <AlertTriangle size={19} />
+                <h4 className="font-black">注意事項</h4>
+                <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-black">
+                  {todaysCautions.length}件
+                </span>
+              </div>
+              <div className="mt-3 grid gap-2 lg:grid-cols-2">
+                {todaysCautions.map((caution) => (
+                  <button
+                    key={caution.id}
+                    onClick={() => openDetail(caution.customerId)}
+                    className={`rounded-xl border bg-white p-3 text-left ${caution.severity === "high" ? "border-[#df7467]" : "border-[#ead9ae]"}`}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-black">{caution.customerName}</span>
+                      {caution.severity === "high" && (
+                        <span className="rounded-full bg-[#fff0ed] px-2 py-0.5 text-[10px] font-black text-[#bd4f3f]">重要</span>
+                      )}
+                      <span className="text-xs font-black text-[#8b5b08]">{caution.title}</span>
+                    </div>
+                    <p className="mt-1 text-xs leading-5 text-[#5f6f73]">{caution.detail}</p>
+                    {caution.responseNote && (
+                      <p className="mt-1 text-[11px] font-bold text-[#7c6332]">対応：{caution.responseNote}</p>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
           <div className="space-y-3">
             {todayAppointments.map((appointment) => (
               <div
@@ -489,49 +525,6 @@ export function CustomersManager({
               </div>
             ))}
           </div>
-          {todaysCautions.length > 0 && (
-            <section
-              aria-label="本日の注意事項"
-              className="mt-5 rounded-2xl border border-[#efcf85] bg-[#fff9e9] p-4"
-            >
-              <div className="flex items-center gap-2 text-[#8b5b08]">
-                <AlertTriangle size={19} />
-                <h4 className="font-black">注意事項</h4>
-                <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-black">
-                  {todaysCautions.length}件
-                </span>
-              </div>
-              <div className="mt-3 grid gap-2 lg:grid-cols-2">
-                {todaysCautions.map((caution) => (
-                  <button
-                    key={caution.id}
-                    onClick={() => openDetail(caution.customerId)}
-                    className={`rounded-xl border bg-white p-3 text-left ${caution.severity === "high" ? "border-[#df7467]" : "border-[#ead9ae]"}`}
-                  >
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-black">{caution.customerName}</span>
-                      {caution.severity === "high" && (
-                        <span className="rounded-full bg-[#fff0ed] px-2 py-0.5 text-[10px] font-black text-[#bd4f3f]">
-                          重要
-                        </span>
-                      )}
-                      <span className="text-xs font-black text-[#8b5b08]">
-                        {caution.title}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-xs leading-5 text-[#5f6f73]">
-                      {caution.detail}
-                    </p>
-                    {caution.responseNote && (
-                      <p className="mt-1 text-[11px] font-bold text-[#7c6332]">
-                        対応：{caution.responseNote}
-                      </p>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </section>
-          )}
         </section>
       ) : (
         <section className="rounded-[24px] border border-[#dce8e5] bg-white p-4 md:p-6">
@@ -2008,6 +2001,12 @@ function AssessmentModal({
             </div>
           </form>
       </section>
+      <BlockingProgressOverlay
+        open={saving || Boolean(poseAnalyzingPhase)}
+        label={poseAnalyzingPhase ? `${poseAnalyzingPhase === "before" ? "HAL使用前" : "HAL使用後"}動画をAI解析しています…` : "評価記録と動画を保存しています…"}
+        detail={poseAnalyzingPhase ? "動画から歩行姿勢を推定しています。画面を閉じずにお待ちください。" : "評価数値、動画、AI解析結果をまとめて保存しています。"}
+        progress={poseAnalyzingPhase ? poseProgress : undefined}
+      />
     </div>
   );
 }

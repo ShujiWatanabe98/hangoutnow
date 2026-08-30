@@ -16,6 +16,7 @@ import {
   Video,
   X,
 } from "lucide-react";
+import { BlockingProgressOverlay } from "./loading";
 
 type IntakeItem = {
   customer_id: string;
@@ -757,6 +758,7 @@ export function IntakeManager() {
           </section>
         </div>
       )}
+      <BlockingProgressOverlay open={saving} label="問診表を保存しています…" detail="項目、表示順、入力形式を更新しています。完了するまでお待ちください。" />
     </div>
   );
 }
