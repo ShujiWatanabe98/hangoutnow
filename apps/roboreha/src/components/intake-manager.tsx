@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from "react";
 import {
+  ChevronDown,
+  ChevronUp,
   CheckCircle2,
   Eye,
+  GripVertical,
   Hash,
   Pencil,
   Plus,
@@ -259,6 +262,43 @@ export function IntakeManager() {
     setNotice("問診項目を削除しました。");
   }
 
+  async function moveItem(itemId: string, direction: -1 | 1) {
+    if (!template || saving) return;
+    const currentIndex = template.items.findIndex((item) => item.id === itemId);
+    const nextIndex = currentIndex + direction;
+    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= template.items.length)
+      return;
+    const previousItems = template.items;
+    const nextItems = [...previousItems];
+    [nextItems[currentIndex], nextItems[nextIndex]] = [
+      nextItems[nextIndex],
+      nextItems[currentIndex],
+    ];
+    setTemplate({ ...template, items: nextItems });
+    setSaving(true);
+    setError("");
+    try {
+      const response = await fetch("/api/intake-template", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemIds: nextItems.map((item) => item.id) }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error);
+      setTemplate(body.template);
+      setNotice(
+        `問診${nextIndex + 1}番へ移動しました。利用者画面の順番にも反映されます。`,
+      );
+    } catch (reason) {
+      setTemplate({ ...template, items: previousItems });
+      setError(
+        reason instanceof Error ? reason.message : "順番を変更できませんでした。",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-[1400px]">
       <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
@@ -486,14 +526,25 @@ export function IntakeManager() {
                     項目を追加
                   </button>
                 </div>
-                <div className="mt-4 grid gap-2 xl:grid-cols-2">
-                  {template.items.map((item) => (
+                <div className="mt-4 grid gap-2">
+                  {template.items.map((item, index) => (
                     <article
                       key={item.id}
                       className="rounded-2xl border border-[#dce8e5] bg-white p-3"
                     >
                       <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
+                        <div className="flex min-w-0 gap-3">
+                          <div className="flex shrink-0 items-center gap-2">
+                            <GripVertical
+                              aria-hidden="true"
+                              size={18}
+                              className="text-[#9aabae]"
+                            />
+                            <span className="grid size-9 place-items-center rounded-full bg-[#17353d] text-sm font-black text-white">
+                              {index + 1}
+                            </span>
+                          </div>
+                          <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="font-black">{item.label}</span>
                             {item.required && (
@@ -521,9 +572,31 @@ export function IntakeManager() {
                               選択肢：{item.options.join("・")}
                             </p>
                           )}
+                          </div>
                         </div>
                         <div className="flex shrink-0 gap-1">
                           <button
+                            type="button"
+                            aria-label={`${item.label}を上へ移動`}
+                            title="上へ移動"
+                            disabled={saving || index === 0}
+                            onClick={() => moveItem(item.id, -1)}
+                            className="grid size-11 place-items-center rounded-lg border border-[#d7e4e1] bg-white text-[#17353d] disabled:opacity-25"
+                          >
+                            <ChevronUp size={18} />
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={`${item.label}を下へ移動`}
+                            title="下へ移動"
+                            disabled={saving || index === template.items.length - 1}
+                            onClick={() => moveItem(item.id, 1)}
+                            className="grid size-11 place-items-center rounded-lg border border-[#d7e4e1] bg-white text-[#17353d] disabled:opacity-25"
+                          >
+                            <ChevronDown size={18} />
+                          </button>
+                          <button
+                            type="button"
                             aria-label={`${item.label}を編集`}
                             onClick={() => editItem(item)}
                             className="grid size-8 place-items-center rounded-lg bg-[#edf5f3] text-[#087f71]"
@@ -531,6 +604,7 @@ export function IntakeManager() {
                             <Pencil size={14} />
                           </button>
                           <button
+                            type="button"
                             aria-label={`${item.label}を削除`}
                             onClick={() => removeItem(item)}
                             className="grid size-8 place-items-center rounded-lg bg-[#fff0ed] text-[#bd4f3f]"

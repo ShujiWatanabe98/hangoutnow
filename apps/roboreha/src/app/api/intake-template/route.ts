@@ -2,13 +2,18 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { DEMO_MANAGER_ID, DEMO_STORE_ID } from "@/lib/constants";
-import { query } from "@/lib/db";
+import { query, transaction } from "@/lib/db";
 import { disabledStoreFeatureResponse } from "@/lib/store-feature-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const databaseId = z.string().uuid();
+const databaseId = z
+  .string()
+  .regex(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    "問診項目IDが正しくありません。",
+  );
 const fieldType = z.enum([
   "short_text",
   "long_text",
@@ -74,13 +79,57 @@ export async function GET() {
 export async function PATCH(request: Request) {
   const disabled = await disabledStoreFeatureResponse(DEMO_STORE_ID, "intake"); if (disabled) return disabled;
   try {
+    const input = await request.json();
+    if ("itemIds" in input) {
+      const body = z
+        .object({
+          itemIds: z.array(databaseId).min(1).max(100),
+        })
+        .parse(input);
+      if (new Set(body.itemIds).size !== body.itemIds.length)
+        return NextResponse.json(
+          { error: "同じ問診項目が複数含まれています。" },
+          { status: 400 },
+        );
+      await transaction(async (client) => {
+        const current = await client.query<{ id: string }>(
+          `SELECT i.id
+             FROM questionnaire_template_items i
+             JOIN questionnaire_templates t ON t.id=i.template_id
+            WHERE t.store_id=$1 AND i.active=true
+            FOR UPDATE OF i`,
+          [DEMO_STORE_ID],
+        );
+        const currentIds = new Set(current.rows.map((item) => item.id));
+        if (
+          currentIds.size !== body.itemIds.length ||
+          body.itemIds.some((id) => !currentIds.has(id))
+        )
+          throw new Error("問診項目が更新されています。画面を再読み込みしてください。");
+        for (const [index, id] of body.itemIds.entries()) {
+          await client.query(
+            `UPDATE questionnaire_template_items
+                SET sort_order=$1,updated_at=now()
+              WHERE id=$2`,
+            [(index + 1) * 10, id],
+          );
+        }
+        await client.query(
+          `UPDATE questionnaire_templates
+              SET updated_by=$1,updated_at=now()
+            WHERE store_id=$2`,
+          [DEMO_MANAGER_ID, DEMO_STORE_ID],
+        );
+      });
+      return NextResponse.json({ template: await getTemplate() });
+    }
     const body = z
       .object({
         title: z.string().trim().min(1).max(120),
         introductionText: z.string().trim().min(1).max(1000),
         consentText: z.string().trim().min(1).max(1000),
       })
-      .parse(await request.json());
+      .parse(input);
     const result = await query(
       `UPDATE questionnaire_templates
           SET title=$1,introduction_text=$2,consent_text=$3,updated_by=$4,updated_at=now()

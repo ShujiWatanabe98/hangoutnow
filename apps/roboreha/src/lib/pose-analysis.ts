@@ -1,7 +1,10 @@
 import type { NormalizedLandmark, PoseLandmarker } from "@mediapipe/tasks-vision";
-import { withBasePath } from "@/lib/base-path";
 
 export const ROBOREHA_POSE_ENGINE = "roboreha-pose-lite-1.1";
+const publicBasePath = (
+  process.env.NEXT_PUBLIC_ROBOREHA_BASE_PATH?.trim() ?? ""
+).replace(/\/$/, "");
+const publicAssetPath = (path: string) => `${publicBasePath}${path}`;
 
 export type PosePoint = { x: number; y: number; z: number; visibility: number };
 export type TrackedPose = {
@@ -48,6 +51,14 @@ export type GaitSummary = {
   qualityFlags: string[];
   poseSummary: Record<string, unknown>;
 };
+export type PoseMaximumMetrics = {
+  waistAngleDegrees: number | null;
+  kneeAngleDegrees: number | null;
+  heelAngleDegrees: number | null;
+  accelerationMps2: number | null;
+  strideLengthM: number | null;
+  confidence: number;
+};
 
 export const POSE_CONNECTIONS: Array<[number, number]> = [
   [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
@@ -56,13 +67,14 @@ export const POSE_CONNECTIONS: Array<[number, number]> = [
 ];
 
 let landmarkerPromise: Promise<PoseLandmarker> | null = null;
+let nextVideoTimestampMs = 0;
 
 async function getLandmarker() {
   if (!landmarkerPromise) {
     landmarkerPromise = import("@mediapipe/tasks-vision").then(async ({ FilesetResolver, PoseLandmarker }) => {
-      const files = await FilesetResolver.forVisionTasks(withBasePath("/wasm/mediapipe"));
+      const files = await FilesetResolver.forVisionTasks(publicAssetPath("/wasm/mediapipe"));
       return PoseLandmarker.createFromOptions(files, {
-        baseOptions: { modelAssetPath: withBasePath("/models/pose_landmarker_lite.task") },
+        baseOptions: { modelAssetPath: publicAssetPath("/models/pose_landmarker_lite.task") },
         runningMode: "VIDEO",
         numPoses: 2,
         minPoseDetectionConfidence: 0.35,
@@ -187,6 +199,7 @@ export async function analyzeVideoFile(file: File, onProgress?: (percent: number
   let previewDataUrl = "";
   let previewPoses: TrackedPose[] = [];
   let time = 0;
+  const timestampBaseMs = nextVideoTimestampMs;
   try {
     while (time < duration) {
       const nextTime = Math.min(time, Math.max(0, duration - 0.02));
@@ -195,7 +208,10 @@ export async function analyzeVideoFile(file: File, onProgress?: (percent: number
         video.currentTime = nextTime;
         await seeked;
       }
-      const result = landmarker.detectForVideo(video, Math.round(time * 1000));
+      const result = landmarker.detectForVideo(
+        video,
+        timestampBaseMs + Math.round(time * 1000),
+      );
       const poses = assignTracks(result.landmarks, active, time, nextTrack);
       frames.push({ timeSeconds: time, poses });
       if (poses.length > previewPoses.length || (!previewDataUrl && poses.length > 0)) {
@@ -207,6 +223,8 @@ export async function analyzeVideoFile(file: File, onProgress?: (percent: number
       await new Promise((resolve) => window.setTimeout(resolve, 0));
     }
   } finally {
+    nextVideoTimestampMs =
+      timestampBaseMs + Math.ceil(Math.max(duration, time) * 1000) + 1;
     URL.revokeObjectURL(objectUrl);
   }
   const ids = [...new Set(frames.flatMap((frame) => frame.poses.map((pose) => pose.trackId)))];
@@ -235,6 +253,143 @@ function angle(a: PosePoint, vertex: PosePoint, b: PosePoint) {
   if (!denominator) return null;
   const cosine = Math.max(-1, Math.min(1, (av.x * bv.x + av.y * bv.y) / denominator));
   return Math.acos(cosine) * 180 / Math.PI;
+}
+
+function median(values: number[]) {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2
+    ? sorted[middle]
+    : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+function maximum(values: number[]) {
+  const finite = values.filter(Number.isFinite);
+  return finite.length ? Math.max(...finite) : null;
+}
+
+function visible(...points: Array<PosePoint | undefined>) {
+  return points.every((point) => point && point.visibility >= 0.25);
+}
+
+export function calculatePoseMaximumMetrics(
+  analysis: VideoPoseAnalysis,
+  patientTrackId = analysis.tracks[0]?.trackId ?? "",
+): PoseMaximumMetrics {
+  const patientFrames = analysis.frames.flatMap((frame) => {
+    const pose = frame.poses.find((item) => item.trackId === patientTrackId);
+    return pose ? [{ time: frame.timeSeconds, pose }] : [];
+  });
+  const bodyHeights = patientFrames
+    .map(({ pose }) => pose.bounds.bottom - pose.bounds.top)
+    .filter((value) => Number.isFinite(value) && value > 0.15);
+  const normalizedBodyHeight = median(bodyHeights) ?? 0.7;
+  // 単眼動画だけでは実寸校正できないため、成人身長1.65mを基準に概算する。
+  const metersPerNormalizedUnit = 1.65 / normalizedBodyHeight;
+  const waistAngles: number[] = [];
+  const kneeAngles: number[] = [];
+  const heelAngles: number[] = [];
+  const strideLengths: number[] = [];
+  const centers: Array<{ time: number; x: number; y: number }> = [];
+
+  for (const { time, pose } of patientFrames) {
+    const leftShoulder = pose.landmarks[11];
+    const rightShoulder = pose.landmarks[12];
+    const leftHip = pose.landmarks[23];
+    const rightHip = pose.landmarks[24];
+    if (visible(leftShoulder, rightShoulder, leftHip, rightHip)) {
+      const shoulder = {
+        x: (leftShoulder.x + rightShoulder.x) / 2,
+        y: (leftShoulder.y + rightShoulder.y) / 2,
+      };
+      const hip = {
+        x: (leftHip.x + rightHip.x) / 2,
+        y: (leftHip.y + rightHip.y) / 2,
+      };
+      waistAngles.push(
+        Math.abs(
+          (Math.atan2(shoulder.x - hip.x, hip.y - shoulder.y) * 180) /
+            Math.PI,
+        ),
+      );
+      centers.push({ time, x: hip.x, y: hip.y });
+    }
+
+    const leftKnee = angle(
+      pose.landmarks[23],
+      pose.landmarks[25],
+      pose.landmarks[27],
+    );
+    const rightKnee = angle(
+      pose.landmarks[24],
+      pose.landmarks[26],
+      pose.landmarks[28],
+    );
+    if (leftKnee != null) kneeAngles.push(Math.max(0, 180 - leftKnee));
+    if (rightKnee != null) kneeAngles.push(Math.max(0, 180 - rightKnee));
+
+    for (const [heelIndex, toeIndex] of [
+      [29, 31],
+      [30, 32],
+    ] as const) {
+      const heel = pose.landmarks[heelIndex];
+      const toe = pose.landmarks[toeIndex];
+      if (!visible(heel, toe)) continue;
+      const raw = Math.abs(
+        (Math.atan2(heel.y - toe.y, toe.x - heel.x) * 180) / Math.PI,
+      );
+      heelAngles.push(raw > 90 ? 180 - raw : raw);
+    }
+
+    const leftAnkle = pose.landmarks[27];
+    const rightAnkle = pose.landmarks[28];
+    if (visible(leftAnkle, rightAnkle)) {
+      strideLengths.push(
+        Math.abs(leftAnkle.x - rightAnkle.x) * metersPerNormalizedUnit,
+      );
+    }
+  }
+
+  const smoothedCenters = centers.map((current, index) => {
+    const window = centers.slice(Math.max(0, index - 1), index + 2);
+    return {
+      time: current.time,
+      x: window.reduce((sum, item) => sum + item.x, 0) / window.length,
+      y: window.reduce((sum, item) => sum + item.y, 0) / window.length,
+    };
+  });
+  const velocities: Array<{ time: number; x: number; y: number }> = [];
+  for (let index = 1; index < smoothedCenters.length; index += 1) {
+    const previous = smoothedCenters[index - 1];
+    const current = smoothedCenters[index];
+    const elapsed = current.time - previous.time;
+    if (elapsed <= 0.03) continue;
+    velocities.push({
+      time: current.time,
+      x: ((current.x - previous.x) * metersPerNormalizedUnit) / elapsed,
+      y: ((current.y - previous.y) * metersPerNormalizedUnit) / elapsed,
+    });
+  }
+  const accelerations: number[] = [];
+  for (let index = 1; index < velocities.length; index += 1) {
+    const previous = velocities[index - 1];
+    const current = velocities[index];
+    const elapsed = current.time - previous.time;
+    if (elapsed <= 0.03) continue;
+    accelerations.push(
+      Math.hypot(current.x - previous.x, current.y - previous.y) / elapsed,
+    );
+  }
+  const track = analysis.tracks.find((item) => item.trackId === patientTrackId);
+  return {
+    waistAngleDegrees: maximum(waistAngles),
+    kneeAngleDegrees: maximum(kneeAngles),
+    heelAngleDegrees: maximum(heelAngles),
+    accelerationMps2: maximum(accelerations),
+    strideLengthM: maximum(strideLengths),
+    confidence: track?.averageConfidence ?? 0,
+  };
 }
 
 function intersectionRatio(a: TrackedPose["bounds"], b: TrackedPose["bounds"]) {

@@ -6,7 +6,21 @@ import { transaction } from "@/lib/db";
 export const runtime = "nodejs";
 
 const databaseId = z.string().uuid();
-const schema = z.object({ assessmentId: databaseId, analysisVideoId: databaseId });
+const poseMaximumSchema = z.object({
+  waistAngleDegrees: z.number().finite().nullable(),
+  kneeAngleDegrees: z.number().finite().nullable(),
+  heelAngleDegrees: z.number().finite().nullable(),
+  accelerationMps2: z.number().finite().nullable(),
+  strideLengthM: z.number().finite().nullable(),
+  confidence: z.number().min(0).max(1),
+});
+const schema = z.object({
+  assessmentId: databaseId,
+  analysisVideoId: databaseId,
+  poseMaximums: z
+    .object({ before: poseMaximumSchema, after: poseMaximumSchema })
+    .optional(),
+});
 const rounded = (value: number) => Math.round(value * 100) / 100;
 
 type Metrics = { walk10mSeconds: number; gaitSpeed: number; tugSeconds: number; bbs: number; chairStand30s: number };
@@ -56,9 +70,13 @@ export async function POST(request: Request) {
         "立脚期の支持性と足部クリアランスを次回も同じ撮影条件で継続評価する。",
         "本人へ使用前後の比較動画を提示し、改善点と次回目標を共有した。",
       ];
-      const metrics = { speed: { before: pre.gaitSpeed, after: post.gaitSpeed, change: speedChange, unit: "m/s" }, stride: { before: strideBefore, after: strideAfter, change: rounded(strideAfter - strideBefore), unit: "m", estimated: true }, positions: { hip: hipScore, knee: kneeScore, foot: footScore } };
+      const metrics = {
+        speed: { before: pre.gaitSpeed, after: post.gaitSpeed, change: speedChange, unit: "m/s" },
+        stride: { before: strideBefore, after: strideAfter, change: rounded(strideAfter - strideBefore), unit: "m", estimated: true },
+        positions: { hip: hipScore, knee: kneeScore, foot: footScore },
+        poseMaximums: parsed.data.poseMaximums ?? null,
+      };
       const disclaimer = "動画比較と入力評価値に基づく試作AI推定です。姿勢指標と推定歩幅は診断・安全判定には使用せず、療法士が原動画と実測値を確認してください。";
-      await client.query(`UPDATE clinical_assessments SET notes = $1, updated_at = now() WHERE id = $2`, [generatedNotes, parsed.data.assessmentId]);
       const saved = await client.query(
         `INSERT INTO gait_ai_analyses
           (assessment_id, analysis_video_id, status, gait_metrics, improvement_points, generated_notes, comment_candidates, disclaimer)

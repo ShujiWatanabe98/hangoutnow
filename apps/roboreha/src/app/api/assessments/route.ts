@@ -31,7 +31,7 @@ export async function GET(request: Request) {
   try {
     let result = await query<{ pre_metrics: MetricsRecord; post_metrics: MetricsRecord }>(
       `SELECT pre_metrics, post_metrics FROM clinical_assessments
-        WHERE customer_id = $1 ORDER BY assessed_at DESC LIMIT 5`, [parsed.data],
+        WHERE customer_id = $1 ORDER BY assessed_at DESC LIMIT 3`, [parsed.data],
     );
     let source = "本人の過去データ";
     if (result.rows.length === 0) {
@@ -43,13 +43,16 @@ export async function GET(request: Request) {
       source = "施設の過去デモデータ（本人履歴なし）";
     }
     const fallback: MetricsRecord = { walk10mSeconds: 18, gaitSpeed: 0.56, tugSeconds: 24, bbs: 38, chairStand30s: 6 };
-    const latest = result.rows[0]?.post_metrics ?? fallback;
+    const latestSource = result.rows[0]?.post_metrics ?? fallback;
     const keys = Object.keys(fallback) as Array<keyof MetricsRecord>;
+    const latest = Object.fromEntries(
+      keys.map((key) => [key, savableMetric(key, Number(latestSource[key]))]),
+    ) as MetricsRecord;
     const predictedPost = { ...latest };
     for (const key of keys) {
       const averageDelta = result.rows.length ? result.rows.reduce((sum, row) => sum + Number(row.post_metrics[key] ?? 0) - Number(row.pre_metrics[key] ?? 0), 0) / result.rows.length : 0;
-      const predicted = Math.max(0, Number(latest[key]) + averageDelta);
-      predictedPost[key] = key === "bbs" || key === "chairStand30s" ? Math.round(predicted) : rounded(predicted);
+      const predicted = Number(latest[key]) + averageDelta;
+      predictedPost[key] = savableMetric(key, predicted);
     }
     return NextResponse.json({ pre: latest, post: predictedPost, source, sampleCount: result.rows.length });
   } catch (error) {
@@ -58,6 +61,21 @@ export async function GET(request: Request) {
 }
 
 type MetricsRecord = { walk10mSeconds: number; gaitSpeed: number; tugSeconds: number; bbs: number; chairStand30s: number };
+
+const metricLimits: Record<keyof MetricsRecord, { min: number; max: number; digits: number }> = {
+  walk10mSeconds: { min: 0, max: 300, digits: 1 },
+  gaitSpeed: { min: 0, max: 10, digits: 2 },
+  tugSeconds: { min: 0, max: 600, digits: 1 },
+  bbs: { min: 0, max: 56, digits: 0 },
+  chairStand30s: { min: 0, max: 100, digits: 0 },
+};
+
+function savableMetric(key: keyof MetricsRecord, value: number) {
+  const limit = metricLimits[key];
+  const bounded = Math.max(limit.min, Math.min(limit.max, value));
+  const factor = 10 ** limit.digits;
+  return Math.round(bounded * factor) / factor;
+}
 
 export async function POST(request: Request) {
   const disabled = await disabledStoreFeatureResponse(DEMO_STORE_ID, "clinical"); if (disabled) return disabled;

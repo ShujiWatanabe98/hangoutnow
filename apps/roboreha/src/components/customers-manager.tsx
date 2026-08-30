@@ -25,6 +25,14 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
+import {
+  analyzeVideoFile,
+  calculatePoseMaximumMetrics,
+  POSE_CONNECTIONS,
+  type PoseFrame,
+  type PoseMaximumMetrics,
+  type VideoPoseAnalysis,
+} from "@/lib/pose-analysis";
 import { RotatingTextSuggestions } from "./rotating-text-suggestions";
 
 type TodayAppointment = {
@@ -1264,6 +1272,113 @@ type AiResult = {
   videoUrl: string;
 };
 
+type PoseComparisonResult = {
+  summary: string;
+  findings: string;
+  handoff: string;
+};
+
+const poseMaximumDefinitions: Array<{
+  key: keyof Omit<PoseMaximumMetrics, "confidence">;
+  shortLabel: string;
+  comparisonLabel: string;
+  unit: string;
+  digits: number;
+}> = [
+  {
+    key: "waistAngleDegrees",
+    shortLabel: "腰角度 最大",
+    comparisonLabel: "腰（体幹傾斜）",
+    unit: "°",
+    digits: 1,
+  },
+  {
+    key: "kneeAngleDegrees",
+    shortLabel: "膝角度 最大",
+    comparisonLabel: "膝屈曲角度",
+    unit: "°",
+    digits: 1,
+  },
+  {
+    key: "heelAngleDegrees",
+    shortLabel: "かかと角度 最大",
+    comparisonLabel: "かかと―足先角度",
+    unit: "°",
+    digits: 1,
+  },
+  {
+    key: "accelerationMps2",
+    shortLabel: "加速度 最大",
+    comparisonLabel: "腰中心加速度",
+    unit: "m/s²",
+    digits: 2,
+  },
+  {
+    key: "strideLengthM",
+    shortLabel: "歩幅 最大",
+    comparisonLabel: "推定歩幅",
+    unit: "m",
+    digits: 2,
+  },
+];
+
+function metricText(value: number | null, digits: number) {
+  return value == null || !Number.isFinite(value) ? "―" : value.toFixed(digits);
+}
+
+function buildPoseComparison(
+  before: PoseMaximumMetrics,
+  after: PoseMaximumMetrics,
+  pre: MetricInput,
+  post: MetricInput,
+): PoseComparisonResult {
+  const changes = poseMaximumDefinitions.map((definition) => {
+    const beforeValue = before[definition.key];
+    const afterValue = after[definition.key];
+    if (beforeValue == null || afterValue == null)
+      return `${definition.comparisonLabel}は比較に必要な検出値が不足`;
+    const difference = afterValue - beforeValue;
+    return `${definition.comparisonLabel}は${Math.abs(difference).toFixed(definition.digits)}${definition.unit}${difference > 0 ? "増加" : difference < 0 ? "減少" : "で変化なし"}`;
+  });
+  const beforeSpeed = Number(pre.gaitSpeed);
+  const afterSpeed = Number(post.gaitSpeed);
+  const speedSentence =
+    Number.isFinite(beforeSpeed) && Number.isFinite(afterSpeed)
+      ? `入力評価の歩行速度は${beforeSpeed.toFixed(2)}m/sから${afterSpeed.toFixed(2)}m/sへ${afterSpeed >= beforeSpeed ? "向上" : "変化"}しました`
+      : "入力評価の歩行速度は確認が必要です";
+  const waistChange =
+    before.waistAngleDegrees != null && after.waistAngleDegrees != null
+      ? after.waistAngleDegrees - before.waistAngleDegrees
+      : null;
+  const strideChange =
+    before.strideLengthM != null && after.strideLengthM != null
+      ? after.strideLengthM - before.strideLengthM
+      : null;
+  const positivePoints = [
+    waistChange != null && waistChange < -0.5
+      ? `最大体幹傾斜が${Math.abs(waistChange).toFixed(1)}°小さくなりました`
+      : "",
+    strideChange != null && strideChange > 0.01
+      ? `推定最大歩幅が${strideChange.toFixed(2)}m広がりました`
+      : "",
+    Number.isFinite(beforeSpeed) && Number.isFinite(afterSpeed) && afterSpeed > beforeSpeed
+      ? `歩行速度が${(afterSpeed - beforeSpeed).toFixed(2)}m/s向上しました`
+      : "",
+  ].filter(Boolean);
+  return {
+    summary: `HAL使用前後の動画解析では、${changes.join("、")}。${speedSentence}。`,
+    findings: positivePoints.length
+      ? `${positivePoints.join("。")}。膝・かかと・加速度の最大値は動作の一場面を示すため、原動画と疼痛・疲労の訴えを合わせて療法士が評価してください。`
+      : "使用前後で明確な改善方向を断定できる差は検出されませんでした。最大値だけで判断せず、原動画、介助量、疼痛、疲労を合わせて評価してください。",
+    handoff:
+      "次回も同じ撮影方向・距離・端末位置で撮影し、体幹傾斜、膝の振り出し、かかと接地、歩幅を継続確認してください。推定値は診断や安全判定には使用しません。",
+  };
+}
+
+function poseComparisonRecordText(comparison: PoseComparisonResult) {
+  return `【AI所見】\n${comparison.findings}\n【申し送り】\n${comparison.handoff}\n【AIサマリー】\n${comparison.summary}`;
+}
+
 function AssessmentModal({
   appointment,
   onClose,
@@ -1287,15 +1402,45 @@ function AssessmentModal({
   const [afterFile, setAfterFile] = useState<File | null>(null);
   const [prediction, setPrediction] = useState("");
   const [saving, setSaving] = useState(false);
-  const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<{
     id: string;
     summary_text: string;
     delta_summary: Metrics;
   } | null>(null);
-  const [videosSaved, setVideosSaved] = useState(false);
   const [ai, setAi] = useState<AiResult | null>(null);
+  const [uploadedVideoIds, setUploadedVideoIds] = useState<
+    Partial<Record<"before" | "after" | "analysis", string>>
+  >({});
+  const [poseAnalyses, setPoseAnalyses] = useState<{
+    before: VideoPoseAnalysis | null;
+    after: VideoPoseAnalysis | null;
+  }>({ before: null, after: null });
+  const [poseAnalyzingPhase, setPoseAnalyzingPhase] = useState<
+    "before" | "after" | null
+  >(null);
+  const [poseProgress, setPoseProgress] = useState(0);
+  const beforePoseMetrics = useMemo(
+    () =>
+      poseAnalyses.before
+        ? calculatePoseMaximumMetrics(poseAnalyses.before)
+        : null,
+    [poseAnalyses.before],
+  );
+  const afterPoseMetrics = useMemo(
+    () =>
+      poseAnalyses.after
+        ? calculatePoseMaximumMetrics(poseAnalyses.after)
+        : null,
+    [poseAnalyses.after],
+  );
+  const poseComparison = useMemo(
+    () =>
+      beforePoseMetrics && afterPoseMetrics
+        ? buildPoseComparison(beforePoseMetrics, afterPoseMetrics, pre, post)
+        : null,
+    [afterPoseMetrics, beforePoseMetrics, post, pre],
+  );
 
   useEffect(() => {
     let active = true;
@@ -1348,8 +1493,156 @@ function AssessmentModal({
       throw new Error(body.error ?? "動画を保存できませんでした。");
     return body.video as { id: string };
   }
+  async function uploadVideoOnce(
+    assessmentId: string,
+    phase: "before" | "after" | "analysis",
+    file: File,
+  ) {
+    const existingId = uploadedVideoIds[phase];
+    if (existingId) return { id: existingId };
+    const uploaded = await uploadVideo(assessmentId, phase, file);
+    setUploadedVideoIds((current) => ({ ...current, [phase]: uploaded.id }));
+    return uploaded;
+  }
+  function selectVideo(phase: "before" | "after", file: File | null) {
+    if (phase === "before") setBeforeFile(file);
+    else setAfterFile(file);
+    setPoseAnalyses((current) => ({ ...current, [phase]: null }));
+    setUploadedVideoIds((current) => {
+      const next = { ...current };
+      delete next[phase];
+      return next;
+    });
+    setPoseProgress(0);
+  }
+  async function analyzeLoadedVideos(
+    force: boolean,
+    targetPhase?: "before" | "after",
+  ) {
+    const sources: Array<["before" | "after", File]> = [];
+    if (beforeFile && (!targetPhase || targetPhase === "before"))
+      sources.push(["before", beforeFile]);
+    if (afterFile && (!targetPhase || targetPhase === "after"))
+      sources.push(["after", afterFile]);
+    if (!sources.length) throw new Error("HAL使用前または使用後の動画を選択してください。");
+    const next = { ...poseAnalyses };
+    let completed = 0;
+    for (const [phase, file] of sources) {
+      if (force || !next[phase]) {
+        next[phase] = await analyzeVideoFile(file, (percent) => {
+          setPoseProgress(
+            Math.round(((completed + percent / 100) / sources.length) * 100),
+          );
+        });
+        if (!next[phase]?.tracks.length)
+          throw new Error(
+            `${phase === "before" ? "HAL使用前" : "HAL使用後"}動画から人物を検出できませんでした。全身が映る動画を選択してください。`,
+          );
+      }
+      completed += 1;
+      setPoseProgress(Math.round((completed / sources.length) * 100));
+    }
+    setPoseAnalyses(next);
+    return next;
+  }
+  async function runPoseAi(phase: "before" | "after") {
+    setPoseAnalyzingPhase(phase);
+    setError("");
+    setPoseProgress(0);
+    try {
+      await analyzeLoadedVideos(true, phase);
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "動画の姿勢推定を完了できませんでした。",
+      );
+    } finally {
+      setPoseAnalyzingPhase(null);
+    }
+  }
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      if (!beforeFile || !afterFile)
+        throw new Error(
+          "HAL使用前動画とHAL使用後動画の両方を選択してください。",
+        );
+      let finalNotes = notes.trim();
+      const overlays = await analyzeLoadedVideos(false);
+      if (!overlays.before || !overlays.after)
+        throw new Error("使用前・使用後のAI解析結果を作成できませんでした。");
+      const comparisonFile = await createComparisonVideo(
+        beforeFile,
+        afterFile,
+        overlays,
+      );
+      const poseMaximums = {
+        before: calculatePoseMaximumMetrics(overlays.before),
+        after: calculatePoseMaximumMetrics(overlays.after),
+      };
+      const generatedComparison = buildPoseComparison(
+        poseMaximums.before,
+        poseMaximums.after,
+        pre,
+        post,
+      );
+      const generatedText = poseComparisonRecordText(generatedComparison);
+      if (!finalNotes.includes("【AI所見】"))
+        finalNotes = finalNotes
+          ? `${finalNotes}\n${generatedText}`
+          : generatedText;
+      setNotes(finalNotes);
+      const response = await fetch("/api/assessments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appointmentId: appointment.id,
+          pre,
+          post,
+          notes: finalNotes,
+        }),
+      });
+      const body = await response.json();
+      if (!response.ok)
+        throw new Error(body.error ?? "評価を保存できませんでした。");
+      setResult(body.assessment);
+      await uploadVideoOnce(body.assessment.id, "before", beforeFile);
+      await uploadVideoOnce(body.assessment.id, "after", afterFile);
+      const uploaded = await uploadVideoOnce(
+        body.assessment.id,
+        "analysis",
+        comparisonFile,
+      );
+      const analysisResponse = await fetch("/api/gait-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          assessmentId: body.assessment.id,
+          analysisVideoId: uploaded.id,
+          poseMaximums,
+        }),
+      });
+      const analysisBody = await analysisResponse.json();
+      if (!analysisResponse.ok)
+        throw new Error(
+          analysisBody.error ?? "AI解析結果を保存できませんでした。",
+        );
+      setAi(analysisBody.analysis);
+      await onSaved();
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "HAL前後動画を作成できませんでした。",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+  async function saveAllAndClose() {
     setSaving(true);
     setError("");
     try {
@@ -1365,71 +1658,19 @@ function AssessmentModal({
       });
       const body = await response.json();
       if (!response.ok)
-        throw new Error(body.error ?? "評価を保存できませんでした。");
-      if (beforeFile)
-        await uploadVideo(body.assessment.id, "before", beforeFile);
-      if (afterFile) await uploadVideo(body.assessment.id, "after", afterFile);
-      setVideosSaved(Boolean(beforeFile && afterFile));
+        throw new Error(body.error ?? "評価記録を保存できませんでした。");
       setResult(body.assessment);
+      if (beforeFile)
+        await uploadVideoOnce(body.assessment.id, "before", beforeFile);
+      if (afterFile)
+        await uploadVideoOnce(body.assessment.id, "after", afterFile);
       await onSaved();
+      onClose();
     } catch (reason) {
       setError(
         reason instanceof Error
           ? reason.message
-          : "評価を保存できませんでした。",
-      );
-    } finally {
-      setSaving(false);
-    }
-  }
-  async function runAi() {
-    if (!result || !beforeFile || !afterFile) return;
-    setAnalyzing(true);
-    setError("");
-    try {
-      const comparison = await createComparisonVideo(beforeFile, afterFile);
-      const uploaded = await uploadVideo(result.id, "analysis", comparison);
-      const response = await fetch("/api/gait-analysis", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          assessmentId: result.id,
-          analysisVideoId: uploaded.id,
-        }),
-      });
-      const body = await response.json();
-      if (!response.ok)
-        throw new Error(body.error ?? "AI解析を完了できませんでした。");
-      setAi(body.analysis);
-      setNotes(body.analysis.generated_notes);
-    } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "AI解析を完了できませんでした。",
-      );
-    } finally {
-      setAnalyzing(false);
-    }
-  }
-  async function saveNotes() {
-    if (!result) return;
-    setSaving(true);
-    setError("");
-    try {
-      const response = await fetch("/api/assessments", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ assessmentId: result.id, notes }),
-      });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.error);
-      await onSaved();
-    } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "所見を保存できませんでした。",
+          : "評価記録を保存できませんでした。",
       );
     } finally {
       setSaving(false);
@@ -1469,107 +1710,7 @@ function AssessmentModal({
             <X size={20} />
           </button>
         </div>
-        {result ? (
-          <div className="mt-5">
-            <div className="rounded-[20px] bg-[#e7f5f1] p-4 text-[#087f71]">
-              <div className="flex items-center gap-3">
-                <CheckCircle2 size={28} />
-                <div>
-                  <h4 className="font-black">評価と動画を保存しました</h4>
-                  <p className="mt-1 text-xs font-bold">
-                    {result.summary_text}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={runAi}
-              disabled={!videosSaved || analyzing || Boolean(ai)}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#5d49b6] py-4 font-black text-white disabled:bg-[#c7c2dc]"
-            >
-              <Sparkles size={19} />
-              {analyzing
-                ? "比較動画を作成してAI解析中…"
-                : ai
-                  ? "AI解析完了"
-                  : videosSaved
-                    ? "AI解析を実行"
-                    : "使用前・使用後の動画保存後にAI解析できます"}
-            </button>
-            {ai && (
-              <div className="mt-4 rounded-[22px] border border-[#dcd6f2] bg-[#faf9ff] p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Bot size={20} className="text-[#5d49b6]" />
-                    <h4 className="font-black">歩行AI比較</h4>
-                  </div>
-                  <span className="rounded-full bg-[#eeeafd] px-2.5 py-1 text-[10px] font-black text-[#5d49b6]">
-                    {ai.confidence_label}
-                  </span>
-                </div>
-                <video
-                  src={ai.videoUrl}
-                  controls
-                  playsInline
-                  className="mt-3 aspect-[8/3] w-full rounded-xl bg-black object-contain"
-                />
-                <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-5">
-                  {ai.improvement_points.map((point) => (
-                    <div
-                      key={point}
-                      className="rounded-xl bg-white p-2 text-center text-[11px] font-bold text-[#4f4770]"
-                    >
-                      {point}
-                    </div>
-                  ))}
-                </div>
-                <p className="mt-3 text-[10px] leading-5 text-[#776f91]">
-                  {ai.disclaimer}
-                </p>
-              </div>
-            )}
-            <label className="mt-4 block text-xs font-bold text-[#687d84]">
-              所見・申し送り
-              <textarea
-                value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-                className="mt-2 h-28 w-full resize-none rounded-xl border border-[#d7e4e1] p-3 text-sm"
-              />
-            </label>
-            {ai && (
-              <div className="mt-3">
-                <RotatingTextSuggestions
-                  title="療法士が追加しそうなコメント候補"
-                  suggestions={ai.comment_candidates}
-                  onSelect={appendCandidate}
-                />
-              </div>
-            )}
-            {error && (
-              <p className="mt-4 rounded-xl bg-[#fff0ed] p-3 text-sm font-bold text-[#b94637]">
-                {error}
-              </p>
-            )}
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <button
-                onClick={saveNotes}
-                disabled={saving}
-                className="flex items-center justify-center gap-2 rounded-2xl bg-[#087f71] py-3.5 font-black text-white disabled:bg-[#aac6c1]"
-              >
-                <Save size={17} />
-                所見を保存
-              </button>
-              <button
-                onClick={onClose}
-                className="rounded-2xl bg-[#173b42] py-3.5 font-black text-white"
-              >
-                閉じる
-              </button>
-            </div>
-          </div>
-        ) : (
-          <form onSubmit={submit}>
+        <form onSubmit={submit}>
             <div className="mt-4 flex items-center justify-between rounded-xl bg-[#fff8e8] px-4 py-2.5 text-xs">
               <span className="font-black text-[#8b651d]">
                 HAL使用前・使用後は過去データから予測入力済み
@@ -1632,22 +1773,182 @@ function AssessmentModal({
               <VideoRecorder
                 phase="before"
                 label="HAL使用前"
-                onFile={setBeforeFile}
+                onFile={(file) => selectVideo("before", file)}
+                file={beforeFile}
+                analysis={poseAnalyses.before}
+                maximumMetrics={beforePoseMetrics}
+                analysisControl={{
+                  onAnalyze: () => runPoseAi("before"),
+                  disabled: saving || Boolean(poseAnalyzingPhase) || !beforeFile,
+                  label: poseAnalyzingPhase === "before"
+                    ? `AI解析中… ${poseProgress}%`
+                    : poseAnalyses.before
+                      ? "AI解析を再実行"
+                      : beforeFile
+                        ? "AI解析（歩行姿勢を推定）"
+                        : "動画を読み込むとAI解析できます",
+                }}
               />
               <VideoRecorder
                 phase="after"
                 label="HAL使用後"
-                onFile={setAfterFile}
+                onFile={(file) => selectVideo("after", file)}
+                file={afterFile}
+                analysis={poseAnalyses.after}
+                maximumMetrics={afterPoseMetrics}
+                analysisControl={{
+                  onAnalyze: () => runPoseAi("after"),
+                  disabled: saving || Boolean(poseAnalyzingPhase) || !afterFile,
+                  label: poseAnalyzingPhase === "after"
+                    ? `AI解析中… ${poseProgress}%`
+                    : poseAnalyses.after
+                      ? "AI解析を再実行"
+                      : afterFile
+                        ? "AI解析（歩行姿勢を推定）"
+                        : "動画を読み込むとAI解析できます",
+                }}
               />
             </div>
             <button
-              type="button"
-              disabled
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#c7c2dc] py-3.5 font-black text-white"
+              disabled={
+                saving ||
+                Boolean(poseAnalyzingPhase) ||
+                Boolean(ai) ||
+                !beforeFile ||
+                !afterFile
+              }
+              className="mt-4 w-full rounded-2xl bg-[#087f71] py-4 font-black text-white disabled:bg-[#aac6c1]"
             >
-              <Sparkles size={18} />
-              AI解析（使用前・使用後の動画保存後に有効）
+              {saving
+                ? "HAL前後動画を作成・MP4保存しています…"
+                : ai
+                  ? "HAL前後動画を作成しました"
+                  : "HAL前後動画作成"}
             </button>
+            {result && ai && (
+              <section
+                aria-live="polite"
+                data-testid="hal-comparison-video-result"
+                className="mt-4 rounded-[22px] border border-[#b9ddd5] bg-[#f4fbf9] p-4"
+              >
+                <div className="rounded-[18px] bg-[#e7f5f1] p-4 text-[#087f71]">
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 size={28} />
+                    <div>
+                      <h4 className="font-black">
+                        HAL使用前後のマージ動画を作成・保存しました
+                      </h4>
+                      <p className="mt-1 text-xs font-bold">
+                        {result.summary_text}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Bot size={20} className="text-[#5d49b6]" />
+                    <h4 className="font-black">作成したHAL前後比較動画</h4>
+                  </div>
+                  <span className="rounded-full bg-[#eeeafd] px-2.5 py-1 text-[10px] font-black text-[#5d49b6]">
+                    {ai.confidence_label}
+                  </span>
+                </div>
+                <video
+                  data-testid="hal-comparison-video-player"
+                  src={ai.videoUrl}
+                  controls
+                  playsInline
+                  className="mt-3 aspect-[8/3] w-full rounded-xl bg-black object-contain"
+                />
+                <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-5">
+                  {ai.improvement_points.map((point) => (
+                    <div
+                      key={point}
+                      className="rounded-xl bg-white p-2 text-center text-[11px] font-bold text-[#4f4770]"
+                    >
+                      {point}
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-3 text-[10px] leading-5 text-[#776f91]">
+                  {ai.disclaimer}
+                </p>
+              </section>
+            )}
+            {(!beforeFile || !afterFile) && (
+              <p className="mt-2 text-center text-[10px] font-bold text-[#71858a]">
+                HAL使用前動画とHAL使用後動画を選択すると作成できます
+              </p>
+            )}
+            {poseComparison && beforePoseMetrics && afterPoseMetrics && (
+              <section className="mt-4 rounded-[22px] border border-[#dcd6f2] bg-[#faf9ff] p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-[10px] font-black tracking-[.14em] text-[#776f91]">
+                      BEFORE / AFTER
+                    </p>
+                    <h4 className="text-lg font-black text-[#5d49b6]">AI比較</h4>
+                  </div>
+                  <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black text-[#5d49b6]">
+                    両動画の解析完了
+                  </span>
+                </div>
+                <div className="mt-3 overflow-x-auto">
+                  <div className="min-w-[680px]">
+                    <div className="grid grid-cols-[1.35fr_1fr_1fr_1fr] gap-2 border-b border-[#ded8f1] px-2 py-2 text-[10px] font-black text-[#776f91]">
+                      <span>解析指標（最大値）</span>
+                      <span>HAL使用前</span>
+                      <span>HAL使用後</span>
+                      <span>変化</span>
+                    </div>
+                    {poseMaximumDefinitions.map((definition) => {
+                      const beforeValue = beforePoseMetrics[definition.key];
+                      const afterValue = afterPoseMetrics[definition.key];
+                      const difference =
+                        beforeValue != null && afterValue != null
+                          ? afterValue - beforeValue
+                          : null;
+                      const favorable =
+                        difference != null &&
+                        ((definition.key === "waistAngleDegrees" && difference < 0) ||
+                          (definition.key === "strideLengthM" && difference > 0));
+                      return (
+                        <div
+                          key={definition.key}
+                          className="grid grid-cols-[1.35fr_1fr_1fr_1fr] gap-2 border-b border-[#ebe8f7] px-2 py-2 text-xs"
+                        >
+                          <b>{definition.comparisonLabel}</b>
+                          <span>{metricText(beforeValue, definition.digits)}{definition.unit}</span>
+                          <span>{metricText(afterValue, definition.digits)}{definition.unit}</span>
+                          <span className={favorable ? "font-black text-[#087f71]" : "font-bold text-[#5f6170]"}>
+                            {difference == null
+                              ? "―"
+                              : `${difference > 0 ? "+" : ""}${difference.toFixed(definition.digits)}${definition.unit}`}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="mt-3 grid gap-2 md:grid-cols-3">
+                  <div className="rounded-xl bg-white p-3">
+                    <p className="text-[10px] font-black text-[#5d49b6]">サマリー</p>
+                    <p className="mt-1 text-xs leading-5">{poseComparison.summary}</p>
+                  </div>
+                  <div className="rounded-xl bg-white p-3">
+                    <p className="text-[10px] font-black text-[#5d49b6]">所見</p>
+                    <p className="mt-1 text-xs leading-5">{poseComparison.findings}</p>
+                  </div>
+                  <div className="rounded-xl bg-white p-3">
+                    <p className="text-[10px] font-black text-[#5d49b6]">申し送り</p>
+                    <p className="mt-1 text-xs leading-5">{poseComparison.handoff}</p>
+                  </div>
+                </div>
+                <p className="mt-2 text-[9px] leading-4 text-[#776f91]">
+                  単眼動画からの推定最大値です。撮影距離や角度の影響を受けるため、診断・安全判定には使用せず療法士が原動画と実測値を確認してください。
+                </p>
+              </section>
+            )}
             <label className="mt-4 block text-xs font-bold text-[#687d84]">
               所見・申し送り
               <textarea
@@ -1657,54 +1958,230 @@ function AssessmentModal({
                 className="mt-2 h-20 w-full resize-none rounded-xl border border-[#d7e4e1] p-3 text-sm"
               />
             </label>
+            {ai && (
+              <div className="mt-3">
+                <RotatingTextSuggestions
+                  title="療法士が追加しそうなコメント候補"
+                  suggestions={ai.comment_candidates}
+                  onSelect={appendCandidate}
+                />
+              </div>
+            )}
             {error && (
               <p className="mt-4 rounded-xl bg-[#fff0ed] p-3 text-sm font-bold text-[#b94637]">
                 {error}
               </p>
             )}
-            <button
-              disabled={saving}
-              className="mt-4 w-full rounded-2xl bg-[#087f71] py-4 font-black text-white disabled:bg-[#aac6c1]"
-            >
-              {saving
-                ? "評価と動画を保存しています…"
-                : "評価を保存してサマリーを作成"}
-            </button>
+            <div className="sticky bottom-0 z-20 -mx-5 mt-5 border-t border-[#dce8e5] bg-white/95 px-5 py-4 backdrop-blur md:-mx-7 md:px-7">
+              <button
+                type="button"
+                onClick={saveAllAndClose}
+                disabled={saving}
+                className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#087f71] py-3.5 font-black text-white disabled:bg-[#aac6c1]"
+              >
+                <Save size={17} />
+                {saving ? "すべて保存しています…" : "保存して閉じる"}
+              </button>
+            </div>
           </form>
-        )}
       </section>
     </div>
   );
 }
 
-function GaitGuide() {
+const overlayJointIndexes = [
+  ...new Set(POSE_CONNECTIONS.flatMap(([start, end]) => [start, end])),
+];
+
+function nearestPoseFrame(
+  analysis: VideoPoseAnalysis,
+  timeSeconds: number,
+): PoseFrame | null {
+  if (!analysis.frames.length) return null;
+  let low = 0;
+  let high = analysis.frames.length - 1;
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    if (analysis.frames[middle].timeSeconds < timeSeconds) low = middle + 1;
+    else high = middle;
+  }
+  const current = analysis.frames[low];
+  const previous = analysis.frames[Math.max(0, low - 1)];
+  return Math.abs(previous.timeSeconds - timeSeconds) <=
+    Math.abs(current.timeSeconds - timeSeconds)
+    ? previous
+    : current;
+}
+
+function drawPoseFrame(
+  context: CanvasRenderingContext2D,
+  frame: PoseFrame | null,
+  primaryTrackId: string,
+  rect: { left: number; top: number; width: number; height: number },
+) {
+  if (!frame) return;
+  frame.poses.forEach((pose) => {
+    const primary = pose.trackId === primaryTrackId;
+    const color = primary ? "#25e0a4" : "#ffad55";
+    context.save();
+    context.strokeStyle = color;
+    context.fillStyle = color;
+    context.lineWidth = Math.max(2.5, rect.width / 210);
+    context.lineCap = "round";
+    context.lineJoin = "round";
+    context.shadowColor = "rgba(4,26,31,.75)";
+    context.shadowBlur = Math.max(2, rect.width / 280);
+    POSE_CONNECTIONS.forEach(([start, end]) => {
+      const a = pose.landmarks[start];
+      const b = pose.landmarks[end];
+      if (!a || !b || a.visibility < 0.25 || b.visibility < 0.25) return;
+      context.beginPath();
+      context.moveTo(rect.left + a.x * rect.width, rect.top + a.y * rect.height);
+      context.lineTo(rect.left + b.x * rect.width, rect.top + b.y * rect.height);
+      context.stroke();
+    });
+    overlayJointIndexes.forEach((index) => {
+      const point = pose.landmarks[index];
+      if (!point || point.visibility < 0.25) return;
+      context.beginPath();
+      context.arc(
+        rect.left + point.x * rect.width,
+        rect.top + point.y * rect.height,
+        Math.max(3, rect.width / 165),
+        0,
+        Math.PI * 2,
+      );
+      context.fill();
+    });
+    const label = primary ? "利用者候補" : "別人物候補";
+    const labelX = rect.left + pose.bounds.left * rect.width;
+    const labelY = Math.max(rect.top + 22, rect.top + pose.bounds.top * rect.height - 8);
+    context.shadowBlur = 0;
+    context.font = `bold ${Math.max(11, rect.width / 38)}px sans-serif`;
+    const labelWidth = context.measureText(label).width + 16;
+    context.fillStyle = "rgba(8,35,43,.86)";
+    context.fillRect(labelX, labelY - 19, labelWidth, 23);
+    context.fillStyle = color;
+    context.fillText(label, labelX + 8, labelY - 2);
+    context.restore();
+  });
+}
+
+function PoseOverlayVideo({
+  label,
+  file,
+  analysis,
+}: {
+  label: string;
+  file: File;
+  analysis: VideoPoseAnalysis;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const url = URL.createObjectURL(file);
+    video.src = url;
+    video.load();
+    return () => {
+      video.removeAttribute("src");
+      video.load();
+      URL.revokeObjectURL(url);
+    };
+  }, [file]);
+  useEffect(() => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+    let animationFrame = 0;
+    const draw = () => {
+      const bounds = canvas.getBoundingClientRect();
+      const cssWidth = Math.max(1, bounds.width);
+      const cssHeight = Math.max(1, bounds.height);
+      const pixelRatio = Math.min(2, window.devicePixelRatio || 1);
+      const targetWidth = Math.round(cssWidth * pixelRatio);
+      const targetHeight = Math.round(cssHeight * pixelRatio);
+      if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+      }
+      const context = canvas.getContext("2d");
+      if (!context) return;
+      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+      context.clearRect(0, 0, cssWidth, cssHeight);
+      const sourceWidth = video.videoWidth || analysis.width || 16;
+      const sourceHeight = video.videoHeight || analysis.height || 9;
+      const scale = Math.min(cssWidth / sourceWidth, cssHeight / sourceHeight);
+      const width = sourceWidth * scale;
+      const height = sourceHeight * scale;
+      const rect = {
+        left: (cssWidth - width) / 2,
+        top: (cssHeight - height) / 2,
+        width,
+        height,
+      };
+      drawPoseFrame(
+        context,
+        nearestPoseFrame(analysis, video.currentTime),
+        analysis.tracks[0]?.trackId ?? "",
+        rect,
+      );
+    };
+    const tick = () => {
+      draw();
+      if (!video.paused && !video.ended)
+        animationFrame = window.requestAnimationFrame(tick);
+    };
+    const start = () => {
+      window.cancelAnimationFrame(animationFrame);
+      animationFrame = window.requestAnimationFrame(tick);
+    };
+    const stopAndDraw = () => {
+      window.cancelAnimationFrame(animationFrame);
+      draw();
+    };
+    video.addEventListener("play", start);
+    video.addEventListener("loadeddata", stopAndDraw);
+    video.addEventListener("seeked", stopAndDraw);
+    video.addEventListener("pause", stopAndDraw);
+    window.addEventListener("resize", stopAndDraw);
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      video.removeEventListener("play", start);
+      video.removeEventListener("loadeddata", stopAndDraw);
+      video.removeEventListener("seeked", stopAndDraw);
+      video.removeEventListener("pause", stopAndDraw);
+      window.removeEventListener("resize", stopAndDraw);
+    };
+  }, [analysis, file]);
+  const primary = analysis.tracks[0];
   return (
-    <div
-      aria-hidden="true"
-      className="pointer-events-none absolute inset-0 text-[10px] font-black text-white"
-    >
-      <div className="absolute left-1/2 top-[12%] h-[80%] border-l border-dashed border-white/55" />
-      <div className="absolute inset-x-[12%] top-[38%] border-t-2 border-[#55e6b6]">
-        <span className="absolute -top-4 left-0 rounded bg-[#087f71]/90 px-1.5 py-0.5">
-          腰
+    <article className="rounded-2xl bg-white p-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-black">{label}</p>
+        <p className="text-[9px] font-bold text-[#71858a]">
+          検出 {analysis.tracks.length}人・信頼度{" "}
+          {Math.round((primary?.averageConfidence ?? 0) * 100)}%
+        </p>
+      </div>
+      <div className="relative mt-2 aspect-video overflow-hidden rounded-xl bg-black">
+        <video
+          ref={videoRef}
+          controls
+          playsInline
+          className="size-full object-contain"
+        />
+        <canvas
+          ref={canvasRef}
+          aria-label={`${label}の姿勢推定オーバーレイ`}
+          className="pointer-events-none absolute inset-0 size-full"
+        />
+        <span className="pointer-events-none absolute left-2 top-2 rounded-lg bg-[#08232b]/80 px-2 py-1 text-[9px] font-black text-white">
+          姿勢推定オーバーレイ
         </span>
       </div>
-      <div className="absolute inset-x-[12%] top-[63%] border-t-2 border-[#ffd45d]">
-        <span className="absolute -top-4 left-0 rounded bg-[#9b7213]/90 px-1.5 py-0.5">
-          膝
-        </span>
-      </div>
-      <div className="absolute bottom-[5%] left-[18%] h-[12%] w-[22%] rounded-[50%] border-2 border-[#70cfff]">
-        <span className="absolute -top-4 left-0 rounded bg-[#276b8a]/90 px-1.5 py-0.5">
-          左足
-        </span>
-      </div>
-      <div className="absolute bottom-[5%] right-[18%] h-[12%] w-[22%] rounded-[50%] border-2 border-[#70cfff]">
-        <span className="absolute -top-4 right-0 rounded bg-[#276b8a]/90 px-1.5 py-0.5">
-          右足
-        </span>
-      </div>
-    </div>
+    </article>
   );
 }
 
@@ -1712,10 +2189,22 @@ function VideoRecorder({
   phase,
   label,
   onFile,
+  file,
+  analysis,
+  maximumMetrics,
+  analysisControl,
 }: {
   phase: "before" | "after";
   label: string;
   onFile: (file: File | null) => void;
+  file: File | null;
+  analysis: VideoPoseAnalysis | null;
+  maximumMetrics: PoseMaximumMetrics | null;
+  analysisControl?: {
+    onAnalyze: () => void;
+    disabled: boolean;
+    label: string;
+  };
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -1725,6 +2214,13 @@ function VideoRecorder({
   const [recording, setRecording] = useState(false);
   const [preview, setPreview] = useState("");
   const [error, setError] = useState("");
+  useEffect(() => {
+    if (!cameraReady || !videoRef.current || !streamRef.current) return;
+    videoRef.current.srcObject = streamRef.current;
+    void videoRef.current.play().catch(() => {
+      setError("カメラ映像を再生できません。端末設定を確認してください。");
+    });
+  }, [cameraReady, preview]);
   useEffect(
     () => () => {
       streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -1744,10 +2240,10 @@ function VideoRecorder({
         audio: false,
       });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
+      if (previewRef.current) URL.revokeObjectURL(previewRef.current);
+      previewRef.current = null;
+      setPreview("");
+      onFile(null);
       setCameraReady(true);
     } catch {
       setError(
@@ -1815,9 +2311,6 @@ function VideoRecorder({
           </span>
         )}
       </div>
-      <p className="mt-2 text-[10px] font-bold text-[#71858a]">
-        全身を枠内に入れ、腰・両膝・両足を補助マークに合わせてください。
-      </p>
       <div className="relative mt-2 overflow-hidden rounded-xl bg-[#102a30]">
         {preview ? (
           <video
@@ -1834,7 +2327,6 @@ function VideoRecorder({
             className={`aspect-video w-full object-cover ${cameraReady ? "block" : "hidden"}`}
           />
         )}
-        <GaitGuide />
         {!preview && !cameraReady && (
           <div className="grid aspect-video place-items-center text-center text-xs text-white/55">
             <div>
@@ -1848,7 +2340,7 @@ function VideoRecorder({
         <p className="mt-2 text-xs font-bold text-[#bd4f3f]">{error}</p>
       )}
       <div className="mt-3 grid grid-cols-2 gap-2">
-        {!cameraReady && !preview && (
+        {!cameraReady && (
           <button
             type="button"
             onClick={startCamera}
@@ -1890,11 +2382,69 @@ function VideoRecorder({
           />
         </label>
       </div>
+      {analysisControl && (
+        <button
+          type="button"
+          onClick={analysisControl.onAnalyze}
+          disabled={analysisControl.disabled}
+          className="mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#5d49b6] px-3 text-xs font-black text-white disabled:bg-[#c7c2dc]"
+        >
+          <Sparkles size={16} />
+          {analysisControl.label}
+        </button>
+      )}
+      {file && analysis && maximumMetrics && (
+        <section className="mt-3 rounded-2xl border border-[#dcd6f2] bg-[#faf9ff] p-2.5">
+          <div className="flex items-center justify-between gap-2 px-1 pb-1">
+            <p className="text-xs font-black text-[#5d49b6]">AI解析結果</p>
+            <span className="rounded-full bg-white px-2 py-1 text-[9px] font-black text-[#776f91]">
+              端末内解析
+            </span>
+          </div>
+          <PoseOverlayVideo
+            key={`${phase}-${file.name}-${file.size}-${file.lastModified}`}
+            label={`${label}オーバーレイ`}
+            file={file}
+            analysis={analysis}
+          />
+          <div className="mt-2 grid grid-cols-5 gap-1">
+            {poseMaximumDefinitions.map((definition) => (
+              <div
+                key={definition.key}
+                className="rounded-lg bg-white px-1 py-2 text-center"
+              >
+                <p className="min-h-7 text-[8px] font-bold leading-3 text-[#71858a]">
+                  {definition.shortLabel}
+                </p>
+                <p className="mt-1 whitespace-nowrap text-xs font-black text-[#173b42]">
+                  {metricText(
+                    maximumMetrics[definition.key],
+                    definition.digits,
+                  )}
+                  <span className="ml-0.5 text-[7px] text-[#71858a]">
+                    {definition.unit}
+                  </span>
+                </p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-[8px] leading-3.5 text-[#776f91]">
+            緑は利用者候補、橙は別人物候補です。角度・加速度・歩幅は単眼動画からの推定最大値であり、療法士が原動画を確認してください。
+          </p>
+        </section>
+      )}
     </div>
   );
 }
 
-async function createComparisonVideo(beforeFile: File, afterFile: File) {
+async function createComparisonVideo(
+  beforeFile: File,
+  afterFile: File,
+  analyses: {
+    before: VideoPoseAnalysis | null;
+    after: VideoPoseAnalysis | null;
+  },
+) {
   const urls = [
     URL.createObjectURL(beforeFile),
     URL.createObjectURL(afterFile),
@@ -1937,14 +2487,11 @@ async function createComparisonVideo(beforeFile: File, afterFile: File) {
     recorder.ondataavailable = (event) => {
       if (event.data.size) chunks.push(event.data);
     };
-    const duration = Math.min(
-      12,
-      Math.max(
-        1,
-        Math.min(
-          ...videos.map((video) =>
-            Number.isFinite(video.duration) ? video.duration : 12,
-          ),
+    const duration = Math.max(
+      1,
+      Math.min(
+        ...videos.map((video) =>
+          Number.isFinite(video.duration) ? video.duration : 1,
         ),
       ),
     );
@@ -1970,19 +2517,15 @@ async function createComparisonVideo(beforeFile: File, afterFile: File) {
             41,
           );
         });
-        context.strokeStyle = "#55e6b6";
-        context.lineWidth = 3;
-        [0, 640].forEach((left) => {
-          context.beginPath();
-          context.moveTo(left + 75, 182);
-          context.lineTo(left + 565, 182);
-          context.stroke();
-          context.strokeStyle = "#ffd45d";
-          context.beginPath();
-          context.moveTo(left + 75, 302);
-          context.lineTo(left + 565, 302);
-          context.stroke();
-          context.strokeStyle = "#55e6b6";
+        videos.forEach((video, index) => {
+          const analysis = index === 0 ? analyses.before : analyses.after;
+          if (!analysis) return;
+          drawPoseFrame(
+            context,
+            nearestPoseFrame(analysis, video.currentTime),
+            analysis.tracks[0]?.trackId ?? "",
+            { left: index * 640, top: 0, width: 640, height: 480 },
+          );
         });
         if ((now - started) / 1000 >= duration) {
           resolve();

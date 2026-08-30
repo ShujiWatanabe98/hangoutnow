@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, ClipboardList } from "lucide-react";
+import { Check, CheckCircle2, ClipboardList } from "lucide-react";
 import { Brand } from "./brand";
 import {
   appendSuggestion,
@@ -45,6 +45,7 @@ type TemplateItem = {
   min_value: string | null;
   max_value: string | null;
   options: string[];
+  sort_order: number;
   system_field: string | null;
 };
 type QuestionnaireTemplate = {
@@ -85,9 +86,44 @@ export function IntakeApp() {
     medications: [],
   });
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [touchedQuestionKeys, setTouchedQuestionKeys] = useState<string[]>([]);
+  const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
   const selectedCustomer = useMemo(
     () => customers.find((customer) => customer.customer_id === customerId),
     [customerId, customers],
+  );
+  const orderedQuestions = useMemo(
+    () =>
+      [...(template?.items ?? [])].sort(
+        (left, right) => left.sort_order - right.sort_order,
+      ),
+    [template],
+  );
+
+  function markQuestionTouched(itemKey: string) {
+    setTouchedQuestionKeys((current) =>
+      current.includes(itemKey) ? current : [...current, itemKey],
+    );
+  }
+
+  function isQuestionAnswered(item: TemplateItem) {
+    const touched = touchedQuestionKeys.includes(item.item_key);
+    if (item.system_field) {
+      const value = form[item.system_field as keyof typeof form];
+      if (typeof value === "boolean" || typeof value === "number") return touched;
+      if (item.system_field === "walkingAid") return touched;
+      return typeof value === "string" && value.trim().length > 0;
+    }
+    const value = customResponses[item.item_key];
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value === "string") return value.trim().length > 0;
+    return value !== undefined;
+  }
+
+  const answeredQuestionCount = orderedQuestions.filter(isQuestionAnswered).length;
+  const remainingQuestionCount = Math.max(
+    0,
+    orderedQuestions.length - answeredQuestionCount,
   );
 
   useEffect(() => {
@@ -179,9 +215,173 @@ export function IntakeApp() {
     return () => controller.abort();
   }, [customerId]);
 
+  function updateSystemQuestion(
+    item: TemplateItem,
+    value: string | number | boolean,
+  ) {
+    if (!item.system_field) return;
+    setForm((current) => ({ ...current, [item.system_field!]: value }));
+    markQuestionTouched(item.item_key);
+  }
+
+  function renderQuestionInput(item: TemplateItem) {
+    if (item.system_field === "chiefComplaint")
+      return (
+        <QuestionArea
+          label={item.label}
+          value={form.chiefComplaint}
+          onChange={(value) => updateSystemQuestion(item, value)}
+          required={item.required}
+        >
+          <RotatingTextSuggestions
+            suggestions={suggestions.chief}
+            loading={suggestionsLoading}
+            onSelect={(candidate) =>
+              updateSystemQuestion(
+                item,
+                appendSuggestion(form.chiefComplaint, candidate),
+              )
+            }
+          />
+        </QuestionArea>
+      );
+    if (item.system_field === "medicalHistory")
+      return (
+        <QuestionArea
+          label={item.label}
+          value={form.medicalHistory}
+          onChange={(value) => updateSystemQuestion(item, value)}
+          required={item.required}
+        >
+          <RotatingTextSuggestions
+            suggestions={suggestions.history}
+            loading={suggestionsLoading}
+            onSelect={(candidate) =>
+              updateSystemQuestion(
+                item,
+                appendSuggestion(form.medicalHistory, candidate),
+              )
+            }
+          />
+        </QuestionArea>
+      );
+    if (item.system_field === "medications")
+      return (
+        <QuestionArea
+          label={item.label}
+          value={form.medications}
+          onChange={(value) => updateSystemQuestion(item, value)}
+          required={item.required}
+        >
+          <RotatingTextSuggestions
+            suggestions={suggestions.medications}
+            loading={suggestionsLoading}
+            onSelect={(candidate) =>
+              updateSystemQuestion(
+                item,
+                appendSuggestion(form.medications, candidate),
+              )
+            }
+          />
+        </QuestionArea>
+      );
+    if (item.system_field === "walkingAid") {
+      const options = item.options.length
+        ? item.options
+        : ["なし", "杖", "歩行器", "手すり", "その他"];
+      return (
+        <label className="block text-sm font-black">
+          {item.label}
+          {item.required && <RequiredBadge />}
+          <select
+            required={item.required}
+            value={
+              touchedQuestionKeys.includes(item.item_key) ? form.walkingAid : ""
+            }
+            onChange={(event) => updateSystemQuestion(item, event.target.value)}
+            className="mt-2 min-h-13 w-full rounded-xl border-2 border-[#d7e4e1] bg-white p-3 text-base"
+          >
+            <option value="">選択してください</option>
+            {options.map((option) => (
+              <option key={option}>{option}</option>
+            ))}
+          </select>
+        </label>
+      );
+    }
+    if (item.system_field === "painScale")
+      return (
+        <label className="block text-sm font-black">
+          {item.label}：{form.painScale}/10
+          {item.required && <RequiredBadge />}
+          <input
+            type="range"
+            min={item.min_value ?? "0"}
+            max={item.max_value ?? "10"}
+            value={form.painScale}
+            onChange={(event) =>
+              updateSystemQuestion(item, Number(event.target.value))
+            }
+            className="mt-3 w-full accent-[#087f71]"
+          />
+          {!touchedQuestionKeys.includes(item.item_key) && (
+            <span className="mt-1 block text-xs font-bold text-[#71858a]">
+              スライダーを動かして回答してください
+            </span>
+          )}
+        </label>
+      );
+    if (
+      item.system_field &&
+      ["pacemaker", "fractureRisk", "skinIssue", "fallHistory"].includes(
+        item.system_field,
+      )
+    ) {
+      const key = item.system_field as
+        | "pacemaker"
+        | "fractureRisk"
+        | "skinIssue"
+        | "fallHistory";
+      return (
+        <BooleanQuestion
+          label={item.label}
+          required={item.required}
+          answered={touchedQuestionKeys.includes(item.item_key)}
+          value={form[key]}
+          onChange={(value) => updateSystemQuestion(item, value)}
+        />
+      );
+    }
+    return (
+      <CustomQuestion
+        item={item}
+        value={customResponses[item.item_key]}
+        onChange={(value) => {
+          setCustomResponses((current) => ({
+            ...current,
+            [item.item_key]: value,
+          }));
+          markQuestionTouched(item.item_key);
+        }}
+      />
+    );
+  }
+
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setError("");
+    const missingIndex = orderedQuestions.findIndex(
+      (item) => item.required && !isQuestionAnswered(item),
+    );
+    if (missingIndex >= 0) {
+      const missing = orderedQuestions[missingIndex];
+      setActiveQuestionIndex(missingIndex);
+      setError(`問診${missingIndex + 1}「${missing.label}」に回答してください。`);
+      document
+        .getElementById(`intake-question-${missing.id}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
     const response = await fetch("/api/intake", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -247,6 +447,8 @@ export function IntakeApp() {
               setCustomerId(event.target.value);
               setForm(initialForm);
               setCustomResponses({});
+              setTouchedQuestionKeys([]);
+              setActiveQuestionIndex(0);
             }}
             className="mt-2 min-h-13 w-full rounded-xl border-2 border-[#d7e4e1] bg-white p-3 text-base"
           >
@@ -273,165 +475,100 @@ export function IntakeApp() {
           </div>
         )}
 
-        <div className="mt-5 space-y-5">
-          <QuestionArea
-            label={
-              template?.items.find(
-                (item) => item.system_field === "chiefComplaint",
-              )?.label ?? "現在もっとも困っていること"
-            }
-            value={form.chiefComplaint}
-            onChange={(value) =>
-              setForm((current) => ({ ...current, chiefComplaint: value }))
-            }
-            required
-          >
-            <RotatingTextSuggestions
-              suggestions={suggestions.chief}
-              loading={suggestionsLoading}
-              onSelect={(candidate) =>
-                setForm((current) => ({
-                  ...current,
-                  chiefComplaint: appendSuggestion(
-                    current.chiefComplaint,
-                    candidate,
-                  ),
-                }))
-              }
-            />
-          </QuestionArea>
-          <QuestionArea
-            label={
-              template?.items.find(
-                (item) => item.system_field === "medicalHistory",
-              )?.label ?? "既往歴・手術歴"
-            }
-            value={form.medicalHistory}
-            onChange={(value) =>
-              setForm((current) => ({ ...current, medicalHistory: value }))
-            }
-          >
-            <RotatingTextSuggestions
-              suggestions={suggestions.history}
-              loading={suggestionsLoading}
-              onSelect={(candidate) =>
-                setForm((current) => ({
-                  ...current,
-                  medicalHistory: appendSuggestion(
-                    current.medicalHistory,
-                    candidate,
-                  ),
-                }))
-              }
-            />
-          </QuestionArea>
-          <QuestionArea
-            label={
-              template?.items.find(
-                (item) => item.system_field === "medications",
-              )?.label ?? "服薬内容"
-            }
-            value={form.medications}
-            onChange={(value) =>
-              setForm((current) => ({ ...current, medications: value }))
-            }
-          >
-            <RotatingTextSuggestions
-              suggestions={suggestions.medications}
-              loading={suggestionsLoading}
-              onSelect={(candidate) =>
-                setForm((current) => ({
-                  ...current,
-                  medications: appendSuggestion(current.medications, candidate),
-                }))
-              }
-            />
-          </QuestionArea>
-          <label className="block text-sm font-black">
-            {template?.items.find((item) => item.system_field === "walkingAid")
-              ?.label ?? "歩行補助具"}
-            <input
-              value={form.walkingAid}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  walkingAid: event.target.value,
-                }))
-              }
-              className="mt-2 min-h-13 w-full rounded-xl border-2 border-[#d7e4e1] p-3 text-base"
-            />
-          </label>
-        </div>
-
-        <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {[
-            ["pacemaker", "心臓ペースメーカー"],
-            ["fractureRisk", "骨折リスク"],
-            ["skinIssue", "皮膚トラブル"],
-            ["fallHistory", "過去6か月の転倒"],
-          ].map(([key, label]) => (
-            <label
-              key={key}
-              className="flex items-center gap-2 rounded-xl bg-[#f3f7f6] p-3 text-xs font-bold"
+        {orderedQuestions.length > 0 && (
+          <>
+            <nav
+              aria-label="問診の進捗"
+              className="sticky top-2 z-10 mt-5 rounded-2xl border border-[#cfe0dc] bg-white/95 p-3 shadow-sm backdrop-blur"
             >
-              <input
-                type="checkbox"
-                checked={form[key as keyof typeof form] as boolean}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    [key]: event.target.checked,
-                  }))
-                }
-                className="size-5 accent-[#087f71]"
-              />
-              {label}
-            </label>
-          ))}
-        </div>
-        <label className="mt-5 block text-sm font-black">
-          {template?.items.find((item) => item.system_field === "painScale")
-            ?.label ?? "現在の痛み"}
-          ：{form.painScale}/10
-          <input
-            type="range"
-            min="0"
-            max="10"
-            value={form.painScale}
-            onChange={(event) =>
-              setForm((current) => ({
-                ...current,
-                painScale: Number(event.target.value),
-              }))
-            }
-            className="mt-2 w-full accent-[#087f71]"
-          />
-        </label>
-        {(template?.items.filter((item) => !item.system_field).length ?? 0) >
-          0 && (
-          <section className="mt-6 border-t border-[#dce8e5] pt-5">
-            <h2 className="text-lg font-black">施設からの追加質問</h2>
-            <p className="mt-1 text-xs text-[#71858a]">
-              数値・選択・動画など、施設が設定した項目です。
-            </p>
-            <div className="mt-4 space-y-5">
-              {template?.items
-                .filter((item) => !item.system_field)
-                .map((item) => (
-                  <CustomQuestion
+              <div className="overflow-x-auto pb-1">
+                <div className="flex min-w-max items-center px-1">
+                  {orderedQuestions.map((item, index) => {
+                    const answered = isQuestionAnswered(item);
+                    const active = index === activeQuestionIndex;
+                    return (
+                      <span key={item.id} className="flex items-center">
+                        <button
+                          type="button"
+                          aria-label={`問診${index + 1} ${item.label}`}
+                          aria-current={active ? "step" : undefined}
+                          onClick={() => {
+                            setActiveQuestionIndex(index);
+                            document
+                              .getElementById(`intake-question-${item.id}`)
+                              ?.scrollIntoView({
+                                behavior: "smooth",
+                                block: "center",
+                              });
+                          }}
+                          className={`grid size-8 shrink-0 place-items-center rounded-full text-xs font-black ${
+                            answered
+                              ? "bg-[#087f71] text-white"
+                              : active
+                                ? "bg-[#17353d] text-white"
+                                : "bg-[#e7eeec] text-[#829397]"
+                          }`}
+                        >
+                          {answered ? <Check size={15} /> : index + 1}
+                        </button>
+                        {index < orderedQuestions.length - 1 && (
+                          <span
+                            className={`h-1 w-6 rounded-full ${
+                              answered ? "bg-[#087f71]" : "bg-[#e7eeec]"
+                            }`}
+                          />
+                        )}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+              <p className="mt-2 text-center text-sm font-black">
+                問診中 {Math.min(activeQuestionIndex + 1, orderedQuestions.length)} / {orderedQuestions.length}
+                <span className="mx-2 text-[#a6b5b8]">・</span>
+                回答済み {answeredQuestionCount}問
+                <span className="mx-2 text-[#a6b5b8]">・</span>
+                あと {remainingQuestionCount}問
+              </p>
+            </nav>
+            <div className="mt-4 space-y-4">
+              {orderedQuestions.map((item, index) => {
+                const answered = isQuestionAnswered(item);
+                return (
+                  <article
+                    id={`intake-question-${item.id}`}
                     key={item.id}
-                    item={item}
-                    value={customResponses[item.item_key]}
-                    onChange={(value) =>
-                      setCustomResponses((current) => ({
-                        ...current,
-                        [item.item_key]: value,
-                      }))
-                    }
-                  />
-                ))}
+                    onFocusCapture={() => setActiveQuestionIndex(index)}
+                    onPointerDown={() => setActiveQuestionIndex(index)}
+                    className={`scroll-mt-32 rounded-2xl border-2 p-4 transition ${
+                      index === activeQuestionIndex
+                        ? "border-[#87cabe] bg-[#fbfffe]"
+                        : "border-[#dce8e5] bg-white"
+                    }`}
+                  >
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <span className="rounded-full bg-[#17353d] px-3 py-1 text-xs font-black text-white">
+                        問診 {index + 1}
+                      </span>
+                      <span
+                        className={`text-xs font-black ${
+                          answered ? "text-[#087f71]" : "text-[#829397]"
+                        }`}
+                      >
+                        {answered ? "回答済み" : "未回答"}
+                      </span>
+                    </div>
+                    {renderQuestionInput(item)}
+                    {item.system_field && item.help_text && (
+                      <p className="mt-2 text-xs leading-5 text-[#71858a]">
+                        {item.help_text}
+                      </p>
+                    )}
+                  </article>
+                );
+              })}
             </div>
-          </section>
+          </>
         )}
         <div className="mt-5 space-y-2">
           <label className="flex gap-3 rounded-xl bg-[#fff7df] p-4 text-sm font-bold">
@@ -486,6 +623,60 @@ export function IntakeApp() {
   );
 }
 
+function RequiredBadge() {
+  return (
+    <span className="ml-2 rounded-md bg-[#fff0ed] px-1.5 py-0.5 text-[10px] text-[#bd4f3f]">
+      必須
+    </span>
+  );
+}
+
+function BooleanQuestion({
+  label,
+  value,
+  answered,
+  required,
+  onChange,
+}: {
+  label: string;
+  value: boolean;
+  answered: boolean;
+  required: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <fieldset>
+      <legend className="text-sm font-black">
+        {label}
+        {required && <RequiredBadge />}
+      </legend>
+      <div className="mt-2 grid grid-cols-2 gap-3">
+        {[
+          { label: "いいえ", value: false },
+          { label: "はい", value: true },
+        ].map((option) => {
+          const selected = answered && value === option.value;
+          return (
+            <button
+              key={option.label}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => onChange(option.value)}
+              className={`min-h-13 rounded-xl border-2 text-base font-black ${
+                selected
+                  ? "border-[#087f71] bg-[#e7f5f1] text-[#087f71]"
+                  : "border-[#d7e4e1] bg-white text-[#526d72]"
+              }`}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
 function QuestionArea({
   label,
   value,
@@ -497,17 +688,13 @@ function QuestionArea({
   value: string;
   onChange: (value: string) => void;
   required?: boolean;
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }) {
   return (
     <div>
       <label className="block text-sm font-black">
         {label}
-        {required && (
-          <span className="ml-2 rounded-md bg-[#fff0ed] px-1.5 py-0.5 text-[10px] text-[#bd4f3f]">
-            必須
-          </span>
-        )}
+        {required && <RequiredBadge />}
         <textarea
           required={required}
           value={value}

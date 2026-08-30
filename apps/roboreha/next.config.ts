@@ -13,6 +13,7 @@ if (process.env.NODE_ENV === "production" && !basePath) {
 const nextConfig: NextConfig = {
   basePath,
   reactStrictMode: true,
+  serverExternalPackages: ["ffmpeg-static"],
 };
 
 export default nextConfig;
