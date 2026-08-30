@@ -87,7 +87,7 @@ services:
       - key: ROBOREHA_ROUTE_PATH
         value: /roboreha-preview-320b600f541ac09e
       - key: ROBOREHA_UPSTREAM_ORIGIN
-        value: https://methodmore-roboreha-private.onrender.com
+        value: https://methodmore-roboreha-private-7ihm.onrender.com
 
   - type: web
     name: methodmore-roboreha-private
