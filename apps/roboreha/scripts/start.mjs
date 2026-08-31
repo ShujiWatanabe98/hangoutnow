@@ -11,7 +11,10 @@ function run(command, args) {
   });
 }
 
-await run(process.execPath, [fileURLToPath(new URL("./full-test-data.mjs", import.meta.url))]);
+await run(process.execPath, [
+  fileURLToPath(new URL("./full-test-data.mjs", import.meta.url)),
+  "--if-empty",
+]);
 
 const nextBin = createRequire(import.meta.url).resolve("next/dist/bin/next");
 const next = spawn(process.execPath, [nextBin, "start"], { stdio: "inherit", env: process.env, shell: false });

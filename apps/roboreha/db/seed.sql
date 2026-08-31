@@ -171,12 +171,12 @@ INSERT INTO billing_records (id, appointment_id, store_id, customer_id, amount_y
 ON CONFLICT (id) DO UPDATE SET status=EXCLUDED.status, payment_method=EXCLUDED.payment_method,
   confirmed_by=EXCLUDED.confirmed_by, paid_at=EXCLUDED.paid_at, amount_yen=EXCLUDED.amount_yen, updated_at=EXCLUDED.updated_at;
 
-INSERT INTO attendance_records (id, staff_id, store_id, work_date, clock_in, clock_out, break_minutes, status, approved_by, approved_at, note) VALUES
-  ('c0000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000004', '10000000-0000-0000-0000-000000000001', current_date, current_date + time '08:20', current_date + time '17:30', 60, 'approved', '20000000-0000-0000-0000-000000000004', current_date + time '17:35', 'リーダー'),
-  ('c0000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', current_date, current_date + time '08:45', current_date + time '18:00', 60, 'submitted', NULL, NULL, NULL),
-  ('c0000000-0000-0000-0000-000000000003', '20000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', current_date, current_date + time '09:00', current_date + time '18:00', 60, 'approved', '20000000-0000-0000-0000-000000000004', current_date + time '18:05', NULL),
-  ('c0000000-0000-0000-0000-000000000004', '20000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000001', current_date, current_date + time '08:30', NULL, 60, 'draft', NULL, NULL, '勤務中')
-ON CONFLICT (id) DO UPDATE SET work_date=EXCLUDED.work_date, clock_in=EXCLUDED.clock_in, clock_out=EXCLUDED.clock_out,
+INSERT INTO attendance_records (staff_id, store_id, work_date, clock_in, clock_out, break_minutes, status, approved_by, approved_at, note) VALUES
+  ('20000000-0000-0000-0000-000000000004', '10000000-0000-0000-0000-000000000001', current_date, current_date + time '08:20', current_date + time '17:30', 60, 'approved', '20000000-0000-0000-0000-000000000004', current_date + time '17:35', 'リーダー'),
+  ('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', current_date, current_date + time '08:45', current_date + time '18:00', 60, 'submitted', NULL, NULL, NULL),
+  ('20000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', current_date, current_date + time '09:00', current_date + time '18:00', 60, 'approved', '20000000-0000-0000-0000-000000000004', current_date + time '18:05', NULL),
+  ('20000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000001', current_date, current_date + time '08:30', NULL, 60, 'draft', NULL, NULL, '勤務中')
+ON CONFLICT (staff_id, work_date) DO UPDATE SET clock_in=EXCLUDED.clock_in, clock_out=EXCLUDED.clock_out,
   break_minutes=EXCLUDED.break_minutes, status=EXCLUDED.status, approved_by=EXCLUDED.approved_by,
   approved_at=EXCLUDED.approved_at, note=EXCLUDED.note, updated_at=now();
 
