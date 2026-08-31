@@ -1,6 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { DEMO_STORE_ID } from "@/lib/constants";
@@ -9,6 +7,7 @@ import {
   isSupportedVideoUpload,
   normalizeVideoToMp4,
 } from "@/lib/video-mp4";
+import { deleteVideo, storeVideo } from "@/lib/video-storage";
 
 export const runtime = "nodejs";
 
@@ -31,25 +30,26 @@ export async function POST(request: Request) {
     if (!session.rows[0]) return NextResponse.json({ error: "身体機能記録が見つかりません。" }, { status: 404 });
     const normalized = await normalizeVideoToMp4(file);
     const storageKey = `${randomUUID()}.mp4`;
-    const storageRoot = path.resolve(process.cwd(), "storage", "physical-function-videos");
-    const target = path.resolve(storageRoot, storageKey);
-    if (!target.startsWith(`${storageRoot}${path.sep}`)) throw new Error("保存先を確認できませんでした。");
-    await mkdir(storageRoot, { recursive: true });
-    await writeFile(target, normalized.content);
+    await storeVideo("physical-function-videos", storageKey, normalized.content, normalized.mimeType);
     const numeric = (name: string) => {
       const value = Number(form.get(name));
       return Number.isFinite(value) && value > 0 ? value : null;
     };
-    const saved = await query(
-      `INSERT INTO physical_function_videos
-        (session_id,test_code,phase,original_file_name,storage_key,mime_type,size_bytes,
-         duration_seconds,width,height,fps,consent_confirmed)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,true)
-       RETURNING id,test_code,phase,mime_type,size_bytes,duration_seconds,width,height,fps,created_at`,
-      [sessionId.data, testCode.data, phase.data, normalized.fileName, storageKey,
-        normalized.mimeType, normalized.content.length, numeric("durationSeconds"), numeric("width"), numeric("height"), numeric("fps")],
-    );
-    return NextResponse.json({ video: { ...saved.rows[0], url: `/api/physical-function/videos/${saved.rows[0].id}` } }, { status: 201 });
+    try {
+      const saved = await query(
+        `INSERT INTO physical_function_videos
+          (session_id,test_code,phase,original_file_name,storage_key,mime_type,size_bytes,
+           duration_seconds,width,height,fps,consent_confirmed)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,true)
+         RETURNING id,test_code,phase,mime_type,size_bytes,duration_seconds,width,height,fps,created_at`,
+        [sessionId.data, testCode.data, phase.data, normalized.fileName, storageKey,
+          normalized.mimeType, normalized.content.length, numeric("durationSeconds"), numeric("width"), numeric("height"), numeric("fps")],
+      );
+      return NextResponse.json({ video: { ...saved.rows[0], url: `/api/physical-function/videos/${saved.rows[0].id}` } }, { status: 201 });
+    } catch (error) {
+      await deleteVideo("physical-function-videos", storageKey).catch(() => undefined);
+      throw error;
+    }
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "動画を保存できませんでした。" }, { status: 500 });
   }

@@ -1,6 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { query } from "@/lib/db";
@@ -8,6 +6,7 @@ import {
   isSupportedVideoUpload,
   normalizeVideoToMp4,
 } from "@/lib/video-mp4";
+import { deleteVideo, storeVideo } from "@/lib/video-storage";
 
 export const runtime = "nodejs";
 
@@ -26,19 +25,20 @@ export async function POST(request: Request) {
 
     const normalized = await normalizeVideoToMp4(file);
     const storageKey = `${randomUUID()}.mp4`;
-    const storageRoot = path.resolve(process.cwd(), "storage", "videos");
-    const target = path.resolve(storageRoot, storageKey);
-    if (!target.startsWith(`${storageRoot}${path.sep}`)) throw new Error("保存先を確認できませんでした。");
-    await mkdir(storageRoot, { recursive: true });
-    await writeFile(target, normalized.content);
-    const result = await query(
-      `INSERT INTO assessment_videos
-        (assessment_id, phase, original_file_name, storage_key, mime_type, size_bytes)
-       VALUES ($1,$2,$3,$4,$5,$6)
-       RETURNING id, phase, mime_type, size_bytes, created_at`,
-      [assessmentId.data, phase.data, normalized.fileName, storageKey, normalized.mimeType, normalized.content.length],
-    );
-    return NextResponse.json({ video: { ...result.rows[0], url: `/api/videos/${result.rows[0].id}` } }, { status: 201 });
+    await storeVideo("videos", storageKey, normalized.content, normalized.mimeType);
+    try {
+      const result = await query(
+        `INSERT INTO assessment_videos
+          (assessment_id, phase, original_file_name, storage_key, mime_type, size_bytes)
+         VALUES ($1,$2,$3,$4,$5,$6)
+         RETURNING id, phase, mime_type, size_bytes, created_at`,
+        [assessmentId.data, phase.data, normalized.fileName, storageKey, normalized.mimeType, normalized.content.length],
+      );
+      return NextResponse.json({ video: { ...result.rows[0], url: `/api/videos/${result.rows[0].id}` } }, { status: 201 });
+    } catch (error) {
+      await deleteVideo("videos", storageKey).catch(() => undefined);
+      throw error;
+    }
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "動画を保存できませんでした。" }, { status: 500 });
   }
