@@ -5,6 +5,9 @@ import { extname, join, normalize } from 'node:path';
 
 const port = Number(process.env.DEMO_PORT ?? 4173);
 const root = join(import.meta.dirname, 'public');
+const hangoutNowAdminRoot = join(import.meta.dirname, '../admin/out');
+const hangoutNowAdminPath = '/hangoutnow-admin';
+const hangoutNowApiPath = '/hangoutnow-api';
 const proxyApiUrl = (process.env.DEMO_PROXY_API_URL || process.env.API_URL)?.replace(/\/$/, '');
 const dashboardPathCandidate = process.env.DIVERTNAVI_DASHBOARD_PATH?.trim().replace(/\/+$/, '') ?? '';
 const divertNaviDashboardPath = /^\/divertnavi-app\/[a-z0-9](?:[a-z0-9-]{22,}[a-z0-9])$/.test(dashboardPathCandidate) ? dashboardPathCandidate : '';
@@ -285,10 +288,13 @@ createServer(async (request, response) => {
     }
     return;
   }
-  if(proxyApiUrl&&requestedPath.startsWith('/api/')){
+  const isPublicApiRequest = requestedPath.startsWith('/api/');
+  const isAdminApiRequest = requestedPath.startsWith(`${hangoutNowApiPath}/`);
+  if(proxyApiUrl&&(isPublicApiRequest||isAdminApiRequest)){
     try{
       const body=request.method==='GET'||request.method==='HEAD'?undefined:await new Promise((resolve,reject)=>{const chunks=[];request.on('data',chunk=>chunks.push(chunk));request.on('end',()=>resolve(Buffer.concat(chunks)));request.on('error',reject)});
-      const upstream=await fetch(`${proxyApiUrl}${request.url.slice(4)}`,{method:request.method,headers:{...(request.headers.authorization?{authorization:request.headers.authorization}:{}),...(request.headers['content-type']?{'content-type':request.headers['content-type']}:{})},body,redirect:'manual'});
+      const prefixLength=isAdminApiRequest?hangoutNowApiPath.length:4;
+      const upstream=await fetch(`${proxyApiUrl}${request.url.slice(prefixLength)}`,{method:request.method,headers:{...(request.headers.authorization?{authorization:request.headers.authorization}:{}),...(request.headers['content-type']?{'content-type':request.headers['content-type']}:{}),...(request.headers['x-admin-token']?{'x-admin-token':request.headers['x-admin-token']}:{}),...(request.headers['x-admin-id']?{'x-admin-id':request.headers['x-admin-id']}:{})},body,redirect:'manual'});
       const responseBody=Buffer.from(await upstream.arrayBuffer());
       const location=upstream.headers.get('location');
       response.writeHead(upstream.status,{...securityHeaders,'content-type':upstream.headers.get('content-type')||'application/json; charset=utf-8','cache-control':'no-store',...(location?{location}:{})});
@@ -340,7 +346,13 @@ createServer(async (request, response) => {
     response.end(`globalThis.COACHGO_CONFIG=${JSON.stringify(config)};`);
     return;
   }
-  const pathname = requestedPath === '/'
+  const isHangoutNowAdminPath = normalizedRequestedPath === hangoutNowAdminPath || requestedPath.startsWith(`${hangoutNowAdminPath}/`);
+  const staticRoot = isHangoutNowAdminPath ? hangoutNowAdminRoot : root;
+  const pathname = isHangoutNowAdminPath
+    ? normalizedRequestedPath === hangoutNowAdminPath
+      ? '/index.html'
+      : requestedPath.slice(hangoutNowAdminPath.length)
+    : requestedPath === '/'
     ? '/index.html'
     : requestedPath === '/coachgo-demo' || requestedPath === '/coachgo-demo/'
       ? '/coachgo-demo/index.html'
@@ -351,11 +363,11 @@ createServer(async (request, response) => {
       : divertNaviDashboardPath && normalizedRequestedPath === divertNaviDashboardPath
         ? '/divertnavi-app/index.html'
       : requestedPath;
-  const file = normalize(join(root, pathname));
-  if (!file.startsWith(root)) { response.writeHead(403, securityHeaders).end(); return; }
+  const file = normalize(join(staticRoot, pathname));
+  if (!file.startsWith(staticRoot)) { response.writeHead(403, securityHeaders).end(); return; }
   try {
     const fileBody = await readFile(file);
-    const isApplicationPage = requestedPath === '/demo.html' || requestedPath === '/app.html' || requestedPath.startsWith('/coachgo-demo') || requestedPath.startsWith('/divertnavi-app') || requestedPath.startsWith('/minnade-kaigo');
+    const isApplicationPage = isHangoutNowAdminPath || requestedPath === '/demo.html' || requestedPath === '/app.html' || requestedPath.startsWith('/coachgo-demo') || requestedPath.startsWith('/divertnavi-app') || requestedPath.startsWith('/minnade-kaigo');
     const body = extname(file) === '.html' && !isApplicationPage
       ? Buffer.from(fileBody.toString('utf8').replace('<head>', '<head><link rel="stylesheet" href="/cookie-consent.css?v=20260816-2"><link rel="stylesheet" href="/share.css?v=20260821-2"><script src="/analytics.js?v=20260820-2" defer></script><script src="/attribution.js?v=20260821-2" defer></script><script src="/share.js?v=20260821-3" defer></script>'))
       : fileBody;
