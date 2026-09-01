@@ -17,7 +17,6 @@ import {
   PackageSearch,
   Search,
   ShieldAlert,
-  Stethoscope,
   Footprints,
   ClipboardList,
   UserCog,
@@ -30,7 +29,6 @@ import { BlockingProgressOverlay, LoadingScreen } from "./loading";
 import { ScheduleCalendar } from "./schedule-calendar";
 import { CustomersManager } from "./customers-manager";
 import { BillingManager } from "./billing-manager";
-import { ClinicalManager } from "./clinical-manager";
 import { StaffManager } from "./staff-manager";
 import { IntakeManager } from "./intake-manager";
 import { FacilityMessageCenter } from "./message-center";
@@ -119,7 +117,6 @@ type Tab =
   | "customers"
   | "messages"
   | "devices"
-  | "clinical"
   | "physical"
   | "billing"
   | "staff"
@@ -133,7 +130,6 @@ const tabs: Array<{ id: Tab; label: string; icon: typeof LayoutDashboard; featur
   { id: "intake", label: "問診", icon: ClipboardList, feature: "intake" },
   { id: "devices", label: "機材管理", icon: PackageSearch, feature: "equipment" },
   { id: "physical", label: "身体機能", icon: Footprints, feature: "physical" },
-  { id: "clinical", label: "施術記録", icon: Stethoscope, feature: "clinical" },
   { id: "billing", label: "会計", icon: CircleDollarSign, feature: "billing" },
   { id: "staff", label: "スタッフ", icon: UserCog, feature: "staff" },
 ];
@@ -310,7 +306,6 @@ export function FacilityApp() {
           {effectiveTab === "physical" && (
             <PhysicalFunctionManager appointments={facility.appointments} />
           )}
-          {effectiveTab === "clinical" && <ClinicalManager />}
           {effectiveTab === "billing" && <BillingManager />}
           {effectiveTab === "staff" && <StaffManager onDataChanged={load} />}
         </main>

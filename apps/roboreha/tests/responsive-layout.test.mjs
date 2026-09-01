@@ -32,6 +32,8 @@ test("tablet and smartphone controls keep touch-sized targets", async () => {
   assert.match(facility, /md:grid-cols-\[80px_minmax\(0,1fr\)\]/);
   assert.match(facility, /sticky top-0/);
   assert.match(facility, /className="min-w-0 md:col-start-2"/);
+  assert.doesNotMatch(facility, /label: "施術記録"/);
+  assert.doesNotMatch(facility, /ClinicalManager/);
 });
 
 test("long clinical history is paginated and schedule explains horizontal touch navigation", async () => {
