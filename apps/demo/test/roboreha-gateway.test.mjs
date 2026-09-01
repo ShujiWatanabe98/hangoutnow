@@ -16,10 +16,27 @@ let gatewayOrigin;
 let receivedProxySecret = '';
 let transientFailuresRemaining = 0;
 let transientRequestCount = 0;
+let healthFailuresRemaining = 0;
 
 before(async () => {
   upstream = createServer((request, response) => {
     receivedProxySecret = request.headers['x-roboreha-proxy-secret'] ?? '';
+    if (request.url?.endsWith('/api/healthz')) {
+      if (healthFailuresRemaining > 0) {
+        healthFailuresRemaining -= 1;
+        response.writeHead(503, { 'content-type': 'application/json; charset=utf-8' });
+        response.end('{"status":"starting"}');
+        return;
+      }
+      response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+      response.end('{"status":"ok"}');
+      return;
+    }
+    if (request.url?.endsWith('/unavailable')) {
+      response.writeHead(502, { 'content-type': 'text/plain; charset=utf-8' });
+      response.end('Starting service');
+      return;
+    }
     if (request.url?.endsWith('/cold-start')) {
       transientRequestCount += 1;
       if (transientFailuresRemaining > 0) {
@@ -144,4 +161,39 @@ test('safe requests retry transient upstream cold-start errors', async () => {
   assert.equal(response.status, 200);
   assert.match(await response.text(), /Protected RoboReha/);
   assert.equal(transientRequestCount, 3);
+});
+
+test('HTML navigation receives a recovery screen while the upstream starts', async () => {
+  const login = await fetch(`${gatewayOrigin}${routePath}/_auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ username, password }),
+    redirect: 'manual',
+  });
+  const cookie = login.headers.get('set-cookie')?.split(';')[0];
+  assert(cookie);
+
+  const response = await fetch(`${gatewayOrigin}${routePath}/unavailable`, {
+    headers: { accept: 'text/html', cookie },
+  });
+  const html = await response.text();
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('x-roboreha-gateway-state'), 'waking');
+  assert.match(html, /RoboRehaを準備しています/);
+  assert.match(html, new RegExp(`${routePath}/_gateway/readiness`));
+  assert.match(html, /location\.reload\(\)/);
+  assert.doesNotMatch(html, /Protected RoboReha/);
+});
+
+test('readiness endpoint stays minimal and reports the upstream state', async () => {
+  healthFailuresRemaining = 1;
+  const starting = await fetch(`${gatewayOrigin}${routePath}/_gateway/readiness`);
+  assert.equal(starting.status, 503);
+  assert.deepEqual(await starting.json(), { ready: false });
+
+  const ready = await fetch(`${gatewayOrigin}${routePath}/_gateway/readiness`);
+  assert.equal(ready.status, 200);
+  assert.deepEqual(await ready.json(), { ready: true });
+  assert.equal(receivedProxySecret, proxySecret);
 });

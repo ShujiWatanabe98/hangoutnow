@@ -31,8 +31,9 @@ const configuredRoborehaRetryDelays = (process.env.ROBOREHA_UPSTREAM_RETRY_DELAY
   .slice(0, 6);
 const roborehaUpstreamRetryDelays = configuredRoborehaRetryDelays.length > 0
   ? configuredRoborehaRetryDelays
-  : [1_500, 3_000, 5_000, 8_000];
+  : [1_500, 3_000, 5_000, 8_000, 13_000, 21_000];
 const roborehaLoginAttempts = new Map();
+let roborehaReadinessPromise;
 const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.map': 'application/json; charset=utf-8', '.webmanifest': 'application/manifest+json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.xml': 'application/xml; charset=utf-8', '.txt': 'text/plain; charset=utf-8' };
 const securityHeaders = {
   'content-security-policy': "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://api.mapbox.com https://*.tiles.mapbox.com https://tilecache.rainviewer.com https://hangoutnow-demo.onrender.com https://play.google.com https://tools.applemediaservices.com; media-src 'self' blob:; frame-src https://maps.google.com; connect-src 'self' https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com https://api.rainviewer.com https://tilecache.rainviewer.com https://api.open-meteo.com https://www.google-analytics.com https://region1.google-analytics.com; font-src 'self'; worker-src blob:; upgrade-insecure-requests",
@@ -108,10 +109,53 @@ async function readSmallForm(request) {
   });
 }
 
-async function fetchRoborehaUpstream(request, headers) {
+function wakingPage() {
+  const readinessUrl = `${roborehaRoutePath}/_gateway/readiness`;
+  return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow,noarchive"><title>RoboRehaを準備しています</title><style>:root{color-scheme:light}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;overflow:hidden;background:radial-gradient(circle at 15% 10%,#dff7ef 0,transparent 38%),radial-gradient(circle at 90% 85%,#e3e8fb 0,transparent 42%),#f5f8f7;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif;color:#17353d;padding:20px}.card{position:relative;width:min(470px,100%);overflow:hidden;background:rgba(255,255,255,.9);border:1px solid rgba(197,222,215,.9);border-radius:30px;padding:34px;box-shadow:0 28px 80px rgba(23,53,61,.14);backdrop-filter:blur(16px)}.brand{display:flex;align-items:center;gap:12px}.mark{display:grid;place-items:center;width:48px;height:48px;border-radius:15px;background:#087f71;color:#fff;font-size:25px;font-weight:900;box-shadow:0 10px 24px rgba(8,127,113,.24)}.eyebrow{margin:0;color:#087f71;font-size:12px;font-weight:900;letter-spacing:.12em}.name{font-weight:850}.loader{position:relative;width:84px;height:84px;margin:34px auto 28px}.loader:before,.loader:after{content:"";position:absolute;inset:0;border-radius:50%;border:4px solid #d9ebe7}.loader:after{border-color:#087f71 transparent transparent;border-width:4px;animation:spin 1.1s linear infinite}.pulse{position:absolute;inset:25px;border-radius:50%;background:#087f71;box-shadow:0 0 0 0 rgba(8,127,113,.28);animation:pulse 1.8s ease-out infinite}.title{margin:0;text-align:center;font-size:27px;line-height:1.35}.lead{margin:12px auto 0;max-width:340px;text-align:center;color:#687d84;line-height:1.75}.status{display:flex;align-items:center;justify-content:center;gap:8px;margin:24px 0 0;padding:12px;border-radius:14px;background:#eef7f4;color:#087267;font-size:13px;font-weight:800}.dot{width:8px;height:8px;border-radius:50%;background:#08a88d;animation:blink 1.4s ease-in-out infinite}.note{margin:16px 0 0;text-align:center;color:#8a9a9e;font-size:12px;line-height:1.6}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{70%{box-shadow:0 0 0 18px rgba(8,127,113,0)}}@keyframes blink{50%{opacity:.3}}@media(prefers-reduced-motion:reduce){.loader:after,.pulse,.dot{animation:none}}</style></head><body><main class="card" aria-live="polite"><div class="brand"><div class="mark">R</div><div><p class="eyebrow">PRIVATE PREVIEW</p><div class="name">RoboCare One</div></div></div><div class="loader" aria-hidden="true"><span class="pulse"></span></div><h1 class="title">RoboRehaを準備しています</h1><p class="lead">休止中の検証環境を起動しています。<br>準備が整い次第、自動で画面を開きます。</p><p class="status"><span class="dot"></span><span id="status">起動状況を確認中です</span></p><p class="note">通常は1分ほどで完了します。<br>この画面を開いたままお待ちください。</p></main><script>(()=>{const status=document.getElementById('status');let failures=0;const check=async()=>{try{const response=await fetch(${JSON.stringify(readinessUrl)},{cache:'no-store',headers:{accept:'application/json'}});const result=await response.json();if(result.ready){status.textContent='準備が整いました。画面を開きます';location.reload();return}failures=0;status.textContent='起動しています…'}catch{failures+=1;status.textContent=failures>3?'起動に時間がかかっています…':'起動状況を確認中です'}setTimeout(check,3000)};setTimeout(check,1200)})();</script></body></html>`;
+}
+
+function sendWakingPage(response) {
+  response.writeHead(200, {
+    ...securityHeaders,
+    'content-type': 'text/html; charset=utf-8',
+    'cache-control': 'no-store',
+    'x-robots-tag': 'noindex, nofollow, noarchive',
+    'x-roboreha-gateway-state': 'waking',
+    'retry-after': '3',
+  });
+  response.end(wakingPage());
+}
+
+function isHtmlNavigation(request) {
+  return request.method === 'GET' && String(request.headers.accept ?? '').includes('text/html');
+}
+
+async function checkRoborehaReadiness() {
+  if (roborehaReadinessPromise) return roborehaReadinessPromise;
+  roborehaReadinessPromise = (async () => {
+    try {
+      const headers = new Headers({ accept: 'application/json' });
+      if (roborehaProxySecret) headers.set('x-roboreha-proxy-secret', roborehaProxySecret);
+      const upstream = await fetch(`${roborehaUpstreamOrigin}${roborehaRoutePath}/api/healthz`, {
+        headers,
+        redirect: 'manual',
+        signal: AbortSignal.timeout(8_000),
+      });
+      await upstream.body?.cancel();
+      return upstream.ok;
+    } catch {
+      return false;
+    } finally {
+      roborehaReadinessPromise = undefined;
+    }
+  })();
+  return roborehaReadinessPromise;
+}
+
+async function fetchRoborehaUpstream(request, headers, options = {}) {
   const method = request.method ?? 'GET';
   const hasBody = !['GET', 'HEAD'].includes(method);
-  const retryDelays = hasBody ? [] : roborehaUpstreamRetryDelays;
+  const retryDelays = hasBody ? [] : (options.retryDelays ?? roborehaUpstreamRetryDelays);
   let lastError;
 
   for (let attempt = 0; attempt <= retryDelays.length; attempt += 1) {
@@ -121,6 +165,7 @@ async function fetchRoborehaUpstream(request, headers) {
         headers,
         body: hasBody ? request : undefined,
         redirect: 'manual',
+        ...(options.timeoutMs ? { signal: AbortSignal.timeout(options.timeoutMs) } : {}),
         ...(hasBody ? { duplex: 'half' } : {}),
       });
       const retryableStatus = [502, 503, 504].includes(upstream.status);
@@ -137,6 +182,7 @@ async function fetchRoborehaUpstream(request, headers) {
 }
 
 async function proxyRoboreha(request, response) {
+  const htmlNavigation = isHtmlNavigation(request);
   const headers = new Headers();
   for (const name of ['accept', 'accept-language', 'content-type', 'cookie', 'range', 'user-agent']) {
     const value = request.headers[name];
@@ -146,7 +192,12 @@ async function proxyRoboreha(request, response) {
   headers.set('x-forwarded-host', request.headers.host ?? 'method-more.com');
   headers.set('x-forwarded-proto', 'https');
   try {
-    const upstream = await fetchRoborehaUpstream(request, headers);
+    const upstream = await fetchRoborehaUpstream(request, headers, htmlNavigation ? { retryDelays: [], timeoutMs: 7_000 } : {});
+    if (htmlNavigation && [502, 503, 504].includes(upstream.status)) {
+      await upstream.body?.cancel();
+      sendWakingPage(response);
+      return;
+    }
     const responseHeaders = {
       ...securityHeaders,
       'content-type': upstream.headers.get('content-type') || 'application/octet-stream',
@@ -178,6 +229,10 @@ async function proxyRoboreha(request, response) {
       response.end();
     }
   } catch {
+    if (htmlNavigation) {
+      sendWakingPage(response);
+      return;
+    }
     response.writeHead(502, { ...securityHeaders, 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });
     response.end('RoboReha preview is temporarily unavailable.');
   }
@@ -190,6 +245,17 @@ createServer(async (request, response) => {
     if (!roborehaConfigured()) {
       response.writeHead(503, { ...securityHeaders, 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });
       response.end('RoboReha preview is not configured.');
+      return;
+    }
+    if (requestedPath === `${roborehaRoutePath}/_gateway/readiness` && request.method === 'GET') {
+      const ready = await checkRoborehaReadiness();
+      response.writeHead(ready ? 200 : 503, {
+        ...securityHeaders,
+        'content-type': 'application/json; charset=utf-8',
+        'cache-control': 'no-store',
+        'x-robots-tag': 'noindex, nofollow, noarchive',
+      });
+      response.end(JSON.stringify({ ready }));
       return;
     }
     const gatewayAuth = roborehaGatewayAuthConfigured();
