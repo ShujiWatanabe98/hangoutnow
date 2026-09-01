@@ -35,7 +35,7 @@ jobs:
           --health-retries 15
     env:
       DATABASE_URL: postgresql://roboreha:roboreha@localhost:55432/roboreha
-      NEXT_PUBLIC_ROBOREHA_BASE_PATH: /roboreha-preview-320b600f541ac09e
+      NEXT_PUBLIC_ROBOREHA_BASE_PATH: /roboreha-app
 
     steps:
       - name: Check out repository
