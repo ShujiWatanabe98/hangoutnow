@@ -1,14 +1,14 @@
-import { buildHazardPointGuidance, createSessionUserHazardPoint, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260901-4";
-import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260901-4";
-import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260901-4";
-import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260901-4";
-import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260901-4";
-import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260901-4";
-import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260901-4";
-import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260901-4";
-import { interpolateUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260901-4";
-import { resolveVoiceInputRuntime, shouldRunPassiveVoiceCommandRecognition, } from "./voiceInputRuntime.js?v=20260901-4";
-import { aggregateNearbyUserReports, SAME_USER_REPORT_RADIUS_METERS, } from "./userReportAggregation.js?v=20260901-4";
+import { buildHazardPointGuidance, createSessionUserHazardPoint, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260901-5";
+import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260901-5";
+import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260901-5";
+import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260901-5";
+import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260901-5";
+import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260901-5";
+import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260901-5";
+import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260901-5";
+import { interpolateUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260901-5";
+import { resolveVoiceInputRuntime, shouldRunPassiveVoiceCommandRecognition, } from "./voiceInputRuntime.js?v=20260901-5";
+import { aggregateNearbyUserReports, SAME_USER_REPORT_RADIUS_METERS, } from "./userReportAggregation.js?v=20260901-5";
 function syntheticSharedMapPayload() {
     return {
         schemaVersion: 1,
@@ -108,6 +108,7 @@ let map = null;
 let initialMapLoadCompleted = false;
 let initialMapLoadTimeout = null;
 let userLocationMarker = null;
+let userReportMapMarkers = [];
 const UNDERPASS_SOURCE_ID = "coachgo-underpasses";
 const UNDERPASS_CLUSTER_LAYER_ID = "coachgo-underpass-clusters";
 const UNDERPASS_CLUSTER_COUNT_LAYER_ID = "coachgo-underpass-cluster-count";
@@ -1076,7 +1077,7 @@ function startForegroundLocationMonitoring() {
     connectionState.dataset.locationWatch = "starting";
     renderPermissionStatus();
 }
-function createCategoryMarkerImage(icon, background) {
+function createCategoryMarkerCanvas(icon, background) {
     const canvas = document.createElement("canvas");
     canvas.width = 64;
     canvas.height = 64;
@@ -1094,7 +1095,14 @@ function createCategoryMarkerImage(icon, background) {
     context.textAlign = "center";
     context.textBaseline = "middle";
     context.fillText(icon, 32, 34);
-    return context.getImageData(0, 0, 64, 64);
+    return canvas;
+}
+function createCategoryMarkerImage(icon, background) {
+    const canvas = createCategoryMarkerCanvas(icon, background);
+    const context = canvas.getContext("2d");
+    if (context === null)
+        throw new Error("category marker canvas is unavailable");
+    return context.getImageData(0, 0, canvas.width, canvas.height);
 }
 function isDivertNaviMapPayload(value) {
     if (value === null || typeof value !== "object")
@@ -1128,8 +1136,6 @@ function categoryClusterLayerIds(category) {
             count: UNDERPASS_CLUSTER_COUNT_LAYER_ID,
             point: UNDERPASS_POINT_LAYER_ID,
             image: ROAD_FLOODING_MARKER_IMAGE_ID,
-            reportBadge: "coachgo-road-flooding-report-badge",
-            reportBadgeCount: "coachgo-road-flooding-report-badge-count",
         };
     }
     const slug = category.toLowerCase().replaceAll("_", "-");
@@ -1139,8 +1145,6 @@ function categoryClusterLayerIds(category) {
         count: `coachgo-${slug}-cluster-count`,
         point: `coachgo-${slug}-unclustered`,
         image: `coachgo-${slug}-category-icon`,
-        reportBadge: `coachgo-${slug}-report-badge`,
-        reportBadgeCount: `coachgo-${slug}-report-badge-count`,
     };
 }
 function clusteredHazardFeatureCollection(category) {
@@ -1151,18 +1155,6 @@ function clusteredHazardFeatureCollection(category) {
         geometry: { type: "Point", coordinates: [point.longitude, point.latitude] },
         properties: { pointId: point.id, pointType: "hazard", reportCount: 1 },
     }));
-    const userReportFeatures = aggregateNearbyUserReports(sessionUserReports.filter((point) => point.category === category)).map((group) => ({
-        type: "Feature",
-        geometry: {
-            type: "Point",
-            coordinates: [group.representative.longitude, group.representative.latitude],
-        },
-        properties: {
-            pointId: group.representative.id,
-            pointType: "hazard",
-            reportCount: group.count,
-        },
-    }));
     const sharedFeatures = (divertNaviMapData?.items ?? [])
         .filter((point) => point.monitorCategory === category)
         .map((point) => ({
@@ -1172,8 +1164,50 @@ function clusteredHazardFeatureCollection(category) {
     }));
     return {
         type: "FeatureCollection",
-        features: [...hazardFeatures, ...userReportFeatures, ...sharedFeatures],
+        features: [...hazardFeatures, ...sharedFeatures],
     };
+}
+function clearUserReportMapMarkers() {
+    for (const marker of userReportMapMarkers)
+        marker.remove();
+    userReportMapMarkers = [];
+}
+function renderUserReportMapMarkers() {
+    clearUserReportMapMarkers();
+    if (map === null || window.mapboxgl === undefined || !initialMapLoadCompleted)
+        return;
+    userReportMapMarkers = aggregateNearbyUserReports(sessionUserReports).map((group) => {
+        const point = group.representative;
+        const markerElement = document.createElement("div");
+        markerElement.className = "user-report-map-marker";
+        const markerButton = document.createElement("button");
+        markerButton.type = "button";
+        markerButton.className = "user-report-map-marker-button";
+        markerButton.setAttribute("aria-label", `${categoryLabels[point.category]}の投稿${group.count > 1 ? ` ${group.count}件` : ""}`);
+        const markerCanvas = createCategoryMarkerCanvas(categoryIcon(point.category), categoryMarkerColor(point.category));
+        markerCanvas.className = "user-report-map-marker-icon";
+        markerCanvas.setAttribute("aria-hidden", "true");
+        markerButton.append(markerCanvas);
+        if (group.count > 1) {
+            const badge = document.createElement("span");
+            badge.className = "user-report-map-marker-count";
+            badge.textContent = String(group.count);
+            badge.setAttribute("aria-hidden", "true");
+            markerButton.append(badge);
+        }
+        markerButton.addEventListener("click", (event) => {
+            event.stopPropagation();
+            showHazardPopup(point, group.count);
+        });
+        markerElement.append(markerButton);
+        return new window.mapboxgl.Marker({
+            element: markerElement,
+            anchor: "center",
+            offset: [0, -36],
+        })
+            .setLngLat([point.longitude, point.latitude])
+            .addTo(map);
+    });
 }
 function clusteredCategoryVisible(category) {
     const monitorCategory = HAZARD_CATEGORIES.find((candidate) => candidate.id === category);
@@ -1247,32 +1281,6 @@ function addClusteredHazardCategory(category) {
                 "icon-allow-overlap": false,
             },
         });
-        map.addLayer({
-            id: ids.reportBadge,
-            type: "circle",
-            source: ids.source,
-            filter: ["all", ["!", ["has", "point_count"]], [">", ["get", "reportCount"], 1]],
-            paint: {
-                "circle-radius": 9,
-                "circle-color": "#e53935",
-                "circle-stroke-color": "#ffffff",
-                "circle-stroke-width": 2,
-                "circle-translate": [16, -16],
-            },
-        });
-        map.addLayer({
-            id: ids.reportBadgeCount,
-            type: "symbol",
-            source: ids.source,
-            filter: ["all", ["!", ["has", "point_count"]], [">", ["get", "reportCount"], 1]],
-            layout: {
-                "text-field": ["to-string", ["get", "reportCount"]],
-                "text-size": 11,
-                "text-offset": [1.45, -1.45],
-                "text-allow-overlap": true,
-            },
-            paint: { "text-color": "#ffffff" },
-        });
         map.on("click", ids.cluster, (event) => {
             const feature = event.features?.[0];
             if (feature?.geometry?.type !== "Point" || !Array.isArray(feature.geometry.coordinates))
@@ -1302,7 +1310,7 @@ function addClusteredHazardCategory(category) {
         }
     }
     const visibility = clusteredCategoryVisible(category) ? "visible" : "none";
-    for (const layerId of [ids.cluster, ids.count, ids.point, ids.reportBadge, ids.reportBadgeCount]) {
+    for (const layerId of [ids.cluster, ids.count, ids.point]) {
         if (map.getLayer(layerId) !== undefined)
             map.setLayoutProperty(layerId, "visibility", visibility);
     }
@@ -1710,6 +1718,7 @@ function renderMap() {
         button.setAttribute("aria-pressed", String(selectedCategories.has(category)));
     }
     renderClusteredHazardLayers();
+    renderUserReportMapMarkers();
     updateRainViewerLayer();
     if (selectedSharedPoint !== null && !selectedCategories.has(selectedSharedPoint.monitorCategory)) {
         removeActiveMapPopup();

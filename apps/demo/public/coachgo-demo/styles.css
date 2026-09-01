@@ -100,11 +100,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .hail { background: #7c63d9; }.heavy-rain { background: #3478d4; }.strong-wind { background: #1f9aaa; }.heavy-snow { background: #4e86d8; }
 .low-visibility { background: #66788a; }.animal { background: #8a6b3f; }.wrong-way { background: #d33939; }.sign-issue { background: #d98b18; }
 .hazard-marker.selected, .user-report-marker.selected { box-shadow: 0 0 0 5px rgba(255,173,0,0.32), 0 7px 18px rgba(31,37,44,0.28); }
-.user-location { width: 42px; height: 42px; display: grid; place-items: center; }
+.user-location { width: 42px; height: 42px; z-index: 20; display: grid; place-items: center; }
 .user-location-halo { position: absolute; inset: 0; border-radius: 50%; background: rgba(66,133,244,0.18); animation: location-pulse 2s ease-out infinite; }
 .user-location-arrow { position: relative; width: 30px; height: 30px; display: grid; place-items: center; border: 3px solid #fff; border-radius: 50%; color: #fff; background: #1967d2; box-shadow: 0 3px 10px rgba(25,103,210,0.45); transform-origin: center; transition: transform 180ms linear; will-change: transform; }
 .user-location-arrow svg { width: 19px; height: 19px; fill: currentColor; }
 .user-location-label { position: absolute; top: 43px; left: 50%; transform: translateX(-50%); padding: 2px 6px; border: 1px solid rgba(25,103,210,0.18); border-radius: 6px; color: #174ea6; background: rgba(255,255,255,0.95); box-shadow: 0 2px 6px rgba(32,37,44,0.14); white-space: nowrap; font-size: 9px; font-weight: 900; }
+.user-report-map-marker { z-index: 30; }
+.user-report-map-marker-button { width: 32px; height: 32px; position: relative; display: block; padding: 0; border: 0; border-radius: 50%; background: transparent; cursor: pointer; }
+.user-report-map-marker-button:focus-visible { outline: 3px solid rgba(25,103,210,0.42); outline-offset: 3px; }
+.user-report-map-marker-icon { width: 32px; height: 32px; display: block; }
+.user-report-map-marker-count { min-width: 18px; height: 18px; position: absolute; top: -7px; right: -8px; display: grid; place-items: center; padding: 0 4px; border: 2px solid #fff; border-radius: 999px; color: #fff; background: #e53935; box-shadow: 0 2px 7px rgba(32,37,44,0.3); font-size: 10px; font-weight: 900; line-height: 1; }
 .continuous-demo-vehicle { width: 48px; height: 48px; position: relative; display: grid; place-items: center; pointer-events: none; }
 .continuous-demo-vehicle-graphic { width: 38px; height: 38px; display: grid; place-items: center; border: 3px solid #fff; border-radius: 50%; color: #fff; background: #ff6b20; box-shadow: 0 4px 14px rgba(184,63,10,0.42); transform-origin: center; will-change: transform; }
 .continuous-demo-vehicle-graphic svg { width: 28px; height: 28px; fill: currentColor; }
