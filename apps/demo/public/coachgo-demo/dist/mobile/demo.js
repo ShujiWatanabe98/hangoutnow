@@ -1,15 +1,16 @@
-import { buildHazardPointGuidance, createSessionUserHazardPoint, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260901-6";
-import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260901-6";
-import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260901-6";
-import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260901-6";
-import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260901-6";
-import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260901-6";
-import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260901-6";
-import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260901-6";
-import { interpolateUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260901-6";
-import { resolveVoiceInputRuntime, shouldRunPassiveVoiceCommandRecognition, } from "./voiceInputRuntime.js?v=20260901-6";
-import { aggregateNearbyUserReports, SAME_USER_REPORT_RADIUS_METERS, } from "./userReportAggregation.js?v=20260901-6";
-import { snapReportLocationToRoad } from "./roadSnapping.js?v=20260901-6";
+import { buildHazardPointGuidance, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260901-7";
+import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260901-7";
+import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260901-7";
+import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260901-7";
+import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260901-7";
+import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260901-7";
+import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260901-7";
+import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260901-7";
+import { interpolateUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260901-7";
+import { resolveVoiceInputRuntime, shouldRunPassiveVoiceCommandRecognition, } from "./voiceInputRuntime.js?v=20260901-7";
+import { aggregateNearbyUserReports, SAME_USER_REPORT_RADIUS_METERS, } from "./userReportAggregation.js?v=20260901-7";
+import { snapReportLocationToRoad } from "./roadSnapping.js?v=20260901-7";
+import { createSharedUserReport, deleteSharedUserReport, loadSharedUserReports, sharedUserReportHazard, } from "./sharedUserReports.js?v=20260901-7";
 function syntheticSharedMapPayload() {
     return {
         schemaVersion: 1,
@@ -150,8 +151,8 @@ let selectedHazard = null;
 let selectedSharedPoint = null;
 let activeMapPopup = null;
 let divertNaviMapData = null;
-let sessionUserReports = [];
-const sessionUserReportOwners = new Map();
+let sharedUserReports = [];
+const ownedSharedUserReportIds = new Set();
 let approachDetectionEnabled = true;
 let backgroundNotificationEnabled = true;
 let hazardVoiceEnabled = true;
@@ -192,7 +193,6 @@ const voiceInputRuntime = resolveVoiceInputRuntime(storedInputSettings.voiceInpu
 let largeReportIconEnabled = storedInputSettings.largeReportIcon;
 let voiceInputEnabled = voiceInputRuntime.enabled;
 let demoVisibilityEnabled = storedInputSettings.demoVisible;
-let reportSequence = 0;
 let registrationMethod = "CURRENT";
 let pendingMapReportCategory = null;
 let reportRegistrationPending = false;
@@ -329,7 +329,37 @@ if ("speechSynthesis" in window) {
     window.speechSynthesis.addEventListener("voiceschanged", refreshPreferredJapaneseVoice);
 }
 function allHazards() {
-    return [...SYNTHETIC_HAZARD_POINTS, ...sessionUserReports];
+    return [...SYNTHETIC_HAZARD_POINTS, ...sharedUserReports];
+}
+function sharedReportApiUrl() {
+    const value = window.COACHGO_CONFIG?.userReportApiUrl?.trim();
+    return value ? value.replace(/\/+$/, "") : null;
+}
+async function refreshSharedUserReports(showFailure = false) {
+    const apiUrl = sharedReportApiUrl();
+    if (apiUrl === null) {
+        if (showFailure) {
+            locationStatus.hidden = false;
+            locationStatus.textContent = "共有投稿サーバーが設定されていません。";
+        }
+        return;
+    }
+    try {
+        const payload = await loadSharedUserReports(apiUrl, currentReportOwnerId);
+        sharedUserReports = payload.reports.map(sharedUserReportHazard);
+        ownedSharedUserReportIds.clear();
+        for (const report of payload.reports) {
+            if (report.ownedByCurrentDevice)
+                ownedSharedUserReportIds.add(report.id);
+        }
+        renderMap();
+    }
+    catch {
+        if (showFailure) {
+            locationStatus.hidden = false;
+            locationStatus.textContent = "共有投稿を取得できませんでした。通信状態をご確認ください。";
+        }
+    }
 }
 function resetPanelDrag() {
     panelTouchStartY = null;
@@ -707,13 +737,27 @@ function displayPopup(coordinates, content) {
         clearMapPointSelection();
     });
 }
-function deleteOwnedUserReports(reportIds) {
-    const ownedIds = new Set(reportIds.filter((id) => sessionUserReportOwners.get(id) === currentReportOwnerId));
+async function deleteOwnedUserReports(reportIds) {
+    const apiUrl = sharedReportApiUrl();
+    const ownedIds = new Set(reportIds.filter((id) => ownedSharedUserReportIds.has(id)));
     if (ownedIds.size === 0)
         return;
-    sessionUserReports = sessionUserReports.filter((report) => !ownedIds.has(report.id));
+    if (apiUrl === null) {
+        locationStatus.hidden = false;
+        locationStatus.textContent = "共有投稿サーバーが設定されていないため削除できません。";
+        return;
+    }
+    try {
+        await Promise.all([...ownedIds].map((id) => deleteSharedUserReport(apiUrl, currentReportOwnerId, id)));
+    }
+    catch {
+        locationStatus.hidden = false;
+        locationStatus.textContent = "投稿を削除できませんでした。通信状態をご確認ください。";
+        return;
+    }
+    sharedUserReports = sharedUserReports.filter((report) => !ownedIds.has(report.id));
     for (const id of ownedIds)
-        sessionUserReportOwners.delete(id);
+        ownedSharedUserReportIds.delete(id);
     if (lastReportId !== null && ownedIds.has(lastReportId)) {
         lastReportId = null;
         undoReportToast.hidden = true;
@@ -732,7 +776,7 @@ function showHazardPopup(point, reportCount = 1, reportIds = [point.id]) {
     const content = popupContent(point.sourceKind === "USER_REPORT"
         ? `${categoryLabels[point.category]}・未確認`
         : categoryLabels[point.category], point.name, `${point.note ?? point.evidenceLabel}${reportCountLabel}`, buildHazardPointGuidance(point), point.sourceKind === "USER_REPORT");
-    const ownedReportIds = reportIds.filter((id) => sessionUserReportOwners.get(id) === currentReportOwnerId);
+    const ownedReportIds = reportIds.filter((id) => ownedSharedUserReportIds.has(id));
     if (point.sourceKind === "USER_REPORT" && ownedReportIds.length > 0) {
         const deleteButton = document.createElement("button");
         deleteButton.type = "button";
@@ -746,7 +790,9 @@ function showHazardPopup(point, reportCount = 1, reportIds = [point.id]) {
                 deleteButton.textContent = "もう一度押して削除を確定";
                 return;
             }
-            deleteOwnedUserReports(ownedReportIds);
+            deleteButton.disabled = true;
+            deleteButton.textContent = "削除中…";
+            void deleteOwnedUserReports(ownedReportIds);
         });
         content.append(deleteButton);
     }
@@ -1237,7 +1283,7 @@ function renderUserReportMapMarkers() {
     clearUserReportMapMarkers();
     if (map === null || window.mapboxgl === undefined || !initialMapLoadCompleted)
         return;
-    userReportMapMarkers = aggregateNearbyUserReports(sessionUserReports).map((group) => {
+    userReportMapMarkers = aggregateNearbyUserReports(sharedUserReports).map((group) => {
         const point = group.representative;
         const markerElement = document.createElement("div");
         markerElement.className = "user-report-map-marker";
@@ -2022,19 +2068,14 @@ function showUndoReport(report) {
         undoReportTimer = null;
     }, 10_000);
 }
-function registerSessionHazard(category, coordinates) {
-    reportSequence += 1;
-    const report = {
-        ...createSessionUserHazardPoint({
-            id: `session-user-report-${reportSequence}`,
-            category,
-            longitude: coordinates[0],
-            latitude: coordinates[1],
-        }),
-        note: "プライバシー保護のため、登録位置を近くの道路上へ調整しています。",
-    };
-    sessionUserReports = [...sessionUserReports, report];
-    sessionUserReportOwners.set(report.id, currentReportOwnerId);
+async function registerSharedHazard(category, coordinates) {
+    const apiUrl = sharedReportApiUrl();
+    if (apiUrl === null)
+        throw new Error("共有投稿サーバーが設定されていません。");
+    const stored = await createSharedUserReport(apiUrl, currentReportOwnerId, category, coordinates);
+    const report = sharedUserReportHazard(stored);
+    sharedUserReports = [report, ...sharedUserReports.filter((candidate) => candidate.id !== report.id)];
+    ownedSharedUserReportIds.add(report.id);
     const recognition = activeVoiceRecognition;
     activeVoiceRecognition = null;
     recognition?.stop();
@@ -2078,7 +2119,7 @@ async function snapAndRegisterSessionHazard(category, coordinates, errorTarget) 
     errorTarget.textContent = "近くの道路を確認しています…";
     try {
         const snapped = await snapReportLocationToRoad(coordinates, token);
-        registerSessionHazard(category, snapped);
+        await registerSharedHazard(category, snapped);
         locationStatus.hidden = false;
         locationStatus.textContent = `${categoryLabels[category]}を近くの道路上に登録しました。`;
     }
@@ -2247,21 +2288,15 @@ registrationDialog.addEventListener("close", () => {
 document.addEventListener("visibilitychange", () => {
     if (document.hidden)
         stopVoiceCommandRecognition();
-    else
+    else {
         scheduleVoiceCommandRecognition(250);
+        void refreshSharedUserReports();
+    }
 });
 requiredElement("#undo-report").addEventListener("click", () => {
     if (lastReportId === null)
         return;
-    sessionUserReports = sessionUserReports.filter((report) => report.id !== lastReportId);
-    if (selectedHazard?.id === lastReportId)
-        removeActiveMapPopup();
-    lastReportId = null;
-    if (undoReportTimer !== null)
-        window.clearTimeout(undoReportTimer);
-    undoReportTimer = null;
-    undoReportToast.hidden = true;
-    renderMap();
+    void deleteOwnedUserReports([lastReportId]);
 });
 function showCurrentLocationOnMap(location, message) {
     map?.easeTo({ center: [location[0], location[1]], zoom: DEFAULT_LOCATION_ZOOM, pitch: 22, bearing: 0, duration: 650 });
@@ -2307,6 +2342,11 @@ recenterMapButton.addEventListener("click", returnToCurrentLocation);
 renderPermissionStatus();
 renderInputSettings();
 renderMap();
+void refreshSharedUserReports(true);
+window.setInterval(() => {
+    if (!document.hidden)
+        void refreshSharedUserReports();
+}, 30_000);
 void loadDivertNaviMapData();
 initializeMapbox();
 async function requestEnabledPermissionsAtStartup() {

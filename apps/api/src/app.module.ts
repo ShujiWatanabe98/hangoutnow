@@ -33,6 +33,8 @@ import { MatchingService } from './matching/matching.service';
 import { MatchingAdminController } from './matching/matching-admin.controller';
 import { MatchingAdminService } from './matching/matching-admin.service';
 import { ContentModerationService } from './moderation/content-moderation.service';
+import { CoachGoReportAdminController, CoachGoReportController } from './coachgo/coachgo-report.controller';
+import { CoachGoReportService } from './coachgo/coachgo-report.service';
 
 @Module({
   imports: [JwtModule.registerAsync({
@@ -42,7 +44,7 @@ import { ContentModerationService } from './moderation/content-moderation.servic
       return { secret };
     },
   }), ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }])],
-  controllers: [HealthController, AuthController, UsersController, HangoutController, JoinRequestController, ChatController, DirectChatController, DemoController, SafetyController, ReportAdminController, MatchingAdminController, NotificationAdminController, NotificationController, AnalyticsController, MatchFeedbackController, NewsletterController],
-  providers: [PrismaService, HangoutService, MatchingService, MatchingAdminService, ChatService, DemoService, HostStatusService, SafetyService, NotificationService, NotificationAdminService, AnalyticsService, NewsletterService, NewsletterEmailService, RealtimeGateway, ImageStorageService, ContentModerationService, PrismaAuthRepository, { provide: AuthRepository, useExisting: PrismaAuthRepository }, AuthService, AccessTokenGuard, { provide: APP_GUARD, useClass: ThrottlerGuard }],
+  controllers: [HealthController, AuthController, UsersController, HangoutController, JoinRequestController, ChatController, DirectChatController, DemoController, SafetyController, ReportAdminController, MatchingAdminController, NotificationAdminController, NotificationController, AnalyticsController, MatchFeedbackController, NewsletterController, CoachGoReportController, CoachGoReportAdminController],
+  providers: [PrismaService, HangoutService, MatchingService, MatchingAdminService, ChatService, DemoService, HostStatusService, SafetyService, NotificationService, NotificationAdminService, AnalyticsService, NewsletterService, NewsletterEmailService, RealtimeGateway, ImageStorageService, ContentModerationService, CoachGoReportService, PrismaAuthRepository, { provide: AuthRepository, useExisting: PrismaAuthRepository }, AuthService, AccessTokenGuard, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

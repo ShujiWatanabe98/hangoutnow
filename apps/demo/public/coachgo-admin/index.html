@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <title>CoachGo 危険投稿管理</title>
+  <link rel="stylesheet" href="/coachgo-admin/styles.css?v=20260901-1">
+  <script src="/coachgo-admin/app.js?v=20260901-1" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div><p>METHODMORE OPERATIONS</p><h1>CoachGo 危険投稿管理</h1></div>
+    <a href="/coachgo-demo/">CoachGoを確認</a>
+  </header>
+  <main>
+    <section class="login-card" aria-labelledby="login-title">
+      <div><h2 id="login-title">管理者認証</h2><p>管理トークンはブラウザへ保存しません。</p></div>
+      <form id="admin-login">
+        <label>管理トークン<input id="admin-token" type="password" autocomplete="current-password" required></label>
+        <label>担当者ID<input id="admin-id" type="text" maxlength="100" autocomplete="username" required></label>
+        <button type="submit">投稿データを取得</button>
+      </form>
+      <p id="error-message" role="alert" hidden></p>
+    </section>
+
+    <section id="dashboard" hidden>
+      <div class="toolbar">
+        <div><h2>共有投稿の状況</h2><p id="last-refreshed"></p></div>
+        <label>表示状態
+          <select id="status-filter">
+            <option value="">すべて</option>
+            <option value="ACTIVE">公開中</option>
+            <option value="HIDDEN">非表示</option>
+            <option value="DELETED">削除済み</option>
+            <option value="EXPIRED">期限切れ</option>
+          </select>
+        </label>
+        <button id="refresh" type="button">更新</button>
+      </div>
+      <div id="summary" class="summary" aria-label="投稿件数"></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>種別</th><th>状態</th><th>登録日時</th><th>有効期限</th><th>位置</th><th>管理履歴</th><th>操作</th></tr></thead>
+          <tbody id="report-rows"></tbody>
+        </table>
+        <p id="empty-message" hidden>対象の投稿はありません。</p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

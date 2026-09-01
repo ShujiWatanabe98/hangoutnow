@@ -12,6 +12,33 @@ enum VerificationStatus {
   VERIFIED
 }
 
+enum CoachGoReportStatus {
+  ACTIVE
+  HIDDEN
+  DELETED
+  EXPIRED
+}
+
+model CoachGoHazardReport {
+  id                String              @id @db.Uuid
+  ownerTokenHash    String              @map("owner_token_hash") @db.Char(64)
+  category          String              @db.VarChar(32)
+  longitude         Float
+  latitude          Float
+  status            CoachGoReportStatus @default(ACTIVE)
+  expiresAt         DateTime            @map("expires_at")
+  moderatedAt       DateTime?           @map("moderated_at")
+  moderatedBy       String?             @map("moderated_by") @db.VarChar(100)
+  moderationNote    String?             @map("moderation_note") @db.VarChar(500)
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+
+  @@index([status, expiresAt])
+  @@index([category, status])
+  @@index([createdAt])
+  @@map("coachgo_hazard_reports")
+}
+
 enum AccountStatus {
   ACTIVE
   WARNED

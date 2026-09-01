@@ -294,7 +294,7 @@ createServer(async (request, response) => {
     try{
       const body=request.method==='GET'||request.method==='HEAD'?undefined:await new Promise((resolve,reject)=>{const chunks=[];request.on('data',chunk=>chunks.push(chunk));request.on('end',()=>resolve(Buffer.concat(chunks)));request.on('error',reject)});
       const prefixLength=isAdminApiRequest?hangoutNowApiPath.length:4;
-      const upstream=await fetch(`${proxyApiUrl}${request.url.slice(prefixLength)}`,{method:request.method,headers:{...(request.headers.authorization?{authorization:request.headers.authorization}:{}),...(request.headers['content-type']?{'content-type':request.headers['content-type']}:{}),...(request.headers['x-admin-token']?{'x-admin-token':request.headers['x-admin-token']}:{}),...(request.headers['x-admin-id']?{'x-admin-id':request.headers['x-admin-id']}:{})},body,redirect:'manual'});
+      const upstream=await fetch(`${proxyApiUrl}${request.url.slice(prefixLength)}`,{method:request.method,headers:{...(request.headers.authorization?{authorization:request.headers.authorization}:{}),...(request.headers['content-type']?{'content-type':request.headers['content-type']}:{}),...(request.headers['x-admin-token']?{'x-admin-token':request.headers['x-admin-token']}:{}),...(request.headers['x-admin-id']?{'x-admin-id':request.headers['x-admin-id']}:{}),...(request.headers['x-coachgo-owner-token']?{'x-coachgo-owner-token':request.headers['x-coachgo-owner-token']}:{})},body,redirect:'manual'});
       const responseBody=Buffer.from(await upstream.arrayBuffer());
       const location=upstream.headers.get('location');
       response.writeHead(upstream.status,{...securityHeaders,'content-type':upstream.headers.get('content-type')||'application/json; charset=utf-8','cache-control':'no-store',...(location?{location}:{})});
@@ -336,6 +336,7 @@ createServer(async (request, response) => {
       mapboxAccessToken: mapboxAccessToken.startsWith('pk.') ? mapboxAccessToken : null,
       mapDataUrl: null,
       underpassDataUrl: '/coachgo-demo/underpasses.generated.json',
+      userReportApiUrl: '/api/coachgo/reports',
       dataMode: 'DIVERTNAVI_PUBLIC',
     };
     response.writeHead(200, {
@@ -356,6 +357,8 @@ createServer(async (request, response) => {
     ? '/index.html'
     : requestedPath === '/coachgo-demo' || requestedPath === '/coachgo-demo/'
       ? '/coachgo-demo/index.html'
+    : requestedPath === '/coachgo-admin' || requestedPath === '/coachgo-admin/'
+      ? '/coachgo-admin/index.html'
     : requestedPath === '/divertnavi-app' || requestedPath === '/divertnavi-app/'
       ? '/divertnavi-app/index.html'
     : requestedPath === '/minnade-kaigo' || requestedPath === '/minnade-kaigo/'
@@ -367,7 +370,7 @@ createServer(async (request, response) => {
   if (!file.startsWith(staticRoot)) { response.writeHead(403, securityHeaders).end(); return; }
   try {
     const fileBody = await readFile(file);
-    const isApplicationPage = isHangoutNowAdminPath || requestedPath === '/demo.html' || requestedPath === '/app.html' || requestedPath.startsWith('/coachgo-demo') || requestedPath.startsWith('/divertnavi-app') || requestedPath.startsWith('/minnade-kaigo');
+    const isApplicationPage = isHangoutNowAdminPath || requestedPath === '/demo.html' || requestedPath === '/app.html' || requestedPath.startsWith('/coachgo-demo') || requestedPath.startsWith('/coachgo-admin') || requestedPath.startsWith('/divertnavi-app') || requestedPath.startsWith('/minnade-kaigo');
     const body = extname(file) === '.html' && !isApplicationPage
       ? Buffer.from(fileBody.toString('utf8').replace('<head>', '<head><link rel="stylesheet" href="/cookie-consent.css?v=20260816-2"><link rel="stylesheet" href="/share.css?v=20260821-2"><script src="/analytics.js?v=20260820-2" defer></script><script src="/attribution.js?v=20260821-2" defer></script><script src="/share.js?v=20260821-3" defer></script>'))
       : fileBody;
