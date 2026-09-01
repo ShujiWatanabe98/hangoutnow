@@ -1,12 +1,13 @@
-import { buildHazardPointGuidance, createSessionUserHazardPoint, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260901-2";
-import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260901-2";
-import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260901-2";
-import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260901-2";
-import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260901-2";
-import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260901-2";
-import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260901-2";
-import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260901-2";
-import { interpolateUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260901-2";
+import { buildHazardPointGuidance, createSessionUserHazardPoint, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260901-3";
+import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260901-3";
+import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260901-3";
+import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260901-3";
+import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260901-3";
+import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260901-3";
+import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260901-3";
+import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260901-3";
+import { interpolateUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260901-3";
+import { resolveVoiceInputRuntime, shouldRunPassiveVoiceCommandRecognition, } from "./voiceInputRuntime.js?v=20260901-3";
 function syntheticSharedMapPayload() {
     return {
         schemaVersion: 1,
@@ -164,8 +165,9 @@ function readStoredInputSettings() {
     }
 }
 const storedInputSettings = readStoredInputSettings();
+const voiceInputRuntime = resolveVoiceInputRuntime(storedInputSettings.voiceInput, window.ReactNativeWebView !== undefined);
 let largeReportIconEnabled = storedInputSettings.largeReportIcon;
-let voiceInputEnabled = storedInputSettings.voiceInput;
+let voiceInputEnabled = voiceInputRuntime.enabled;
 let demoVisibilityEnabled = storedInputSettings.demoVisible;
 let reportSequence = 0;
 let lastReportId = null;
@@ -378,10 +380,23 @@ function renderInputSettings() {
         button.classList.toggle("large-input-icon", largeReportIconEnabled);
     }
     voiceInputToggle.setAttribute("aria-checked", String(voiceInputEnabled));
+    voiceInputToggle.setAttribute("aria-disabled", String(voiceInputRuntime.underDevelopment));
+    voiceInputToggle.disabled = voiceInputRuntime.underDevelopment;
     voiceInputState.dataset.state = voiceInputEnabled ? "on" : "off";
     voiceReportButton.disabled = !voiceInputEnabled;
     inputPermissionStatus.hidden = false;
-    if (!voiceInputEnabled) {
+    const voiceInputDescription = voiceInputToggle.querySelector("small");
+    if (voiceInputRuntime.underDevelopment) {
+        voiceInputEnabled = false;
+        voiceInputToggle.setAttribute("aria-checked", "false");
+        voiceInputState.dataset.state = "off";
+        if (voiceInputDescription !== null) {
+            voiceInputDescription.textContent = "現在開発中です。iOSアプリではまだ利用できません";
+        }
+        inputPermissionStatus.dataset.state = "off";
+        inputPermissionStatus.textContent = "音声入力は現在開発中です。iOSアプリではOFFに固定されています。";
+    }
+    else if (!voiceInputEnabled) {
         inputPermissionStatus.dataset.state = "off";
         inputPermissionStatus.textContent = "音声入力はOFFです。";
     }
@@ -430,7 +445,11 @@ function isRegistrationVoiceCommand(transcript) {
 }
 function scheduleVoiceCommandRecognition(delayMs = 650) {
     clearVoiceCommandRestartTimer();
-    if (!voiceInputEnabled || !microphonePermissionGranted || registrationDialog.open || document.hidden)
+    if (!shouldRunPassiveVoiceCommandRecognition(window.ReactNativeWebView !== undefined)
+        || !voiceInputEnabled
+        || !microphonePermissionGranted
+        || registrationDialog.open
+        || document.hidden)
         return;
     voiceCommandRestartTimer = window.setTimeout(() => {
         voiceCommandRestartTimer = null;
@@ -1742,6 +1761,11 @@ largeReportIconToggle.addEventListener("click", () => {
     renderInputSettings();
 });
 voiceInputToggle.addEventListener("click", () => {
+    if (voiceInputRuntime.underDevelopment) {
+        voiceInputEnabled = false;
+        renderInputSettings();
+        return;
+    }
     voiceInputEnabled = !voiceInputEnabled;
     persistInputSettings();
     if (!voiceInputEnabled) {
@@ -1819,9 +1843,11 @@ function openRegistrationDialog(startListening) {
     stopVoiceCommandRecognition();
     registrationError.textContent = "";
     voiceReportStatus.dataset.state = "idle";
-    voiceReportStatus.textContent = voiceInputEnabled
-        ? "「音声で危険を登録」を押して、危険の種類を話してください。"
-        : "音声入力はOFFです。カテゴリーを押して登録してください。";
+    voiceReportStatus.textContent = voiceInputRuntime.underDevelopment
+        ? "iOSアプリの音声入力は現在開発中です。カテゴリーを押して登録してください。"
+        : voiceInputEnabled
+            ? "「音声で危険を登録」を押して、危険の種類を話してください。"
+            : "音声入力はOFFです。カテゴリーを押して登録してください。";
     voiceReportTranscript.hidden = true;
     voiceReportTranscript.textContent = "";
     if (!registrationDialog.open)
@@ -2093,7 +2119,8 @@ renderMap();
 void loadDivertNaviMapData();
 initializeMapbox();
 async function requestEnabledPermissionsAtStartup() {
-    if (voiceInputEnabled) {
+    if (voiceInputEnabled
+        && shouldRunPassiveVoiceCommandRecognition(window.ReactNativeWebView !== undefined)) {
         const permissionState = await readMicrophonePermissionState();
         if (permissionState === "granted") {
             microphonePermissionGranted = true;
