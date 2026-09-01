@@ -1,12 +1,12 @@
-import { buildHazardPointGuidance, createSessionUserHazardPoint, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260901-1";
-import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260901-1";
-import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260901-1";
-import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260901-1";
-import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260901-1";
-import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260901-1";
-import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260901-1";
-import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260901-1";
-import { interpolateUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260901-1";
+import { buildHazardPointGuidance, createSessionUserHazardPoint, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260901-2";
+import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260901-2";
+import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260901-2";
+import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260901-2";
+import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260901-2";
+import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260901-2";
+import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260901-2";
+import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260901-2";
+import { interpolateUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260901-2";
 function syntheticSharedMapPayload() {
     return {
         schemaVersion: 1,
@@ -477,7 +477,7 @@ function startVoiceCommandRecognition() {
     };
     recognition.onerror = (event) => {
         if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-            disableVoiceInputAfterMicrophoneFailure();
+            handleMicrophonePermissionFailure();
             return;
         }
         if (event.error !== "no-speech" && event.error !== "aborted") {
@@ -500,17 +500,15 @@ function startVoiceCommandRecognition() {
         inputPermissionStatus.textContent = "音声待ち受けを開始できませんでした。投稿ボタンをご利用ください。";
     }
 }
-function disableVoiceInputAfterMicrophoneFailure() {
+function handleMicrophonePermissionFailure() {
     microphonePermissionGranted = false;
-    voiceInputEnabled = false;
     stopVoiceCommandRecognition();
-    persistInputSettings();
     renderInputSettings();
     inputPermissionStatus.hidden = false;
     inputPermissionStatus.dataset.state = "error";
-    inputPermissionStatus.textContent = "マイクの使用許可が得られなかったため、音声入力をOFFにしました。";
+    inputPermissionStatus.textContent = "音声入力はONですが、マイクが許可されていません。端末の設定でマイクを許可してください。";
     voiceReportStatus.dataset.state = "error";
-    voiceReportStatus.textContent = "マイクを許可できなかったため、設定の音声入力をOFFにしました。";
+    voiceReportStatus.textContent = "マイクが許可されていません。端末の設定でマイクを許可してください。";
 }
 async function requestMicrophonePermission() {
     if (!voiceInputEnabled) {
@@ -525,7 +523,7 @@ async function requestMicrophonePermission() {
         return true;
     }
     if (navigator.mediaDevices?.getUserMedia === undefined) {
-        disableVoiceInputAfterMicrophoneFailure();
+        handleMicrophonePermissionFailure();
         return false;
     }
     inputPermissionStatus.hidden = false;
@@ -550,7 +548,7 @@ async function requestMicrophonePermission() {
     catch {
         if (!voiceInputEnabled)
             return false;
-        disableVoiceInputAfterMicrophoneFailure();
+        handleMicrophonePermissionFailure();
         return false;
     }
 }
@@ -569,9 +567,7 @@ function showMicrophonePermissionDialog(reason) {
     microphonePermissionReason = reason;
     grantMicrophonePermissionButton.hidden = false;
     closeMicrophonePermissionButton.hidden = true;
-    microphonePermissionDescription.textContent = reason === "voice-report"
-        ? "音声で危険を登録するには、マイクの使用許可が必要です。"
-        : "音声入力がONのため、マイクの使用許可を確認します。";
+    microphonePermissionDescription.textContent = "音声で危険を登録するには、マイクの使用許可が必要です。";
     microphonePermissionGuidance.dataset.state = "prompt";
     microphonePermissionGuidance.textContent = "「続ける」を押すとブラウザの確認画面が表示されます。マイクを使う場合は、そこで「許可」を選択してください。";
     grantMicrophonePermissionButton.textContent = "続ける";
@@ -580,9 +576,9 @@ function showMicrophonePermissionDialog(reason) {
 }
 function showMicrophonePermissionDisabledDialog(reason) {
     microphonePermissionReason = reason;
-    microphonePermissionDescription.textContent = "マイクの使用許可が得られなかったため、音声入力をOFFにしました。";
+    microphonePermissionDescription.textContent = "音声入力はONですが、マイクの使用許可が得られていません。";
     microphonePermissionGuidance.dataset.state = "disabled";
-    microphonePermissionGuidance.textContent = "マイクは現在ブロックされています。\n\niPhone / iPad（Safari）：アドレスバーの「ぁあ」→ Webサイトの設定 → マイク → 許可\nChrome / Android：アドレスバー左のサイト情報 → 権限 → マイク → 許可\n\n設定後、CoachGoの設定で音声入力をONにしてください。";
+    microphonePermissionGuidance.textContent = "マイクは現在ブロックされています。\n\niPhone / iPad（CoachGoアプリ）：設定 → CoachGo → マイクをON\niPhone / iPad（Safari）：アドレスバーの「ぁあ」→ Webサイトの設定 → マイク → 許可\nChrome / Android：アドレスバー左のサイト情報 → 権限 → マイク → 許可\n\n許可後、この画面を閉じて音声登録をもう一度お試しください。";
     grantMicrophonePermissionButton.hidden = true;
     closeMicrophonePermissionButton.hidden = false;
     closeMicrophonePermissionButton.textContent = "閉じる";
@@ -598,7 +594,7 @@ async function ensureMicrophonePermission(reason) {
         return true;
     }
     if (permissionState === "denied") {
-        disableVoiceInputAfterMicrophoneFailure();
+        handleMicrophonePermissionFailure();
         showMicrophonePermissionDisabledDialog(reason);
         return false;
     }
@@ -877,8 +873,9 @@ function checkDemoVoiceApproach(progress, now) {
     activeNearbyPointIds = nearbyIds;
     if (entered === undefined)
         return;
-    if (backgroundNotificationEnabled)
+    if (backgroundNotificationEnabled && window.ReactNativeWebView === undefined) {
         notifyMonitorApproach(entered.point);
+    }
     if (hazardVoiceEnabled && now - lastVoiceAnnouncementAt >= VOICE_ANNOUNCEMENT_COOLDOWN_MS) {
         lastVoiceAnnouncementAt = now;
         speakMonitorApproach(entered.point);
@@ -939,6 +936,9 @@ function animateUserLocation(target, startedAt, duration) {
         const progress = Math.max(0, Math.min(1, (now - startedAt) / duration));
         renderedUserLocation = interpolateUserLocation(from, target, progress);
         userLocationMarker?.setLngLat([renderedUserLocation[0], renderedUserLocation[1]]);
+        if (!demoDriveRunning) {
+            map?.jumpTo({ center: [renderedUserLocation[0], renderedUserLocation[1]] });
+        }
         updateUserLocationHeading(now);
         if (progress < 1) {
             window.requestAnimationFrame(frame);
@@ -967,8 +967,9 @@ function handleUserLocationSample(target, now, focusOnFirstFix = false) {
     const distanceMeters = userLocationDistanceMeters(acceptedUserLocation, target);
     if (!shouldAnimateUserLocation(acceptedUserLocation, target)) {
         movementHeadingValidUntil = -Infinity;
+        acceptedUserLocation = target;
         connectionState.dataset.locationMotion = "stationary";
-        updateUserLocationHeading(now);
+        animateUserLocation(target, now, userLocationAnimationDuration(distanceMeters));
         return;
     }
     const duration = userLocationAnimationDuration(distanceMeters);
@@ -1009,16 +1010,27 @@ window.addEventListener("coachgo:native-heading", ((event) => {
     if (typeof detail?.heading === "number")
         updateDeviceHeading(detail.heading);
 }));
-function stopForegroundLocationMonitoring() {
-    if (foregroundLocationWatchId === null || !("geolocation" in navigator))
+window.addEventListener("coachgo:native-location", ((event) => {
+    const detail = event.detail;
+    if (typeof detail?.longitude !== "number" || typeof detail.latitude !== "number")
         return;
-    navigator.geolocation.clearWatch(foregroundLocationWatchId);
-    foregroundLocationWatchId = null;
-    connectionState.dataset.locationWatch = "stopped";
-}
+    if (!Number.isFinite(detail.longitude) || !Number.isFinite(detail.latitude))
+        return;
+    const location = [detail.longitude, detail.latitude];
+    const now = performance.now();
+    handleUserLocationSample(location, now, true);
+    connectionState.dataset.locationWatch = "active";
+    renderPermissionStatus();
+    checkLiveLocationApproach(location, now);
+}));
 function startForegroundLocationMonitoring() {
-    if (!approachDetectionEnabled || foregroundLocationWatchId !== null)
+    if (foregroundLocationWatchId !== null)
         return;
+    if (window.ReactNativeWebView !== undefined) {
+        connectionState.dataset.locationWatch = hasLiveUserLocation ? "active" : "native-waiting";
+        renderPermissionStatus();
+        return;
+    }
     if (!("geolocation" in navigator)) {
         connectionState.dataset.locationWatch = "unsupported";
         return;
@@ -1302,27 +1314,6 @@ function demoRouteFeature(coordinates) {
         properties: { from: "横浜駅", to: "本厚木駅" },
         geometry: { type: "LineString", coordinates },
     };
-}
-function demoRouteBounds(coordinates) {
-    const longitudes = coordinates.map((coordinate) => coordinate[0]);
-    const latitudes = coordinates.map((coordinate) => coordinate[1]);
-    return [
-        [Math.min(...longitudes), Math.min(...latitudes)],
-        [Math.max(...longitudes), Math.max(...latitudes)],
-    ];
-}
-function focusContinuousDemoRoute() {
-    if (map === null || demoDriveRoute === null)
-        return;
-    map.fitBounds(demoRouteBounds(demoDriveRoute), {
-        padding: { top: 72, right: 95, bottom: 72, left: 95 },
-        pitch: 20,
-        bearing: 0,
-        duration: 700,
-    });
-    demoPlaybackStatus.hidden = false;
-    demoPlaybackStatus.classList.add("focused");
-    window.setTimeout(() => demoPlaybackStatus.classList.remove("focused"), 900);
 }
 function focusDemoVehicle(duration = 750) {
     if (map === null || demoDriveSampler === null)
@@ -1713,7 +1704,6 @@ approachDetectionToggle.addEventListener("click", () => {
         notificationPreview.hidden = true;
         cancelNaturalJapaneseSpeech();
         activeNearbyPointIds.clear();
-        stopForegroundLocationMonitoring();
     }
     else {
         startForegroundLocationMonitoring();
@@ -1762,13 +1752,8 @@ voiceInputToggle.addEventListener("click", () => {
         inputPermissionStatus.dataset.state = "off";
         inputPermissionStatus.textContent = "音声入力はOFFです。投稿ボタンとカテゴリー選択は利用できます。";
     }
-    else {
-        void ensureMicrophonePermission("settings").then((permissionGranted) => {
-            if (permissionGranted) {
-                scheduleVoiceCommandRecognition(250);
-                renderInputSettings();
-            }
-        });
+    else if (microphonePermissionGranted) {
+        scheduleVoiceCommandRecognition(250);
     }
     renderInputSettings();
 });
@@ -1778,10 +1763,7 @@ demoVisibilityToggle.addEventListener("click", () => {
         demoPlaybackButton.click();
     persistInputSettings();
     renderInputSettings();
-    if (demoVisibilityEnabled)
-        focusContinuousDemoRoute();
-    else
-        returnToCurrentLocation();
+    returnToCurrentLocation();
 });
 for (const button of document.querySelectorAll("[data-category]")) {
     button.addEventListener("click", () => {
@@ -1810,6 +1792,7 @@ demoPlaybackButton.addEventListener("click", () => {
         lastVoiceProximityCheckAt = 0;
         if (hasLiveUserLocation)
             checkLiveLocationApproach(currentUserLocation, performance.now());
+        returnToCurrentLocation();
     }
     else {
         demoDriveProgress = 0;
@@ -1824,8 +1807,6 @@ demoPlaybackButton.addEventListener("click", () => {
     }
     renderDemoPlaybackState();
     if (demoDriveRunning) {
-        if (backgroundNotificationEnabled)
-            void requestSystemNotificationPermission();
         focusDemoVehicle();
         announceDemoStart();
         animateContinuousDemoDrive();
@@ -1981,7 +1962,7 @@ async function startHazardVoiceRecognition() {
     recognition.onerror = (event) => {
         voiceReportStatus.dataset.state = "error";
         if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-            disableVoiceInputAfterMicrophoneFailure();
+            handleMicrophonePermissionFailure();
             showMicrophonePermissionDisabledDialog("voice-report");
             return;
         }
@@ -2071,11 +2052,16 @@ function showCurrentLocationOnMap(location, message) {
     window.setTimeout(() => { locationStatus.hidden = true; }, 2_500);
 }
 function returnToCurrentLocation() {
-    requestDeviceHeadingPermission();
+    if (window.ReactNativeWebView === undefined)
+        requestDeviceHeadingPermission();
     locationStatus.hidden = false;
     locationStatus.textContent = "現在地を取得中…";
     if (hasLiveUserLocation) {
         showCurrentLocationOnMap(currentUserLocation, "現在地に戻りました。");
+        return;
+    }
+    if (window.ReactNativeWebView !== undefined) {
+        locationStatus.textContent = "現在地を確認しています。位置情報の許可をご確認ください。";
         return;
     }
     if (!("geolocation" in navigator)) {
@@ -2115,10 +2101,10 @@ async function requestEnabledPermissionsAtStartup() {
             renderInputSettings();
         }
     }
-    if (backgroundNotificationEnabled)
+    if (backgroundNotificationEnabled && window.ReactNativeWebView === undefined) {
         await requestSystemNotificationPermission();
-    if (approachDetectionEnabled)
-        startForegroundLocationMonitoring();
+    }
+    startForegroundLocationMonitoring();
 }
 void requestEnabledPermissionsAtStartup();
 //# sourceMappingURL=demo.js.map
