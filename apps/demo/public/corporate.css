@@ -92,12 +92,23 @@ a:focus-visible { outline: 3px solid #426bdd; outline-offset: 4px; }
 .care-line-one { transform: rotate(126deg); }
 .care-line-two { transform: rotate(-50deg); }
 .care-line-three { transform: rotate(35deg); }
+.robocare-card { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.robocare-art { height: 100%; min-height: 330px; background: radial-gradient(circle at 50% 50%, #f4fffb 0 16%, transparent 17%), linear-gradient(145deg, #d9f4ec, #dfe8f8); }
+.robocare-orbit { position: absolute; left: 50%; top: 50%; border: 1px solid rgba(8,127,113,.28); border-radius: 50%; transform: translate(-50%, -50%); }
+.robocare-orbit-one { width: 190px; height: 190px; }
+.robocare-orbit-two { width: 290px; height: 290px; border-style: dashed; }
+.robocare-core { position: absolute; left: 50%; top: 50%; display: grid; place-items: center; width: 90px; height: 90px; border-radius: 28px; background: #087f71; box-shadow: 0 18px 45px rgba(8,127,113,.25); color: var(--white); font-size: 45px; font-weight: 900; transform: translate(-50%, -50%); }
+.robocare-node { position: absolute; display: grid; place-items: center; width: 76px; height: 76px; border: 4px solid rgba(255,255,255,.82); border-radius: 50%; box-shadow: 0 13px 30px rgba(16,29,50,.12); color: var(--ink); font-size: 12px; font-weight: 900; }
+.robocare-node-customer { left: 12%; top: 16%; background: var(--white); }
+.robocare-node-hal { right: 12%; top: 18%; background: var(--lime); }
+.robocare-node-record { right: 20%; bottom: 9%; background: var(--blue); }
 .product-content { padding: 32px; }
 .product-number { float: right; margin: 0; color: #a5afbd; font-size: 12px; font-weight: 900; }
 .product-status { display: flex; align-items: center; gap: 8px; width: fit-content; margin: 0 0 17px; font-size: 11px; font-weight: 900; letter-spacing: .1em; }
 .product-status span { width: 8px; height: 8px; border-radius: 50%; }
 .available span { background: #22a56b; box-shadow: 0 0 0 4px rgba(34,165,107,.12); }
 .preparing span { background: #f0a23b; box-shadow: 0 0 0 4px rgba(240,162,59,.13); }
+.preview span { background: #087f71; box-shadow: 0 0 0 4px rgba(8,127,113,.13); }
 .product-content h3 { margin: 0 0 15px; font-size: clamp(34px, 4vw, 52px); letter-spacing: -.06em; }
 .product-content h3 em { color: #328a67; font-style: normal; }
 .product-content > p:not(.product-number, .product-status) { min-height: 80px; margin: 0; color: var(--ink-soft); line-height: 1.8; }
@@ -131,6 +142,8 @@ a:focus-visible { outline: 3px solid #426bdd; outline-offset: 4px; }
   .section-heading { grid-template-columns: 1fr; gap: 12px; }
   .product-grid, .about { grid-template-columns: 1fr; }
   .product-art { height: 270px; }
+  .robocare-card { grid-column: auto; display: block; }
+  .robocare-card .robocare-art { height: 270px; min-height: 0; }
   .about { gap: 30px; }
   .about-copy > p { margin-top: 0; }
   .corporate-footer { grid-template-columns: 1fr; gap: 28px; }
