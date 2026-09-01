@@ -9,7 +9,7 @@
     <title>CoachGo 危険監視PoC</title>
     <link rel="manifest" href="/coachgo-demo/manifest.webmanifest">
     <link rel="stylesheet" href="/coachgo-demo/vendor/mapbox-gl.css">
-    <link rel="stylesheet" href="/coachgo-demo/styles.css?v=20260826-8">
+    <link rel="stylesheet" href="/coachgo-demo/styles.css?v=20260901-1">
   </head>
   <body>
     <div class="app-shell">
@@ -138,8 +138,8 @@
         <p id="microphone-permission-description" class="microphone-permission-description">音声で危険を登録するには、マイクの使用許可が必要です。</p>
         <div id="microphone-permission-guidance" class="microphone-permission-guidance" role="status">次に表示されるブラウザの確認画面で「許可」を選択してください。</div>
         <div class="microphone-permission-actions">
-          <button id="grant-microphone-permission" class="grant-microphone-permission" type="button">マイクを許可する</button>
-          <button id="close-microphone-permission" class="close-microphone-permission" type="button">あとで</button>
+          <button id="grant-microphone-permission" class="grant-microphone-permission" type="button">続ける</button>
+          <button id="close-microphone-permission" class="close-microphone-permission" type="button" hidden>閉じる</button>
         </div>
         <p class="microphone-permission-note">ブラウザや端末の設定画面はWebアプリから直接開けないため、拒否済みの場合は設定手順をご案内します。</p>
       </dialog>
@@ -152,6 +152,6 @@
     </div>
     <script src="/coachgo-demo/runtime-config.js"></script>
     <script src="/coachgo-demo/vendor/mapbox-gl.js"></script>
-    <script type="module" src="/coachgo-demo/bootstrap.js?v=20260826-8"></script>
+    <script type="module" src="/coachgo-demo/bootstrap.js?v=20260901-1"></script>
   </body>
 </html>
