@@ -87,17 +87,25 @@ after(async () => {
   if (upstream) await new Promise((resolve) => upstream.close(resolve));
 });
 
-test('private path is not linked from the homepage or sitemap', async () => {
+test('homepage links only to the private login while the sitemap stays public-only', async () => {
   const [homepage, sitemap] = await Promise.all([
     readFile(new URL('../public/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/sitemap.xml', import.meta.url), 'utf8'),
   ]);
-  assert.equal(homepage.includes('roboreha-preview'), false);
+  assert.match(homepage, /href="\/roboreha-preview-320b600f541ac09e\/login"[^>]*>Webアプリを開く/);
+  assert.doesNotMatch(homepage, /href="\/roboreha-preview-320b600f541ac09e\/?"/);
   assert.equal(sitemap.includes('roboreha-preview'), false);
 });
 
-test('unauthenticated requests receive only the login screen', async () => {
-  const response = await fetch(`${gatewayOrigin}${routePath}`);
+test('retired unauthenticated entry redirects to the RoboCare One product section', async () => {
+  const response = await fetch(`${gatewayOrigin}${routePath}`, { redirect: 'manual' });
+  assert.equal(response.status, 302);
+  assert.equal(response.headers.get('location'), '/#robocare-one');
+  assert.equal(response.headers.get('x-robots-tag'), 'noindex, nofollow, noarchive');
+});
+
+test('unauthenticated login path receives only the login screen', async () => {
+  const response = await fetch(`${gatewayOrigin}${routePath}/login`);
   const html = await response.text();
   assert.equal(response.status, 200);
   assert.match(html, /ユーザー名とパスワード/);

@@ -259,6 +259,17 @@ createServer(async (request, response) => {
       return;
     }
     const gatewayAuth = roborehaGatewayAuthConfigured();
+    const gatewaySessionValid = gatewayAuth && hasValidRoborehaSession(request);
+    if (gatewayAuth && normalizedRequestedPath === roborehaRoutePath && ['GET', 'HEAD'].includes(request.method ?? 'GET') && !gatewaySessionValid) {
+      response.writeHead(302, {
+        ...securityHeaders,
+        location: '/#robocare-one',
+        'cache-control': 'no-store',
+        'x-robots-tag': 'noindex, nofollow, noarchive',
+      });
+      response.end();
+      return;
+    }
     if (gatewayAuth && requestedPath === `${roborehaRoutePath}/_auth/login` && request.method === 'POST') {
       const key = loginClientKey(request);
       const now = Date.now();
@@ -296,7 +307,7 @@ createServer(async (request, response) => {
         return;
       }
     }
-    if (gatewayAuth && !hasValidRoborehaSession(request)) {
+    if (gatewayAuth && !gatewaySessionValid) {
       const page = loginPage();
       response.writeHead(page.status, { ...securityHeaders, 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });
       response.end(page.body);

@@ -12,9 +12,15 @@ assert(username && password, "ROBOREHA_USERNAME and ROBOREHA_PASSWORD are requir
 
 const homepage = await fetch(`${origin}/`, { redirect: "follow" });
 assert.equal(homepage.status, 200);
-assert.equal((await homepage.text()).includes(route), false, "The private route is linked from the homepage");
+const homepageHtml = await homepage.text();
+assert.equal(homepageHtml.includes(`${route}/login`), true, "The private login is not linked from the homepage");
+assert.equal(homepageHtml.includes(`href="${route}"`), false, "The retired private entry is still linked from the homepage");
 
-const unauthenticated = await fetch(`${origin}${route}/`, { redirect: "follow" });
+const retiredEntry = await fetch(`${origin}${route}/`, { redirect: "manual" });
+assert.equal(retiredEntry.status, 302);
+assert.equal(retiredEntry.headers.get("location"), "/#robocare-one");
+
+const unauthenticated = await fetch(`${origin}${route}/login`, { redirect: "follow" });
 const loginHtml = await unauthenticated.text();
 assert.equal(unauthenticated.status, 200);
 assert.match(loginHtml, /ユーザー名とパスワード/);
@@ -84,6 +90,7 @@ if (upstream) {
 
 console.log(JSON.stringify({
   homepage: homepage.status,
+  retiredEntry: retiredEntry.status,
   unauthenticated: unauthenticated.status,
   rejectedLogin: rejected.status,
   authenticatedEntry: entry.status,

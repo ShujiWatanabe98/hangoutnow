@@ -173,11 +173,15 @@ test('corporate homepage presents the five methodmore products accurately', asyn
   assert.match(corporate, /<a href="\/coachgo-demo\/">CoachGo<\/a>/);
   assert.match(corporate, /href="\/minnade-kaigo\/"[^>]*>Webデモを開く/);
   assert.match(corporate, /<a href="\/minnade-kaigo\/">みんなで介護<\/a>/);
-  assert.match(corporate, /限定プレビュー 実施中/);
-  assert.match(corporate, /ロボケアセンターの利用者・予約・HAL機器・リハビリ記録をつなぐ統合基幹システム/);
-  assert.match(corporate, /href="mailto:info@method-more\.com\?subject=RoboCare%20One[^\"]*"[^>]*>お問い合わせ/);
+  assert.match(corporate, /MVP \/ DEMO・限定公開/);
+  assert.match(corporate, /一人ひとりの<br><em>「もう一歩」<\/em>を<br>つなぐ基幹システム/);
+  assert.match(corporate, /顧客はスマートフォンから予約を確認。施設スタッフはiPadで受付、安全確認、HAL機器の割当まで一貫して管理できます/);
+  for (const copy of ['顧客スマホ登録', '基本情報を登録し、受付番号を発行します', '次回予約、回数券、空き枠予約をわかりやすく', '施設iPad', '本日の予約、バイタル判定、HAL稼働を俯瞰', '全センターの運営、機器、利用実績と改善傾向を確認', 'PostgreSQL', '三者重複をDBで防止', '拠点IDによる論理分離']) {
+    assert.ok(corporate.includes(copy), `RoboCare One product copy is missing: ${copy}`);
+  }
+  assert.match(corporate, /href="\/roboreha-preview-320b600f541ac09e\/login"[^>]*>Webアプリを開く/);
   assert.match(corporate, /<a href="\/#robocare-one">RoboCare One<\/a>/);
-  assert.match(corporateStyles, /\.robocare-art/);
+  assert.match(corporateStyles, /\.robocare-capabilities/);
   assert.match(careDemo, /<title>みんなで介護<\/title>/);
   assert.match(careDemo, /<h1>みんなで介護<\/h1>/);
   assert.match(careDemo, /personas\.js\?v=20260826-3/);

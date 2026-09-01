@@ -92,8 +92,9 @@ a:focus-visible { outline: 3px solid #426bdd; outline-offset: 4px; }
 .care-line-one { transform: rotate(126deg); }
 .care-line-two { transform: rotate(-50deg); }
 .care-line-three { transform: rotate(35deg); }
-.robocare-card { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.robocare-art { height: 100%; min-height: 330px; background: radial-gradient(circle at 50% 50%, #f4fffb 0 16%, transparent 17%), linear-gradient(145deg, #d9f4ec, #dfe8f8); }
+.robocare-card { grid-column: 1 / -1; }
+.robocare-overview { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.robocare-art { height: 100%; min-height: 480px; background: radial-gradient(circle at 50% 50%, #f4fffb 0 16%, transparent 17%), linear-gradient(145deg, #d9f4ec, #dfe8f8); }
 .robocare-orbit { position: absolute; left: 50%; top: 50%; border: 1px solid rgba(8,127,113,.28); border-radius: 50%; transform: translate(-50%, -50%); }
 .robocare-orbit-one { width: 190px; height: 190px; }
 .robocare-orbit-two { width: 290px; height: 290px; border-style: dashed; }
@@ -116,6 +117,26 @@ a:focus-visible { outline: 3px solid #426bdd; outline-offset: 4px; }
 .card-link { min-height: 48px; padding: 0 19px; border-radius: 999px; background: var(--ink); color: var(--white); font-size: 13px; }
 .card-link:hover span { transform: translate(3px, -3px); }
 .text-link { border-bottom: 1px solid currentColor; font-size: 13px; font-weight: 800; }
+.robocare-content > .robocare-kicker { width: fit-content; min-height: 0; margin: 0 0 20px; padding: 9px 13px; border-radius: 999px; background: #dff4ed; color: #08675f; font-size: 12px; font-weight: 900; }
+.robocare-content h4 { margin: 0; color: #17353d; font-size: clamp(28px, 3.6vw, 46px); line-height: 1.16; letter-spacing: -.055em; }
+.robocare-content h4 em { color: #087f71; font-style: normal; }
+.robocare-content > .robocare-lead { min-height: 0; margin-top: 23px; color: #63777d; font-weight: 500; line-height: 1.9; }
+.robocare-capabilities { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; padding: 30px; border-top: 1px solid var(--line); background: #f9fbfa; }
+.robocare-capability { min-height: 215px; padding: 22px; border: 1px solid #d7e7e3; border-radius: 22px; background: var(--white); }
+.robocare-capability-icon { display: grid; place-items: center; width: 46px; height: 46px; margin-bottom: 24px; border-radius: 15px; background: #dff4ed; color: #087f71; font-size: 11px; font-weight: 900; }
+.robocare-capability > p:first-of-type { margin: 0 0 5px; color: #087f71; font-size: 11px; font-weight: 900; letter-spacing: .1em; }
+.robocare-capability h4 { margin: 0; font-size: 21px; letter-spacing: -.035em; }
+.robocare-capability > p:last-child { margin: 10px 0 0; color: #687d84; font-size: 13px; line-height: 1.7; }
+.robocare-capability-register { border-color: #9fd5ca; background: #effaf7; }
+.robocare-capability-facility { border-color: #17353d; background: #17353d; color: var(--white); }
+.robocare-capability-facility .robocare-capability-icon { background: rgba(255,255,255,.1); color: #8de3d2; }
+.robocare-capability-facility > p:last-child { color: rgba(255,255,255,.65); }
+.robocare-capability-admin { border-color: #263b63; background: #263b63; color: var(--white); }
+.robocare-capability-admin .robocare-capability-icon { background: rgba(255,255,255,.1); color: #b9c8ff; }
+.robocare-capability-admin > p:last-child { color: rgba(255,255,255,.68); }
+.robocare-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--line); }
+.robocare-facts span { position: relative; padding: 22px 26px 22px 47px; color: #657a80; font-size: 13px; font-weight: 800; }
+.robocare-facts span::before { content: "✓"; position: absolute; left: 25px; color: #087f71; font-weight: 900; }
 .about { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(40px, 9vw, 120px); border-top: 1px solid var(--line); }
 .about h2 { margin: 0; font-size: clamp(40px, 5vw, 66px); line-height: 1.25; letter-spacing: -.06em; }
 .about-copy > p { margin: 36px 0 56px; font-size: 18px; line-height: 2; }
@@ -142,8 +163,10 @@ a:focus-visible { outline: 3px solid #426bdd; outline-offset: 4px; }
   .section-heading { grid-template-columns: 1fr; gap: 12px; }
   .product-grid, .about { grid-template-columns: 1fr; }
   .product-art { height: 270px; }
-  .robocare-card { grid-column: auto; display: block; }
+  .robocare-card { grid-column: auto; }
+  .robocare-overview { grid-template-columns: 1fr; }
   .robocare-card .robocare-art { height: 270px; min-height: 0; }
+  .robocare-capabilities { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .about { gap: 30px; }
   .about-copy > p { margin-top: 0; }
   .corporate-footer { grid-template-columns: 1fr; gap: 28px; }
@@ -165,6 +188,10 @@ a:focus-visible { outline: 3px solid #426bdd; outline-offset: 4px; }
   .product-content { padding: 25px; }
   .product-content > p:not(.product-number, .product-status) { min-height: 0; }
   .product-actions { align-items: flex-start; flex-direction: column; }
+  .robocare-capabilities { grid-template-columns: 1fr; padding: 20px; }
+  .robocare-capability { min-height: 0; }
+  .robocare-facts { grid-template-columns: 1fr; }
+  .robocare-facts span + span { border-top: 1px solid var(--line); }
   .about dl div { grid-template-columns: 75px 1fr; }
   .footer-links { flex-direction: column; gap: 16px; }
 }
