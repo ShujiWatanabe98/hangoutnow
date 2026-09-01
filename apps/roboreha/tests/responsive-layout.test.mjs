@@ -15,6 +15,10 @@ test("tablet and smartphone controls keep touch-sized targets", async () => {
     new URL("../src/components/equipment-manager.tsx", import.meta.url),
     "utf8",
   );
+  const facility = await readFile(
+    new URL("../src/components/facility-app.tsx", import.meta.url),
+    "utf8",
+  );
 
   assert.match(css, /@media \(max-width: 1024px\)/);
   assert.match(css, /min-width: 44px/);
@@ -22,6 +26,12 @@ test("tablet and smartphone controls keep touch-sized targets", async () => {
   assert.match(physical, /min-h-11 w-full bg-transparent text-lg/);
   assert.match(equipment, /grid-cols-\[44px_1fr_44px\]/);
   assert.match(equipment, /grid grid-cols-2 gap-2/);
+  assert.match(css, /@media \(min-width: 1025px\)/);
+  assert.match(css, /\.facility-ipad-shell[\s\S]*width: 1024px;[\s\S]*height: 768px;/);
+  assert.match(facility, /facility-ipad-stage/);
+  assert.match(facility, /md:grid-cols-\[80px_minmax\(0,1fr\)\]/);
+  assert.match(facility, /sticky top-0/);
+  assert.match(facility, /className="min-w-0 md:col-start-2"/);
 });
 
 test("long clinical history is paginated and schedule explains horizontal touch navigation", async () => {
@@ -39,6 +49,9 @@ test("long clinical history is paginated and schedule explains horizontal touch 
   assert.match(clinical, /visibleHistoryItems/);
   assert.match(schedule, /表は左右にスワイプして/);
   assert.match(schedule, /aria-label="予約スケジュール表・左右にスクロールできます"/);
+  assert.match(schedule, /空き枠をタップで登録、予定をタップで詳細/);
+  assert.match(schedule, /title="タップで詳細・長押ししてドラッグで移動"/);
+  assert.doesNotMatch(schedule, /onDoubleClick/);
 });
 
 test("private login has a responsive branded workspace layout", async () => {

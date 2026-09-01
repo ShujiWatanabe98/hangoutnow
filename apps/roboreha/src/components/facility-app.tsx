@@ -222,8 +222,9 @@ export function FacilityApp() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f8f7] md:grid md:grid-cols-[80px_1fr]">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[80px] flex-col items-center border-r border-[#dce8e5] bg-white py-3 md:flex">
+    <div className="facility-ipad-stage">
+      <div className="facility-ipad-shell min-h-screen w-full overflow-hidden bg-[#f4f8f7] md:grid md:grid-cols-[80px_minmax(0,1fr)]">
+      <aside className="sticky top-0 z-30 hidden h-screen w-[80px] flex-col items-center border-r border-[#dce8e5] bg-white py-3 md:flex">
         <Link href="/" aria-label="入口へ戻る">
           <Brand compact />
         </Link>
@@ -249,7 +250,7 @@ export function FacilityApp() {
         </div>
       </aside>
 
-      <div className="md:col-start-2">
+      <div className="min-w-0 md:col-start-2">
         <header className="sticky top-0 z-20 flex h-[62px] items-center justify-between border-b border-[#dce8e5] bg-white/90 px-3 backdrop-blur md:px-5">
           <div className="flex items-center gap-3">
             <button
@@ -289,7 +290,7 @@ export function FacilityApp() {
           </div>
         </header>
 
-        <main className="p-3 md:p-4">
+        <main className="min-w-0 p-3 md:p-4">
           {effectiveTab === "today" && (
             <TodayView facility={facility} features={featureAccess.effective} onCheckin={setSelected} />
           )}
@@ -362,6 +363,7 @@ export function FacilityApp() {
           }}
         />
       )}
+      </div>
     </div>
   );
 }
