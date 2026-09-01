@@ -9,7 +9,7 @@
     <title>CoachGo 危険監視PoC</title>
     <link rel="manifest" href="/coachgo-demo/manifest.webmanifest">
     <link rel="stylesheet" href="/coachgo-demo/vendor/mapbox-gl.css">
-    <link rel="stylesheet" href="/coachgo-demo/styles.css?v=20260901-5">
+    <link rel="stylesheet" href="/coachgo-demo/styles.css?v=20260901-6">
   </head>
   <body>
     <div class="app-shell">
@@ -80,6 +80,17 @@
             <p id="map-load-state" class="map-load-state" role="status">Mapbox地図を読み込み中</p>
           </div>
 
+          <div id="report-location-picker" class="report-location-picker" hidden>
+            <div class="report-location-crosshair" aria-hidden="true">＋</div>
+            <div class="report-location-picker-panel">
+              <p id="report-location-picker-status" role="status">地図を動かして、道路を＋の位置に合わせてください。</p>
+              <div>
+                <button id="cancel-report-location" type="button">キャンセル</button>
+                <button id="confirm-report-location" type="button">この場所を登録</button>
+              </div>
+            </div>
+          </div>
+
           <div class="map-floating-actions">
             <button id="recenter-map" class="map-action current-location-control" type="button" aria-label="現在地を表示" title="現在地">
               <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5.25"></circle><circle class="location-dot" cx="12" cy="12" r="2.25"></circle><path d="M12 2.75v3M12 18.25v3M2.75 12h3M18.25 12h3"></path></svg>
@@ -99,7 +110,11 @@
       <dialog id="registration-dialog" class="registration-dialog">
         <div class="dialog-handle" aria-hidden="true"></div>
         <div class="dialog-heading"><div><p class="eyebrow">ONE TAP REPORT</p><h2>今いる場所の危険は？</h2></div><button id="close-registration" class="icon-button" type="button" aria-label="閉じる">×</button></div>
-        <p class="dialog-help">カテゴリーを1回押すと、地図中央へ未確認地点として一時登録します。</p>
+        <div class="registration-methods" role="group" aria-label="登録方法">
+          <button type="button" data-registration-method="CURRENT" aria-pressed="true">現在地で登録</button>
+          <button type="button" data-registration-method="PICKER" aria-pressed="false">位置指定で登録</button>
+        </div>
+        <p class="dialog-help">危険の種類を選んでください。登録地点は近くの道路上へ調整し、建物や自宅の位置は登録しません。</p>
         <section class="voice-report" aria-labelledby="voice-report-title">
           <button id="voice-report-start" class="voice-report-button" type="button" aria-pressed="false">
             <span class="voice-report-icon" aria-hidden="true">🎙️</span>
@@ -152,6 +167,6 @@
     </div>
     <script src="/coachgo-demo/runtime-config.js"></script>
     <script src="/coachgo-demo/vendor/mapbox-gl.js"></script>
-    <script type="module" src="/coachgo-demo/bootstrap.js?v=20260901-5"></script>
+    <script type="module" src="/coachgo-demo/bootstrap.js?v=20260901-6"></script>
   </body>
 </html>

@@ -1,14 +1,15 @@
-import { buildHazardPointGuidance, createSessionUserHazardPoint, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260901-5";
-import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260901-5";
-import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260901-5";
-import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260901-5";
-import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260901-5";
-import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260901-5";
-import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260901-5";
-import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260901-5";
-import { interpolateUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260901-5";
-import { resolveVoiceInputRuntime, shouldRunPassiveVoiceCommandRecognition, } from "./voiceInputRuntime.js?v=20260901-5";
-import { aggregateNearbyUserReports, SAME_USER_REPORT_RADIUS_METERS, } from "./userReportAggregation.js?v=20260901-5";
+import { buildHazardPointGuidance, createSessionUserHazardPoint, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260901-6";
+import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260901-6";
+import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260901-6";
+import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260901-6";
+import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260901-6";
+import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260901-6";
+import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260901-6";
+import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260901-6";
+import { interpolateUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260901-6";
+import { resolveVoiceInputRuntime, shouldRunPassiveVoiceCommandRecognition, } from "./voiceInputRuntime.js?v=20260901-6";
+import { aggregateNearbyUserReports, SAME_USER_REPORT_RADIUS_METERS, } from "./userReportAggregation.js?v=20260901-6";
+import { snapReportLocationToRoad } from "./roadSnapping.js?v=20260901-6";
 function syntheticSharedMapPayload() {
     return {
         schemaVersion: 1,
@@ -73,6 +74,10 @@ const notificationBody = requiredElement("#notification-body");
 const connectionState = requiredElement("#connection-state");
 const registrationDialog = requiredElement("#registration-dialog");
 const registrationError = requiredElement("#registration-error");
+const reportLocationPicker = requiredElement("#report-location-picker");
+const reportLocationPickerStatus = requiredElement("#report-location-picker-status");
+const confirmReportLocationButton = requiredElement("#confirm-report-location");
+const cancelReportLocationButton = requiredElement("#cancel-report-location");
 const voiceReportButton = requiredElement("#voice-report-start");
 const voiceReportStatus = requiredElement("#voice-report-status");
 const voiceReportTranscript = requiredElement("#voice-report-transcript");
@@ -146,10 +151,25 @@ let selectedSharedPoint = null;
 let activeMapPopup = null;
 let divertNaviMapData = null;
 let sessionUserReports = [];
+const sessionUserReportOwners = new Map();
 let approachDetectionEnabled = true;
 let backgroundNotificationEnabled = true;
 let hazardVoiceEnabled = true;
 const INPUT_SETTINGS_STORAGE_KEY = "coachgo:input-settings-v1";
+const REPORT_OWNER_STORAGE_KEY = "coachgo:report-owner-v1";
+function readOrCreateReportOwnerId() {
+    try {
+        const stored = window.localStorage.getItem(REPORT_OWNER_STORAGE_KEY);
+        if (stored !== null && stored.length >= 12)
+            return stored;
+        const created = window.crypto.randomUUID();
+        window.localStorage.setItem(REPORT_OWNER_STORAGE_KEY, created);
+        return created;
+    }
+    catch {
+        return `session-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    }
+}
 function readStoredInputSettings() {
     try {
         const stored = window.localStorage.getItem(INPUT_SETTINGS_STORAGE_KEY);
@@ -167,11 +187,15 @@ function readStoredInputSettings() {
     }
 }
 const storedInputSettings = readStoredInputSettings();
+const currentReportOwnerId = readOrCreateReportOwnerId();
 const voiceInputRuntime = resolveVoiceInputRuntime(storedInputSettings.voiceInput, window.ReactNativeWebView !== undefined);
 let largeReportIconEnabled = storedInputSettings.largeReportIcon;
 let voiceInputEnabled = voiceInputRuntime.enabled;
 let demoVisibilityEnabled = storedInputSettings.demoVisible;
 let reportSequence = 0;
+let registrationMethod = "CURRENT";
+let pendingMapReportCategory = null;
+let reportRegistrationPending = false;
 let lastReportId = null;
 let undoReportTimer = null;
 let currentUserLocation = [...SYNTHETIC_USER_LOCATION];
@@ -683,13 +707,50 @@ function displayPopup(coordinates, content) {
         clearMapPointSelection();
     });
 }
-function showHazardPopup(point, reportCount = 1) {
+function deleteOwnedUserReports(reportIds) {
+    const ownedIds = new Set(reportIds.filter((id) => sessionUserReportOwners.get(id) === currentReportOwnerId));
+    if (ownedIds.size === 0)
+        return;
+    sessionUserReports = sessionUserReports.filter((report) => !ownedIds.has(report.id));
+    for (const id of ownedIds)
+        sessionUserReportOwners.delete(id);
+    if (lastReportId !== null && ownedIds.has(lastReportId)) {
+        lastReportId = null;
+        undoReportToast.hidden = true;
+    }
+    removeActiveMapPopup();
+    renderMap();
+    locationStatus.hidden = false;
+    locationStatus.textContent = ownedIds.size > 1
+        ? `この端末で登録した投稿${ownedIds.size}件を削除しました。`
+        : "この端末で登録した投稿を削除しました。";
+}
+function showHazardPopup(point, reportCount = 1, reportIds = [point.id]) {
     const reportCountLabel = point.sourceKind === "USER_REPORT" && reportCount > 1
         ? ` / 同じ種類の投稿 ${reportCount}件（半径${SAME_USER_REPORT_RADIUS_METERS}m以内）`
         : "";
-    displayPopup([point.longitude, point.latitude], popupContent(point.sourceKind === "USER_REPORT"
+    const content = popupContent(point.sourceKind === "USER_REPORT"
         ? `${categoryLabels[point.category]}・未確認`
-        : categoryLabels[point.category], point.name, `${point.note ?? point.evidenceLabel}${reportCountLabel}`, buildHazardPointGuidance(point), point.sourceKind === "USER_REPORT"));
+        : categoryLabels[point.category], point.name, `${point.note ?? point.evidenceLabel}${reportCountLabel}`, buildHazardPointGuidance(point), point.sourceKind === "USER_REPORT");
+    const ownedReportIds = reportIds.filter((id) => sessionUserReportOwners.get(id) === currentReportOwnerId);
+    if (point.sourceKind === "USER_REPORT" && ownedReportIds.length > 0) {
+        const deleteButton = document.createElement("button");
+        deleteButton.type = "button";
+        deleteButton.className = "delete-own-report";
+        deleteButton.textContent = ownedReportIds.length > 1
+            ? `自分の投稿${ownedReportIds.length}件を削除`
+            : "この投稿を削除";
+        deleteButton.addEventListener("click", () => {
+            if (deleteButton.dataset.confirm !== "true") {
+                deleteButton.dataset.confirm = "true";
+                deleteButton.textContent = "もう一度押して削除を確定";
+                return;
+            }
+            deleteOwnedUserReports(ownedReportIds);
+        });
+        content.append(deleteButton);
+    }
+    displayPopup([point.longitude, point.latitude], content);
     selectHazard(point);
 }
 function showSharedPointPopup(point) {
@@ -1197,7 +1258,7 @@ function renderUserReportMapMarkers() {
         }
         markerButton.addEventListener("click", (event) => {
             event.stopPropagation();
-            showHazardPopup(point, group.count);
+            showHazardPopup(point, group.count, group.reportIds);
         });
         markerElement.append(markerButton);
         return new window.mapboxgl.Marker({
@@ -1904,6 +1965,7 @@ requiredElement("#dismiss-notification").addEventListener("click", () => {
 });
 function openRegistrationDialog(startListening) {
     stopVoiceCommandRecognition();
+    setRegistrationMethod("CURRENT");
     registrationError.textContent = "";
     voiceReportStatus.dataset.state = "idle";
     voiceReportStatus.textContent = voiceInputRuntime.underDevelopment
@@ -1925,6 +1987,17 @@ registerHazardButton.addEventListener("click", () => {
 requiredElement("#close-registration").addEventListener("click", () => {
     registrationDialog.close();
 });
+function setRegistrationMethod(method) {
+    registrationMethod = method;
+    for (const button of document.querySelectorAll("[data-registration-method]")) {
+        button.setAttribute("aria-pressed", String(button.dataset.registrationMethod === method));
+    }
+}
+for (const button of document.querySelectorAll("[data-registration-method]")) {
+    button.addEventListener("click", () => {
+        setRegistrationMethod(button.dataset.registrationMethod === "PICKER" ? "PICKER" : "CURRENT");
+    });
+}
 requiredElement("#show-all-reports").addEventListener("click", (event) => {
     const button = event.currentTarget;
     const expanded = button.getAttribute("aria-expanded") !== "true";
@@ -1951,17 +2024,22 @@ function showUndoReport(report) {
 }
 function registerSessionHazard(category, coordinates) {
     reportSequence += 1;
-    const report = createSessionUserHazardPoint({
-        id: `session-user-report-${reportSequence}`,
-        category,
-        longitude: coordinates[0],
-        latitude: coordinates[1],
-    });
+    const report = {
+        ...createSessionUserHazardPoint({
+            id: `session-user-report-${reportSequence}`,
+            category,
+            longitude: coordinates[0],
+            latitude: coordinates[1],
+        }),
+        note: "プライバシー保護のため、登録位置を近くの道路上へ調整しています。",
+    };
     sessionUserReports = [...sessionUserReports, report];
+    sessionUserReportOwners.set(report.id, currentReportOwnerId);
     const recognition = activeVoiceRecognition;
     activeVoiceRecognition = null;
     recognition?.stop();
     registrationDialog.close();
+    closeReportLocationPicker();
     setPanelOpen(false);
     renderMap();
     showUndoReport(report);
@@ -1969,21 +2047,71 @@ function registerSessionHazard(category, coordinates) {
     scheduleVoiceCommandRecognition(1_000);
     return report;
 }
+function closeReportLocationPicker() {
+    pendingMapReportCategory = null;
+    reportLocationPicker.hidden = true;
+    reportLocationPickerStatus.dataset.state = "idle";
+    reportLocationPickerStatus.textContent = "地図を動かして、道路を＋の位置に合わせてください。";
+    confirmReportLocationButton.disabled = false;
+}
+function openReportLocationPicker(category) {
+    pendingMapReportCategory = category;
+    registrationDialog.close();
+    setPanelOpen(false);
+    reportLocationPicker.hidden = false;
+    reportLocationPickerStatus.dataset.state = "idle";
+    reportLocationPickerStatus.textContent = `${categoryLabels[category]}の登録位置を、中央の＋で指定してください。`;
+    map?.easeTo({ center: currentUserLocation, zoom: Math.max(map.getZoom(), DEFAULT_LOCATION_ZOOM), duration: 320 });
+}
+async function snapAndRegisterSessionHazard(category, coordinates, errorTarget) {
+    if (reportRegistrationPending)
+        return;
+    const token = window.COACHGO_CONFIG?.mapboxAccessToken?.trim();
+    if (token === undefined || token === "") {
+        errorTarget.dataset.state = "error";
+        errorTarget.textContent = "道路上の登録位置を確認できません。Mapbox設定を確認してください。";
+        return;
+    }
+    reportRegistrationPending = true;
+    confirmReportLocationButton.disabled = true;
+    errorTarget.dataset.state = "loading";
+    errorTarget.textContent = "近くの道路を確認しています…";
+    try {
+        const snapped = await snapReportLocationToRoad(coordinates, token);
+        registerSessionHazard(category, snapped);
+        locationStatus.hidden = false;
+        locationStatus.textContent = `${categoryLabels[category]}を近くの道路上に登録しました。`;
+    }
+    catch (error) {
+        errorTarget.dataset.state = "error";
+        errorTarget.textContent = error instanceof Error ? error.message : "道路上へ登録できませんでした。";
+    }
+    finally {
+        reportRegistrationPending = false;
+        confirmReportLocationButton.disabled = false;
+    }
+}
 for (const button of document.querySelectorAll("[data-report-category]")) {
     button.addEventListener("click", () => {
-        try {
-            const category = button.dataset.reportCategory;
-            const center = map?.getCenter();
-            registerSessionHazard(category, [
-                center?.lng ?? SYNTHETIC_USER_LOCATION[0],
-                center?.lat ?? SYNTHETIC_USER_LOCATION[1],
-            ]);
+        const category = button.dataset.reportCategory;
+        if (registrationMethod === "PICKER") {
+            openReportLocationPicker(category);
+            return;
         }
-        catch (error) {
-            registrationError.textContent = error instanceof Error ? error.message : "登録できませんでした。";
-        }
+        void snapAndRegisterSessionHazard(category, currentUserLocation, registrationError);
     });
 }
+cancelReportLocationButton.addEventListener("click", () => {
+    closeReportLocationPicker();
+    openRegistrationDialog(false);
+    setRegistrationMethod("PICKER");
+});
+confirmReportLocationButton.addEventListener("click", () => {
+    if (pendingMapReportCategory === null || map === null)
+        return;
+    const center = map.getCenter();
+    void snapAndRegisterSessionHazard(pendingMapReportCategory, [center.lng, center.lat], reportLocationPickerStatus);
+});
 async function startHazardVoiceRecognition() {
     if (!voiceInputEnabled) {
         voiceReportStatus.dataset.state = "error";
@@ -2046,7 +2174,7 @@ async function startHazardVoiceRecognition() {
         completed = true;
         voiceReportStatus.dataset.state = "registered";
         voiceReportStatus.textContent = `${categoryLabels[match.category]}を現在地へ登録します。`;
-        registerSessionHazard(match.category, currentUserLocation);
+        void snapAndRegisterSessionHazard(match.category, currentUserLocation, voiceReportStatus);
     };
     recognition.onerror = (event) => {
         voiceReportStatus.dataset.state = "error";

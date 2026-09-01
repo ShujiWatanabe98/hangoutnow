@@ -79,6 +79,15 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 .map-stage { min-width: 0; flex: 1; position: relative; overflow: hidden; background: #e9eeec; }
 .map-canvas, .mapbox-map { position: absolute; inset: 0; width: 100%; height: 100%; }
+.report-location-picker { position: absolute; z-index: 700; inset: 0; pointer-events: none; }
+.report-location-crosshair { width: 48px; height: 48px; position: absolute; left: 50%; top: 50%; display: grid; place-items: center; transform: translate(-50%,-50%); color: #fff; border: 3px solid #fff; border-radius: 50%; background: rgba(25,103,210,0.92); box-shadow: 0 5px 18px rgba(32,37,44,0.38); font-size: 34px; font-weight: 500; line-height: 1; }
+.report-location-picker-panel { position: absolute; left: 50%; bottom: max(24px,env(safe-area-inset-bottom)); width: min(420px,calc(100% - 28px)); transform: translateX(-50%); padding: 12px; border-radius: 16px; background: rgba(255,255,255,0.98); box-shadow: 0 12px 34px rgba(32,37,44,0.28); pointer-events: auto; }
+.report-location-picker-panel p { margin: 0 0 9px; color: #374047; text-align: center; font-size: 10px; font-weight: 700; }
+.report-location-picker-panel p[data-state="error"] { color: var(--red); }
+.report-location-picker-panel > div { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; }
+.report-location-picker-panel button { min-height: 44px; border: 1px solid var(--line); border-radius: 12px; color: var(--text); background: var(--surface); font-size: 11px; font-weight: 800; }
+#confirm-report-location { border-color: #1967d2; color: #fff; background: #1967d2; }
+#confirm-report-location:disabled { opacity: 0.58; }
 .map-load-state { position: absolute; z-index: 4; left: 50%; top: 50%; margin: 0; transform: translate(-50%,-50%); padding: 10px 13px; border-radius: 10px; color: #26364a; background: rgba(255,255,255,0.94); box-shadow: 0 7px 20px rgba(38,54,74,0.15); font-size: 10px; font-weight: 700; }
 .map-load-state.error { max-width: min(360px,calc(100% - 32px)); color: #a14b1d; text-align: center; }
 
@@ -154,6 +163,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .coachgo-hazard-popup strong { font-size: 13px; line-height: 1.4; }
 .coachgo-hazard-popup p { margin: 0; color: var(--text-soft); font-size: 9px; line-height: 1.5; }
 .coachgo-hazard-popup .popup-message { margin-top: 2px; color: #374047; }
+.delete-own-report { width: 100%; min-height: 38px; margin-top: 8px; border: 1px solid #d93025; border-radius: 10px; color: #d93025; background: #fff; font-size: 10px; font-weight: 800; }
+.delete-own-report[data-confirm="true"] { color: #fff; background: #d93025; }
 
 .notification-preview { position: fixed; z-index: 2000; top: 12px; left: 50%; width: min(520px,calc(100% - 24px)); display: grid; grid-template-columns: 38px 1fr 28px; gap: 10px; transform: translateX(-50%); padding: 12px; border: 1px solid rgba(255,255,255,0.75); border-radius: 16px; background: rgba(255,255,255,0.96); box-shadow: 0 18px 45px rgba(31,37,44,0.25); }
 .notification-icon { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 11px; color: #fff; background: var(--blue); font-weight: 800; }
@@ -166,6 +177,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .registration-dialog::backdrop { background: rgba(20,25,30,0.48); backdrop-filter: blur(3px); }
 .dialog-heading { display: flex; justify-content: space-between; align-items: flex-start; }
 .dialog-heading h2 { margin: 0; font-size: 22px; }
+.registration-methods { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+.registration-methods button { min-height: 42px; border: 1px solid var(--line); border-radius: 12px; color: var(--text-soft); background: var(--surface); font-size: 11px; font-weight: 800; }
+.registration-methods button[aria-pressed="true"] { border-color: #1967d2; color: #174ea6; background: #eaf2ff; box-shadow: inset 0 0 0 1px #1967d2; }
 .dialog-help { margin: 9px 0 16px; color: var(--text-soft); font-size: 10px; }
 .voice-report { margin: 0 0 14px; padding: 10px; border: 1px solid color-mix(in srgb,var(--blue) 22%,var(--line)); border-radius: 15px; background: color-mix(in srgb,var(--blue) 5%,var(--surface)); }
 .voice-report-button { width: 100%; display: flex; align-items: center; gap: 10px; padding: 0; border: 0; text-align: left; color: var(--text); background: transparent; }
