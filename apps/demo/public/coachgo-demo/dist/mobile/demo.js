@@ -1,13 +1,14 @@
-import { buildHazardPointGuidance, createSessionUserHazardPoint, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260901-3";
-import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260901-3";
-import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260901-3";
-import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260901-3";
-import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260901-3";
-import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260901-3";
-import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260901-3";
-import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260901-3";
-import { interpolateUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260901-3";
-import { resolveVoiceInputRuntime, shouldRunPassiveVoiceCommandRecognition, } from "./voiceInputRuntime.js?v=20260901-3";
+import { buildHazardPointGuidance, createSessionUserHazardPoint, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260901-4";
+import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260901-4";
+import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260901-4";
+import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260901-4";
+import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260901-4";
+import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260901-4";
+import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260901-4";
+import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260901-4";
+import { interpolateUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260901-4";
+import { resolveVoiceInputRuntime, shouldRunPassiveVoiceCommandRecognition, } from "./voiceInputRuntime.js?v=20260901-4";
+import { aggregateNearbyUserReports, SAME_USER_REPORT_RADIUS_METERS, } from "./userReportAggregation.js?v=20260901-4";
 function syntheticSharedMapPayload() {
     return {
         schemaVersion: 1,
@@ -681,10 +682,13 @@ function displayPopup(coordinates, content) {
         clearMapPointSelection();
     });
 }
-function showHazardPopup(point) {
+function showHazardPopup(point, reportCount = 1) {
+    const reportCountLabel = point.sourceKind === "USER_REPORT" && reportCount > 1
+        ? ` / 同じ種類の投稿 ${reportCount}件（半径${SAME_USER_REPORT_RADIUS_METERS}m以内）`
+        : "";
     displayPopup([point.longitude, point.latitude], popupContent(point.sourceKind === "USER_REPORT"
         ? `${categoryLabels[point.category]}・未確認`
-        : categoryLabels[point.category], point.name, point.note ?? point.evidenceLabel, buildHazardPointGuidance(point), point.sourceKind === "USER_REPORT"));
+        : categoryLabels[point.category], point.name, `${point.note ?? point.evidenceLabel}${reportCountLabel}`, buildHazardPointGuidance(point), point.sourceKind === "USER_REPORT"));
     selectHazard(point);
 }
 function showSharedPointPopup(point) {
@@ -1124,6 +1128,8 @@ function categoryClusterLayerIds(category) {
             count: UNDERPASS_CLUSTER_COUNT_LAYER_ID,
             point: UNDERPASS_POINT_LAYER_ID,
             image: ROAD_FLOODING_MARKER_IMAGE_ID,
+            reportBadge: "coachgo-road-flooding-report-badge",
+            reportBadgeCount: "coachgo-road-flooding-report-badge-count",
         };
     }
     const slug = category.toLowerCase().replaceAll("_", "-");
@@ -1133,30 +1139,47 @@ function categoryClusterLayerIds(category) {
         count: `coachgo-${slug}-cluster-count`,
         point: `coachgo-${slug}-unclustered`,
         image: `coachgo-${slug}-category-icon`,
+        reportBadge: `coachgo-${slug}-report-badge`,
+        reportBadgeCount: `coachgo-${slug}-report-badge-count`,
     };
 }
 function clusteredHazardFeatureCollection(category) {
     const hazardFeatures = allHazards()
-        .filter((point) => point.category === category)
+        .filter((point) => point.category === category && point.sourceKind !== "USER_REPORT")
         .map((point) => ({
         type: "Feature",
         geometry: { type: "Point", coordinates: [point.longitude, point.latitude] },
-        properties: { pointId: point.id, pointType: "hazard" },
+        properties: { pointId: point.id, pointType: "hazard", reportCount: 1 },
+    }));
+    const userReportFeatures = aggregateNearbyUserReports(sessionUserReports.filter((point) => point.category === category)).map((group) => ({
+        type: "Feature",
+        geometry: {
+            type: "Point",
+            coordinates: [group.representative.longitude, group.representative.latitude],
+        },
+        properties: {
+            pointId: group.representative.id,
+            pointType: "hazard",
+            reportCount: group.count,
+        },
     }));
     const sharedFeatures = (divertNaviMapData?.items ?? [])
         .filter((point) => point.monitorCategory === category)
         .map((point) => ({
         type: "Feature",
         geometry: { type: "Point", coordinates: [point.longitude, point.latitude] },
-        properties: { pointId: point.id, pointType: "shared" },
+        properties: { pointId: point.id, pointType: "shared", reportCount: 1 },
     }));
-    return { type: "FeatureCollection", features: [...hazardFeatures, ...sharedFeatures] };
+    return {
+        type: "FeatureCollection",
+        features: [...hazardFeatures, ...userReportFeatures, ...sharedFeatures],
+    };
 }
 function clusteredCategoryVisible(category) {
     const monitorCategory = HAZARD_CATEGORIES.find((candidate) => candidate.id === category);
     return monitorCategory === undefined || selectedCategories.has(monitorCategory.id);
 }
-function showClusteredPoint(pointId, pointType) {
+function showClusteredPoint(pointId, pointType, reportCount) {
     if (pointType === "shared") {
         const point = divertNaviMapData?.items.find((candidate) => candidate.id === pointId);
         if (point !== undefined)
@@ -1165,7 +1188,7 @@ function showClusteredPoint(pointId, pointType) {
     }
     const point = allHazards().find((candidate) => candidate.id === pointId);
     if (point !== undefined)
-        showHazardPopup(point);
+        showHazardPopup(point, reportCount);
 }
 function addClusteredHazardCategory(category) {
     if (map === null)
@@ -1224,6 +1247,32 @@ function addClusteredHazardCategory(category) {
                 "icon-allow-overlap": false,
             },
         });
+        map.addLayer({
+            id: ids.reportBadge,
+            type: "circle",
+            source: ids.source,
+            filter: ["all", ["!", ["has", "point_count"]], [">", ["get", "reportCount"], 1]],
+            paint: {
+                "circle-radius": 9,
+                "circle-color": "#e53935",
+                "circle-stroke-color": "#ffffff",
+                "circle-stroke-width": 2,
+                "circle-translate": [16, -16],
+            },
+        });
+        map.addLayer({
+            id: ids.reportBadgeCount,
+            type: "symbol",
+            source: ids.source,
+            filter: ["all", ["!", ["has", "point_count"]], [">", ["get", "reportCount"], 1]],
+            layout: {
+                "text-field": ["to-string", ["get", "reportCount"]],
+                "text-size": 11,
+                "text-offset": [1.45, -1.45],
+                "text-allow-overlap": true,
+            },
+            paint: { "text-color": "#ffffff" },
+        });
         map.on("click", ids.cluster, (event) => {
             const feature = event.features?.[0];
             if (feature?.geometry?.type !== "Point" || !Array.isArray(feature.geometry.coordinates))
@@ -1237,8 +1286,13 @@ function addClusteredHazardCategory(category) {
             const feature = event.features?.[0];
             const pointId = feature?.properties?.pointId;
             const pointType = feature?.properties?.pointType;
-            if (typeof pointId === "string" && typeof pointType === "string")
-                showClusteredPoint(pointId, pointType);
+            const reportCount = feature?.properties?.reportCount;
+            if (typeof pointId === "string" && typeof pointType === "string") {
+                const parsedReportCount = typeof reportCount === "number"
+                    ? reportCount
+                    : Number(reportCount);
+                showClusteredPoint(pointId, pointType, Number.isFinite(parsedReportCount) ? parsedReportCount : 1);
+            }
         });
         for (const layerId of [ids.cluster, ids.point]) {
             map.on("mouseenter", layerId, () => { if (map !== null)
@@ -1248,7 +1302,7 @@ function addClusteredHazardCategory(category) {
         }
     }
     const visibility = clusteredCategoryVisible(category) ? "visible" : "none";
-    for (const layerId of [ids.cluster, ids.count, ids.point]) {
+    for (const layerId of [ids.cluster, ids.count, ids.point, ids.reportBadge, ids.reportBadgeCount]) {
         if (map.getLayer(layerId) !== undefined)
             map.setLayoutProperty(layerId, "visibility", visibility);
     }
