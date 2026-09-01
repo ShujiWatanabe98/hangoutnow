@@ -14,10 +14,21 @@ let upstream;
 let gateway;
 let gatewayOrigin;
 let receivedProxySecret = '';
+let transientFailuresRemaining = 0;
+let transientRequestCount = 0;
 
 before(async () => {
   upstream = createServer((request, response) => {
     receivedProxySecret = request.headers['x-roboreha-proxy-secret'] ?? '';
+    if (request.url?.endsWith('/cold-start')) {
+      transientRequestCount += 1;
+      if (transientFailuresRemaining > 0) {
+        transientFailuresRemaining -= 1;
+        response.writeHead(502, { 'content-type': 'text/plain; charset=utf-8' });
+        response.end('Starting service');
+        return;
+      }
+    }
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
     response.end('<!doctype html><title>Protected RoboReha</title>');
   });
@@ -43,6 +54,7 @@ before(async () => {
       ROBOREHA_PASSWORD: password,
       ROBOREHA_SESSION_SECRET: sessionSecret,
       ROBOREHA_PROXY_SECRET: proxySecret,
+      ROBOREHA_UPSTREAM_RETRY_DELAYS_MS: '5,10,15',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -111,4 +123,25 @@ test('valid credentials create an HttpOnly session and proxy with the shared sec
     protectedPage.headers.get('content-security-policy') ?? '',
     /media-src 'self' blob:/,
   );
+});
+
+test('safe requests retry transient upstream cold-start errors', async () => {
+  const login = await fetch(`${gatewayOrigin}${routePath}/_auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ username, password }),
+    redirect: 'manual',
+  });
+  const cookie = login.headers.get('set-cookie')?.split(';')[0];
+  assert(cookie);
+
+  transientFailuresRemaining = 2;
+  transientRequestCount = 0;
+  const response = await fetch(`${gatewayOrigin}${routePath}/cold-start`, {
+    headers: { cookie },
+  });
+
+  assert.equal(response.status, 200);
+  assert.match(await response.text(), /Protected RoboReha/);
+  assert.equal(transientRequestCount, 3);
 });

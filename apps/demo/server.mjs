@@ -22,6 +22,14 @@ const roborehaSessionSecret = process.env.ROBOREHA_SESSION_SECRET ?? '';
 const roborehaProxySecret = process.env.ROBOREHA_PROXY_SECRET ?? '';
 const roborehaCookieName = '__Secure-roboreha_preview';
 const roborehaSessionSeconds = 8 * 60 * 60;
+const configuredRoborehaRetryDelays = (process.env.ROBOREHA_UPSTREAM_RETRY_DELAYS_MS ?? '')
+  .split(',')
+  .map((value) => Number(value.trim()))
+  .filter((value) => Number.isFinite(value) && value >= 0 && value <= 30_000)
+  .slice(0, 6);
+const roborehaUpstreamRetryDelays = configuredRoborehaRetryDelays.length > 0
+  ? configuredRoborehaRetryDelays
+  : [1_500, 3_000, 5_000, 8_000];
 const roborehaLoginAttempts = new Map();
 const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.map': 'application/json; charset=utf-8', '.webmanifest': 'application/manifest+json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.xml': 'application/xml; charset=utf-8', '.txt': 'text/plain; charset=utf-8' };
 const securityHeaders = {
@@ -98,6 +106,34 @@ async function readSmallForm(request) {
   });
 }
 
+async function fetchRoborehaUpstream(request, headers) {
+  const method = request.method ?? 'GET';
+  const hasBody = !['GET', 'HEAD'].includes(method);
+  const retryDelays = hasBody ? [] : roborehaUpstreamRetryDelays;
+  let lastError;
+
+  for (let attempt = 0; attempt <= retryDelays.length; attempt += 1) {
+    try {
+      const upstream = await fetch(`${roborehaUpstreamOrigin}${request.url}`, {
+        method,
+        headers,
+        body: hasBody ? request : undefined,
+        redirect: 'manual',
+        ...(hasBody ? { duplex: 'half' } : {}),
+      });
+      const retryableStatus = [502, 503, 504].includes(upstream.status);
+      if (!retryableStatus || attempt === retryDelays.length) return upstream;
+      await upstream.body?.cancel();
+    } catch (error) {
+      lastError = error;
+      if (attempt === retryDelays.length) throw error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, retryDelays[attempt]));
+  }
+
+  throw lastError ?? new Error('RoboReha upstream request failed');
+}
+
 async function proxyRoboreha(request, response) {
   const headers = new Headers();
   for (const name of ['accept', 'accept-language', 'content-type', 'cookie', 'range', 'user-agent']) {
@@ -108,14 +144,7 @@ async function proxyRoboreha(request, response) {
   headers.set('x-forwarded-host', request.headers.host ?? 'method-more.com');
   headers.set('x-forwarded-proto', 'https');
   try {
-    const hasBody = !['GET', 'HEAD'].includes(request.method ?? 'GET');
-    const upstream = await fetch(`${roborehaUpstreamOrigin}${request.url}`, {
-      method: request.method,
-      headers,
-      body: hasBody ? request : undefined,
-      redirect: 'manual',
-      ...(hasBody ? { duplex: 'half' } : {}),
-    });
+    const upstream = await fetchRoborehaUpstream(request, headers);
     const responseHeaders = {
       ...securityHeaders,
       'content-type': upstream.headers.get('content-type') || 'application/octet-stream',
