@@ -5,7 +5,8 @@ import { readFile } from 'node:fs/promises';
 import { once } from 'node:events';
 import { after, before, test } from 'node:test';
 
-const routePath = '/roboreha-preview-0123456789abcdef';
+const routePath = '/roboreha-app';
+const retiredRoutePath = '/roboreha-preview-320b600f541ac09e';
 const username = 'preview-user';
 const password = 'preview-password';
 const sessionSecret = 'session-secret-for-tests-0123456789abcdef';
@@ -87,21 +88,32 @@ after(async () => {
   if (upstream) await new Promise((resolve) => upstream.close(resolve));
 });
 
-test('homepage links only to the private login while the sitemap stays public-only', async () => {
+test('homepage links to the canonical application while the sitemap stays public-only', async () => {
   const [homepage, sitemap] = await Promise.all([
     readFile(new URL('../public/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/sitemap.xml', import.meta.url), 'utf8'),
   ]);
-  assert.match(homepage, /href="\/roboreha-preview-320b600f541ac09e\/login"[^>]*>Webアプリを開く/);
-  assert.doesNotMatch(homepage, /href="\/roboreha-preview-320b600f541ac09e\/?"/);
+  assert.match(homepage, /href="\/roboreha-app"[^>]*>Webアプリを開く/);
+  assert.doesNotMatch(homepage, /href="\/roboreha-preview-/);
   assert.equal(sitemap.includes('roboreha-preview'), false);
 });
 
-test('retired unauthenticated entry redirects to the RoboCare One product section', async () => {
+test('canonical application entry receives the login screen', async () => {
   const response = await fetch(`${gatewayOrigin}${routePath}`, { redirect: 'manual' });
-  assert.equal(response.status, 302);
-  assert.equal(response.headers.get('location'), '/#robocare-one');
+  const html = await response.text();
+  assert.equal(response.status, 200);
+  assert.match(html, /ユーザー名とパスワード/);
+  assert.equal(response.headers.has('location'), false);
   assert.equal(response.headers.get('x-robots-tag'), 'noindex, nofollow, noarchive');
+});
+
+test('former application URL is removed without redirecting', async () => {
+  for (const path of [retiredRoutePath, `${retiredRoutePath}/login`]) {
+    const response = await fetch(`${gatewayOrigin}${path}`, { redirect: 'manual' });
+    assert.equal(response.status, 410);
+    assert.equal(response.headers.has('location'), false);
+    assert.equal(response.headers.get('x-robots-tag'), 'noindex, nofollow, noarchive');
+  }
 });
 
 test('unauthenticated login path receives only the login screen', async () => {

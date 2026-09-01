@@ -85,7 +85,7 @@ services:
       - key: MAPBOX_APIKEY
         sync: false
       - key: ROBOREHA_ROUTE_PATH
-        value: /roboreha-preview-320b600f541ac09e
+        value: /roboreha-app
       - key: ROBOREHA_UPSTREAM_ORIGIN
         value: https://methodmore-roboreha-private.onrender.com
 
@@ -95,13 +95,13 @@ services:
     plan: free
     buildCommand: npm ci && npm run build -w @method-more/roboreha
     startCommand: npm start -w @method-more/roboreha
-    healthCheckPath: /roboreha-preview-320b600f541ac09e/api/healthz
+    healthCheckPath: /roboreha-app/api/healthz
     autoDeployTrigger: checksPass
     envVars:
       - key: NODE_VERSION
         value: 22
       - key: NEXT_PUBLIC_ROBOREHA_BASE_PATH
-        value: /roboreha-preview-320b600f541ac09e
+        value: /roboreha-app
       - key: DB_SCHEMA
         value: roboreha
       # Compatibility mode for the existing free service. The API reports

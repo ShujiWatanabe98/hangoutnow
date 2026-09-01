@@ -179,7 +179,7 @@ test('corporate homepage presents the five methodmore products accurately', asyn
   for (const copy of ['顧客スマホ登録', '基本情報を登録し、受付番号を発行します', '次回予約、回数券、空き枠予約をわかりやすく', '施設iPad', '本日の予約、バイタル判定、HAL稼働を俯瞰', '全センターの運営、機器、利用実績と改善傾向を確認', 'PostgreSQL', '三者重複をDBで防止', '拠点IDによる論理分離']) {
     assert.ok(corporate.includes(copy), `RoboCare One product copy is missing: ${copy}`);
   }
-  assert.match(corporate, /href="\/roboreha-preview-320b600f541ac09e\/login"[^>]*>Webアプリを開く/);
+  assert.match(corporate, /href="\/roboreha-app"[^>]*>Webアプリを開く/);
   assert.match(corporate, /<a href="\/#robocare-one">RoboCare One<\/a>/);
   assert.match(corporateStyles, /\.robocare-capabilities/);
   assert.match(careDemo, /<title>みんなで介護<\/title>/);

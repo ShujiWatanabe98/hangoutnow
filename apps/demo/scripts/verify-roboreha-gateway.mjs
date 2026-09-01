@@ -7,20 +7,20 @@ const password = process.env.ROBOREHA_PASSWORD;
 const upstream = process.env.ROBOREHA_VERIFY_UPSTREAM?.replace(/\/$/, "");
 
 assert(origin, "ROBOREHA_VERIFY_ORIGIN is required");
-assert(/^\/roboreha-preview-[a-z0-9]{16,64}$/.test(route ?? ""), "ROBOREHA_ROUTE_PATH is invalid");
+assert.equal(route, "/roboreha-app", "ROBOREHA_ROUTE_PATH must be /roboreha-app");
 assert(username && password, "ROBOREHA_USERNAME and ROBOREHA_PASSWORD are required");
 
 const homepage = await fetch(`${origin}/`, { redirect: "follow" });
 assert.equal(homepage.status, 200);
 const homepageHtml = await homepage.text();
-assert.equal(homepageHtml.includes(`${route}/login`), true, "The private login is not linked from the homepage");
-assert.equal(homepageHtml.includes(`href="${route}"`), false, "The retired private entry is still linked from the homepage");
+assert.equal(homepageHtml.includes(`href="${route}"`), true, "The canonical RoboCare One application is not linked from the homepage");
+assert.equal(homepageHtml.includes("href=\"/roboreha-preview-"), false, "The former application URL is still linked from the homepage");
 
-const retiredEntry = await fetch(`${origin}${route}/`, { redirect: "manual" });
-assert.equal(retiredEntry.status, 302);
-assert.equal(retiredEntry.headers.get("location"), "/#robocare-one");
+const retiredEntry = await fetch(`${origin}/roboreha-preview-320b600f541ac09e/login`, { redirect: "manual" });
+assert.equal(retiredEntry.status, 410);
+assert.equal(retiredEntry.headers.has("location"), false);
 
-const unauthenticated = await fetch(`${origin}${route}/login`, { redirect: "follow" });
+const unauthenticated = await fetch(`${origin}${route}`, { redirect: "follow" });
 const loginHtml = await unauthenticated.text();
 assert.equal(unauthenticated.status, 200);
 assert.match(loginHtml, /ユーザー名とパスワード/);

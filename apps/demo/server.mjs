@@ -13,8 +13,9 @@ const dashboardPathCandidate = process.env.DIVERTNAVI_DASHBOARD_PATH?.trim().rep
 const divertNaviDashboardPath = /^\/divertnavi-app\/[a-z0-9](?:[a-z0-9-]{22,}[a-z0-9])$/.test(dashboardPathCandidate) ? dashboardPathCandidate : '';
 const divertNaviCollector = divertNaviDashboardPath ? import('./divertnavi-collector/service.mjs') : null;
 const weathernewsRadarUrl = 'https://wxtech.weathernews.com/api/v1/tile/prec';
-const roborehaPathCandidate = process.env.ROBOREHA_ROUTE_PATH?.trim().replace(/\/+$/, '') || '/roboreha-preview-320b600f541ac09e';
-const roborehaRoutePath = /^\/roboreha-preview-[a-z0-9]{16,64}$/.test(roborehaPathCandidate) ? roborehaPathCandidate : '';
+const roborehaPathCandidate = process.env.ROBOREHA_ROUTE_PATH?.trim().replace(/\/+$/, '') || '/roboreha-app';
+const roborehaRoutePath = roborehaPathCandidate === '/roboreha-app' ? roborehaPathCandidate : '';
+const retiredRoborehaRoutePath = '/roboreha-preview-320b600f541ac09e';
 const roborehaUpstreamOrigin = process.env.ROBOREHA_UPSTREAM_ORIGIN?.trim().replace(/\/+$/, '') || 'https://methodmore-roboreha-private.onrender.com';
 const roborehaUsername = process.env.ROBOREHA_USERNAME ?? '';
 const roborehaPassword = process.env.ROBOREHA_PASSWORD ?? '';
@@ -241,6 +242,16 @@ async function proxyRoboreha(request, response) {
 createServer(async (request, response) => {
   const requestedPath = request.url?.split('?')[0] ?? '/';
   const normalizedRequestedPath = requestedPath.replace(/\/+$/, '') || '/';
+  if (normalizedRequestedPath === retiredRoborehaRoutePath || requestedPath.startsWith(`${retiredRoborehaRoutePath}/`)) {
+    response.writeHead(410, {
+      ...securityHeaders,
+      'content-type': 'text/plain; charset=utf-8',
+      'cache-control': 'no-store',
+      'x-robots-tag': 'noindex, nofollow, noarchive',
+    });
+    response.end('The former RoboCare One application URL is no longer available.');
+    return;
+  }
   if (roborehaRoutePath && (normalizedRequestedPath === roborehaRoutePath || requestedPath.startsWith(`${roborehaRoutePath}/`))) {
     if (!roborehaConfigured()) {
       response.writeHead(503, { ...securityHeaders, 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });
@@ -260,16 +271,6 @@ createServer(async (request, response) => {
     }
     const gatewayAuth = roborehaGatewayAuthConfigured();
     const gatewaySessionValid = gatewayAuth && hasValidRoborehaSession(request);
-    if (gatewayAuth && normalizedRequestedPath === roborehaRoutePath && ['GET', 'HEAD'].includes(request.method ?? 'GET') && !gatewaySessionValid) {
-      response.writeHead(302, {
-        ...securityHeaders,
-        location: '/#robocare-one',
-        'cache-control': 'no-store',
-        'x-robots-tag': 'noindex, nofollow, noarchive',
-      });
-      response.end();
-      return;
-    }
     if (gatewayAuth && requestedPath === `${roborehaRoutePath}/_auth/login` && request.method === 'POST') {
       const key = loginClientKey(request);
       const now = Date.now();
