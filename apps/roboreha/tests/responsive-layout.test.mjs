@@ -40,3 +40,18 @@ test("long clinical history is paginated and schedule explains horizontal touch 
   assert.match(schedule, /表は左右にスワイプして/);
   assert.match(schedule, /aria-label="予約スケジュール表・左右にスクロールできます"/);
 });
+
+test("private login has a responsive branded workspace layout", async () => {
+  const [page, css] = await Promise.all([
+    readFile(new URL("../src/app/login/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/app/login/login.module.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(page, /ケアの流れを、ひとつにつなぐ。/);
+  assert.match(page, /表示される情報はすべて架空のデモデータです。/);
+  assert.match(page, /autoComplete="username"/);
+  assert.match(page, /autoComplete="current-password"/);
+  assert.match(css, /grid-template-columns: minmax\(0, 1\.16fr\) minmax\(370px, 0\.84fr\)/);
+  assert.match(css, /@media \(max-width: 900px\)/);
+  assert.match(css, /@media \(max-width: 560px\)/);
+});

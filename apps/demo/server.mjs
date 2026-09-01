@@ -24,7 +24,9 @@ const roborehaCookieName = '__Secure-roboreha_preview';
 const roborehaSessionSeconds = 8 * 60 * 60;
 const configuredRoborehaRetryDelays = (process.env.ROBOREHA_UPSTREAM_RETRY_DELAYS_MS ?? '')
   .split(',')
-  .map((value) => Number(value.trim()))
+  .map((value) => value.trim())
+  .filter(Boolean)
+  .map(Number)
   .filter((value) => Number.isFinite(value) && value >= 0 && value <= 30_000)
   .slice(0, 6);
 const roborehaUpstreamRetryDelays = configuredRoborehaRetryDelays.length > 0

@@ -175,7 +175,9 @@ INSERT INTO attendance_records (staff_id, store_id, work_date, clock_in, clock_o
   ('20000000-0000-0000-0000-000000000004', '10000000-0000-0000-0000-000000000001', current_date, current_date + time '08:20', current_date + time '17:30', 60, 'approved', '20000000-0000-0000-0000-000000000004', current_date + time '17:35', 'リーダー'),
   ('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', current_date, current_date + time '08:45', current_date + time '18:00', 60, 'submitted', NULL, NULL, NULL),
   ('20000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', current_date, current_date + time '09:00', current_date + time '18:00', 60, 'approved', '20000000-0000-0000-0000-000000000004', current_date + time '18:05', NULL),
-  ('20000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000001', current_date, current_date + time '08:30', NULL, 60, 'draft', NULL, NULL, '勤務中')
+  ('20000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000001', current_date, current_date + time '08:30', NULL, 60, 'draft', NULL, NULL, '勤務中'),
+  ('20000000-0000-0000-0000-000000000005', '10000000-0000-0000-0000-000000000001', current_date, current_date + time '08:50', current_date + time '17:50', 60, 'submitted', NULL, NULL, NULL),
+  ('20000000-0000-0000-0000-000000000006', '10000000-0000-0000-0000-000000000001', current_date, current_date + time '09:10', current_date + time '18:10', 60, 'approved', '20000000-0000-0000-0000-000000000004', current_date + time '18:15', NULL)
 ON CONFLICT (staff_id, work_date) DO UPDATE SET clock_in=EXCLUDED.clock_in, clock_out=EXCLUDED.clock_out,
   break_minutes=EXCLUDED.break_minutes, status=EXCLUDED.status, approved_by=EXCLUDED.approved_by,
   approved_at=EXCLUDED.approved_at, note=EXCLUDED.note, updated_at=now();
