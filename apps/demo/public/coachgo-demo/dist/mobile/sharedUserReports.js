@@ -1,4 +1,4 @@
-import { createSessionUserHazardPoint, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260901-7";
+import { createSessionUserHazardPoint, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260902-1";
 const categoryIds = new Set(USER_REPORT_CATEGORIES.map((category) => category.id));
 function isRecord(value) {
     return typeof value === "object" && value !== null;

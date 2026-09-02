@@ -1,5 +1,7 @@
 node_modules
 **/dist
+!apps/demo/public/coachgo-demo/dist
+!apps/demo/public/coachgo-demo/dist/**
 .git
 .env
 coverage

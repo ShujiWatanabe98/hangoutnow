@@ -89,7 +89,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 #confirm-report-location { border-color: #1967d2; color: #fff; background: #1967d2; }
 #confirm-report-location:disabled { opacity: 0.58; }
 .map-load-state { position: absolute; z-index: 4; left: 50%; top: 50%; margin: 0; transform: translate(-50%,-50%); padding: 10px 13px; border-radius: 10px; color: #26364a; background: rgba(255,255,255,0.94); box-shadow: 0 7px 20px rgba(38,54,74,0.15); font-size: 10px; font-weight: 700; }
-.map-load-state.error { max-width: min(360px,calc(100% - 32px)); color: #a14b1d; text-align: center; }
+.map-load-state.error { display: grid; width: min(360px,calc(100% - 32px)); gap: 10px; color: #a14b1d; text-align: center; }
+.map-load-state button { min-height: 38px; border: 0; border-radius: 10px; color: #fff; background: #1967d2; font: inherit; cursor: pointer; }
 
 .hazard-marker, .user-report-marker { position: absolute; z-index: 3; display: grid; place-items: center; transform: translate(-50%,-50%); border: 4px solid #fff; border-radius: 50%; color: #fff; box-shadow: 0 7px 19px rgba(31,37,44,0.36),0 0 0 2px rgba(32,37,44,0.08); font-weight: 800; }
 .hazard-marker { width: 48px; height: 48px; font-size: 19px; }

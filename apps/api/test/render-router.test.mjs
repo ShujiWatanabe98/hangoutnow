@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import {
   isRoboCareRequest,
@@ -62,4 +63,12 @@ describe("MethodMore combined Render router", () => {
       expect(routeForRequest({ url, headers: { host: "hangoutnow-api.onrender.com" } })).toBe("api");
     },
   );
+
+  it("includes the CoachGo runtime bundle in the combined Docker image", async () => {
+    const dockerIgnore = await readFile(new URL("../../../.dockerignore", import.meta.url), "utf8");
+    const dockerfile = await readFile(new URL("../Dockerfile", import.meta.url), "utf8");
+
+    expect(dockerIgnore).toContain("!apps/demo/public/coachgo-demo/dist/**");
+    expect(dockerfile).toContain("COPY apps/demo apps/demo");
+  });
 });
