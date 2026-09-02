@@ -23,9 +23,9 @@ if (new Set([publicPort, apiPort, robocarePort]).size !== 3) {
   throw new Error("Combined Render service ports must be unique.");
 }
 
-function startChild(name, entrypoint, environment) {
+function startChild(name, entrypoint, environment, cwd = repositoryRoot) {
   const child = spawn(process.execPath, [entrypoint], {
-    cwd: repositoryRoot,
+    cwd,
     env: { ...process.env, ...environment },
     stdio: "inherit",
     shell: false,
@@ -70,7 +70,7 @@ const robocare = startChild("RoboCareOne", path.join(repositoryRoot, "apps/robor
   DB_SCHEMA: process.env.ROBOREHA_DB_SCHEMA?.trim() || "roboreha",
   NEXT_PUBLIC_ROBOREHA_BASE_PATH: ROBOCARE_BASE_PATH,
   ROBOREHA_VIDEO_STORAGE_MODE: process.env.ROBOREHA_VIDEO_STORAGE_MODE?.trim() || "local",
-});
+}, path.join(repositoryRoot, "apps/roboreha"));
 const children = [api, robocare];
 let shuttingDown = false;
 
