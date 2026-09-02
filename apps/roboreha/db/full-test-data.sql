@@ -106,10 +106,17 @@ UPDATE appointments SET start_at=timestamptz '2026-08-30 14:00:00+09',end_at=tim
  WHERE id='80000000-0000-0000-0000-000000000004';
 UPDATE appointments SET start_at=timestamptz '2026-08-30 16:00:00+09',end_at=timestamptz '2026-08-30 17:00:00+09'
  WHERE id='80000000-0000-0000-0000-000000000010';
+-- seed.sql の相対日付は実行日によって水・木の定休日になるため、営業日に固定する。
+UPDATE appointments SET start_at=timestamptz '2026-08-28 10:00:00+09',end_at=timestamptz '2026-08-28 11:30:00+09'
+ WHERE id='80000000-0000-0000-0000-000000000005';
+UPDATE appointments SET start_at=timestamptz '2026-08-21 13:00:00+09',end_at=timestamptz '2026-08-21 14:30:00+09'
+ WHERE id='80000000-0000-0000-0000-000000000006';
+UPDATE appointments SET start_at=timestamptz '2026-08-14 15:00:00+09',end_at=timestamptz '2026-08-14 16:30:00+09'
+ WHERE id='80000000-0000-0000-0000-000000000007';
 UPDATE clinical_sessions cs SET hal_unit_id=a.hal_unit_id,operator_id=a.therapist_id,started_at=a.start_at+interval '5 minutes',ended_at=a.end_at-interval '5 minutes'
- FROM appointments a WHERE cs.appointment_id=a.id AND a.id IN ('80000000-0000-0000-0000-000000000001','80000000-0000-0000-0000-000000000008','80000000-0000-0000-0000-000000000009');
+ FROM appointments a WHERE cs.appointment_id=a.id AND a.id IN ('80000000-0000-0000-0000-000000000001','80000000-0000-0000-0000-000000000005','80000000-0000-0000-0000-000000000006','80000000-0000-0000-0000-000000000007','80000000-0000-0000-0000-000000000008','80000000-0000-0000-0000-000000000009');
 UPDATE billing_records b SET paid_at=CASE WHEN b.status='paid' THEN a.end_at+interval '10 minutes' ELSE NULL END,updated_at=a.end_at+interval '10 minutes'
- FROM appointments a WHERE b.appointment_id=a.id AND a.id IN ('80000000-0000-0000-0000-000000000001','80000000-0000-0000-0000-000000000008','80000000-0000-0000-0000-000000000009');
+ FROM appointments a WHERE b.appointment_id=a.id AND a.id IN ('80000000-0000-0000-0000-000000000001','80000000-0000-0000-0000-000000000005','80000000-0000-0000-0000-000000000006','80000000-0000-0000-0000-000000000007','80000000-0000-0000-0000-000000000008','80000000-0000-0000-0000-000000000009');
 
 -- テスト予約候補。下肢HALはトレッドミル、単関節HALはベンチを必ず使用。
 CREATE TEMP TABLE test_appointment_candidates ON COMMIT DROP AS
