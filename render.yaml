@@ -68,6 +68,12 @@ services:
         sync: false
       - key: PUBLIC_SITE_URL
         value: https://method-more.com
+      - key: NEXT_PUBLIC_ROBOREHA_BASE_PATH
+        value: /roboreha-app
+      - key: ROBOREHA_DB_SCHEMA
+        value: roboreha
+      - key: ROBOREHA_VIDEO_STORAGE_MODE
+        value: local
 
   - type: web
     name: hangoutnow-demo
@@ -87,7 +93,9 @@ services:
       - key: ROBOREHA_ROUTE_PATH
         value: /roboreha-app
       - key: ROBOREHA_UPSTREAM_ORIGIN
-        value: https://methodmore-roboreha-private.onrender.com
+        # RoboCareOne now runs inside the existing paid API service.
+        # Keep the standalone free service until the merged release is verified.
+        value: https://hangoutnow-api.onrender.com
 
   - type: web
     name: methodmore-roboreha-private

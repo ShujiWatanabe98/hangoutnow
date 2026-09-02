@@ -69,4 +69,7 @@ jobs:
         run: docker build --file apps/api/Dockerfile --tag hangoutnow-api:ci .
 
       - name: Verify image optimization runtime
-        run: docker run --rm hangoutnow-api:ci node -e "require('./apps/api/node_modules/sharp'); console.log('sharp runtime ok')"
+        run: >-
+          docker run --rm hangoutnow-api:ci sh -c
+          "node -e \"require('./apps/api/node_modules/sharp'); require('http-proxy'); console.log('combined runtime dependencies ok')\"
+          && test -f apps/roboreha/.next/BUILD_ID"
