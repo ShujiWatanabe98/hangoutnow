@@ -1,0 +1,641 @@
+.camera-open-button,
+.rehab-session-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rehab-session-head h2 { margin-bottom: 4px; }
+.rehab-session-selectors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; flex: 1; min-width: 0; }
+.rehab-session-selectors label { margin: 0; }
+.rehab-session-selectors input { height: 40px; margin-top: 3px; padding: 7px 9px; }
+.rehab-session-actions { display: flex; align-items: center; gap: 8px; }
+.rehab-elapsed-time { min-width: 88px; color: var(--reha-main); font-variant-numeric: tabular-nums; text-align: center; }
+.rehab-consent { display: flex; align-items: center; gap: 8px; margin: 12px 0 6px; }
+.rehab-consent input { width: auto; margin: 0; }
+.rehab-transcript-label { margin-top: 14px; }
+.rehab-transcript { width: 100%; resize: vertical; line-height: 1.7; }
+.rehab-audio-playback { width: 100%; margin-top: 10px; }
+.rehab-session-outputs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.rehab-session-outputs article { border: 1px solid var(--line); border-radius: 10px; padding: 14px; background: var(--reha-panel-bg); }
+.rehab-session-outputs h3 { margin: 0 0 8px; }
+.rehab-session-outputs p { white-space: pre-wrap; line-height: 1.65; }
+.rehab-feedback { color: var(--reha-main); font-weight: 700; }
+.rehab-voice-history-list { display: grid; gap: 10px; }
+.rehab-voice-history-card small { color: var(--reha-back); }
+.rehab-voice-history-detail { display: grid; gap: 10px; margin-top: 12px; }
+.rehab-voice-history-detail section { padding: 10px; border-radius: 8px; background: var(--reha-panel-bg); }
+.rehab-voice-history-detail h3 { margin: 0 0 6px; }
+.rehab-voice-history-detail p { margin: 0; white-space: pre-wrap; line-height: 1.6; }
+.rehab-voice-audio-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rehab-voice-audio-actions small { color: var(--reha-back); }
+.synced-transcript { display: grid; gap: 4px; max-height: 50vh; overflow: auto; }
+.synced-transcript-line { display: block; padding: 6px 8px; border-radius: 6px; transition: background-color .15s, color .15s; }
+.synced-transcript-line.playing { background: #fff1a8; color: #111; outline: 2px solid #e0b400; }
+
+@media (max-width: 760px) {
+  .rehab-session-head { align-items: stretch; flex-direction: column; }
+  .rehab-session-selectors { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rehab-session-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .rehab-elapsed-time { grid-column: 1 / -1; }
+  .rehab-session-outputs { grid-template-columns: 1fr; }
+}
+
+.photo-control .image-select-button {
+  width: 96px;
+}
+
+.photo-input-row {
+  grid-template-columns: max-content max-content minmax(0, 1fr);
+}
+
+/* Capture setup: keep source, patient and date controls from competing for space. */
+.capture-controls {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 14px;
+}
+
+.photo-control {
+  min-width: 0;
+}
+
+.photo-input-row {
+  display: grid;
+  grid-template-columns: minmax(112px, auto) minmax(112px, auto) minmax(190px, 1fr) minmax(180px, .85fr) minmax(220px, .9fr);
+  align-items: end;
+  gap: 10px;
+  min-width: 0;
+}
+
+.camera-open-button,
+.photo-control .image-select-button {
+  width: 100%;
+  min-width: 112px;
+  min-height: 44px;
+}
+
+.photo-control .patient-search-input,
+.photo-control .therapist-search-input {
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+}
+
+.photo-control .evaluation-date-override {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+
+.photo-control .evaluation-date-override input {
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+}
+
+.start-control {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 1040px) {
+  .photo-input-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .photo-control .patient-search-input,
+  .photo-control .therapist-search-input,
+  .photo-control .evaluation-date-override {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .photo-input-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .camera-open-button,
+  .photo-control .image-select-button,
+  .photo-control .patient-search-input,
+  .photo-control .evaluation-date-override,
+  .photo-control .evaluation-date-override input {
+    width: 100%;
+    max-width: none;
+  }
+
+  .start-control {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .image-correct-button {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .start-control .compact-ocr-button {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .capture-stop-button {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .ocr-progress {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+
+  .start-control small {
+    grid-column: 1 / -1;
+    grid-row: 4;
+  }
+
+  .supported-sheets {
+    grid-column: 1 / -1;
+    grid-row: 5;
+  }
+}
+
+/* Final capture-row layout: datalists must not consume grid tracks. */
+.photo-input-row {
+  grid-template-columns: minmax(112px, .65fr) minmax(112px, .65fr) minmax(190px, 1.2fr) minmax(180px, 1fr) minmax(220px, 1.05fr);
+}
+
+.photo-input-row > datalist {
+  display: none;
+}
+
+.photo-control .therapist-search-input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: #333;
+  font-size: 13px;
+}
+
+.photo-control .therapist-search-input:focus {
+  outline: 2px solid #4b77d4;
+  outline-offset: 1px;
+  border-color: #4b77d4;
+}
+
+@media (max-width: 1040px) {
+  .photo-input-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .photo-input-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.camera-open-button {
+  min-height: 38px;
+  margin: 0;
+  padding: 9px 8px;
+  border: 1px solid var(--reha-main);
+  border-radius: 8px;
+  background: var(--reha-main);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.camera-dialog {
+  width: min(100%, 920px);
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: auto;
+  padding: 0;
+  border: 0;
+  background: #081014;
+  color: #fff;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.camera-dialog::backdrop {
+  background: #000d;
+}
+
+body:has(.camera-dialog[open]) {
+  overflow: hidden;
+}
+
+.camera-shell {
+  display: grid;
+  grid-template-rows: minmax(220px, 1fr) auto auto;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.camera-capture-sheet {
+  position: relative;
+  z-index: 3;
+  min-width: 0;
+  overflow: hidden;
+  padding: 8px 14px 10px;
+  background: #111d22;
+  border-top: 1px solid #ffffff24;
+}
+
+.camera-capture-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 7px;
+}
+
+.camera-capture-sheet-head h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.camera-capture-sheet-head strong {
+  color: #5fffd2;
+  font-size: 13px;
+}
+
+.camera-capture-slots {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: nowrap;
+  gap: 5px;
+  overflow-x: scroll;
+  overflow-y: hidden;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+}
+
+.camera-capture-slot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  flex: 0 0 48px;
+  min-height: 32px;
+  overflow: hidden;
+  border: 1px dashed #ffffff55;
+  border-radius: 6px;
+  background: #081014;
+  color: #91a3aa;
+}
+
+.camera-capture-slot.active {
+  border: 2px solid #5fffd2;
+  box-shadow: 0 0 0 2px #5fffd255;
+}
+
+.camera-capture-slot > span {
+  position: absolute;
+  z-index: 2;
+  top: 2px;
+  left: 4px;
+  font-size: 8px;
+}
+
+.camera-capture-slot small {
+  font-size: 8px;
+}
+
+.camera-slot-select {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.camera-slot-select img {
+  width: 100%;
+  height: 32px;
+  object-fit: cover;
+}
+
+.camera-capture-slot .camera-slot-remove {
+  position: absolute;
+  z-index: 3;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  min-height: 16px;
+  padding: 0;
+  border-radius: 50%;
+  background: #000c;
+  color: #fff;
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.camera-preview-dialog {
+  width: min(94vw, 760px);
+  max-height: 94dvh;
+  padding: 12px;
+  border: 1px solid #ffffff55;
+  border-radius: 12px;
+  background: #081014;
+  color: #fff;
+}
+
+.camera-preview-dialog::backdrop {
+  background: #000c;
+}
+
+.camera-preview-dialog img {
+  display: block;
+  width: 100%;
+  max-height: calc(94dvh - 82px);
+  object-fit: contain;
+}
+
+.camera-preview-dialog button {
+  display: block;
+  min-width: 120px;
+  margin: 10px auto 0;
+}
+
+.camera-finish-button {
+  position: absolute;
+  top: 50%;
+  right: 18px;
+  width: auto;
+  min-width: 104px !important;
+  min-height: 48px;
+  margin: 0;
+  transform: translateY(-50%);
+}
+
+.camera-header {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 72px;
+  padding: 12px 16px;
+  background: #081014e8;
+}
+
+.camera-header h2,
+.camera-header p {
+  margin: 0;
+}
+
+.camera-header h2 {
+  font-size: 18px;
+}
+
+.camera-header p {
+  margin-top: 3px;
+  color: #d8e4e8;
+  font-size: 13px;
+}
+
+.camera-close-button {
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 1px solid #ffffff80;
+  border-radius: 50%;
+  background: #0008;
+  color: #fff;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.camera-viewport {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  background: #000;
+}
+
+#cameraVideo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.camera-guide {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(72%, calc(68vh * 210 / 297));
+  aspect-ratio: 210 / 297;
+  transform: translate(-50%, -50%);
+  box-sizing: border-box;
+  border: 2px solid #fff9;
+  border-radius: 4px;
+  box-shadow: 0 0 0 100vmax #0006;
+  pointer-events: none;
+}
+
+.camera-guide .corner {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  border-color: #5fffd2;
+  border-style: solid;
+}
+
+.camera-guide .top-left { top: -3px; left: -3px; border-width: 5px 0 0 5px; }
+.camera-guide .top-right { top: -3px; right: -3px; border-width: 5px 5px 0 0; }
+.camera-guide .bottom-left { bottom: -3px; left: -3px; border-width: 0 0 5px 5px; }
+.camera-guide .bottom-right { right: -3px; bottom: -3px; border-width: 0 5px 5px 0; }
+
+.camera-actions {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 90px;
+  padding: 14px 18px calc(14px + env(safe-area-inset-bottom));
+  background: #081014e8;
+}
+
+.camera-actions button {
+  min-width: 120px;
+  min-height: 48px;
+}
+
+.camera-actions .camera-close-button {
+  position: absolute;
+  left: 18px;
+  top: 50%;
+  width: 52px;
+  min-width: 52px;
+  height: 52px;
+  min-height: 52px;
+  flex: 0 0 52px;
+  transform: translateY(-50%);
+}
+
+.camera-shutter {
+  width: 64px;
+  min-width: 64px !important;
+  height: 64px;
+  padding: 0;
+  border: 5px solid #fff;
+  border-radius: 50%;
+  background: #df3030;
+  box-shadow: 0 0 0 3px #ffffff55;
+  color: transparent;
+}
+
+.camera-sheet-overlay {
+  position: absolute;
+  z-index: 4;
+  top: -58px;
+  left: 50%;
+  right: auto;
+  width: 100%;
+  max-width: 840px;
+  margin: 0;
+  min-height: 46px;
+  padding: 10px 24px;
+  transform: translateX(-50%);
+  box-sizing: border-box;
+  border: 2px solid #ffffffb8;
+  border-radius: 12px;
+  background: #081014e8;
+  color: #fff;
+  box-shadow: 0 4px 18px #0008;
+  font-size: clamp(15px, 2.8vw, 22px);
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: center;
+  white-space: normal;
+  pointer-events: none;
+}
+
+.camera-sheet-overlay[data-state="detecting"] {
+  border-color: #8ecbff;
+  color: #d8efff;
+}
+
+.camera-sheet-overlay[data-state="recognized"] {
+  border-color: #5fffd2;
+  background: #07372fe8;
+}
+
+.camera-sheet-overlay[data-state="unknown"],
+.camera-sheet-overlay[data-state="error"] {
+  border-color: #ffb3a7;
+  background: #4b1714e8;
+}
+
+@media (orientation: landscape) and (max-height: 700px) {
+  .camera-guide {
+    width: min(42%, calc(68vh * 210 / 297));
+    aspect-ratio: 210 / 297;
+  }
+
+  .camera-header {
+    min-height: 58px;
+    padding-block: 8px;
+  }
+
+  .camera-actions {
+    min-height: 70px;
+    padding-block: 7px;
+  }
+
+  .camera-shutter {
+    width: 54px;
+    min-width: 54px !important;
+    height: 54px;
+  }
+}
+
+@media (max-width: 760px) {
+  .photo-input-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .camera-open-button,
+  .photo-control .image-select-button {
+    width: 100%;
+  }
+
+  .photo-control .patient-search-input {
+    grid-column: 1 / -1;
+  }
+
+  .photo-control .patient-search-input,
+  .photo-control .therapist-search-input {
+    font-size: 16px;
+  }
+
+  .camera-dialog {
+    width: 100%;
+  }
+
+}
+
+/* Final capture-button alignment override (keep after legacy camera rules). */
+.photo-input-row > .camera-open-button,
+.photo-input-row > .image-select-button {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 112px;
+  height: 44px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0 12px;
+  line-height: 42px;
+}
+
+@media (max-width: 600px) {
+  .photo-input-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .photo-control .patient-search-input {
+    grid-column: auto;
+  }
+}
+
+/* Keep the primary capture actions equally readable at every viewport size. */
+.photo-input-row > .camera-open-button,
+.image-correct-button,
+.start-control .compact-ocr-button,
+.capture-stop-button {
+  font-size: 14px !important;
+}
+
+.photo-control .evaluation-date-override input {
+  font-size: 14px !important;
+}

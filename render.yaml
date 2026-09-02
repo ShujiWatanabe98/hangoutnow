@@ -1,5 +1,8 @@
 services:
   - type: web
+    # Keep this compatibility-stable Render resource name because released
+    # clients use its onrender.com hostname. The runtime product name is
+    # MethodMore Platform and all public products are served by this instance.
     name: hangoutnow-api
     runtime: docker
     plan: starter
@@ -9,12 +12,18 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: METHODMORE_PLATFORM_NAME
+        value: methodmore-platform
       - key: DEMO_MODE
         value: "true"
       - key: DATABASE_URL
         # Managed manually so the shared paid instance can use the
         # application-specific `hangoutnow` schema without colliding with
         # SalonRecord's tables in `public`.
+        sync: false
+      - key: METHODMORE_SHARED_DATABASE_URL
+        # Base connection URL for SalonRecord and AI OCR. Unlike Prisma's
+        # application URL, this value does not select the hangoutnow schema.
         sync: false
       - key: JWT_ACCESS_SECRET
         generateValue: true
@@ -74,6 +83,58 @@ services:
         value: roboreha
       - key: ROBOREHA_VIDEO_STORAGE_MODE
         value: local
+      - key: MAPBOX_APIKEY
+        sync: false
+      - key: ROBOREHA_ROUTE_PATH
+        value: /roboreha-app
+      - key: ROBOREHA_UPSTREAM_ORIGIN
+        value: http://127.0.0.1:3101
+      - key: ROBOREHA_USERNAME
+        sync: false
+      - key: ROBOREHA_PASSWORD
+        sync: false
+      - key: ROBOREHA_SESSION_SECRET
+        sync: false
+      - key: ROBOREHA_PROXY_SECRET
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-5.6-sol
+      - key: OPENAI_IMAGE_DETAIL
+        value: high
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_NAME
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: SALON_NAME
+        sync: false
+      - key: SEED_DEMO_DATA
+        sync: false
+      - key: SESSION_TTL_DAYS
+        sync: false
+      - key: SYSTEM_ADMIN_ID
+        sync: false
+      - key: SYSTEM_ADMIN_PASSWORD
+        sync: false
+      - key: AIOCR_ENCRYPTION_KEY
+        sync: false
+      - key: AIOCR_FACILITY_ID
+        sync: false
+      - key: AIOCR_IMAGE_RETENTION_DAYS
+        sync: false
+      - key: AIOCR_USERNAME
+        sync: false
+      - key: AIOCR_PASSWORD
+        sync: false
+      - key: AIOCR_DATA_DIR
+        value: /tmp/methodmore-platform/aiocr/data
+      - key: AIOCR_BACKUP_DIR
+        value: /tmp/methodmore-platform/aiocr/backups
+      - key: AIOCR_BASE_PATH
+        value: /ai-ocr
 
   - type: web
     name: hangoutnow-demo

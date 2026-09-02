@@ -5,23 +5,32 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import httpProxy from "http-proxy";
-import { ROBOCARE_BASE_PATH, targetForRequest } from "./render-router.mjs";
+import { ROBOCARE_BASE_PATH, rewriteUrlForRoute, routeForRequest } from "./render-router.mjs";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const publicPort = Number(process.env.PORT ?? 3000);
 const apiPort = Number(process.env.HANGOUTNOW_INTERNAL_PORT ?? 3100);
 const robocarePort = Number(process.env.ROBOCARE_INTERNAL_PORT ?? 3101);
+const demoPort = Number(process.env.METHODMORE_DEMO_INTERNAL_PORT ?? 3102);
+const salonrecordPort = Number(process.env.SALONRECORD_INTERNAL_PORT ?? 3103);
+const aiocrPort = Number(process.env.AIOCR_INTERNAL_PORT ?? 3104);
+const sharedDatabaseUrl = process.env.METHODMORE_SHARED_DATABASE_URL?.trim() || process.env.DATABASE_URL;
 const targets = {
   api: `http://127.0.0.1:${apiPort}`,
   robocare: `http://127.0.0.1:${robocarePort}`,
+  demo: `http://127.0.0.1:${demoPort}`,
+  salonrecord: `http://127.0.0.1:${salonrecordPort}`,
+  aiocr: `http://127.0.0.1:${aiocrPort}`,
 };
 
-if (![publicPort, apiPort, robocarePort].every((port) => Number.isInteger(port) && port > 0 && port < 65_536)) {
+const ports = [publicPort, apiPort, robocarePort, demoPort, salonrecordPort, aiocrPort];
+if (!ports.every((port) => Number.isInteger(port) && port > 0 && port < 65_536)) {
   throw new Error("Combined Render service ports must be valid TCP ports.");
 }
-if (new Set([publicPort, apiPort, robocarePort]).size !== 3) {
+if (new Set(ports).size !== ports.length) {
   throw new Error("Combined Render service ports must be unique.");
 }
+if (!sharedDatabaseUrl) throw new Error("A shared production DATABASE_URL is required.");
 
 function startChild(name, entrypoint, environment, cwd = repositoryRoot) {
   const child = spawn(process.execPath, [entrypoint], {
@@ -71,7 +80,31 @@ const robocare = startChild("RoboCareOne", path.join(repositoryRoot, "apps/robor
   NEXT_PUBLIC_ROBOREHA_BASE_PATH: ROBOCARE_BASE_PATH,
   ROBOREHA_VIDEO_STORAGE_MODE: process.env.ROBOREHA_VIDEO_STORAGE_MODE?.trim() || "local",
 }, path.join(repositoryRoot, "apps/roboreha"));
-const children = [api, robocare];
+const demo = startChild("MethodMore Website", path.join(repositoryRoot, "apps/demo/server.mjs"), {
+  DEMO_PORT: String(demoPort),
+  DEMO_PROXY_API_URL: targets.api,
+  API_URL: targets.api,
+  ROBOREHA_ROUTE_PATH: ROBOCARE_BASE_PATH,
+  ROBOREHA_UPSTREAM_ORIGIN: targets.robocare,
+});
+const salonrecord = startChild("SalonRecord", path.join(repositoryRoot, "apps/salonrecord/server.js"), {
+  PORT: String(salonrecordPort),
+  DATABASE_URL: sharedDatabaseUrl,
+}, path.join(repositoryRoot, "apps/salonrecord"));
+const aiocr = startChild("Standalone AI OCR", path.join(repositoryRoot, "apps/aiocr/standalone/server.mjs"), {
+  AIOCR_PORT: String(aiocrPort),
+  AIOCR_HOST: "127.0.0.1",
+  AIOCR_BASE_PATH: "/ai-ocr",
+  DATABASE_URL: sharedDatabaseUrl,
+}, path.join(repositoryRoot, "apps/aiocr"));
+const childServices = [
+  ["HangoutNow API", api, apiPort],
+  ["RoboCareOne", robocare, robocarePort],
+  ["MethodMore Website", demo, demoPort],
+  ["SalonRecord", salonrecord, salonrecordPort],
+  ["Standalone AI OCR", aiocr, aiocrPort],
+];
+const children = childServices.map(([, child]) => child);
 let shuttingDown = false;
 
 const proxy = httpProxy.createProxyServer({ xfwd: true, ws: true });
@@ -86,10 +119,14 @@ proxy.on("error", (error, request, response) => {
 });
 
 const server = http.createServer((request, response) => {
-  proxy.web(request, response, { target: targetForRequest(request.url, targets) });
+  const route = routeForRequest(request);
+  request.url = rewriteUrlForRoute(request.url, route);
+  proxy.web(request, response, { target: targets[route] });
 });
 server.on("upgrade", (request, socket, head) => {
-  proxy.ws(request, socket, head, { target: targetForRequest(request.url, targets) });
+  const route = routeForRequest(request);
+  request.url = rewriteUrlForRoute(request.url, route);
+  proxy.ws(request, socket, head, { target: targets[route] });
 });
 
 async function shutdown(exitCode) {
@@ -108,7 +145,7 @@ async function shutdown(exitCode) {
   process.exit(exitCode);
 }
 
-for (const [name, child] of [["HangoutNow API", api], ["RoboCareOne", robocare]]) {
+for (const [name, child] of childServices) {
   child.on("exit", (code, signal) => {
     if (!shuttingDown) {
       console.error(`[combined] ${name} stopped unexpectedly (${code ?? signal ?? "unknown"}).`);
@@ -119,12 +156,9 @@ for (const [name, child] of [["HangoutNow API", api], ["RoboCareOne", robocare]]
 for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => void shutdown(0));
 
 try {
-  await Promise.all([
-    waitForPort(apiPort, "HangoutNow API", api),
-    waitForPort(robocarePort, "RoboCareOne", robocare),
-  ]);
+  await Promise.all(childServices.map(([name, child, port]) => waitForPort(port, name, child)));
   server.listen(publicPort, "0.0.0.0", () => {
-    console.log(`[combined] HangoutNow API and RoboCareOne are listening on port ${publicPort}.`);
+    console.log(`[combined] MethodMore Platform is listening on port ${publicPort}.`);
   });
 } catch (error) {
   console.error("[combined] startup failed:", error);

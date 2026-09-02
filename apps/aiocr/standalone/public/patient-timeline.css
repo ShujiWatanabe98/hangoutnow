@@ -1,0 +1,502 @@
+.patient-timeline-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.patient-timeline-head h3 {
+  margin: 0;
+}
+
+.patient-sheet-grid {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 14px;
+  margin-top: 16px;
+  padding-bottom: 16px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+
+.patient-sheet-card {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 240px;
+  position: relative;
+  min-height: 350px;
+  padding: 0;
+  overflow: hidden;
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.patient-sheet-card:hover {
+  background: #fff;
+  color: var(--reha-main);
+  box-shadow: 0 5px 16px #0002;
+}
+
+.patient-sheet-open {
+  display: block;
+  flex: 1 1 auto;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  text-align: left;
+}
+
+.patient-sheet-open:hover:not(:disabled) {
+  background: #fff;
+  color: var(--reha-main);
+}
+
+.patient-sheet-card img {
+  display: block;
+  width: 100%;
+  height: 180px;
+  object-fit: contain;
+  background: #f1f3f7;
+}
+
+.patient-sheet-card .patient-sheet-meta {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  padding: 11px;
+}
+
+.patient-sheet-card small {
+  font-weight: 400;
+  color: var(--reha-back);
+}
+
+.sheet-history-group {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 2px solid var(--line);
+}
+
+.stage-history-row {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--reha-main);
+  border-radius: 10px;
+  background: #fbfcff;
+}
+
+.sheet-history-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sheet-history-title h4 {
+  margin: 0;
+  color: var(--reha-main);
+}
+
+.care-stage {
+  display: inline-block;
+  width: fit-content;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: #e6eaf4;
+}
+
+.care-stage-initial {
+  background: #dceaff;
+  color: #1758a8;
+}
+
+.care-stage-follow_up {
+  background: #fff2cc;
+  color: #755600;
+}
+
+.care-stage-discharge {
+  background: #d9f2e5;
+  color: #17633b;
+}
+
+.discharge-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  width: auto;
+  margin: 0;
+  padding: 6px 12px;
+  background: #fff;
+  border-color: var(--reha-st);
+  color: var(--reha-st);
+  box-shadow: 0 2px 8px #0002;
+}
+
+.undo-discharge-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  width: auto;
+  margin: 0;
+  padding: 6px 10px;
+  background: #fff;
+  border-color: var(--reha-back);
+  color: var(--reha-back);
+  box-shadow: 0 2px 8px #0002;
+}
+
+.initial-summary-panel {
+  margin: 18px 0;
+  padding: 16px;
+  border: 1px solid #b9c9e9;
+  border-radius: 10px;
+  background: #f6f9ff;
+}
+
+.initial-summary-panel h3 {
+  margin-top: 0;
+}
+
+.initial-summary-panel textarea {
+  min-height: 300px;
+  resize: vertical;
+  background: #fff;
+}
+
+.progress-summary-panel {
+  border-color: #e1c66f;
+  background: #fffaf0;
+}
+
+.discharge-summary-panel {
+  border-color: #7fc6a1;
+  background: #f2fbf6;
+}
+
+.summary-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.summary-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.summary-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.summary-title-row h3 {
+  margin: 0;
+}
+
+.patient-sheets-panel,
+#patientSheetTimeline {
+  scroll-margin-top: 20px;
+}
+
+.patient-picker {
+  position: relative;
+  max-width: 420px;
+  margin: 12px 0;
+}
+
+.patient-suggestions {
+  display: grid;
+  position: absolute;
+  z-index: 20;
+  width: 100%;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 8px 20px #0002;
+}
+
+.patient-suggestions:empty {
+  display: none;
+}
+
+.patient-suggestion {
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  text-align: left;
+}
+
+.patient-suggestion:last-child {
+  border-bottom: 0;
+}
+
+.bit-paired-table th:nth-child(2),
+.bit-paired-table th:nth-child(3),
+.bit-paired-table td:nth-child(2),
+.bit-paired-table td:nth-child(3) {
+  width: 22%;
+}
+
+.page-count-badge {
+  color: var(--reha-main);
+  font-size: 12px;
+}
+
+.missing-page-advice,
+.complete-page-badge {
+  display: block;
+  width: 100%;
+  padding: 7px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.missing-page-advice {
+  background: #fff0c2;
+  color: #765600;
+}
+
+.complete-page-badge {
+  background: #dff5e8;
+  color: #17653b;
+}
+
+.grouped-evaluation-page {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 2px solid var(--line);
+}
+
+.grouped-page-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(320px, 1.1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.grouped-page-preview {
+  min-height: 280px;
+}
+
+@media (max-width: 760px) {
+  .grouped-page-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.history-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.therapist-management-panel {
+  scroll-margin-top: 16px;
+}
+
+.therapist-card {
+  align-items: center;
+}
+
+.therapist-card p,
+#therapistFormStatus {
+  color: #667085;
+  font-size: 12px;
+}
+
+.danger-button {
+  border-color: var(--reha-danger);
+  color: var(--reha-danger);
+}
+
+.danger-button:hover:not(:disabled) {
+  border-color: var(--reha-danger);
+  background: var(--reha-danger);
+  color: #fff;
+}
+
+.clinical-flow {
+  margin: 18px 0 28px;
+  padding: 18px;
+  border: 2px solid #b8c6e3;
+  border-radius: 14px;
+  background: #f7f9ff;
+}
+
+.clinical-flow-head,
+.clinical-record-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.flow-kicker {
+  color: #566586;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.clinical-flow-head h3 {
+  margin: 3px 0 12px;
+  font-size: 19px;
+}
+
+.pending-count,
+.approval-badge {
+  border-radius: 999px;
+  padding: 5px 10px;
+  background: #fff0c2;
+  color: #765600;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.approval-approved {
+  background: #dff5e8;
+  color: #17653b;
+}
+
+.pre-rehab-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.pre-rehab-grid article,
+.rehab-record-form,
+.clinical-record {
+  border: 1px solid #ced7e9;
+  border-radius: 12px;
+  background: #fff;
+  padding: 14px;
+}
+
+.pre-rehab-grid h4,
+.rehab-record-form h4,
+.clinical-history h4 {
+  margin: 0 0 10px;
+  color: var(--reha-main);
+}
+
+.pre-rehab-grid p,
+.clinical-record p {
+  margin: 7px 0;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.clinical-risk {
+  color: #9b2727;
+}
+
+.ocr-status-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.ocr-status-grid span {
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 11px;
+}
+
+.ocr-confirmed { background: #dff5e8; color: #17653b; }
+.ocr-ai { background: #e7efff; color: #264d9b; }
+.ocr-missing { background: #ededed; color: #4d4d4d; }
+.ocr-unreadable { background: #fff0c2; color: #765600; }
+.trend-up { color: #137047; font-weight: 800; }
+.trend-down { color: #b42929; font-weight: 800; }
+
+.rehab-record-form {
+  margin-top: 14px;
+}
+
+.clinical-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 14px;
+}
+
+.clinical-form-grid .span2 {
+  grid-column: 1 / -1;
+}
+
+.paired-input {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 7px;
+  align-items: center;
+}
+
+.append-only-note {
+  margin: 8px 0 12px;
+  border-left: 4px solid #4b77d4;
+  padding: 8px 10px;
+  background: #eef3ff;
+  font-size: 12px;
+}
+
+.clinical-history {
+  margin-top: 18px;
+}
+
+.clinical-record {
+  margin-top: 10px;
+}
+
+.clinical-record-head small {
+  display: block;
+  margin-top: 3px;
+  color: #667085;
+}
+
+.clinical-record-delete {
+  border-color: var(--reha-danger) !important;
+  background: var(--reha-danger) !important;
+  color: #fff !important;
+  white-space: nowrap;
+}
+
+.clinical-metrics {
+  color: #4a5874;
+}
+
+.approval-action {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.approval-action input {
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .pre-rehab-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .clinical-flow { padding: 12px; }
+  .clinical-flow-head,
+  .clinical-record-head { flex-direction: column; }
+  .clinical-form-grid { grid-template-columns: 1fr; }
+  .clinical-form-grid .span2 { grid-column: auto; }
+  .approval-action { flex-direction: column; }
+}

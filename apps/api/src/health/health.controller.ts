@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 export interface HealthResponse {
   status: 'ok';
-  service: 'hangout-now-api';
+  service: 'methodmore-platform';
   database: {
     connected: boolean;
     schema: string | null;
@@ -22,7 +22,7 @@ export class HealthController {
     );
     return {
       status: 'ok',
-      service: 'hangout-now-api',
+      service: 'methodmore-platform',
       database: {
         connected: true,
         schema: database?.schema ?? null,

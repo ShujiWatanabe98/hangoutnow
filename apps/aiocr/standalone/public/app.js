@@ -1,0 +1,462 @@
+import * as pdfjsLib from '/vendor/pdfjs/pdf.min.mjs';
+pdfjsLib.GlobalWorkerOptions.workerSrc='/vendor/pdfjs/pdf.worker.min.mjs';
+
+function loadLocalTherapists(){
+  try{const saved=JSON.parse(localStorage.getItem('therapists')||'[]');return Array.isArray(saved)?saved:[]}
+  catch{return []}
+}
+const state={patients:[],jobs:[],rehabRecords:[],preRehabSummary:null,imageDataUrl:null,imageDataUrls:[],batchItems:[],currentJobId:null,currentJobIds:[],poll:null,selectedPatientTimelineId:null,historyExpanded:false,dischargeWarningsShown:new Set(),therapists:[],pendingRehabDeleteId:null};
+const $=s=>document.querySelector(s);
+const alert=message=>{const target=$('#captureMessage');if(target)target.textContent=String(message);console.info(message)};
+const confirm=()=>true;
+async function api(url,options={}){const res=await fetch(url,{...options,headers:{'Content-Type':'application/json',...(options.headers||{})}});const data=await res.json();if(!res.ok)throw new Error(data.error||`HTTP ${res.status}`);return data}
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function shortItemText(value){const chars=Array.from(String(value??''));return chars.length>16?`${chars.slice(0,16).join('')}…`:chars.join('')}
+function itemTextMarkup(value){return `<span title="${esc(value)}">${esc(shortItemText(value))}</span>`}
+function date(v){return v?new Date(v).toLocaleString('ja-JP'):'-'}
+function statusLabel(v){return({REQUEST:'受付',PROCESSING:'AI処理中',OCR_DONE:'確認待ち',DONE:'確定済み',ERROR:'エラー',STOPPED:'停止済み'})[v]||v}
+function careStageLabel(v){return({INITIAL:'初診',FOLLOW_UP:'途中経過',DISCHARGE:'退院',PENDING:'処理中'})[v]||v}
+async function switchSummaryCareStage(jobId,currentStage,reopen){
+  const button=currentStage==='DISCHARGE'?$('#summaryUndoDischarge'):$('#summaryDischarge');
+  if(button)button.disabled=true;
+  try{
+    const path=currentStage==='DISCHARGE'?'discharge/undo':'discharge';
+    await api(`/api/jobs/${jobId}/${path}`,{method:'POST',body:'{}'});
+    await loadJobs();
+    await reopen();
+    $('#captureMessage').textContent=currentStage==='DISCHARGE'?'退院から途中経過に変更しました。':'途中経過から退院に変更しました。';
+  }catch(error){
+    alert(error.message);
+    if(button)button.disabled=false;
+  }
+}
+function setProgress(percent,text){const value=Math.max(0,Math.min(100,percent));$('#ocrProgressBar').style.width=`${value}%`;$('#ocrProgress').setAttribute('aria-valuenow',value);$('#ocrProgressText').textContent=text;$('#ocrProgress').classList.toggle('error',text==='エラー')}
+function setAiActive(active){$('#aiIndicator').classList.toggle('active',active);$('#aiIndicator').setAttribute('aria-label',active?'AI処理中':'AI待機中');$('#aiIndicator').title=active?'AI処理中':'AI待機中';$('#captureStopButton').disabled=!active}
+function updateProgress(status){const progress={REQUEST:[25,'受付完了'],PROCESSING:[65,'AI OCR処理中'],OCR_DONE:[100,'OCR完了・確認待ち'],DONE:[100,'確定済み'],ERROR:[100,'エラー'],STOPPED:[100,'停止済み']}[status]||[0,'待機中'];setProgress(...progress);setAiActive(['REQUEST','PROCESSING'].includes(status))}
+function updateBatchProgress(){const jobs=state.currentJobIds.map(id=>state.jobs.find(j=>j.id===id)).filter(Boolean);if(!jobs.length)return;const complete=jobs.filter(j=>['OCR_DONE','DONE','ERROR','STOPPED'].includes(j.status)).length;const active=jobs.find(j=>['REQUEST','PROCESSING'].includes(j.status));const terminal=jobs.find(j=>['ERROR','STOPPED'].includes(j.status))||jobs.find(j=>j.status==='OCR_DONE')||jobs.find(j=>j.status==='DONE');const detail=active?statusLabel(active.status):(terminal?statusLabel(terminal.status):'受付中');const percent=Math.round(jobs.reduce((total,job)=>total+jobProgress(job.status),0)/jobs.length);setProgress(percent,`${detail} ${percent}%・${complete}/${state.currentJobIds.length}件 完了`);setAiActive(Boolean(active))}
+function jobProgress(status){return({REQUEST:20,PROCESSING:65,OCR_DONE:100,DONE:100,ERROR:100,STOPPED:100})[status]??0}
+
+async function loadHealth(){try{const h=await api('/api/health');$('#health').textContent=h.apiKeyConfigured?`稼働中・${h.model}`:'稼働中・APIキー未設定';$('#health').classList.add('ok')}catch{$('#health').textContent='サーバー未接続'}}
+function patientLabel(patient){return `${patient.facilityPatientId}｜${patient.name}`}
+async function loadTherapists(){const legacy=loadLocalTherapists();if(legacy.length){await Promise.all(legacy.map((therapist,index)=>api('/api/therapists',{method:'POST',body:JSON.stringify({therapistId:therapist.therapistId||`LEGACY-${index+1}`,name:therapist.name})})));localStorage.removeItem('therapists')}state.therapists=await api('/api/therapists');renderTherapists()}
+function renderTherapists(){
+  const box=$('#therapistList');if(!box)return;
+  box.innerHTML=state.therapists.length?state.therapists.map(therapist=>`<div class="card therapist-card"><div><strong>${esc(therapist.name)}</strong><small>療法士ID：${esc(therapist.therapistId||'-')}</small></div><button class="secondary" type="button" data-delete-therapist="${esc(therapist.id)}">削除</button></div>`).join(''):'<p>療法士はまだ登録されていません。</p>';
+  const searchList=$('#therapistSearchList');if(searchList)searchList.innerHTML=state.therapists.map(therapist=>`<option value="${esc(therapist.name)}">${esc(therapist.therapistId||'')}</option>`).join('');
+  box.querySelectorAll('[data-delete-therapist]').forEach(button=>button.addEventListener('click',async()=>{if(button.dataset.confirmDelete!=='true'){button.dataset.confirmDelete='true';button.textContent='再押下で登録削除';return}button.disabled=true;try{await api(`/api/therapists/${encodeURIComponent(button.dataset.deleteTherapist)}`,{method:'DELETE',body:'{}'});await loadTherapists();$('#therapistFormStatus').textContent='登録療法士を削除しました。'}catch(error){button.disabled=false;$('#therapistFormStatus').textContent=error.message}}));
+}
+function selectedTherapistName(){const name=$('#therapistSearch').value.trim();return state.therapists.some(therapist=>therapist.name===name)?name:''}
+function syncPatientSearch(){const patient=state.patients.find(p=>p.id===$('#patientSelect').value);$('#patientSearch').value=patient?patientLabel(patient):'';validateCapture()}
+function selectPatientFromSearch(){const query=$('#patientSearch').value.trim();const patient=state.patients.find(p=>patientLabel(p)===query||p.facilityPatientId===query||p.name===query);if(patient)$('#patientSelect').value=patient.id;else if(!query)$('#patientSelect').value='';validateCapture()}
+function renderPatientTimelineSuggestions(){const input=$('#patientTimelineSearch'),box=$('#patientTimelineSuggestions');if(!input||!box)return;const query=input.value.trim().toLowerCase();const matches=state.patients.filter(patient=>!query||patientLabel(patient).toLowerCase().includes(query)).slice(0,8);box.innerHTML=matches.map(patient=>`<button class="patient-suggestion" type="button" data-patient-id="${esc(patient.id)}"><strong>${esc(patient.name)}</strong><small>${esc(patient.facilityPatientId)}・OCR ${patient.jobCount}件</small></button>`).join('');box.querySelectorAll('.patient-suggestion').forEach(button=>button.addEventListener('click',()=>{const patient=state.patients.find(item=>item.id===button.dataset.patientId);state.selectedPatientTimelineId=patient?.id||null;input.value=patient?patientLabel(patient):'';box.innerHTML='';renderPatientSheetTimeline()}))}
+async function loadPatients(){const selectedPatientId=$('#patientSelect').value;state.patients=await api('/api/patients');$('#patientSelect').value=state.patients.some(patient=>patient.id===selectedPatientId)?selectedPatientId:'';$('#patientSearchList').innerHTML=state.patients.map(p=>`<option value="${esc(patientLabel(p))}">${esc(p.name)}</option>`).join('');const timelineSearch=$('#patientTimelineSearch'),timelinePatient=state.patients.find(patient=>patient.id===state.selectedPatientTimelineId);if(timelineSearch)timelineSearch.value=timelinePatient?patientLabel(timelinePatient):'';$('#patientList').innerHTML=state.patients.length?state.patients.map(p=>`<div class="card"><div><strong>${esc(p.name)}</strong><p>${esc(p.facilityPatientId)}・生年月日 ${esc(p.birthDate||'-')}・OCR ${p.jobCount}件</p></div></div>`).join(''):'<p>患者が登録されていません。</p>';syncPatientSearch();renderPatientSheetTimeline()}
+async function loadJobs(){state.jobs=await api('/api/jobs');if(!state.selectedPatientTimelineId&&state.jobs.length)state.selectedPatientTimelineId=state.jobs[0].patientId;renderHistory();renderPatientSheetTimeline();if(state.currentJobId){const found=state.jobs.find(j=>j.id===state.currentJobId);if(found)renderCurrent(found)}renderBatchComparisons();const warnedJob=state.jobs.find(job=>state.currentJobIds.includes(job.id)&&job.hasExistingDischarge&&job.result&&!state.dischargeWarningsShown.has(job.id));if(warnedJob){state.dischargeWarningsShown.add(warnedJob.id);$('#captureMessage').textContent=`注意：${warnedJob.patientName}さんの「${warnedJob.evaluationType}」は既に退院が設定されています。今回のOCR結果は新しい評価として追加されました。`;}if(state.currentJobIds.length)updateBatchProgress();if(state.jobs.some(j=>['REQUEST','PROCESSING'].includes(j.status)))startPolling();else stopPolling()}
+function groupEvaluationRuns(sheetType,jobs){
+  if(!/(BIT|SLTA|CAT-R|WAIS-IV|WMS-R)/.test(sheetType))return jobs.map(job=>[job]);
+  const pageKey=job=>{
+    if(job.result?.testType==='BIT')return(job.result.fields||[]).map(field=>/^BIT_(\d+)_/.exec(field.id)).find(Boolean)?.[1]||null;
+    const pagePatterns={CAT_R_ALL:/^CAT_R_([1-5])_/,WAIS_IV_ALL:/^WAIS_IV_((?:[1-9]|1[0-3]))_/,WMSR_ALL:/^WMSR_([1-9])_/};
+    const pagePattern=pagePatterns[job.result?.testType];
+    if(pagePattern)return(job.result.fields||[]).map(field=>pagePattern.exec(field.id)).find(Boolean)?.[1]||null;
+    const numbers=(job.result?.fields||[]).map(field=>/^#(\d+)$/.exec(field.id)).filter(Boolean).map(match=>Number(match[1]));
+    return numbers.length?`${Math.min(...numbers)}_${Math.max(...numbers)}`:null;
+  };
+  return jobs.reduce((groups,job)=>{
+    const currentPageKey=pageKey(job);
+    let group=job.assessmentGroupId?groups.find(candidate=>candidate[0]?.assessmentGroupId===job.assessmentGroupId):groups.at(-1);
+    const usedPages=new Set((group||[]).map(pageKey).filter(Boolean));
+    if(!group||(currentPageKey&&usedPages.has(currentPageKey))){group=[];groups.push(group)}
+    group.push(job);
+    return groups;
+  },[]);
+}
+function clinicalEvaluationDate(job){
+  const value=String(job?.confirmedResult?.evaluationDate||job?.result?.evaluationDate||'');
+  return /^\d{4}-\d{2}-\d{2}$/.test(value)?value:'';
+}
+function clinicalDateLabel(value){return value?new Date(`${value}T00:00:00`).toLocaleDateString('ja-JP'):'評価日不明'}
+function clinicalJobSortKey(job){return `${clinicalEvaluationDate(job)||String(job?.createdAt||'').slice(0,10)}|${job?.createdAt||''}`}
+function clinicalEvaluationRuns(jobs){
+  const groups=new Map();
+  jobs.forEach(job=>{
+    const key=job.assessmentGroupId||job.id;
+    if(!groups.has(key))groups.set(key,[]);
+    groups.get(key).push(job);
+  });
+  return [...groups.values()]
+    .map(group=>{
+      const ordered=group.sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
+      const evaluationDates=[...new Set(ordered.map(clinicalEvaluationDate).filter(Boolean))];
+      return {representative:ordered.at(-1),pageCount:ordered.length,createdAt:ordered[0].createdAt,evaluationDate:evaluationDates[0]||'',dateMismatch:evaluationDates.length>1};
+    })
+    .sort((a,b)=>`${b.evaluationDate||String(b.createdAt).slice(0,10)}|${b.createdAt}`.localeCompare(`${a.evaluationDate||String(a.createdAt).slice(0,10)}|${a.createdAt}`));
+}
+function clinicalRecordMarkup(record){
+  const metrics=[
+    record.durationMinutes!=null?`実施 ${record.durationMinutes}分`:'',
+    record.assistanceLevel?`介助 ${esc(record.assistanceLevel)}`:'',
+    record.painBefore!=null?`疼痛 ${record.painBefore}→${record.painAfter??'-'}`:'',
+    record.fatigueBefore!=null?`疲労 ${record.fatigueBefore}→${record.fatigueAfter??'-'}`:'',
+  ].filter(Boolean).join('・');
+  return `<article class="clinical-record">
+    <div class="clinical-record-head"><div><strong>${esc(record.therapistName||'担当者未設定')}</strong><small>${date(record.createdAt)}</small></div><button class="clinical-record-delete" type="button" data-delete-rehab-record="${esc(record.id)}">${state.pendingRehabDeleteId===record.id?'再押下でこの記録を削除':'削除'}</button></div>
+    ${record.preCondition?`<p><b>開始時：</b>${esc(record.preCondition)}</p>`:''}
+    <p><b>実施：</b>${esc(record.intervention)}</p>${metrics?`<p class="clinical-metrics">${metrics}</p>`:''}
+    <p><b>終了時：</b>${esc(record.outcome)}</p>
+    ${record.nextPlan?`<p><b>次回：</b>${esc(record.nextPlan)}</p>`:''}
+    ${record.riskNotes?`<p class="clinical-risk"><b>注意：</b>${esc(record.riskNotes)}</p>`:''}
+  </article>`;
+}
+function renderClinicalFlow(patientId){
+  const box=$('#patientClinicalFlow'); if(!box||patientId!==state.selectedPatientTimelineId)return;
+  const summary=state.preRehabSummary||{},latest=summary.latestRecord,trends=summary.trends||[],ocr=summary.ocrReview||{};
+  const jobs=state.jobs.filter(job=>job.patientId===patientId&&job.result).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
+  box.innerHTML=`<section class="clinical-flow">
+    <div class="pre-rehab-grid">
+      <article><h4>リハビリ前サマリー</h4><p><b>直近評価日：</b>${clinicalDateLabel(summary.latestEvaluationDate)}${summary.latestEvaluationDate?'':`（OCR登録 ${date(summary.latestEvaluationRecordedAt)}）`}</p><p><b>前回終了時：</b>${esc(latest?.outcome||'記録なし')}</p><p><b>次回方針：</b>${esc(latest?.nextPlan||'未設定')}</p><p class="clinical-risk"><b>注意・リスク：</b>${esc(latest?.riskNotes||'記録なし')}</p></article>
+      <article><h4>評価値の変化</h4>${trends.length?`<table><thead><tr><th>項目</th><th>前回</th><th>今回</th><th>増減</th></tr></thead><tbody>${trends.map(item=>`<tr><td>${esc(item.label)}</td><td>${item.previous}</td><td>${item.current}</td><td class="${item.change>0?'trend-up':'trend-down'}">${item.change>0?'+':''}${item.change}</td></tr>`).join('')}</tbody></table>`:'<p>同じ数値項目を含む評価が2回以上になると比較を表示します。</p>'}</article>
+      <article><h4>OCR確認状態</h4><div class="ocr-status-grid"><span class="ocr-confirmed">確認済み <b>${ocr.confirmed||0}</b></span><span class="ocr-ai">AI推定 <b>${ocr.aiEstimated||0}</b></span><span class="ocr-missing">未実施・空欄 <b>${ocr.missing||0}</b></span><span class="ocr-unreadable">判読注意 <b>${ocr.unreadable||0}</b></span></div><p>AI推定値と判読注意項目は原票で確認してください。</p></article>
+    </div>
+    <section class="clinical-history"><h4>経過記録（${state.rehabRecords.length}件）</h4>${state.rehabRecords.length?state.rehabRecords.map(clinicalRecordMarkup).join(''):'<p>経過記録はまだありません。</p>'}</section>
+  </section>`;
+  box.querySelectorAll('[data-delete-rehab-record]').forEach(button=>button.addEventListener('click',async()=>{
+    const recordId=button.dataset.deleteRehabRecord;
+    if(state.pendingRehabDeleteId!==recordId){state.pendingRehabDeleteId=recordId;renderClinicalFlow(patientId);return}
+    button.disabled=true;
+    try{await api(`/api/rehab-records/${recordId}`,{method:'DELETE',body:'{}'});state.pendingRehabDeleteId=null;state.rehabRecords=state.rehabRecords.filter(record=>record.id!==recordId);renderClinicalFlow(patientId);$('#captureMessage').textContent='選択した経過記録欄をすべて削除しました。OCR履歴と評価画像は保持しています。';await loadClinicalFlow(patientId)}
+    catch(error){state.pendingRehabDeleteId=null;alert(error.message);await loadClinicalFlow(patientId)}
+  }));
+}
+async function loadClinicalFlow(patientId){
+  if(!patientId)return;
+  try{
+    [state.rehabRecords,state.preRehabSummary]=await Promise.all([
+      api(`/api/rehab-records?patientId=${encodeURIComponent(patientId)}`),
+      api(`/api/patients/pre-rehab-summary?patientId=${encodeURIComponent(patientId)}`),
+    ]);
+    renderClinicalFlow(patientId);
+  }catch(error){const box=$('#patientClinicalFlow');if(box)box.innerHTML=`<p class="error">${esc(error.message)}</p>`}
+}
+function renderPatientSheetTimeline(){
+  const box=$('#patientSheetTimeline');
+  if(!box)return;
+  const timelineSearch=$('#patientTimelineSearch');
+  const selectedTimelinePatient=state.patients.find(item=>item.id===state.selectedPatientTimelineId);
+  if(timelineSearch&&selectedTimelinePatient&&document.activeElement!==timelineSearch)timelineSearch.value=patientLabel(selectedTimelinePatient);
+  const patient=state.patients.find(item=>item.id===state.selectedPatientTimelineId);
+  if(!patient){box.innerHTML='<p>患者を選択してください。</p>';return}
+  const jobs=state.jobs.filter(job=>job.patientId===patient.id&&job.result).sort((a,b)=>clinicalJobSortKey(a).localeCompare(clinicalJobSortKey(b)));
+  const sheetGroups=jobs.reduce((result,job)=>{const key=job.evaluationType||'帳票名不明';(result[key]??=[]).push(job);return result},{});
+  const stageRows=Object.entries(sheetGroups).map(([stage,sheetJobs])=>({
+    stage,
+    jobs:sheetJobs,
+  }));
+  const card=jobGroup=>{
+    const job=jobGroup[0],actionJob=jobGroup.at(-1);
+    const sameSheetJobs=sheetGroups[job.evaluationType]||[];
+    const isLatest=sameSheetJobs.at(-1)?.id===actionJob.id;
+    const groupStage=jobGroup.some(item=>item.careStage==='DISCHARGE')?'DISCHARGE':job.careStage;
+    const canDischarge=isLatest&&groupStage!=='DISCHARGE'&&jobGroup.every(item=>['OCR_DONE','DONE'].includes(item.status));
+    const canUndoDischarge=isLatest&&groupStage==='DISCHARGE'&&sameSheetJobs.length>jobGroup.length;
+    const evaluationDates=[...new Set(jobGroup.map(clinicalEvaluationDate).filter(Boolean))];
+    const evaluationDate=evaluationDates[0]||'';
+    const setInfo=actionJob.assessmentSet||job.assessmentSet;
+    const missingAdvice=setInfo&&!setInfo.complete?`<b class="missing-page-advice">不足：${esc(setInfo.missingPages.join('、'))}ページをOCRしてください</b>`:setInfo?.complete?'<b class="complete-page-badge">全ページ確認済み</b>':'';
+    return `<article class="patient-sheet-card"><button class="patient-sheet-open" type="button" data-job-ids="${esc(jobGroup.map(item=>item.id).join(','))}"><img src="${esc(job.imageUrl)}" alt="${esc(job.evaluationType)}のシート"><span class="patient-sheet-meta"><strong>${esc(job.evaluationType)}</strong>${jobGroup.length>1?`<b class="page-count-badge">${jobGroup.length}ページ・1回の評価</b>`:''}${missingAdvice}<span class="care-stage care-stage-${esc(groupStage.toLowerCase())}">${esc(careStageLabel(groupStage))}</span><small>担当 ${esc(job.therapistName||'未設定')}</small><small>評価日 ${clinicalDateLabel(evaluationDate)}${evaluationDates.length>1?'（日付不一致）':''}</small><small>OCR登録 ${date(job.createdAt)}・${esc(statusLabel(actionJob.status))}</small></span></button>${canDischarge?`<button class="discharge-button" type="button" data-discharge-job="${esc(actionJob.id)}">退院</button>`:''}${canUndoDischarge?`<button class="undo-discharge-button" type="button" data-undo-discharge-job="${esc(actionJob.id)}">途中経過に戻す</button>`:''}</article>`;
+  };
+  box.innerHTML=`<div class="patient-timeline-head"><h3>${esc(patient.name)}さん</h3><span>評価用紙 ${jobs.length}件</span></div>${stageRows.length?stageRows.map(row=>{const runs=groupEvaluationRuns(row.stage,row.jobs);return `<section class="sheet-history-group stage-history-row"><div class="sheet-history-title"><h4><span class="care-stage care-stage-${row.stage.toLowerCase()}">${esc(careStageLabel(row.stage))}</span></h4><span>${runs.length}回・${row.jobs.length}枚</span></div><div class="patient-sheet-grid">${runs.map(card).join('')}</div></section>`}).join(''):'<p>OCRしたシートはまだありません。</p>'}`;
+  box.querySelectorAll('.patient-sheet-open').forEach(button=>button.addEventListener('click',()=>{const ids=button.dataset.jobIds.split(',');if(ids.length>1)openGroupedEvaluation(ids);else openDetail(ids[0])}));
+  box.querySelectorAll('[data-discharge-job]').forEach(button=>button.addEventListener('click',async()=>{if(!confirm('このシートを退院時の最終記録にしますか？'))return;button.disabled=true;try{await api(`/api/jobs/${button.dataset.dischargeJob}/discharge`,{method:'POST',body:'{}'});await loadJobs()}catch(error){alert(error.message);button.disabled=false}}));
+  box.querySelectorAll('[data-undo-discharge-job]').forEach(button=>button.addEventListener('click',async()=>{if(!confirm('退院状態を解除して、途中経過に戻しますか？'))return;button.disabled=true;try{await api(`/api/jobs/${button.dataset.undoDischargeJob}/discharge/undo`,{method:'POST',body:'{}'});await loadJobs();$('#captureMessage').textContent='退院から途中経過に変更しました。'}catch(error){alert(error.message);button.disabled=false}}));
+}
+function renderHistory(){const box=$('#historyList'),visibleJobs=state.historyExpanded?state.jobs:state.jobs.slice(0,20),remaining=Math.max(0,state.jobs.length-20),canToggle=state.jobs.length>20;box.innerHTML=state.jobs.length?visibleJobs.map(j=>{const progress=jobProgress(j.status);const active=['REQUEST','PROCESSING'].includes(j.status);return `<article class="card"><div><strong>${esc(j.patientName)}｜${esc(j.evaluationType)}</strong><p>${date(j.createdAt)}・<span class="badge">${statusLabel(j.status)}</span></p>${j.error?`<p class="error">${esc(j.error)}</p>`:''}</div><div class="history-actions">${active?`<button class="stop-button" data-stop-job="${j.id}">停止</button>`:''}<div class="job-progress ${active?'active':''} ${j.status==='ERROR'?'error':''}" role="progressbar" aria-label="${esc(statusLabel(j.status))}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress}"><span style="width:${progress}%"></span><small>${progress}%</small></div><button data-job="${j.id}">詳細</button><button data-delete-job="${j.id}">削除</button></div></article>`}).join('')+(canToggle?`<button id="showAllHistory" class="secondary history-show-all" type="button">${state.historyExpanded?'20件表示に戻す':`表示する（残り${remaining}件）`}</button>`:''):'<p>OCR履歴はありません。</p>';box.querySelectorAll('[data-job]').forEach(b=>b.onclick=()=>openDetail(b.dataset.job));box.querySelectorAll('[data-stop-job]').forEach(b=>b.onclick=async()=>{b.disabled=true;try{await api(`/api/jobs/${b.dataset.stopJob}/stop`,{method:'POST',body:'{}'});await loadJobs()}catch(error){alert(error.message);b.disabled=false}});box.querySelectorAll('[data-delete-job]').forEach(b=>b.onclick=async()=>{const deletedId=b.dataset.deleteJob;b.disabled=true;try{await api(`/api/jobs/${deletedId}`,{method:'DELETE',body:'{}'});if(state.currentJobId===deletedId)state.currentJobId=null;state.currentJobIds=state.currentJobIds.filter(id=>id!==deletedId);state.batchItems=state.batchItems.filter(item=>item.jobId!==deletedId);await Promise.all([loadPatients(),loadJobs()]);$('#captureMessage').textContent='選択した履歴を削除しました。'}catch(error){alert(error.message);b.disabled=false}});const showAll=$('#showAllHistory');if(showAll)showAll.onclick=()=>{state.historyExpanded=!state.historyExpanded;renderHistory();if(!state.historyExpanded)box.scrollIntoView({behavior:'smooth',block:'start'})}}
+function fieldNumber(_field,index){return String(index+1)}
+function todayValue(){const now=new Date();const offset=now.getTimezoneOffset()*60000;return new Date(now-offset).toISOString().slice(0,10)}
+function optimizedValueControl(field,className='field-value',attributes=''){const value=String(field.value??''),numeric=value===''||/^[+-]?(?:\d+(?:[.,]\d+)?|[.,]\d+)$/.test(value.trim()),classes=`${className} field-value ${numeric?'numeric-value':'text-value'}`;if(!numeric&&(value.length>30||value.includes('\n')))return `<textarea class="${classes}" rows="2" ${attributes}>${esc(value)}</textarea>`;return `<input class="${classes}"${numeric?' inputmode="decimal"':''} value="${esc(value)}" ${attributes}>`}
+function visibleResultFields(result){const fields=result?.fields||[],bitPage2=fields.some(field=>/^BIT_2_\d+$/.test(String(field.id||'')));return fields.map((field,index)=>({field,index})).filter(({field})=>!bitPage2||String(field.value??'').trim()!=='')}
+function resultEditor(result){const rows=visibleResultFields(result).map(({field,index})=>`<tr class="first-result-row" data-index="${index}"><td class="field-label-text">${itemTextMarkup(field.label)}</td><td>${optimizedValueControl(field,'batch-field-value')}</td></tr>`).join('');const evaluationDate=/^\d{4}-\d{2}-\d{2}$/.test(result.evaluationDate||'')?result.evaluationDate:'';return `<p><strong>${esc(result.documentType||'OCR結果')}</strong></p><input id="documentType" type="hidden" value="${esc(result.documentType)}"><label>評価実施日<input id="evaluationDate" type="date" value="${esc(evaluationDate)}"></label><div class="batch-result-table"><table><thead><tr><th>項目</th><th>値（編集可能）</th></tr></thead><tbody>${rows}</tbody></table></div><label>判読メモ<textarea id="resultNotes">${esc(result.notes)}</textarea></label>`}
+function collectResult(){const job=state.jobs.find(j=>j.id===state.currentJobId);const base=job?.result||{};return{testType:base.testType,documentType:$('#documentType').value,evaluationDate:$('#evaluationDate').value,notes:$('#resultNotes').value,fields:[...document.querySelectorAll('#resultEditor .first-result-row')].map(row=>{const i=Number(row.dataset.index),field=base.fields?.[i]||{};return{id:field.id||`field_${i+1}`,label:field.label||row.querySelector('.field-label-text')?.textContent||'',value:row.querySelector('.field-value').value,confidence:field.confidence??null,x:field.x??null,y:field.y??null}})}}
+function overlayMarkup(result){
+  const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
+  const bitPageNumber=Number((result?.fields||[]).map(field=>/^BIT_(\d+)_/.exec(String(field.id||''))).find(Boolean)?.[1])||null;
+  const bitPage1=result?.testType==='BIT'||(result?.fields||[]).some(field=>/^BIT_\d+_\d+$/.test(String(field.id||'')));
+  const fields=(result?.fields||[]).filter(field=>String(field.value??'').trim()!==''&&!/_TEXT_\d+$/i.test(String(field.id||''))&&Number(field.x)>0&&Number(field.x)<=100&&Number(field.y)>0&&Number(field.y)<=100).map((field,index)=>{
+    const value=String(field.value).trim(),anchorX=clamp(Number(field.x),2,98),anchorY=clamp(Number(field.y),2,98);
+    return{field,value,anchorX,anchorY};
+  }).sort((a,b)=>a.anchorX-b.anchorX||a.anchorY-b.anchorY);
+  if(bitPage1){
+    return fields.map(({field,value,anchorX,anchorY})=>`<span class="ocr-value compact plain bit-page1-min" style="left:${anchorX}%;top:${clamp(bitPageNumber===1?.15+anchorY*.88:anchorY,2,98)}%" title="${esc(field.label)}：OCR値 ${esc(value)}">${esc(value)}</span>`).join('');
+  }
+  return fields.map(({field,value,anchorX,anchorY})=>`<span class="ocr-value anchored plain" data-anchor-x="${anchorX}" data-anchor-y="${anchorY}" style="left:${anchorX}%;top:${anchorY}%" title="${esc(field.label)}：OCR値 ${esc(value)}">${esc(value)}</span>`).join('');
+  /*
+  const columns=[];
+  for(const item of fields){
+    let column=columns.find(candidate=>Math.abs(candidate.anchorX-item.anchorX)<=7);
+    if(!column){column={anchorX:item.anchorX,items:[]};columns.push(column)}
+    column.items.push(item);
+    column.anchorX=column.items.reduce((sum,current)=>sum+current.anchorX,0)/column.items.length;
+  }
+  columns.sort((a,b)=>a.anchorX-b.anchorX);
+  const placed=[],overlaps=(candidate,other)=>Math.abs(candidate.x-other.x)<candidate.halfWidth+other.halfWidth+.8&&Math.abs(candidate.y-other.y)<candidate.halfHeight+other.halfHeight+.5;
+  for(const column of columns){
+    column.items.sort((a,b)=>a.anchorY-b.anchorY);
+    const dense=bitPage1||column.items.length>=10||column.items.some((item,index)=>index&&item.anchorY-column.items[index-1].anchorY<4.5);
+    const plain=bitPage1||dense||column.items.length>=14;
+    const halfHeight=bitPage1?.9:dense?1.65:2.45,minGap=halfHeight*2+(bitPage1?.2:.55),top=bitPage1?1.5+halfHeight:3+halfHeight,bottom=bitPage1?98.5-halfHeight:97-halfHeight;
+    let ys=column.items.map(item=>clamp(item.anchorY,top,bottom));
+    for(let index=1;index<ys.length;index++)ys[index]=Math.max(ys[index],ys[index-1]+minGap);
+    if(ys.at(-1)>bottom){const shift=ys.at(-1)-bottom;ys=ys.map(y=>y-shift)}
+    if(ys[0]<top||minGap*Math.max(0,ys.length-1)>bottom-top)ys=ys.map((_y,index)=>ys.length===1?clamp(column.items[0].anchorY,top,bottom):top+(bottom-top)*index/(ys.length-1));
+    const maxLength=Math.max(...column.items.map(item=>item.value.length));
+    const halfWidth=bitPage1?Math.max(.9,Math.min(3.2,.55+maxLength*.45)):dense?Math.max(2.1,Math.min(7,1.7+maxLength*.72)):Math.max(3.2,Math.min(11,2.5+maxLength*1.05));
+    const distance=halfWidth+(bitPage1?.6:1.4);
+    const sideCandidates=column.anchorX<22?[1,-1]:column.anchorX>78?[-1,1]:columns.indexOf(column)%2?[1,-1]:[-1,1];
+    const candidates=sideCandidates.map(side=>{
+      const x=clamp(column.anchorX+side*distance,halfWidth+1,99-halfWidth);
+      const items=column.items.map((item,index)=>({...item,x,y:ys[index],halfWidth,halfHeight}));
+      const collisions=items.reduce((total,item)=>total+placed.filter(other=>overlaps(item,other)).length,0);
+      return{x,items,score:collisions*10000+Math.abs(x-column.anchorX)};
+    }).sort((a,b)=>a.score-b.score);
+    for(const item of candidates[0].items)placed.push({...item,dense,plain,bitPage1});
+  }
+  return placed.map(({field,value,x,y,dense,plain,bitPage1})=>`<span class="ocr-value${dense?' compact':''}${plain?' plain':''}${bitPage1?' bit-page1-min':''}" style="left:${x}%;top:${y}%" title="${esc(field.label)}：OCR値 ${esc(value)}">${esc(value)}</span>`).join('');
+  */
+}
+function positionBitOverlays(overlay){overlay.querySelectorAll('.ocr-value.bit-page1-min').forEach(box=>{const boxHeight=box.getBoundingClientRect().height;if(boxHeight>0)box.style.transform=`translate(-50%,-50%) translateY(${boxHeight+3}px)`})}
+function alignResultOverlays(){document.querySelectorAll('.result-preview .ocr-overlay').forEach(overlay=>{const preview=overlay.closest('.result-preview'),image=preview?.querySelector('img.visible');if(!image||!image.clientWidth||!image.clientHeight)return;const parentRect=preview.getBoundingClientRect(),imageRect=image.getBoundingClientRect();overlay.style.left=`${imageRect.left-parentRect.left}px`;overlay.style.top=`${imageRect.top-parentRect.top}px`;overlay.style.width=`${imageRect.width}px`;overlay.style.height=`${imageRect.height}px`;overlay.classList.toggle('landscape-overlay',image.naturalWidth>image.naturalHeight);overlay.dataset.imageWidth=String(image.naturalWidth);overlay.dataset.imageHeight=String(image.naturalHeight);positionBitOverlays(overlay)})}
+function renderOverlay(result){$('#ocrOverlay').innerHTML=overlayMarkup(result);$('#resultEmpty').classList.toggle('hidden',!!result);requestAnimationFrame(alignResultOverlays)}
+function batchTextResult(job){const result=job?.confirmedResult||job?.result;if(!job)return'<p class="batch-waiting">AI OCR開始前</p>';if(!result)return`<p class="${job.status==='ERROR'?'error':'batch-waiting'}">${esc(job.error||statusLabel(job.status))}</p>`;const fields=visibleResultFields(result);const canEdit=['OCR_DONE','DONE'].includes(job.status);return`<p><span class="badge">${esc(statusLabel(job.status))}</span></p><p><strong>${esc(result.documentType||'OCR結果')}</strong></p><label>評価実施日<input class="batch-evaluation-date" type="date" value="${esc(clinicalEvaluationDate(job))}"${canEdit?'':' disabled'}></label>${fields.length?`<div class="batch-result-table"><table><thead><tr><th>項目</th><th>値（編集可能）</th></tr></thead><tbody>${fields.map(({field,index})=>`<tr><td>${itemTextMarkup(field.label)}</td><td>${optimizedValueControl(field,'batch-field-value',`data-field-index="${index}" aria-label="${esc(field.label)}の値"${canEdit?'':' disabled'}`)}</td></tr>`).join('')}</tbody></table></div>${canEdit?`<button class="primary batch-confirm-button" type="button" data-confirm-batch="${esc(job.id)}">修正内容を保存</button>`:''}`:'<p>読取値はありません。</p>'}`}
+function renderBatchComparisons(){const box=$('#batchComparisons');if(!box)return;const first=state.batchItems[0];if(first){$('#previewImage').src=first.imageDataUrl;$('#previewImage').classList.add('visible');$('#previewEmpty').classList.add('hidden');const firstJob=first.jobId?state.jobs.find(job=>job.id===first.jobId):null;$('#resultImage').src=first.imageDataUrl;$('#resultImage').classList.add('visible');if(firstJob)renderOverlay(firstJob.confirmedResult||firstJob.result)}box.innerHTML=state.batchItems.slice(1).map((item,offset)=>{const index=offset+2,job=item.jobId?state.jobs.find(candidate=>candidate.id===item.jobId):null,result=job?.confirmedResult||job?.result;return`<section class="batch-comparison-row" data-batch-index="${index-1}"><figure><figcaption>${index}ファイル目：読み込んだファイル <small>${esc(item.fileName||'')}</small></figcaption><div class="preview source-preview"><img class="visible" src="${item.imageDataUrl}" alt="${index}ファイル目の読み込み画像"></div></figure><figure><figcaption>${index}ファイル目：OCR結果（画像）</figcaption><div class="preview result-preview"><img class="visible" src="${item.imageDataUrl}" alt="${index}ファイル目のOCR結果画像"><div class="ocr-overlay">${overlayMarkup(result)}</div></div></figure><section class="text-result-pane batch-text-pane"><h2>${index}ファイル目：OCR結果（テキスト）</h2>${batchTextResult(job)}</section></section>`}).join('');box.querySelectorAll('.result-preview img').forEach(image=>image.addEventListener('load',alignResultOverlays,{once:true}));box.querySelectorAll('[data-confirm-batch]').forEach(button=>button.addEventListener('click',async()=>{const job=state.jobs.find(item=>item.id===button.dataset.confirmBatch),result=job?.confirmedResult||job?.result,pane=button.closest('.batch-text-pane');if(!job||!result)return;button.disabled=true;button.textContent='保存中…';try{const edited={...result,evaluationDate:pane.querySelector('.batch-evaluation-date')?.value||'',fields:result.fields.map((field,index)=>{const input=pane.querySelector(`.batch-field-value[data-field-index="${index}"]`);return input?{...field,value:input.value}:field})};await api(`/api/jobs/${job.id}/confirm`,{method:'PUT',body:JSON.stringify({result:edited})});button.textContent='保存済み';$('#captureMessage').textContent='OCRの修正内容を保存しました。';await loadJobs()}catch(error){button.disabled=false;button.textContent='修正内容を保存';alert(error.message)}}));requestAnimationFrame(alignResultOverlays)}
+window.addEventListener('resize',alignResultOverlays);
+$('#resultImage').addEventListener('load',alignResultOverlays);
+function renderCurrent(job){state.currentJobId=job.id;if(state.currentJobIds.length<=1)updateProgress(job.status);$('#currentJob').classList.remove('hidden');$('#jobStatus').textContent=statusLabel(job.status);$('#jobError').textContent=job.error||'';const displayed=job.confirmedResult||job.result;$('#resultEditor').innerHTML=job.result?resultEditor(displayed):'<p>OCR処理中です。画面は自動更新されます。</p>';const imageSource=state.imageDataUrl||job.imageUrl;if(imageSource){$('#resultImage').src=imageSource;$('#resultImage').classList.add('visible');$('#resultEmpty').classList.add('hidden');const textSheetImage=$('#textSheetImage');if(textSheetImage)textSheetImage.src=imageSource}renderOverlay(displayed);$('#retryButton').classList.toggle('hidden',!['ERROR','OCR_DONE','STOPPED'].includes(job.status));$('#confirmButton').classList.toggle('hidden',job.status!=='OCR_DONE');if(state.currentJobIds.length<=1){if(['REQUEST','PROCESSING'].includes(job.status))startPolling();else stopPolling()}}
+function startPolling(){if(state.poll)return;state.poll=setInterval(()=>loadJobs().catch(error=>console.warn('job polling failed',error)),1500)}function stopPolling(){if(state.poll){clearInterval(state.poll);state.poll=null}}
+
+async function cropOuterWhitespace(dataUrl){const image=await new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=reject;img.src=dataUrl});const scale=Math.min(1,1200/Math.max(image.naturalWidth,image.naturalHeight));const scan=document.createElement('canvas');scan.width=Math.max(1,Math.round(image.naturalWidth*scale));scan.height=Math.max(1,Math.round(image.naturalHeight*scale));const context=scan.getContext('2d',{willReadFrequently:true});context.drawImage(image,0,0,scan.width,scan.height);const pixels=context.getImageData(0,0,scan.width,scan.height).data;let left=scan.width,top=scan.height,right=-1,bottom=-1;for(let y=0;y<scan.height;y++){for(let x=0;x<scan.width;x++){const i=(y*scan.width+x)*4;const isWhite=pixels[i+3]<16||(pixels[i]>225&&pixels[i+1]>225&&pixels[i+2]>225);if(!isWhite){left=Math.min(left,x);right=Math.max(right,x);top=Math.min(top,y);bottom=Math.max(bottom,y)}}}if(right<left||bottom<top)return dataUrl;const padding=2;left=Math.max(0,Math.floor(left/scale)-padding);top=Math.max(0,Math.floor(top/scale)-padding);right=Math.min(image.naturalWidth,Math.ceil((right+1)/scale)+padding);bottom=Math.min(image.naturalHeight,Math.ceil((bottom+1)/scale)+padding);if(left===0&&top===0&&right===image.naturalWidth&&bottom===image.naturalHeight)return dataUrl;const output=document.createElement('canvas');output.width=right-left;output.height=bottom-top;output.getContext('2d').drawImage(image,left,top,output.width,output.height,0,0,output.width,output.height);const mime=(dataUrl.match(/^data:([^;]+)/)||[])[1]||'image/png';return output.toDataURL(mime,mime==='image/jpeg'?0.94:undefined)}
+async function resizeLongEdge(dataUrl,maxLongEdge=2048){const image=await new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=reject;img.src=dataUrl});const longEdge=Math.max(image.naturalWidth,image.naturalHeight);if(longEdge<=maxLongEdge)return dataUrl;const scale=maxLongEdge/longEdge;const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));canvas.getContext('2d').drawImage(image,0,0,canvas.width,canvas.height);const mime=(dataUrl.match(/^data:([^;]+)/)||[])[1]||'image/jpeg';return canvas.toDataURL(mime,mime==='image/png'?undefined:.9)}
+async function cropAdaptiveWhitespace(dataUrl){const image=await new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=reject;img.src=dataUrl});const scale=Math.min(1,1400/Math.max(image.naturalWidth,image.naturalHeight));const scan=document.createElement('canvas');scan.width=Math.max(1,Math.round(image.naturalWidth*scale));scan.height=Math.max(1,Math.round(image.naturalHeight*scale));const context=scan.getContext('2d',{willReadFrequently:true});context.drawImage(image,0,0,scan.width,scan.height);const pixels=context.getImageData(0,0,scan.width,scan.height).data;const edge=[];const edgeStep=Math.max(1,Math.floor(Math.min(scan.width,scan.height)/180));const addEdge=(x,y)=>{const i=(y*scan.width+x)*4;if(pixels[i+3]>32)edge.push([pixels[i],pixels[i+1],pixels[i+2]])};for(let x=0;x<scan.width;x+=edgeStep){addEdge(x,0);addEdge(x,scan.height-1)}for(let y=edgeStep;y<scan.height-1;y+=edgeStep){addEdge(0,y);addEdge(scan.width-1,y)}if(!edge.length)return dataUrl;const median=channel=>{const values=edge.map(pixel=>pixel[channel]).sort((a,b)=>a-b);return values[Math.floor(values.length/2)]};const background=[median(0),median(1),median(2)],backgroundLuminance=.2126*background[0]+.7152*background[1]+.0722*background[2];const deviations=edge.map(pixel=>Math.abs((.2126*pixel[0]+.7152*pixel[1]+.0722*pixel[2])-backgroundLuminance)).sort((a,b)=>a-b);const threshold=Math.max(20,Math.min(58,deviations[Math.floor(deviations.length*.8)]*3+12));const rows=new Uint32Array(scan.height),columns=new Uint32Array(scan.width);for(let y=0;y<scan.height;y++)for(let x=0;x<scan.width;x++){const i=(y*scan.width+x)*4;if(pixels[i+3]<32)continue;const luminance=.2126*pixels[i]+.7152*pixels[i+1]+.0722*pixels[i+2],colorDistance=Math.hypot(pixels[i]-background[0],pixels[i+1]-background[1],pixels[i+2]-background[2]);if(backgroundLuminance-luminance>threshold||colorDistance>threshold*1.55){rows[y]++;columns[x]++}}const sustainedBounds=(histogram,crossSize)=>{const minimum=Math.max(2,Math.round(crossSize*.0025)),window=2;let first=-1,last=-1;for(let i=0;i<histogram.length;i++){let sum=0;for(let offset=-window;offset<=window;offset++)sum+=histogram[Math.max(0,Math.min(histogram.length-1,i+offset))];if(sum>=minimum*(window+1)){if(first<0)first=i;last=i}}return[first,last]};let [top,bottom]=sustainedBounds(rows,scan.width),[left,right]=sustainedBounds(columns,scan.height);if(left<0||top<0||right-left<scan.width*.35||bottom-top<scan.height*.25)return dataUrl;const paddingX=Math.max(6,Math.min(24,Math.round((right-left+1)*.018))),paddingY=Math.max(6,Math.min(24,Math.round((bottom-top+1)*.018)));left=Math.max(0,left-paddingX);right=Math.min(scan.width-1,right+paddingX);top=Math.max(0,top-paddingY);bottom=Math.min(scan.height-1,bottom+paddingY);const sourceLeft=Math.max(0,Math.floor(left/scale)),sourceTop=Math.max(0,Math.floor(top/scale)),sourceRight=Math.min(image.naturalWidth,Math.ceil((right+1)/scale)),sourceBottom=Math.min(image.naturalHeight,Math.ceil((bottom+1)/scale));if(sourceLeft<2&&sourceTop<2&&sourceRight>image.naturalWidth-2&&sourceBottom>image.naturalHeight-2)return dataUrl;const output=document.createElement('canvas');output.width=sourceRight-sourceLeft;output.height=sourceBottom-sourceTop;output.getContext('2d').drawImage(image,sourceLeft,sourceTop,output.width,output.height,0,0,output.width,output.height);const mime=(dataUrl.match(/^data:([^;]+)/)||[])[1]||'image/png';return output.toDataURL(mime,mime==='jpeg'||mime==='image/jpeg'?0.94:undefined)}
+
+async function cropToOcrContent(dataUrl){const image=await new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=reject;img.src=dataUrl});const scale=Math.min(1,1200/Math.max(image.naturalWidth,image.naturalHeight));const scan=document.createElement('canvas');scan.width=Math.max(1,Math.round(image.naturalWidth*scale));scan.height=Math.max(1,Math.round(image.naturalHeight*scale));const context=scan.getContext('2d',{willReadFrequently:true});context.drawImage(image,0,0,scan.width,scan.height);const pixels=context.getImageData(0,0,scan.width,scan.height).data;const rows=new Uint32Array(scan.height);const columns=new Uint32Array(scan.width);let ink=0;for(let y=0;y<scan.height;y++){for(let x=0;x<scan.width;x++){const i=(y*scan.width+x)*4;const luminance=.2126*pixels[i]+.7152*pixels[i+1]+.0722*pixels[i+2];const isBottomRightPageText=x>scan.width*.88&&y>scan.height*.88;if(!isBottomRightPageText&&pixels[i+3]>32&&luminance<185){rows[y]++;columns[x]++;ink++}}}if(ink<500)return dataUrl;const quantile=(histogram,fraction)=>{const target=ink*fraction;let sum=0;for(let i=0;i<histogram.length;i++){sum+=histogram[i];if(sum>=target)return i}return histogram.length-1};let left=quantile(columns,.01),right=quantile(columns,.99),top=quantile(rows,.01),bottom=quantile(rows,.965);const width=right-left+1,height=bottom-top+1;if(width<scan.width*.45||height<scan.height*.35)return dataUrl;const padding=Math.max(4,Math.round(12*scale));left=Math.max(0,left-padding);right=Math.min(scan.width-1,right+padding);top=Math.max(0,top-padding);bottom=Math.min(scan.height-1,bottom+padding);const sourceLeft=Math.floor(left/scale),sourceTop=Math.floor(top/scale),sourceRight=Math.min(image.naturalWidth,Math.ceil((right+1)/scale)),sourceBottom=Math.min(image.naturalHeight,Math.ceil((bottom+1)/scale));const output=document.createElement('canvas');output.width=sourceRight-sourceLeft;output.height=sourceBottom-sourceTop;output.getContext('2d').drawImage(image,sourceLeft,sourceTop,output.width,output.height,0,0,output.width,output.height);const mime=(dataUrl.match(/^data:([^;]+)/)||[])[1]||'image/png';return output.toDataURL(mime,mime==='image/jpeg'?0.94:undefined)}
+
+$('#imageInput').onchange=async()=>{const files=[...$('#imageInput').files];if(!files.length)return;if(files.length>10){alert('選択できるファイルは最大10件です。');$('#imageInput').value='';state.imageDataUrls=[];state.imageDataUrl=null;validateCapture();return}const read=file=>new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file)});try{$('#captureMessage').textContent='評価表本体を検出して余白を削除しています…';const originals=await Promise.all(files.map(read));state.imageDataUrls=await Promise.all(originals.map(async source=>cropToOcrContent(await cropOuterWhitespace(source))));state.imageDataUrl=state.imageDataUrls[0];['#previewImage','#resultImage'].forEach(id=>{$(id).src=state.imageDataUrl;$(id).classList.add('visible')});$('#previewEmpty').classList.add('hidden');$('#resultEmpty').classList.remove('hidden');$('#ocrOverlay').innerHTML='';$('#captureMessage').textContent=`${files.length}ファイルを選択中（表領域を切り出し済み）`;setProgress(0,`${files.length}件 待機中`);validateCapture()}catch{$('#captureMessage').textContent='画像を読み込めませんでした。'}};
+async function rectifyPaperPerspective(dataUrl){const image=await new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=reject;img.src=dataUrl});const detectionScale=Math.min(1,800/Math.max(image.naturalWidth,image.naturalHeight));const scan=document.createElement('canvas');scan.width=Math.max(1,Math.round(image.naturalWidth*detectionScale));scan.height=Math.max(1,Math.round(image.naturalHeight*detectionScale));const scanContext=scan.getContext('2d',{willReadFrequently:true});scanContext.drawImage(image,0,0,scan.width,scan.height);const pixels=scanContext.getImageData(0,0,scan.width,scan.height).data;const sample=12;let background=0,samples=0;for(const [startX,startY] of [[0,0],[scan.width-sample,0],[0,scan.height-sample],[scan.width-sample,scan.height-sample]]){for(let y=Math.max(0,startY);y<Math.min(scan.height,startY+sample);y++)for(let x=Math.max(0,startX);x<Math.min(scan.width,startX+sample);x++){const i=(y*scan.width+x)*4;background+=(pixels[i]+pixels[i+1]+pixels[i+2])/3;samples++}}background/=Math.max(1,samples);const threshold=Math.max(155,Math.min(235,background+14));const edges=[];for(let y=0;y<scan.height;y++){let left=-1,right=-1,count=0;for(let x=0;x<scan.width;x++){const i=(y*scan.width+x)*4;const max=Math.max(pixels[i],pixels[i+1],pixels[i+2]),min=Math.min(pixels[i],pixels[i+1],pixels[i+2]);const luminance=.2126*pixels[i]+.7152*pixels[i+1]+.0722*pixels[i+2];if(pixels[i+3]>32&&luminance>threshold&&max-min<70){if(left<0)left=x;right=x;count++}}if(count>scan.width*.25&&right-left>scan.width*.35)edges.push({y,left,right})}if(edges.length<scan.height*.25)return dataUrl;const endpoints=edges.flatMap(edge=>[{x:edge.left,y:edge.y},{x:edge.right,y:edge.y}]);const corner=(score,highest)=>endpoints.reduce((best,point)=>{const value=score(point);return !best||(highest?value>best.value:value<best.value)?{...point,value}:best},null);const tl=corner(point=>point.x+point.y,false),tr=corner(point=>point.x-point.y,true),br=corner(point=>point.x+point.y,true),bl=corner(point=>point.y-point.x,true);const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);const detectedWidth=(distance(tl,tr)+distance(bl,br))/2,detectedHeight=(distance(tl,bl)+distance(tr,br))/2;if(detectedWidth<scan.width*.4||detectedHeight<scan.height*.4)return dataUrl;const sourceCorners=[tl,tr,br,bl].map(point=>({x:point.x/detectionScale,y:point.y/detectionScale}));const naturalWidth=(distance(sourceCorners[0],sourceCorners[1])+distance(sourceCorners[3],sourceCorners[2]))/2,naturalHeight=(distance(sourceCorners[0],sourceCorners[3])+distance(sourceCorners[1],sourceCorners[2]))/2;const outputScale=Math.min(1,1600/Math.max(naturalWidth,naturalHeight));const output=document.createElement('canvas');output.width=Math.max(1,Math.round(naturalWidth*outputScale));output.height=Math.max(1,Math.round(naturalHeight*outputScale));const source=document.createElement('canvas');source.width=image.naturalWidth;source.height=image.naturalHeight;const sourceContext=source.getContext('2d',{willReadFrequently:true});sourceContext.drawImage(image,0,0);const sourcePixels=sourceContext.getImageData(0,0,source.width,source.height).data;const outputContext=output.getContext('2d');const outputData=outputContext.createImageData(output.width,output.height);const [p00,p10,p11,p01]=sourceCorners;const dx1=p10.x-p11.x,dx2=p01.x-p11.x,dx3=p00.x-p10.x+p11.x-p01.x,dy1=p10.y-p11.y,dy2=p01.y-p11.y,dy3=p00.y-p10.y+p11.y-p01.y;const projectiveDenominator=dx1*dy2-dx2*dy1;if(Math.abs(projectiveDenominator)<1e-6)return dataUrl;const g=(dx3*dy2-dx2*dy3)/projectiveDenominator,h=(dx1*dy3-dx3*dy1)/projectiveDenominator,a=p10.x-p00.x+g*p10.x,b=p01.x-p00.x+h*p01.x,c=p00.x,d=p10.y-p00.y+g*p10.y,e=p01.y-p00.y+h*p01.y,f=p00.y;for(let y=0;y<output.height;y++){const v=y/Math.max(1,output.height-1);for(let x=0;x<output.width;x++){const u=x/Math.max(1,output.width-1),projectiveScale=g*u+h*v+1;const sourceX=(a*u+b*v+c)/projectiveScale,sourceY=(d*u+e*v+f)/projectiveScale;const sx=Math.max(0,Math.min(source.width-1,Math.round(sourceX))),sy=Math.max(0,Math.min(source.height-1,Math.round(sourceY)));const si=(sy*source.width+sx)*4,di=(y*output.width+x)*4;outputData.data[di]=sourcePixels[si];outputData.data[di+1]=sourcePixels[si+1];outputData.data[di+2]=sourcePixels[si+2];outputData.data[di+3]=sourcePixels[si+3]}}outputContext.putImageData(outputData,0,0);const mime=(dataUrl.match(/^data:([^;]+)/)||[])[1]||'image/png';return output.toDataURL(mime,mime==='image/jpeg'?0.94:undefined)}
+
+const cropOuterWhitespaceBase=cropAdaptiveWhitespace;
+cropOuterWhitespace=async function(dataUrl){return cropOuterWhitespaceBase(await rectifyPaperPerspective(dataUrl))}
+
+async function deskewByTableLines(dataUrl){const image=await new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=reject;img.src=dataUrl});const scale=Math.min(1,600/Math.max(image.naturalWidth,image.naturalHeight));const scan=document.createElement('canvas');scan.width=Math.max(1,Math.round(image.naturalWidth*scale));scan.height=Math.max(1,Math.round(image.naturalHeight*scale));const context=scan.getContext('2d',{willReadFrequently:true});context.drawImage(image,0,0,scan.width,scan.height);const pixels=context.getImageData(0,0,scan.width,scan.height).data;const points=[];for(let y=Math.round(scan.height*.04);y<scan.height*.96;y+=2)for(let x=Math.round(scan.width*.04);x<scan.width*.96;x+=2){const i=(y*scan.width+x)*4;const luminance=.2126*pixels[i]+.7152*pixels[i+1]+.0722*pixels[i+2];if(pixels[i+3]>32&&luminance<105)points.push([x,y])}if(points.length<200)return dataUrl;let bestAngle=0,bestScore=-1;for(let angle=-6;angle<=6;angle+=.25){const tangent=Math.tan(angle*Math.PI/180),offset=Math.ceil(Math.abs(tangent)*scan.width)+2,histogram=new Uint16Array(scan.height+offset*2+4);for(const [x,y] of points){const row=Math.round(y-tangent*x)+offset;if(row>=0&&row<histogram.length)histogram[row]++}let score=0;const minimumLine=Math.max(8,scan.width*.035);for(const count of histogram)if(count>minimumLine)score+=count*count;if(score>bestScore){bestScore=score;bestAngle=angle}}if(Math.abs(bestAngle)<.15)return dataUrl;const radians=-bestAngle*Math.PI/180,cos=Math.abs(Math.cos(radians)),sin=Math.abs(Math.sin(radians));const output=document.createElement('canvas');output.width=Math.ceil(image.naturalWidth*cos+image.naturalHeight*sin);output.height=Math.ceil(image.naturalWidth*sin+image.naturalHeight*cos);const outputContext=output.getContext('2d');outputContext.fillStyle='#fff';outputContext.fillRect(0,0,output.width,output.height);outputContext.translate(output.width/2,output.height/2);outputContext.rotate(radians);outputContext.drawImage(image,-image.naturalWidth/2,-image.naturalHeight/2);const mime=(dataUrl.match(/^data:([^;]+)/)||[])[1]||'image/png';return output.toDataURL(mime,mime==='image/jpeg'?0.94:undefined)}
+
+const cropToOcrContentBase=cropToOcrContent;
+cropToOcrContent=async function(dataUrl){return deskewByTableLines(await cropToOcrContentBase(dataUrl))}
+
+async function warpByAiCorners(dataUrl,corners){const image=await new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=reject;img.src=dataUrl});const point=value=>({x:image.naturalWidth*Number(value.x)/100,y:image.naturalHeight*Number(value.y)/100});const p00=point(corners.topLeft),p10=point(corners.topRight),p11=point(corners.bottomRight),p01=point(corners.bottomLeft);const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);const naturalWidth=(distance(p00,p10)+distance(p01,p11))/2,naturalHeight=(distance(p00,p01)+distance(p10,p11))/2;if(naturalWidth<image.naturalWidth*.3||naturalHeight<image.naturalHeight*.3)return dataUrl;const scale=Math.min(1,1600/Math.max(naturalWidth,naturalHeight));const output=document.createElement('canvas');output.width=Math.max(1,Math.round(naturalWidth*scale));output.height=Math.max(1,Math.round(naturalHeight*scale));const source=document.createElement('canvas');source.width=image.naturalWidth;source.height=image.naturalHeight;const sourceContext=source.getContext('2d',{willReadFrequently:true});sourceContext.drawImage(image,0,0);const sourcePixels=sourceContext.getImageData(0,0,source.width,source.height).data,outputContext=output.getContext('2d'),outputData=outputContext.createImageData(output.width,output.height);const dx1=p10.x-p11.x,dx2=p01.x-p11.x,dx3=p00.x-p10.x+p11.x-p01.x,dy1=p10.y-p11.y,dy2=p01.y-p11.y,dy3=p00.y-p10.y+p11.y-p01.y,denominator=dx1*dy2-dx2*dy1;if(Math.abs(denominator)<1e-6)return dataUrl;const g=(dx3*dy2-dx2*dy3)/denominator,h=(dx1*dy3-dx3*dy1)/denominator,a=p10.x-p00.x+g*p10.x,b=p01.x-p00.x+h*p01.x,c=p00.x,d=p10.y-p00.y+g*p10.y,e=p01.y-p00.y+h*p01.y,f=p00.y;for(let y=0;y<output.height;y++){const v=y/Math.max(1,output.height-1);for(let x=0;x<output.width;x++){const u=x/Math.max(1,output.width-1),w=g*u+h*v+1,sx=Math.max(0,Math.min(source.width-1,Math.round((a*u+b*v+c)/w))),sy=Math.max(0,Math.min(source.height-1,Math.round((d*u+e*v+f)/w))),si=(sy*source.width+sx)*4,di=(y*output.width+x)*4;outputData.data[di]=sourcePixels[si];outputData.data[di+1]=sourcePixels[si+1];outputData.data[di+2]=sourcePixels[si+2];outputData.data[di+3]=sourcePixels[si+3]}}outputContext.putImageData(outputData,0,0);const mime=(dataUrl.match(/^data:([^;]+)/)||[])[1]||'image/png';return output.toDataURL(mime,mime==='image/jpeg'?0.94:undefined)}
+
+let geometryAnalysisInFlight=0;
+async function enhanceForOcr(dataUrl,settings={}){if(!settings.grayscale&&!settings.autoContrast&&settings.sharpen==='none'&&settings.denoise==='none')return dataUrl;const image=await new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=reject;img.src=dataUrl});const canvas=document.createElement('canvas');canvas.width=image.naturalWidth;canvas.height=image.naturalHeight;const context=canvas.getContext('2d',{willReadFrequently:true});context.drawImage(image,0,0);const imageData=context.getImageData(0,0,canvas.width,canvas.height),data=imageData.data;if(settings.autoContrast){const histogram=new Uint32Array(256);for(let i=0;i<data.length;i+=4)histogram[Math.round(.2126*data[i]+.7152*data[i+1]+.0722*data[i+2])]++;const total=canvas.width*canvas.height,quantile=fraction=>{let sum=0;for(let i=0;i<256;i++){sum+=histogram[i];if(sum>=total*fraction)return i}return 255};const low=quantile(.015),high=quantile(.985),range=Math.max(20,high-low);for(let i=0;i<data.length;i+=4)for(let channel=0;channel<3;channel++)data[i+channel]=Math.max(0,Math.min(255,(data[i+channel]-low)*255/range))}if(settings.grayscale){for(let i=0;i<data.length;i+=4){const gray=Math.round(.2126*data[i]+.7152*data[i+1]+.0722*data[i+2]);data[i]=data[i+1]=data[i+2]=gray}}const filtered=new Uint8ClampedArray(data);const denoiseAmount=settings.denoise==='medium'?.28:settings.denoise==='light'?.14:0;if(denoiseAmount){for(let y=1;y<canvas.height-1;y++)for(let x=1;x<canvas.width-1;x++){const i=(y*canvas.width+x)*4;for(let c=0;c<3;c++){const average=(data[i-4+c]+data[i+4+c]+data[i-canvas.width*4+c]+data[i+canvas.width*4+c])/4;filtered[i+c]=data[i+c]*(1-denoiseAmount)+average*denoiseAmount}}}const sharpenAmount=settings.sharpen==='medium'?.22:settings.sharpen==='light'?.1:0;if(sharpenAmount){const source=new Uint8ClampedArray(filtered);for(let y=1;y<canvas.height-1;y++)for(let x=1;x<canvas.width-1;x++){const i=(y*canvas.width+x)*4;for(let c=0;c<3;c++){const neighbours=source[i-4+c]+source[i+4+c]+source[i-canvas.width*4+c]+source[i+canvas.width*4+c];filtered[i+c]=Math.max(0,Math.min(255,source[i+c]*(1+4*sharpenAmount)-neighbours*sharpenAmount))}}}imageData.data.set(filtered);context.putImageData(imageData,0,0);const mime=(dataUrl.match(/^data:([^;]+)/)||[])[1]||'image/png';return canvas.toDataURL(mime,mime==='image/jpeg'?0.96:undefined)}
+
+async function alignTableForHumanViewing(dataUrl){
+  const image=await new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=reject;img.src=dataUrl});
+  const scale=Math.min(1,700/Math.max(image.naturalWidth,image.naturalHeight));
+  const scan=document.createElement('canvas');
+  scan.width=Math.max(1,Math.round(image.naturalWidth*scale));
+  scan.height=Math.max(1,Math.round(image.naturalHeight*scale));
+  const context=scan.getContext('2d',{willReadFrequently:true});
+  context.drawImage(image,0,0,scan.width,scan.height);
+  const pixels=context.getImageData(0,0,scan.width,scan.height).data;
+  const points=[];
+  for(let y=Math.round(scan.height*.03);y<scan.height*.97;y+=2){
+    for(let x=Math.round(scan.width*.03);x<scan.width*.97;x+=2){
+      const i=(y*scan.width+x)*4;
+      const luminance=.2126*pixels[i]+.7152*pixels[i+1]+.0722*pixels[i+2];
+      if(pixels[i+3]>32&&luminance<125)points.push([x,y]);
+    }
+  }
+  if(points.length<300)return dataUrl;
+  const scoreAngle=angle=>{
+    const tangent=Math.tan(angle*Math.PI/180);
+    const margin=Math.ceil(Math.abs(tangent)*Math.max(scan.width,scan.height))+3;
+    const rows=new Uint16Array(scan.height+margin*2+6);
+    const columns=new Uint16Array(scan.width+margin*2+6);
+    for(const [x,y] of points){
+      const row=Math.round(y-tangent*x)+margin;
+      const column=Math.round(x+tangent*y)+margin;
+      if(row>=0&&row<rows.length)rows[row]++;
+      if(column>=0&&column<columns.length)columns[column]++;
+    }
+    const peakScore=(histogram,minimum)=>{let score=0,peaks=0;for(const count of histogram){if(count>=minimum){score+=count*count;peaks++}}return score*(1+Math.min(peaks,20)*.015)};
+    return peakScore(rows,Math.max(10,scan.width*.045))+peakScore(columns,Math.max(10,scan.height*.045));
+  };
+  const baseline=scoreAngle(0);
+  let bestAngle=0,bestScore=baseline;
+  for(let angle=-4;angle<=4;angle+=.2){const score=scoreAngle(angle);if(score>bestScore){bestScore=score;bestAngle=angle}}
+  if(Math.abs(bestAngle)<.4||bestScore<baseline*1.12)return dataUrl;
+  const radians=-bestAngle*Math.PI/180,cos=Math.abs(Math.cos(radians)),sin=Math.abs(Math.sin(radians));
+  const output=document.createElement('canvas');
+  output.width=Math.ceil(image.naturalWidth*cos+image.naturalHeight*sin);
+  output.height=Math.ceil(image.naturalWidth*sin+image.naturalHeight*cos);
+  const outputContext=output.getContext('2d');
+  outputContext.fillStyle='#fff';
+  outputContext.fillRect(0,0,output.width,output.height);
+  outputContext.translate(output.width/2,output.height/2);
+  outputContext.rotate(radians);
+  outputContext.drawImage(image,-image.naturalWidth/2,-image.naturalHeight/2);
+  const mime=(dataUrl.match(/^data:([^;]+)/)||[])[1]||'image/png';
+  return output.toDataURL(mime,mime==='image/jpeg'?0.95:undefined);
+}
+
+async function removeDocumentShadow(dataUrl){
+  const image=await new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=reject;img.src=dataUrl});
+  const canvas=document.createElement('canvas');
+  canvas.width=image.naturalWidth;
+  canvas.height=image.naturalHeight;
+  const context=canvas.getContext('2d',{willReadFrequently:true});
+  context.drawImage(image,0,0);
+  const imageData=context.getImageData(0,0,canvas.width,canvas.height);
+  const smallScale=Math.min(1,360/Math.max(canvas.width,canvas.height));
+  const small=document.createElement('canvas');
+  small.width=Math.max(1,Math.round(canvas.width*smallScale));
+  small.height=Math.max(1,Math.round(canvas.height*smallScale));
+  small.getContext('2d').drawImage(image,0,0,small.width,small.height);
+  const background=document.createElement('canvas');
+  background.width=canvas.width;
+  background.height=canvas.height;
+  const backgroundContext=background.getContext('2d',{willReadFrequently:true});
+  backgroundContext.filter=`blur(${Math.max(8,Math.round(18/smallScale))}px)`;
+  backgroundContext.drawImage(small,0,0,small.width,small.height,0,0,canvas.width,canvas.height);
+  backgroundContext.filter='none';
+  const backgroundData=backgroundContext.getImageData(0,0,canvas.width,canvas.height).data;
+  const data=imageData.data;
+  for(let i=0;i<data.length;i+=4){
+    const localLight=.2126*backgroundData[i]+.7152*backgroundData[i+1]+.0722*backgroundData[i+2];
+    const pixelLight=.2126*data[i]+.7152*data[i+1]+.0722*data[i+2];
+    const shadowStrength=Math.max(0,Math.min(1,(238-localLight)/85));
+    const gain=Math.min(1.55,1+(238/Math.max(90,localLight)-1)*shadowStrength);
+    const lift=Math.max(0,238-localLight)*.32*shadowStrength;
+    const detailProtection=pixelLight<145?.82:1;
+    for(let channel=0;channel<3;channel++)data[i+channel]=Math.max(0,Math.min(255,data[i+channel]*gain+lift*detailProtection));
+  }
+  context.putImageData(imageData,0,0);
+  const mime=(dataUrl.match(/^data:([^;]+)/)||[])[1]||'image/png';
+  return canvas.toDataURL(mime,mime==='image/jpeg'?0.96:undefined);
+}
+
+const localImageCorrectionPipeline=cropToOcrContent;
+cropToOcrContent=async function(dataUrl){const locallyCorrected=await localImageCorrectionPipeline(dataUrl);geometryAnalysisInFlight++;setAiActive(true);try{$('#captureMessage').textContent='AIがOCRしやすい補正方法を判定しています…';const analysis=await api('/api/analyze-image-geometry',{method:'POST',body:JSON.stringify({imageDataUrl:locallyCorrected})});let corrected=locallyCorrected;if(analysis.needsCorrection)corrected=await warpByAiCorners(corrected,analysis.corners);corrected=await deskewByTableLines(await cropOuterWhitespaceBase(corrected));return enhanceForOcr(corrected,analysis.enhancements)}catch(error){console.warn('AI image correction skipped',error);return locallyCorrected}finally{geometryAnalysisInFlight--;if(geometryAnalysisInFlight===0)setAiActive(false)}}
+async function correctFullEvaluationSheet(dataUrl){geometryAnalysisInFlight++;setAiActive(true);try{$('#captureMessage').textContent='AIが評価表全体を保った補正方法を判定しています…';const analysis=await api('/api/analyze-image-geometry',{method:'POST',body:JSON.stringify({imageDataUrl:dataUrl})});const shadowRemoved=await removeDocumentShadow(dataUrl);const corrected=await alignTableForHumanViewing(shadowRemoved);return enhanceForOcr(corrected,analysis.enhancements)}catch(error){console.warn('AI image correction skipped',error);return alignTableForHumanViewing(await removeDocumentShadow(dataUrl))}finally{geometryAnalysisInFlight--;if(geometryAnalysisInFlight===0)setAiActive(false)}}
+
+$('#imageInput').addEventListener('change',()=>{state.currentJobId=null;state.currentJobIds=[];setAiActive(false)});
+const readImageFile=file=>new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve([{imageDataUrl:reader.result,originalImageDataUrl:reader.result,fileName:file.name,pageNumber:null}]);reader.onerror=reject;reader.readAsDataURL(file)});
+async function renderPdfPages(file){const bytes=await file.arrayBuffer();const pdf=await pdfjsLib.getDocument({data:bytes}).promise;const count=Math.min(12,pdf.numPages),pages=new Array(count),queue=Array.from({length:count},(_,index)=>index+1);let completed=0;const worker=async()=>{while(queue.length){const pageNumber=queue.shift();const page=await pdf.getPage(pageNumber);const baseViewport=page.getViewport({scale:1});const scale=Math.min(2.4,2400/Math.max(baseViewport.width,baseViewport.height));const viewport=page.getViewport({scale});const canvas=document.createElement('canvas');canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);const context=canvas.getContext('2d',{alpha:false});context.fillStyle='#fff';context.fillRect(0,0,canvas.width,canvas.height);await page.render({canvasContext:context,viewport}).promise;const imageDataUrl=canvas.toDataURL('image/jpeg',.93);pages[pageNumber-1]={imageDataUrl,originalImageDataUrl:imageDataUrl,fileName:`${file.name}（${pageNumber}ページ）`,pageNumber};page.cleanup();completed++;$('#captureMessage').textContent=`${file.name} の ${completed}/${count}ページを並列変換しています…`}};await Promise.all(Array.from({length:Math.min(4,count)},worker));return pages}
+$('#imageInput').onchange=async()=>{const files=[...$('#imageInput').files];if(!files.length)return;try{$('#captureMessage').textContent='ファイルを読み込んでいます…';const items=[];for(const file of files){const isPdf=file.type==='application/pdf'||file.name.toLowerCase().endsWith('.pdf');const converted=isPdf?await renderPdfPages(file):await readImageFile(file);items.push(...converted);if(items.length>12)break}if(items.length>12){alert('画像とPDFページの合計は最大12件です。');$('#imageInput').value='';state.imageDataUrls=[];state.batchItems=[];state.imageDataUrl=null;renderBatchComparisons();validateCapture();return}const optimized=await Promise.all(items.map(async item=>({...item,imageDataUrl:await resizeLongEdge(item.imageDataUrl,2400)})));state.imageDataUrls=optimized.map(item=>item.imageDataUrl);state.imageDataUrl=state.imageDataUrls[0];state.batchItems=optimized.map(item=>({...item,jobId:null}));['#previewImage','#resultImage'].forEach(id=>{$(id).src=state.imageDataUrl;$(id).classList.add('visible')});$('#previewEmpty').classList.add('hidden');$('#resultEmpty').classList.remove('hidden');$('#ocrOverlay').innerHTML='';renderBatchComparisons();const pdfCount=files.filter(file=>file.type==='application/pdf'||file.name.toLowerCase().endsWith('.pdf')).length;$('#captureMessage').textContent=`${optimized.length}ページを選択中（OCR用に長辺2400px以下へ最適化済み）${pdfCount?`（PDF ${pdfCount}ファイル）`:''}`;setProgress(0,`${optimized.length}件 待機中`);validateCapture()}catch(error){console.error(error);state.imageDataUrls=[];state.batchItems=[];state.imageDataUrl=null;$('#captureMessage').textContent=`ファイルを読み込めませんでした：${error.message}`;validateCapture()}};
+
+function validateCapture(){const noImages=!state.imageDataUrls.length;$('#startButton').disabled=noImages;$('#correctionButton').disabled=noImages}$('#patientSelect').onchange=syncPatientSearch;$('#patientSearch').oninput=selectPatientFromSearch;$('#patientSearch').onchange=selectPatientFromSearch;$('#therapistSearch').oninput=validateCapture;$('#therapistSearch').onchange=validateCapture;
+async function validateOcrSheetSet(images,signal){$('#captureMessage').textContent='OCR開始前に用紙の不足・重複・順番を確認しています…';const result=await api('/api/validate-sheet-set',{method:'POST',body:JSON.stringify({imageDataUrls:images}),signal});if(!result.valid)throw new Error(`評価用紙を確認してください：${result.errors.join('／')}`);return result}
+$('#correctionButton').onclick=async()=>{try{$('#correctionButton').disabled=true;$('#startButton').disabled=true;setAiActive(true);setProgress(10,'AI画像補正中');$('#captureMessage').textContent='AIがタイトルを含む評価表全体を保って補正しています…';state.imageDataUrls=await Promise.all(state.imageDataUrls.map(async(source,index)=>{const original=state.batchItems[index]?.originalImageDataUrl||source;return resizeLongEdge(await correctFullEvaluationSheet(original))}));state.imageDataUrl=state.imageDataUrls[0];state.batchItems=state.imageDataUrls.map((imageDataUrl,index)=>({...state.batchItems[index],imageDataUrl}));['#previewImage','#resultImage'].forEach(id=>{$(id).src=state.imageDataUrl;$(id).classList.add('visible')});renderBatchComparisons();setProgress(100,'画像補正完了');$('#captureMessage').textContent=`${state.imageDataUrls.length}ファイルの画像補正が完了しました（タイトルを含む評価表全体を保持）。`}catch(error){setProgress(100,'エラー');$('#captureMessage').textContent=error.message}finally{setAiActive(false);validateCapture()}};
+$('#startButton').onclick=async()=>{const images=[...state.imageDataUrls];if(!images.length)return;const ocrPatientId=$('#patientSelect').value,therapistName=selectedTherapistName(),evaluationDateOverride=$('#evaluationDateOverride').value;if(!therapistName){$('#captureMessage').textContent='登録療法士を選択してください。';return}try{$('#startButton').disabled=true;setProgress(5,`0/${images.length}件 登録中`);$('#captureMessage').textContent='各ファイルをOCRタスクとして登録しています…';const jobs=new Array(images.length);await Promise.all(images.map(async(imageDataUrl,index)=>{const item=state.batchItems[index]||{};const job=await api('/api/jobs',{method:'POST',body:JSON.stringify({patientId:ocrPatientId,therapistName,imageDataUrl,fileName:item.fileName,pageNumber:item.pageNumber,evaluationDateOverride})});jobs[index]=job;state.batchItems[index]={...item,jobId:job.id};state.jobs=[job,...state.jobs.filter(candidate=>candidate.id!==job.id)];renderHistory();renderBatchComparisons();startPolling();setProgress(Math.max(5,Math.round(20*jobs.filter(Boolean).length/images.length)),`${jobs.filter(Boolean).length}/${images.length}件 登録済み`)}));state.currentJobIds=jobs.map(job=>job.id);state.currentJobId=jobs[0].id;state.selectedPatientTimelineId=ocrPatientId;state.imageDataUrls=[];state.imageDataUrl=null;$('#imageInput').value='';$('#evaluationDateOverride').value=todayValue();await Promise.all([loadPatients(),loadJobs()]);renderPatientSheetTimeline();const dischargeWarningVisible=state.jobs.some(job=>state.currentJobIds.includes(job.id)&&job.hasExistingDischarge&&job.result);if(!dischargeWarningVisible)$('#captureMessage').textContent=`${jobs.length}件を画面と履歴・回覧で並行処理中です。患者欄にも追加しました。`}catch(e){setProgress(100,'エラー');$('#captureMessage').textContent=e.message}finally{validateCapture()}};
+$('#captureStopButton').onclick=async()=>{const activeIds=state.currentJobIds.filter(id=>{const job=state.jobs.find(j=>j.id===id);return job&&['REQUEST','PROCESSING'].includes(job.status)});if(!activeIds.length)return;$('#captureStopButton').disabled=true;$('#captureMessage').textContent='AI OCRを停止しています…';try{await Promise.all(activeIds.map(id=>api(`/api/jobs/${id}/stop`,{method:'POST',body:'{}'})));await loadJobs();$('#captureMessage').textContent=`${activeIds.length}件のAI OCRを停止しました。`}catch(error){$('#captureMessage').textContent=error.message;await loadJobs()}};
+$('#retryButton').onclick=async()=>{await api(`/api/jobs/${state.currentJobId}/retry`,{method:'POST',body:'{}'});await loadJobs()};
+$('#confirmButton').onclick=async()=>{if(!confirm('修正内容を確定しますか？'))return;await api(`/api/jobs/${state.currentJobId}/confirm`,{method:'PUT',body:JSON.stringify({result:collectResult()})});await loadJobs();alert('確定しました')};
+$('#patientForm').onsubmit=async e=>{e.preventDefault();const form=new FormData(e.target);try{await api('/api/patients',{method:'POST',body:JSON.stringify(Object.fromEntries(form))});e.target.reset();await loadPatients()}catch(err){alert(err.message)}};
+$('#therapistForm').onsubmit=async event=>{event.preventDefault();const data=Object.fromEntries(new FormData(event.currentTarget).entries()),status=$('#therapistFormStatus');const therapistId=String(data.therapistId||'').trim(),name=String(data.name||'').trim();if(state.therapists.some(item=>item.therapistId===therapistId)){status.textContent='同じ療法士IDが登録されています。';return}if(state.therapists.some(item=>item.name===name)){status.textContent='同じ名前の療法士が登録されています。';return}const button=event.currentTarget.querySelector('button');button.disabled=true;try{await api('/api/therapists',{method:'POST',body:JSON.stringify({therapistId,name})});event.currentTarget.reset();await loadTherapists();status.textContent='データベースに登録しました。';if(state.selectedPatientTimelineId)renderClinicalFlow(state.selectedPatientTimelineId)}catch(error){status.textContent=error.message}finally{button.disabled=false}};
+function detailResultRows(result){return result.fields.map((field,index)=>`<tr><td>${itemTextMarkup(field.label)}</td><td>${optimizedValueControl(field,'detail-field-value',`data-index="${index}" aria-label="${esc(field.label)}の値"`)}</td></tr>`).join('')}
+function detailResultTable(result){
+  if(result.testType!=='BIT')return `<table><thead><tr><th>項目</th><th>値（修正可能）</th></tr></thead><tbody>${detailResultRows(result)}</tbody></table>`;
+  const rows=[];
+  for(let index=0;index<result.fields.length;index++){
+    const field=result.fields[index],next=result.fields[index+1];
+    const countMatch=field.label.match(/^(.*?)[ 　]*(誤反応数|見落し数|書き落(?:とし|し)数)$/);
+    if(countMatch&&next&&/評価点$/.test(next.label)){
+      rows.push(`<tr><td>${itemTextMarkup(countMatch[1]||field.label)}</td><td><input class="detail-field-value" data-index="${index}" value="${esc(field.value)}" aria-label="${esc(field.label)}の値"></td><td><input class="detail-field-value" data-index="${index+1}" value="${esc(next.value)}" aria-label="${esc(next.label)}の値"></td></tr>`);
+      index++;
+    }else{
+      rows.push(`<tr><td>${itemTextMarkup(field.label)}</td><td colspan="2"><input class="detail-field-value" data-index="${index}" value="${esc(field.value)}" aria-label="${esc(field.label)}の値"></td></tr>`);
+    }
+  }
+  return `<table class="bit-paired-table"><thead><tr><th>課題</th><th>誤反応数・見落し数・書き落とし数</th><th>評価点</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+}
+function collectDetailResult(result){return{...result,fields:result.fields.map((field,index)=>({...field,value:$(`#detailContent .detail-field-value[data-index="${index}"]`).value}))}}
+function groupedResultTable(result){
+  if(!result)return'<p>OCR結果はありません。</p>';
+  if(result.testType==='BIT'){
+    const rows=[];
+    for(let index=0;index<result.fields.length;index++){
+      const field=result.fields[index],next=result.fields[index+1];
+      const countMatch=field.label.match(/^(.*?)[ 　]*(誤反応数|見落し数|書き落(?:とし|し)数)$/);
+      if(countMatch&&next&&/評価点$/.test(next.label)){rows.push(`<tr><td>${itemTextMarkup(countMatch[1]||field.label)}</td><td>${esc(field.value)}</td><td>${esc(next.value)}</td></tr>`);index++}
+      else rows.push(`<tr><td>${itemTextMarkup(field.label)}</td><td colspan="2">${esc(field.value)}</td></tr>`);
+    }
+    return `<table class="bit-paired-table"><thead><tr><th>課題</th><th>誤反応数・見落し数・書き落とし数</th><th>評価点</th></tr></thead><tbody>${rows.join('')}</tbody></table>${result.notes?`<p>${esc(result.notes)}</p>`:''}`;
+  }
+  return `<table><thead><tr><th>項目</th><th>読取値</th></tr></thead><tbody>${result.fields.map(field=>`<tr><td>${itemTextMarkup(field.label)}</td><td>${esc(field.value)}</td></tr>`).join('')}</tbody></table>${result.notes?`<p>${esc(result.notes)}</p>`:''}`;
+}
+async function openGroupedEvaluation(ids){
+  const jobs=await Promise.all(ids.map(id=>api(`/api/jobs/${id}`)));
+  const first=jobs[0];
+  const summaryJob=jobs.find(job=>job.careStage==='DISCHARGE')||first;
+  const stage=summaryJob.careStage;
+  const alreadyDischarged=state.jobs.some(job=>job.patientId===first.patientId&&job.evaluationType===first.evaluationType&&job.careStage==='DISCHARGE');
+  const evaluationNames={SLTA_ALL:'SLTA',BIT:'BIT',CAT_R_ALL:'CAT-R',WAIS_IV_ALL:'WAIS-IV',WMSR_ALL:'WMS-R'};
+  const evaluationName=evaluationNames[first.result?.testType]||first.evaluationType;
+  const summaryConfig=stage==='INITIAL'
+    ?{title:`${evaluationName} 初診サマリ`,label:'リハビリ方針',path:'initial-summary',bodyKey:'rehabSummary',resultKey:'rehabSummary',value:summaryJob.rehabSummary||''}
+    :stage==='FOLLOW_UP'
+      ?{title:`${evaluationName} 途中経過サマリ`,label:'改善点・残存課題・今後の方針',path:'progress-summary',bodyKey:'progressSummary',resultKey:'progressSummary',value:summaryJob.progressSummary||''}
+      :{title:`${evaluationName} 退院経過サマリ`,label:'退院時のまとめ・退院後の方針',path:'discharge-summary',bodyKey:'dischargeSummary',resultKey:'dischargeSummary',value:summaryJob.dischargeSummary||''};
+  const stageSwitchButton=stage==='DISCHARGE'?'<button id="summaryUndoDischarge" type="button">途中経過に戻す</button>':'';
+  const dischargeAudienceFields=stage==='DISCHARGE'?`<label for="groupFamilySummary">家族向けサマリ</label><textarea id="groupFamilySummary" maxlength="4000" placeholder="ご家族に伝える改善点、注意点、家庭での支援方法">${esc(summaryJob.familySummary||'')}</textarea><label for="groupPatientSummary">患者向けサマリ</label><textarea id="groupPatientSummary" maxlength="4000" placeholder="患者さんに伝える改善点、今後の注意点、自主練習や生活目標">${esc(summaryJob.patientSummary||'')}</textarea>`:'';
+  const summaryPanel=`<section class="initial-summary-panel ${stage==='FOLLOW_UP'?'progress-summary-panel':stage==='DISCHARGE'?'discharge-summary-panel':''}"><div class="summary-title-row"><h3>${summaryConfig.title}</h3>${stageSwitchButton}</div><p class="message">同じ評価に含まれる全ページのOCR結果を使ってサマリを作成します。</p><label for="groupSummary">${summaryConfig.label}</label><textarea id="groupSummary" maxlength="4000">${esc(summaryConfig.value)}</textarea>${dischargeAudienceFields}<div class="summary-actions"><small id="groupSummaryStatus">内容を確認して保存してください</small><div class="summary-buttons"><button id="saveGroupSummary" class="primary" type="button">サマリを保存</button><button id="generateGroupSummary" class="secondary" type="button">サマリ生成</button></div></div></section>`;
+  const groupedEvaluationDates=[...new Set(jobs.map(clinicalEvaluationDate).filter(Boolean))];
+  $('#detailContent').innerHTML=`<h2>${esc(first.patientName)}｜${esc(first.evaluationType)}</h2><p><span class="care-stage care-stage-${esc(stage.toLowerCase())}">${esc(careStageLabel(stage))}</span>・<strong>${jobs.length}ページを1回の評価として表示</strong>・評価日 ${clinicalDateLabel(groupedEvaluationDates[0]||'')}${groupedEvaluationDates.length>1?'（ページ間で日付不一致）':''}・OCR登録 ${date(first.createdAt)}</p>${summaryPanel}<div class="grouped-evaluation-pages">${jobs.map((job,index)=>{const result=job.confirmedResult||job.result;return `<section class="grouped-evaluation-page"><h3>${index+1}ページ目</h3><div class="grouped-page-layout"><figure><figcaption>OCR画像</figcaption><div class="preview grouped-page-preview"><img class="visible" src="${esc(job.imageUrl)}" alt="${index+1}ページ目"></div></figure><div><h3>OCR結果</h3>${groupedResultTable(result)}</div></div></section>`}).join('')}</div>`;
+  $('#saveGroupSummary').onclick=async()=>{const button=$('#saveGroupSummary');button.disabled=true;try{const body={[summaryConfig.bodyKey]:$('#groupSummary').value};if(stage==='DISCHARGE'){body.familySummary=$('#groupFamilySummary').value;body.patientSummary=$('#groupPatientSummary').value}const saved=await api(`/api/jobs/${summaryJob.id}/${summaryConfig.path}`,{method:'PUT',body:JSON.stringify(body)});$('#groupSummaryStatus').textContent=`最終保存：${date(saved.updatedAt)}`;await loadJobs()}catch(error){alert(error.message)}finally{button.disabled=false}};
+  $('#generateGroupSummary').onclick=async()=>{const button=$('#generateGroupSummary');button.disabled=true;button.textContent='生成中…';try{const generated=await api(`/api/jobs/${summaryJob.id}/${summaryConfig.path}/generate`,{method:'POST',body:'{}'});$('#groupSummary').value=generated[summaryConfig.resultKey];if(stage==='DISCHARGE'){$('#groupFamilySummary').value=generated.familySummary;$('#groupPatientSummary').value=generated.patientSummary}$('#groupSummaryStatus').textContent='AI生成済み・内容を確認して保存してください'}catch(error){alert(error.message)}finally{button.disabled=false;button.textContent='サマリ生成'}};
+  if(stage==='DISCHARGE')$('#summaryUndoDischarge').onclick=()=>switchSummaryCareStage(summaryJob.id,stage,()=>openGroupedEvaluation(ids));
+  $('#detailDialog').showModal();
+}
+async function openDetail(id){
+  const job=await api(`/api/jobs/${id}`);
+  const result=job.confirmedResult||job.result;
+  const canConfirm=Boolean(result)&&['OCR_DONE','DONE'].includes(job.status);
+  const alreadyDischarged=state.jobs.some(candidate=>candidate.patientId===job.patientId&&candidate.evaluationType===job.evaluationType&&candidate.careStage==='DISCHARGE');
+  const confirmButton=canConfirm?'<button id="detailConfirm" class="primary">結果を確定</button>':'';
+  const initialSummary=job.careStage==='INITIAL'?`<section class="initial-summary-panel"><h3>初診サマリ</h3><label for="rehabSummary">リハビリ方針</label><textarea id="rehabSummary" rows="7" maxlength="4000" placeholder="初診時の評価を踏まえた目標、介入方針、注意点などを記載してください。">${esc(job.rehabSummary||'')}</textarea><div class="summary-actions"><small id="summarySavedAt">${job.rehabSummaryUpdatedAt?`最終保存：${date(job.rehabSummaryUpdatedAt)}`:'未保存'}</small><div class="summary-buttons"><button id="saveInitialSummary" class="primary" type="button">サマリを保存</button><button id="generateInitialSummary" class="secondary" type="button">サマリ生成</button></div></div></section>`:'';
+  const progressSummary=job.careStage==='FOLLOW_UP'?`<section class="initial-summary-panel progress-summary-panel"><div class="summary-title-row"><h3>途中経過サマリ</h3></div><p class="message">前回と今回の同じ評価シートを比較して、改善点と改善していない点をまとめます。</p><label for="progressSummary">途中経過・今後のリハビリ方針</label><textarea id="progressSummary" rows="8" maxlength="4000" placeholder="前回からの改善点、改善していない点、今後の方針を記載してください。">${esc(job.progressSummary||'')}</textarea><div class="summary-actions"><small id="progressSummarySavedAt">${job.progressSummaryUpdatedAt?`最終保存：${date(job.progressSummaryUpdatedAt)}`:'未保存'}</small><div class="summary-buttons"><button id="saveProgressSummary" class="primary" type="button">サマリを保存</button><button id="generateProgressSummary" class="secondary" type="button">サマリ生成</button></div></div></section>`:'';
+  const dischargeSummary=job.careStage==='DISCHARGE'?`<section class="initial-summary-panel discharge-summary-panel"><div class="summary-title-row"><h3>退院経過サマリ</h3><button id="summaryUndoDischarge" type="button">途中経過に戻す</button></div><p class="message">初診から退院時までの同じ評価シートを比較し、医療者・家族・患者向けの3種類を生成します。</p><label for="dischargeSummary">医療者向け：退院時のまとめ・退院後の方針</label><textarea id="dischargeSummary" rows="9" maxlength="4000" placeholder="初診時の状態、改善点、残存課題、退院時評価、退院後の方針を記載してください。">${esc(job.dischargeSummary||'')}</textarea><label for="familySummary">家族向けサマリ</label><textarea id="familySummary" rows="9" maxlength="4000" placeholder="ご家族に伝える改善点、注意点、家庭での支援方法">${esc(job.familySummary||'')}</textarea><label for="patientSummary">患者向けサマリ</label><textarea id="patientSummary" rows="9" maxlength="4000" placeholder="患者さんに伝える改善点、今後の注意点、自主練習や生活目標">${esc(job.patientSummary||'')}</textarea><div class="summary-actions"><small id="dischargeSummarySavedAt">${job.dischargeSummaryUpdatedAt?`最終保存：${date(job.dischargeSummaryUpdatedAt)}`:'未保存'}</small><div class="summary-buttons"><button id="saveDischargeSummary" class="primary" type="button">サマリを保存</button><button id="generateDischargeSummary" class="secondary" type="button">サマリ生成</button></div></div></section>`:'';
+  const resultImage=`<figure><figcaption>OCR結果画像</figcaption><div class="preview result-preview detail-result-preview"><img class="visible" src="${job.imageUrl}" alt="OCR結果画像"><div class="ocr-overlay">${overlayMarkup(result)}</div></div></figure>`;
+  $('#detailContent').innerHTML=`<h2>${esc(job.patientName)}｜${esc(job.evaluationType)}</h2><p><span class="care-stage care-stage-${esc(job.careStage.toLowerCase())}">${esc(careStageLabel(job.careStage))}</span>・評価日 ${clinicalDateLabel(clinicalEvaluationDate(job))}・OCR登録 ${date(job.createdAt)}・${statusLabel(job.status)}</p>${initialSummary}${progressSummary}${dischargeSummary}<div class="jobhead-actions">${confirmButton}</div>${resultImage}<h3>OCR結果</h3>${result?`<p><strong>${esc(result.documentType)}</strong> ${esc(result.evaluationDate)}</p>${detailResultTable(result)}<p>${esc(result.notes)}</p>`:'<p>結果はまだありません。</p>'}`;
+  if(job.careStage==='INITIAL'){
+    const saveButton=$('#saveInitialSummary'),generateButton=$('#generateInitialSummary');
+    saveButton.addEventListener('click',async()=>{saveButton.disabled=true;try{const saved=await api(`/api/jobs/${id}/initial-summary`,{method:'PUT',body:JSON.stringify({rehabSummary:$('#rehabSummary').value})});$('#summarySavedAt').textContent=`最終保存：${date(saved.rehabSummaryUpdatedAt)}`;await loadJobs()}catch(error){alert(error.message)}finally{saveButton.disabled=false}});
+    generateButton.addEventListener('click',async()=>{generateButton.disabled=true;generateButton.textContent='生成中…';try{const generated=await api(`/api/jobs/${id}/initial-summary/generate`,{method:'POST',body:'{}'});$('#rehabSummary').value=generated.rehabSummary;$('#summarySavedAt').textContent='AI生成済み・内容を確認して保存してください'}catch(error){alert(`サマリを生成できませんでした：${error.message}`)}finally{generateButton.disabled=false;generateButton.textContent='サマリ生成'}});
+  }
+  if(job.careStage==='FOLLOW_UP'){
+    const saveButton=$('#saveProgressSummary'),generateButton=$('#generateProgressSummary');
+    saveButton.addEventListener('click',async()=>{saveButton.disabled=true;try{const saved=await api(`/api/jobs/${id}/progress-summary`,{method:'PUT',body:JSON.stringify({progressSummary:$('#progressSummary').value})});$('#progressSummarySavedAt').textContent=`最終保存：${date(saved.progressSummaryUpdatedAt)}`;await loadJobs()}catch(error){alert(error.message)}finally{saveButton.disabled=false}});
+    generateButton.addEventListener('click',async()=>{generateButton.disabled=true;generateButton.textContent='生成中…';try{const generated=await api(`/api/jobs/${id}/progress-summary/generate`,{method:'POST',body:'{}'});$('#progressSummary').value=generated.progressSummary;$('#progressSummarySavedAt').textContent='AI生成済み・内容を確認して保存してください'}catch(error){alert(`途中経過サマリを生成できませんでした：${error.message}`)}finally{generateButton.disabled=false;generateButton.textContent='サマリ生成'}});
+  }
+  if(job.careStage==='DISCHARGE'){
+    const saveButton=$('#saveDischargeSummary'),generateButton=$('#generateDischargeSummary');
+    saveButton.addEventListener('click',async()=>{saveButton.disabled=true;try{const saved=await api(`/api/jobs/${id}/discharge-summary`,{method:'PUT',body:JSON.stringify({dischargeSummary:$('#dischargeSummary').value,familySummary:$('#familySummary').value,patientSummary:$('#patientSummary').value})});$('#dischargeSummarySavedAt').textContent=`最終保存：${date(saved.dischargeSummaryUpdatedAt)}`;await loadJobs()}catch(error){alert(error.message)}finally{saveButton.disabled=false}});
+    generateButton.addEventListener('click',async()=>{generateButton.disabled=true;generateButton.textContent='生成中…';try{const generated=await api(`/api/jobs/${id}/discharge-summary/generate`,{method:'POST',body:'{}'});$('#dischargeSummary').value=generated.dischargeSummary;$('#familySummary').value=generated.familySummary;$('#patientSummary').value=generated.patientSummary;$('#dischargeSummarySavedAt').textContent='AI生成済み・内容を確認して保存してください'}catch(error){alert(`退院経過サマリを生成できませんでした：${error.message}`)}finally{generateButton.disabled=false;generateButton.textContent='サマリ生成'}});
+  }
+  if(job.careStage==='DISCHARGE')$('#summaryUndoDischarge').onclick=()=>switchSummaryCareStage(id,job.careStage,()=>openDetail(id));
+  if(canConfirm)$('#detailConfirm').addEventListener('click',async()=>{if(!confirm('詳細画面で修正したOCR結果を確定しますか？'))return;await api(`/api/jobs/${id}/confirm`,{method:'PUT',body:JSON.stringify({result:collectDetailResult(result)})});$('#detailDialog').close();await loadJobs();alert('結果を確定しました')});
+  $('#detailDialog').showModal();
+  $('#detailContent .result-preview img').addEventListener('load',alignResultOverlays,{once:true});
+  requestAnimationFrame(alignResultOverlays);
+}
+$('#closeDialog').onclick=()=>$('#detailDialog').close();$('#refreshHistory').onclick=loadJobs;
+$('#refreshPatientSheets').onclick=async()=>{const button=$('#refreshPatientSheets');button.disabled=true;try{await Promise.all([loadPatients(),loadJobs()]);renderPatientSheetTimeline()}finally{button.disabled=false}};
+$('#patientTimelineSearch').oninput=()=>{state.selectedPatientTimelineId=null;renderPatientTimelineSuggestions();renderPatientSheetTimeline()};
+$('#patientTimelineSearch').onfocus=renderPatientTimelineSuggestions;
+$('#deleteAllHistory').onclick=async()=>{if(!state.jobs.length){alert('削除する履歴はありません。');return}if(!confirm(`過去の履歴 ${state.jobs.length}件と保存画像をすべて削除します。この操作は元に戻せません。よろしいですか？`))return;const button=$('#deleteAllHistory');button.disabled=true;try{const result=await api('/api/jobs',{method:'DELETE',body:'{}'});state.currentJobId=null;state.currentJobIds=[];state.batchItems=[];await loadJobs();$('#captureMessage').textContent=`過去の履歴 ${result.deletedCount}件を削除しました。`;alert(`過去の履歴 ${result.deletedCount}件を削除しました。`)}catch(error){alert(`履歴を削除できませんでした：${error.message}`)}finally{button.disabled=false}};
+$('#logoutButton').onclick=async()=>{const button=$('#logoutButton');button.disabled=true;try{await api('/api/auth/logout',{method:'POST',body:'{}'});location.href='/login.html'}catch(error){button.disabled=false;alert(error.message)}};
+$('#evaluationDateOverride').value=todayValue();
+await Promise.all([loadHealth(),loadPatients(),loadJobs(),loadTherapists()]);
+let backgroundSheetCheckToken=0;
+let backgroundSheetCheckController=null;
+function cancelBackgroundSheetCheck(){backgroundSheetCheckToken++;backgroundSheetCheckController?.abort();backgroundSheetCheckController=null}
+const startOcrWithPriority=$('#startButton').onclick;
+$('#startButton').onclick=event=>{cancelBackgroundSheetCheck();return startOcrWithPriority.call($('#startButton'),event)};
+const correctImagesWithPriority=$('#correctionButton').onclick;
+$('#correctionButton').onclick=event=>{cancelBackgroundSheetCheck();return correctImagesWithPriority.call($('#correctionButton'),event)};
+$('#imageInput').addEventListener('change',()=>{cancelBackgroundSheetCheck();const token=backgroundSheetCheckToken;let attempts=0;const waitForImages=()=>{if(token!==backgroundSheetCheckToken)return;if(state.imageDataUrls.length){const images=[...state.imageDataUrls];backgroundSheetCheckController=new AbortController();$('#captureMessage').textContent='画像を表示しました。バックグラウンドで評価用紙を確認しています…';validateOcrSheetSet(images,backgroundSheetCheckController.signal).then(result=>{if(token!==backgroundSheetCheckToken)return;$('#captureMessage').textContent=result.displayName?`${result.displayName}：ページ構成を確認しました。OCRを開始できます。`:'評価用紙を確認しました。OCRを開始できます。'}).catch(error=>{if(error.name==='AbortError'||token!==backgroundSheetCheckToken)return;$('#captureMessage').textContent=error.message}).finally(()=>{if(token===backgroundSheetCheckToken)backgroundSheetCheckController=null});return}if(++attempts<120)setTimeout(waitForImages,250)};setTimeout(waitForImages,0)});

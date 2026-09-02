@@ -28,7 +28,7 @@ describe('GET /health', () => {
     const response = await request(app.getHttpServer()).get('/health').expect(200);
     expect(response.body).toEqual({
       status: 'ok',
-      service: 'hangout-now-api',
+      service: 'methodmore-platform',
       database: { connected: true, schema: 'hangoutnow', serverVersionMajor: 18 },
     });
   });
