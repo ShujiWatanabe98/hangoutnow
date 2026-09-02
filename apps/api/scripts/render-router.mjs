@@ -33,6 +33,10 @@ export function isRoboCareRequest(requestUrl, basePath = ROBOCARE_BASE_PATH) {
 
 export function routeForRequest(request) {
   const { url, headers } = requestParts(request);
+  // Render may use the first custom domain as the Host header for its
+  // internal health check. Keep the platform health endpoint on the API
+  // regardless of host so zero-downtime deploys can become healthy.
+  if (pathnameOf(url) === "/health") return "api";
   if (isPathWithin(url, ROBOCARE_BASE_PATH)) return "robocare";
   if (isPathWithin(url, SALONRECORD_BASE_PATH)) return "salonrecord";
   if (isPathWithin(url, AIOCR_BASE_PATH)) return "aiocr";

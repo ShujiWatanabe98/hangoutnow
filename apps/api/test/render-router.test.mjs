@@ -51,6 +51,11 @@ describe("MethodMore combined Render router", () => {
     expect(routeForRequest({ url: "/api/coachgo/reports", headers: { host: "method-more.com" } })).toBe("demo");
   });
 
+  it("always routes the Render health check to the platform API", () => {
+    expect(routeForRequest({ url: "/health", headers: { host: "method-more.com" } })).toBe("api");
+    expect(routeForRequest({ url: "/health?source=render", headers: { host: "www.method-more.com" } })).toBe("api");
+  });
+
   it.each(["/", "/health", "/auth/google/start", "/socket.io/?EIO=4"])(
     "keeps %s on the platform API hostname",
     (url) => {
