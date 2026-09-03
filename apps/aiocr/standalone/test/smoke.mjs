@@ -5,6 +5,10 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 const temp = await mkdtemp(path.join(tmpdir(), 'standalone-aiocr-'));
+// The repository CI exports RoboCare's DATABASE_URL for database tests.
+// This smoke test explicitly verifies AI OCR's encrypted local-storage mode,
+// so it must not inherit another workspace's database configuration.
+delete process.env.DATABASE_URL;
 process.env.AIOCR_DATA_DIR = temp;
 process.env.AIOCR_BACKUP_DIR = path.join(temp, 'backups');
 process.env.AIOCR_PORT = '0';
