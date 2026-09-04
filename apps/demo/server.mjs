@@ -424,7 +424,16 @@ createServer(async (request, response) => {
         return;
       }
     } else if (!sessionValid) {
-      if (request.method === 'GET' && (normalizedRequestedPath === smarihaDashboardPath || requestedPath === `${smarihaDashboardPath}/index.html`)) {
+      const protectedDashboardPage = [
+        smarihaDashboardPath,
+        `${smarihaDashboardPath}/taisho`,
+        `${smarihaDashboardPath}/keijinkai`,
+      ].includes(normalizedRequestedPath) || [
+        `${smarihaDashboardPath}/index.html`,
+        `${smarihaDashboardPath}/taisho/index.html`,
+        `${smarihaDashboardPath}/keijinkai/index.html`,
+      ].includes(requestedPath);
+      if (request.method === 'GET' && protectedDashboardPage) {
         response.writeHead(302, { ...securityHeaders, location: loginPath, 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });
       } else {
         response.writeHead(401, { ...securityHeaders, 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });
@@ -585,6 +594,10 @@ createServer(async (request, response) => {
       ? '/minnade-kaigo/index.html'
     : requestedPath === '/smariha-dashboard' || requestedPath === '/smariha-dashboard/'
       ? '/smariha-dashboard/index.html'
+    : requestedPath === '/smariha-dashboard/taisho' || requestedPath === '/smariha-dashboard/taisho/'
+      ? '/smariha-dashboard/taisho/index.html'
+    : requestedPath === '/smariha-dashboard/keijinkai' || requestedPath === '/smariha-dashboard/keijinkai/'
+      ? '/smariha-dashboard/keijinkai/index.html'
       : divertNaviDashboardPath && normalizedRequestedPath === divertNaviDashboardPath
         ? '/divertnavi-app/index.html'
       : requestedPath;

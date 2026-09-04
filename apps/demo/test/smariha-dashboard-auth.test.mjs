@@ -58,6 +58,9 @@ test('Smariha dashboard requires login and grants a protected session', async ()
 
   const protectedAsset = await fetch(`${origin}/smariha-dashboard/app.js`, { redirect: 'manual' });
   assert.equal(protectedAsset.status, 401);
+  const protectedTaisho = await fetch(`${origin}/smariha-dashboard/taisho/`, { redirect: 'manual' });
+  assert.equal(protectedTaisho.status, 302);
+  assert.equal(protectedTaisho.headers.get('location'), '/smariha-dashboard/login.html');
 
   const rejected = await fetch(`${origin}/smariha-dashboard/login`, {
     method: 'POST',
@@ -90,7 +93,19 @@ test('Smariha dashboard requires login and grants a protected session', async ()
   assert.match(dashboardHtml, /実績指数およびFIM管理MVP/);
   assert.match(dashboardHtml, /渓仁会病院向け/);
   assert.match(dashboardHtml, /院内連携パス管理MVP/);
+  assert.match(dashboardHtml, /href="\/smariha-dashboard\/taisho\/"/);
+  assert.match(dashboardHtml, /href="\/smariha-dashboard\/keijinkai\/"/);
   assert.doesNotMatch(dashboardHtml, /analytics\.js|cookie-consent/);
+
+  const taisho = await fetch(`${origin}/smariha-dashboard/taisho/`, { headers: { cookie } });
+  const taishoHtml = await taisho.text();
+  assert.equal(taisho.status, 200);
+  assert.match(taishoHtml, /大勝病院向け・実績指数およびFIM管理MVP/);
+
+  const keijinkai = await fetch(`${origin}/smariha-dashboard/keijinkai/`, { headers: { cookie } });
+  const keijinkaiHtml = await keijinkai.text();
+  assert.equal(keijinkai.status, 200);
+  assert.match(keijinkaiHtml, /渓仁会病院向け・院内連携パス管理MVP/);
 
   const logout = await fetch(`${origin}/smariha-dashboard/logout`, { headers: { cookie }, redirect: 'manual' });
   assert.equal(logout.status, 303);

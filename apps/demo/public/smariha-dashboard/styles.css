@@ -14,7 +14,7 @@
 .section-heading h2, .dashboard-title-row h2 { margin: 7px 0 0; font-size: clamp(40px, 5vw, 64px); line-height: 1.12; letter-spacing: -.055em; }
 .section-heading > p:last-child { max-width: 690px; margin: 22px 0 0; color: var(--ink-soft); line-height: 1.9; }
 .mvp-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; margin-top: 46px; }
-.mvp-card { position: relative; min-height: 410px; padding: 38px; overflow: hidden; border: 0; border-radius: 28px; color: #fff; font: inherit; text-align: left; cursor: pointer; box-shadow: 0 24px 60px rgba(16,29,50,.14); transition: transform .2s ease, box-shadow .2s ease; }
+.mvp-card { position: relative; display: block; min-height: 410px; padding: 38px; overflow: hidden; border: 0; border-radius: 28px; color: #fff; font: inherit; text-align: left; text-decoration: none; cursor: pointer; box-shadow: 0 24px 60px rgba(16,29,50,.14); transition: transform .2s ease, box-shadow .2s ease; }
 .mvp-card:hover { transform: translateY(-5px); box-shadow: 0 32px 76px rgba(16,29,50,.2); }
 .mvp-card:focus-visible, .back-button:focus-visible { outline: 4px solid #59bda7; outline-offset: 4px; }
 .outcome-card { background: radial-gradient(circle at 86% 18%, rgba(152,240,207,.2), transparent 25%), linear-gradient(145deg, #122e42, #186f70); }

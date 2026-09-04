@@ -119,7 +119,7 @@ test('homepage targets Shinjuku solo participants with measurable acquisition li
 });
 
 test('corporate homepage presents the six methodmore products accurately', async () => {
-  const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles, coachDemo, coachStyles, coachBootstrap, coachDemoScript, coachDriveModule, coachUnderpassModule, coachPoliceModule, coachNaturalSpeechModule, coachRoadSnappingModule, coachSmoothLocationModule, coachUserReportAggregationModule, coachVoiceApproachModule, coachMonitorPointsJson, coachUnderpassFeedJson, coachPrivacy, coachSupport, coachDataSources, careDemo, careStyles, careApp, carePersonas, careManifestJson, smarihaDemo, smarihaStyles, smarihaScript, smarihaLogin, smarihaLoginScript, server] = await Promise.all([
+  const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles, coachDemo, coachStyles, coachBootstrap, coachDemoScript, coachDriveModule, coachUnderpassModule, coachPoliceModule, coachNaturalSpeechModule, coachRoadSnappingModule, coachSmoothLocationModule, coachUserReportAggregationModule, coachVoiceApproachModule, coachMonitorPointsJson, coachUnderpassFeedJson, coachPrivacy, coachSupport, coachDataSources, careDemo, careStyles, careApp, carePersonas, careManifestJson, smarihaDemo, smarihaStyles, smarihaScript, smarihaLogin, smarihaLoginScript, smarihaTaisho, smarihaKeijinkai, server] = await Promise.all([
     readFile(new URL('../public/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/hangout-now.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/divertnavi.html', import.meta.url), 'utf8'),
@@ -154,6 +154,8 @@ test('corporate homepage presents the six methodmore products accurately', async
     readFile(new URL('../public/smariha-dashboard/app.js', import.meta.url), 'utf8'),
     readFile(new URL('../public/smariha-dashboard/login.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/smariha-dashboard/login.js', import.meta.url), 'utf8'),
+    readFile(new URL('../public/smariha-dashboard/taisho/index.html', import.meta.url), 'utf8'),
+    readFile(new URL('../public/smariha-dashboard/keijinkai/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../server.mjs', import.meta.url), 'utf8'),
   ]);
   const coachMonitorPoints = JSON.parse(coachMonitorPointsJson);
@@ -201,10 +203,15 @@ test('corporate homepage presents the six methodmore products accurately', async
   for (const copy of ['大勝病院向け', '実績指数およびFIM管理MVP', '渓仁会病院向け', '院内連携パス管理MVP', '病院の正式採用・承認を示すものではありません']) {
     assert.ok(smarihaDemo.includes(copy), `スマリハ管理MVPの表示がありません: ${copy}`);
   }
-  assert.match(smarihaDemo, /data-dashboard="outcome"/);
-  assert.match(smarihaDemo, /data-dashboard="path"/);
+  assert.match(smarihaDemo, /href="\/smariha-dashboard\/taisho\/"/);
+  assert.match(smarihaDemo, /href="\/smariha-dashboard\/keijinkai\/"/);
+  assert.doesNotMatch(smarihaDemo, /data-dashboard=/);
   assert.doesNotMatch(smarihaDemo, /AI OCR|myportal\.humanbridge\.net/);
   assert.match(smarihaStyles, /\.mvp-grid/);
+  assert.match(smarihaTaisho, /<title>大勝病院向け・実績指数およびFIM管理MVP<\/title>/);
+  assert.match(smarihaTaisho, /\/smariha-dashboard\/taisho\/assets\/index-[^"']+\.js/);
+  assert.match(smarihaKeijinkai, /<title>渓仁会病院向け・院内連携パス管理MVP<\/title>/);
+  assert.match(smarihaKeijinkai, /\/smariha-dashboard\/keijinkai\/assets\/index-[^"']+\.js/);
   assert.match(smarihaScript, /showDashboard/);
   assert.match(smarihaLogin, /action="\/smariha-dashboard\/login"/);
   assert.match(smarihaLogin, /name="username"/);
@@ -214,6 +221,8 @@ test('corporate homepage presents the six methodmore products accurately', async
   assert.doesNotMatch(smarihaDemo, /rehadash123/);
   assert.doesNotMatch(sitemap, /<loc>https:\/\/method-more\.com\/smariha-dashboard\/<\/loc>/);
   assert.match(server, /const smarihaDashboardPath = '\/smariha-dashboard'/);
+  assert.match(server, /requestedPath === '\/smariha-dashboard\/taisho\/'/);
+  assert.match(server, /requestedPath === '\/smariha-dashboard\/keijinkai\/'/);
   assert.match(careDemo, /<title>みんなで介護<\/title>/);
   assert.match(careDemo, /<h1>みんなで介護<\/h1>/);
   assert.match(careDemo, /personas\.js\?v=20260826-3/);

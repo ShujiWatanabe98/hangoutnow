@@ -10,7 +10,7 @@
   <link rel="icon" href="/methodmore-favicon.svg" type="image/svg+xml">
   <title>スマリハ管理ダッシュボード｜methodmore</title>
   <link rel="stylesheet" href="/corporate.css?v=20260904-2">
-  <link rel="stylesheet" href="/smariha-dashboard/styles.css?v=20260904-2">
+  <link rel="stylesheet" href="/smariha-dashboard/styles.css?v=20260905-1">
 </head>
 <body>
   <header class="corporate-header">
@@ -27,8 +27,8 @@
     <section class="mvp-selector" id="mvpSelector" aria-labelledby="selector-title">
       <div class="section-heading"><p class="eyebrow">SELECT DASHBOARD</p><h2 id="selector-title">ダッシュボードを<br>選択</h2><p>以下は提案・画面確認のためのMVPです。実際の患者情報、病院システム、電子カルテとは接続していません。</p></div>
       <div class="mvp-grid">
-        <button class="mvp-card outcome-card" type="button" data-dashboard="outcome" aria-controls="outcomeDashboard"><span class="mvp-icon" aria-hidden="true">01</span><span class="mvp-label">大勝病院向け</span><strong>実績指数および<br>FIM管理MVP</strong><small>実績指数、FIM利得、在宅復帰率を一覧で確認</small><span class="open-label">ダッシュボードを表示 <i aria-hidden="true">→</i></span></button>
-        <button class="mvp-card path-card" type="button" data-dashboard="path" aria-controls="pathDashboard"><span class="mvp-icon" aria-hidden="true">02</span><span class="mvp-label">渓仁会病院向け</span><strong>院内連携パス<br>管理MVP</strong><small>入院から退院支援までの連携状況を一画面で確認</small><span class="open-label">ダッシュボードを表示 <i aria-hidden="true">→</i></span></button>
+        <a class="mvp-card outcome-card" href="/smariha-dashboard/taisho/" aria-label="大勝病院向け・実績指数およびFIM管理MVPを開く"><span class="mvp-icon" aria-hidden="true">01</span><span class="mvp-label">大勝病院向け</span><strong>実績指数および<br>FIM管理MVP</strong><small>実績指数の月中管理、FIM更新状況、注意患者、退院予定日シミュレーションを確認</small><span class="open-label">操作可能なMVPを開く <i aria-hidden="true">→</i></span></a>
+        <a class="mvp-card path-card" href="/smariha-dashboard/keijinkai/" aria-label="渓仁会病院向け・院内連携パス管理MVPを開く"><span class="mvp-icon" aria-hidden="true">02</span><span class="mvp-label">渓仁会病院向け</span><strong>院内連携パス<br>管理MVP</strong><small>多職種のタスク、期限、患者別の進捗、カンファレンス前の確認事項を管理</small><span class="open-label">操作可能なMVPを開く <i aria-hidden="true">→</i></span></a>
       </div>
     </section>
 
@@ -55,6 +55,5 @@
   </main>
 
   <footer class="corporate-footer"><a class="wordmark footer-wordmark" href="/" aria-label="methodmore ホーム"><span class="wordmark-mark" aria-hidden="true">m</span><span>methodmore</span></a><div class="footer-links"><a href="/">ホーム</a><a href="mailto:info@method-more.com">お問い合わせ</a></div><small>© 2026 methodmore</small></footer>
-  <script src="/smariha-dashboard/app.js?v=20260904-2" defer></script>
 </body>
 </html>
