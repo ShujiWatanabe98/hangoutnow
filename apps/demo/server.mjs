@@ -472,6 +472,8 @@ createServer(async (request, response) => {
       ? '/divertnavi-app/index.html'
     : requestedPath === '/minnade-kaigo' || requestedPath === '/minnade-kaigo/'
       ? '/minnade-kaigo/index.html'
+    : requestedPath === '/smariha-dashboard' || requestedPath === '/smariha-dashboard/'
+      ? '/smariha-dashboard/index.html'
       : divertNaviDashboardPath && normalizedRequestedPath === divertNaviDashboardPath
         ? '/divertnavi-app/index.html'
       : requestedPath;

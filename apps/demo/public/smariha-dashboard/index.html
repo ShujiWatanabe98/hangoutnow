@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="description" content="スマリハの稼働状況、環境別監視、患者機能チェック、監視履歴を確認する管理ダッシュボードの公開デモです。">
+  <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">
+  <meta name="theme-color" content="#101d32">
+  <link rel="canonical" href="https://method-more.com/smariha-dashboard/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="methodmore">
+  <meta property="og:title" content="スマリハ管理ダッシュボード｜methodmore">
+  <meta property="og:description" content="スマリハの稼働状況と監視履歴を一つの画面で確認する運用管理ダッシュボード。">
+  <meta property="og:url" content="https://method-more.com/smariha-dashboard/">
+  <meta property="og:locale" content="ja_JP">
+  <link rel="icon" href="/methodmore-favicon.svg" type="image/svg+xml">
+  <title>スマリハ管理ダッシュボード｜methodmore</title>
+  <link rel="stylesheet" href="/corporate.css?v=20260904-2">
+  <link rel="stylesheet" href="/smariha-dashboard/styles.css?v=20260904-1">
+</head>
+<body>
+  <header class="corporate-header">
+    <a class="wordmark" href="/" aria-label="methodmore ホーム">
+      <span class="wordmark-mark" aria-hidden="true">m</span>
+      <span>methodmore</span>
+    </a>
+    <nav aria-label="メインナビゲーション">
+      <a href="/#products">プロダクト</a>
+      <a class="nav-contact" href="mailto:info@method-more.com">お問い合わせ</a>
+    </nav>
+  </header>
+
+  <main class="smariha-page">
+    <section class="smariha-hero" aria-labelledby="smariha-title">
+      <div>
+        <p class="eyebrow">SMART REHA OPERATIONS</p>
+        <p class="demo-badge">公開デモ・架空データ</p>
+        <h1 id="smariha-title">スマリハ<br><em>管理ダッシュボード</em></h1>
+        <p>稼働状況、環境別監視、患者機能チェック、監視履歴を一つに。運用担当者が異常の兆候と次の確認先をすばやく把握できます。</p>
+      </div>
+      <div class="hero-status" aria-label="デモの状態">
+        <span></span>
+        <strong>DEMO READY</strong>
+        <small>実環境には接続していません</small>
+      </div>
+    </section>
+
+    <section class="dashboard-section" aria-labelledby="dashboard-title">
+      <div class="dashboard-heading">
+        <div>
+          <p class="eyebrow">DASHBOARD DEMO</p>
+          <h2 id="dashboard-title">運用状況</h2>
+        </div>
+        <p>画面内の施設名、数値、監視結果はすべて架空の固定サンプルです。実際の監視URL、認証情報、患者情報は公開していません。</p>
+      </div>
+
+      <div class="dashboard-shell">
+        <aside class="dashboard-nav" aria-label="ダッシュボードメニュー">
+          <div class="dashboard-brand"><span>SR</span><strong>Smariha Monitor</strong></div>
+          <a class="active" href="#overview">運用状況</a>
+          <a href="#checks">監視チェック</a>
+          <a href="#history">監視履歴</a>
+          <a href="mailto:info@method-more.com">導入相談</a>
+        </aside>
+
+        <div class="dashboard-main">
+          <header class="dashboard-toolbar" id="overview">
+            <div>
+              <p>監視対象</p>
+              <h3 id="environmentTitle">Prodサンプル</h3>
+            </div>
+            <div class="environment-tabs" aria-label="表示環境">
+              <button class="environment-tab active" type="button" data-environment="prod" aria-pressed="true">Prod</button>
+              <button class="environment-tab" type="button" data-environment="preprod" aria-pressed="false">PreProd</button>
+            </div>
+          </header>
+
+          <p class="sample-notice" id="environmentNotice" role="status">Prodを想定した固定サンプルを表示しています。</p>
+
+          <div class="metric-grid" aria-label="監視サマリー">
+            <article><span>正常</span><strong id="healthyCount">24</strong><small>チェック</small></article>
+            <article><span>要確認</span><strong id="warningCount">1</strong><small>チェック</small></article>
+            <article><span>平均応答</span><strong id="responseTime">286</strong><small>ms</small></article>
+            <article><span>監視環境</span><strong>2</strong><small>環境</small></article>
+          </div>
+
+          <section class="check-panel" id="checks" aria-labelledby="checks-title">
+            <div class="panel-title"><div><p class="eyebrow">CURRENT CHECKS</p><h3 id="checks-title">監視チェック</h3></div><span>固定サンプル</span></div>
+            <div class="check-list" id="checkList"></div>
+          </section>
+
+          <section class="history-panel" id="history" aria-labelledby="history-title">
+            <div class="panel-title"><div><p class="eyebrow">MONITORING HISTORY</p><h3 id="history-title">監視履歴</h3></div></div>
+            <div class="history-list" id="historyList"></div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="corporate-footer">
+    <a class="wordmark footer-wordmark" href="/" aria-label="methodmore ホーム">
+      <span class="wordmark-mark" aria-hidden="true">m</span>
+      <span>methodmore</span>
+    </a>
+    <div class="footer-links">
+      <a href="/">ホーム</a>
+      <a href="mailto:info@method-more.com">お問い合わせ</a>
+    </div>
+    <small>© 2026 methodmore</small>
+  </footer>
+  <script src="/smariha-dashboard/app.js?v=20260904-1" defer></script>
+</body>
+</html>

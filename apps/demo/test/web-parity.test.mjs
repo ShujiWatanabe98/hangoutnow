@@ -119,7 +119,7 @@ test('homepage targets Shinjuku solo participants with measurable acquisition li
 });
 
 test('corporate homepage presents the six methodmore products accurately', async () => {
-  const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles, coachDemo, coachStyles, coachBootstrap, coachDemoScript, coachDriveModule, coachUnderpassModule, coachPoliceModule, coachNaturalSpeechModule, coachRoadSnappingModule, coachSmoothLocationModule, coachUserReportAggregationModule, coachVoiceApproachModule, coachMonitorPointsJson, coachUnderpassFeedJson, coachPrivacy, coachSupport, coachDataSources, careDemo, careStyles, careApp, carePersonas, careManifestJson, server] = await Promise.all([
+  const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles, coachDemo, coachStyles, coachBootstrap, coachDemoScript, coachDriveModule, coachUnderpassModule, coachPoliceModule, coachNaturalSpeechModule, coachRoadSnappingModule, coachSmoothLocationModule, coachUserReportAggregationModule, coachVoiceApproachModule, coachMonitorPointsJson, coachUnderpassFeedJson, coachPrivacy, coachSupport, coachDataSources, careDemo, careStyles, careApp, carePersonas, careManifestJson, smarihaDemo, smarihaStyles, smarihaScript, server] = await Promise.all([
     readFile(new URL('../public/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/hangout-now.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/divertnavi.html', import.meta.url), 'utf8'),
@@ -149,6 +149,9 @@ test('corporate homepage presents the six methodmore products accurately', async
     readFile(new URL('../public/minnade-kaigo/app.js', import.meta.url), 'utf8'),
     readFile(new URL('../public/minnade-kaigo/personas.js', import.meta.url), 'utf8'),
     readFile(new URL('../public/minnade-kaigo/manifest.json', import.meta.url), 'utf8'),
+    readFile(new URL('../public/smariha-dashboard/index.html', import.meta.url), 'utf8'),
+    readFile(new URL('../public/smariha-dashboard/styles.css', import.meta.url), 'utf8'),
+    readFile(new URL('../public/smariha-dashboard/app.js', import.meta.url), 'utf8'),
     readFile(new URL('../server.mjs', import.meta.url), 'utf8'),
   ]);
   const coachMonitorPoints = JSON.parse(coachMonitorPointsJson);
@@ -184,12 +187,24 @@ test('corporate homepage presents the six methodmore products accurately', async
   assert.match(corporate, /href="\/roboreha-app"[^>]*>Webアプリを開く/);
   assert.match(corporate, /<a href="\/#robocare-one">RoboCare One<\/a>/);
   assert.match(corporateStyles, /\.robocare-capabilities/);
-  for (const copy of ['評価・計画・アウトカムをひとつに', '評価OCR、患者ごとのリハビリ履歴、実施計画、FIM・退院支援・早期警告を一つの画面で管理する、医療機関向けダッシュボードです。', 'AI評価票OCR', '患者別リハビリ履歴', '病棟アウトカム管理']) {
+  for (const copy of ['稼働状況・監視・履歴をひとつに', 'スマリハの稼働状況、環境別の外形・内部監視、患者機能チェック、監視履歴を一つの画面で確認する運用管理ダッシュボードです。', '稼働状況監視', 'Prod / PreProd管理', '監視履歴']) {
     assert.ok(corporate.includes(copy), `スマリハ管理ダッシュボードの製品コピーがありません: ${copy}`);
   }
-  assert.match(corporate, /href="\/ai-ocr"[^>]*>Webアプリを開く/);
+  assert.match(corporate, /href="\/smariha-dashboard\/"[^>]*>Webデモを開く/);
+  assert.doesNotMatch(corporate, /method-more\.com\/ai-ocr|href="\/ai-ocr"/);
   assert.match(corporate, /<a href="\/#smariha-dashboard">スマリハ管理ダッシュボード<\/a>/);
   assert.match(corporateStyles, /\.smariha-dashboard-preview/);
+  assert.match(smarihaDemo, /<title>スマリハ管理ダッシュボード｜methodmore<\/title>/);
+  assert.match(smarihaDemo, /<link rel="canonical" href="https:\/\/method-more\.com\/smariha-dashboard\/">/);
+  assert.match(smarihaDemo, /公開デモ・架空データ/);
+  assert.match(smarihaDemo, /実際の監視URL、認証情報、患者情報は公開していません/);
+  assert.match(smarihaDemo, /data-environment="prod"/);
+  assert.match(smarihaDemo, /data-environment="preprod"/);
+  assert.doesNotMatch(smarihaDemo, /AI OCR|myportal\.humanbridge\.net/);
+  assert.match(smarihaStyles, /\.dashboard-shell/);
+  assert.match(smarihaScript, /render\('prod'\)/);
+  assert.match(sitemap, /<loc>https:\/\/method-more\.com\/smariha-dashboard\/<\/loc>/);
+  assert.match(server, /requestedPath === '\/smariha-dashboard' \|\| requestedPath === '\/smariha-dashboard\/'/);
   assert.match(careDemo, /<title>みんなで介護<\/title>/);
   assert.match(careDemo, /<h1>みんなで介護<\/h1>/);
   assert.match(careDemo, /personas\.js\?v=20260826-3/);
