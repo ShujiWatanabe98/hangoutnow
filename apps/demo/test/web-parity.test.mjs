@@ -118,7 +118,7 @@ test('homepage targets Shinjuku solo participants with measurable acquisition li
   assert.match(server, /location: '\/shinjuku-working-adult-friends\.html'/);
 });
 
-test('corporate homepage presents the five methodmore products accurately', async () => {
+test('corporate homepage presents the six methodmore products accurately', async () => {
   const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles, coachDemo, coachStyles, coachBootstrap, coachDemoScript, coachDriveModule, coachUnderpassModule, coachPoliceModule, coachNaturalSpeechModule, coachRoadSnappingModule, coachSmoothLocationModule, coachUserReportAggregationModule, coachVoiceApproachModule, coachMonitorPointsJson, coachUnderpassFeedJson, coachPrivacy, coachSupport, coachDataSources, careDemo, careStyles, careApp, carePersonas, careManifestJson, server] = await Promise.all([
     readFile(new URL('../public/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/hangout-now.html', import.meta.url), 'utf8'),
@@ -156,6 +156,7 @@ test('corporate homepage presents the five methodmore products accurately', asyn
 
   assert.match(corporate, /<title>methodmore｜日常の選択を、もっと前へ。<\/title>/);
   assert.match(corporate, /<link rel="canonical" href="https:\/\/method-more\.com\/">/);
+  assert.equal((corporate.match(/<article class="product-card/g) ?? []).length, 6);
   assert.match(corporate, /href="\/hangout-now\.html"/);
   assert.match(corporate, /href="\/divertnavi\.html"/);
   assert.match(corporate, /href="\/divertnavi-app\/">Webアプリを開く<\/a>/);
@@ -164,6 +165,7 @@ test('corporate homepage presents the five methodmore products accurately', asyn
   assert.match(corporate, /CoachGo/);
   assert.match(corporate, /みんなで介護/);
   assert.match(corporate, /RoboCare <em>One<\/em>/);
+  assert.match(corporate, /スマリハ<br><em>管理ダッシュボード<\/em>/);
   assert.match(corporate, /公開中/);
   assert.match(corporate, /Android MVP 開発中/);
   assert.match(corporate, /Webアプリ 公開中/);
@@ -182,6 +184,12 @@ test('corporate homepage presents the five methodmore products accurately', asyn
   assert.match(corporate, /href="\/roboreha-app"[^>]*>Webアプリを開く/);
   assert.match(corporate, /<a href="\/#robocare-one">RoboCare One<\/a>/);
   assert.match(corporateStyles, /\.robocare-capabilities/);
+  for (const copy of ['評価・計画・アウトカムをひとつに', '評価OCR、患者ごとのリハビリ履歴、実施計画、FIM・退院支援・早期警告を一つの画面で管理する、医療機関向けダッシュボードです。', 'AI評価票OCR', '患者別リハビリ履歴', '病棟アウトカム管理']) {
+    assert.ok(corporate.includes(copy), `スマリハ管理ダッシュボードの製品コピーがありません: ${copy}`);
+  }
+  assert.match(corporate, /href="\/ai-ocr"[^>]*>Webアプリを開く/);
+  assert.match(corporate, /<a href="\/#smariha-dashboard">スマリハ管理ダッシュボード<\/a>/);
+  assert.match(corporateStyles, /\.smariha-dashboard-preview/);
   assert.match(careDemo, /<title>みんなで介護<\/title>/);
   assert.match(careDemo, /<h1>みんなで介護<\/h1>/);
   assert.match(careDemo, /personas\.js\?v=20260826-3/);
