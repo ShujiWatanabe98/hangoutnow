@@ -2,5 +2,5 @@
   "name": "@hangout-now/demo",
   "version": "0.1.0",
   "private": true,
-  "scripts": { "start": "node server.mjs", "typecheck": "node --check server.mjs && node --check public/app.js && node --check public/coachgo-admin/app.js && node --check scripts/verify-roboreha-gateway.mjs", "test": "node --test test/*.test.mjs", "verify:roboreha": "node scripts/verify-roboreha-gateway.mjs" }
+  "scripts": { "start": "node server.mjs", "typecheck": "node --check server.mjs && node --check public/app.js && node --check public/coachgo-admin/app.js && node --check public/smariha-dashboard/app.js && node --check public/smariha-dashboard/login.js && node --check scripts/verify-roboreha-gateway.mjs", "test": "node --test test/*.test.mjs", "verify:roboreha": "node scripts/verify-roboreha-gateway.mjs" }
 }

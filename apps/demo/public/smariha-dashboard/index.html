@@ -3,112 +3,58 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="description" content="スマリハの稼働状況、環境別監視、患者機能チェック、監視履歴を確認する管理ダッシュボードの公開デモです。">
-  <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">
+  <meta name="description" content="実績指数・FIM管理と院内連携パス管理を確認できる、スマリハ管理ダッシュボードの提案用MVPです。">
+  <meta name="robots" content="noindex,nofollow,noarchive">
   <meta name="theme-color" content="#101d32">
   <link rel="canonical" href="https://method-more.com/smariha-dashboard/">
-  <meta property="og:type" content="website">
-  <meta property="og:site_name" content="methodmore">
-  <meta property="og:title" content="スマリハ管理ダッシュボード｜methodmore">
-  <meta property="og:description" content="スマリハの稼働状況と監視履歴を一つの画面で確認する運用管理ダッシュボード。">
-  <meta property="og:url" content="https://method-more.com/smariha-dashboard/">
-  <meta property="og:locale" content="ja_JP">
   <link rel="icon" href="/methodmore-favicon.svg" type="image/svg+xml">
   <title>スマリハ管理ダッシュボード｜methodmore</title>
   <link rel="stylesheet" href="/corporate.css?v=20260904-2">
-  <link rel="stylesheet" href="/smariha-dashboard/styles.css?v=20260904-1">
+  <link rel="stylesheet" href="/smariha-dashboard/styles.css?v=20260904-2">
 </head>
 <body>
   <header class="corporate-header">
-    <a class="wordmark" href="/" aria-label="methodmore ホーム">
-      <span class="wordmark-mark" aria-hidden="true">m</span>
-      <span>methodmore</span>
-    </a>
-    <nav aria-label="メインナビゲーション">
-      <a href="/#products">プロダクト</a>
-      <a class="nav-contact" href="mailto:info@method-more.com">お問い合わせ</a>
-    </nav>
+    <a class="wordmark" href="/" aria-label="methodmore ホーム"><span class="wordmark-mark" aria-hidden="true">m</span><span>methodmore</span></a>
+    <nav aria-label="ログイン中のメニュー"><a href="/">ホーム</a><a class="nav-contact" href="/smariha-dashboard/logout">ログアウト</a></nav>
   </header>
 
   <main class="smariha-page">
-    <section class="smariha-hero" aria-labelledby="smariha-title">
-      <div>
-        <p class="eyebrow">SMART REHA OPERATIONS</p>
-        <p class="demo-badge">公開デモ・架空データ</p>
-        <h1 id="smariha-title">スマリハ<br><em>管理ダッシュボード</em></h1>
-        <p>稼働状況、環境別監視、患者機能チェック、監視履歴を一つに。運用担当者が異常の兆候と次の確認先をすばやく把握できます。</p>
-      </div>
-      <div class="hero-status" aria-label="デモの状態">
-        <span></span>
-        <strong>DEMO READY</strong>
-        <small>実環境には接続していません</small>
+    <section class="portal-hero" aria-labelledby="portal-title">
+      <div><p class="eyebrow">SMART REHA MANAGEMENT</p><span class="demo-badge">提案用MVP・架空データ</span><h1 id="portal-title">スマリハ<br><em>管理ダッシュボード</em></h1><p>目的に合わせて、確認するダッシュボードを選択してください。</p></div>
+      <div class="session-status"><span aria-hidden="true"></span><strong>ログイン中</strong><small>8時間で自動ログアウト</small></div>
+    </section>
+
+    <section class="mvp-selector" id="mvpSelector" aria-labelledby="selector-title">
+      <div class="section-heading"><p class="eyebrow">SELECT DASHBOARD</p><h2 id="selector-title">ダッシュボードを<br>選択</h2><p>以下は提案・画面確認のためのMVPです。実際の患者情報、病院システム、電子カルテとは接続していません。</p></div>
+      <div class="mvp-grid">
+        <button class="mvp-card outcome-card" type="button" data-dashboard="outcome" aria-controls="outcomeDashboard"><span class="mvp-icon" aria-hidden="true">01</span><span class="mvp-label">大勝病院向け</span><strong>実績指数および<br>FIM管理MVP</strong><small>実績指数、FIM利得、在宅復帰率を一覧で確認</small><span class="open-label">ダッシュボードを表示 <i aria-hidden="true">→</i></span></button>
+        <button class="mvp-card path-card" type="button" data-dashboard="path" aria-controls="pathDashboard"><span class="mvp-icon" aria-hidden="true">02</span><span class="mvp-label">渓仁会病院向け</span><strong>院内連携パス<br>管理MVP</strong><small>入院から退院支援までの連携状況を一画面で確認</small><span class="open-label">ダッシュボードを表示 <i aria-hidden="true">→</i></span></button>
       </div>
     </section>
 
-    <section class="dashboard-section" aria-labelledby="dashboard-title">
-      <div class="dashboard-heading">
-        <div>
-          <p class="eyebrow">DASHBOARD DEMO</p>
-          <h2 id="dashboard-title">運用状況</h2>
-        </div>
-        <p>画面内の施設名、数値、監視結果はすべて架空の固定サンプルです。実際の監視URL、認証情報、患者情報は公開していません。</p>
+    <section class="dashboard-view" id="outcomeDashboard" data-view="outcome" aria-labelledby="outcome-title" hidden>
+      <div class="view-toolbar"><button class="back-button" type="button" data-back>← MVP選択に戻る</button><span class="sample-pill">全件 架空データ</span></div>
+      <div class="dashboard-title-row"><div><p class="eyebrow">OUTCOME &amp; FIM MANAGEMENT</p><h2 id="outcome-title">大勝病院向け・<br>実績指数およびFIM管理MVP</h2></div><p>回復期リハビリテーション病棟の実績指数とFIM推移を、管理者が短時間で把握するための提案画面です。</p></div>
+      <p class="mvp-warning"><strong>提案用MVP</strong> 数値・患者ID・更新日時はすべて架空です。病院の正式採用・承認を示すものではありません。</p>
+      <div class="metric-grid"><article><span>実績指数</span><strong>42.7</strong><small>目標 40.0</small></article><article><span>平均FIM利得</span><strong>23.4</strong><small>前月比 +1.8</small></article><article><span>在宅復帰率</span><strong>78.6%</strong><small>架空集計</small></article><article><span>管理対象</span><strong>28名</strong><small>サンプル</small></article></div>
+      <div class="dashboard-panels">
+        <section class="panel trend-panel" aria-labelledby="trend-title"><div class="panel-title"><div><p class="eyebrow">MONTHLY TREND</p><h3 id="trend-title">実績指数の推移</h3></div><span>直近6か月</span></div><div class="chart" role="img" aria-label="実績指数が38.1から42.7へ上昇する架空の棒グラフ"><div style="--value:63%"><b>38.1</b><i></i><small>4月</small></div><div style="--value:68%"><b>39.4</b><i></i><small>5月</small></div><div style="--value:72%"><b>40.2</b><i></i><small>6月</small></div><div style="--value:78%"><b>41.3</b><i></i><small>7月</small></div><div style="--value:82%"><b>42.0</b><i></i><small>8月</small></div><div style="--value:88%"><b>42.7</b><i></i><small>9月</small></div></div></section>
+        <section class="panel" aria-labelledby="fim-summary-title"><div class="panel-title"><div><p class="eyebrow">FIM SUMMARY</p><h3 id="fim-summary-title">FIM評価状況</h3></div></div><div class="summary-list"><p><span>今週の評価予定</span><strong>8件</strong></p><p><span>入力完了</span><strong>6件</strong></p><p><span>要確認</span><strong class="attention">2件</strong></p></div></section>
       </div>
+      <section class="panel patient-panel" aria-labelledby="patient-title"><div class="panel-title"><div><p class="eyebrow">FIM DETAIL</p><h3 id="patient-title">患者別FIM管理</h3></div><span>架空IDのみ</span></div><div class="table-scroll"><table><thead><tr><th>患者ID</th><th>入棟時FIM</th><th>最新FIM</th><th>FIM利得</th><th>算定日数</th><th>状況</th></tr></thead><tbody><tr><td>DEMO-001</td><td>54</td><td>82</td><td>+28</td><td>63日</td><td><span class="status normal">順調</span></td></tr><tr><td>DEMO-002</td><td>61</td><td>79</td><td>+18</td><td>41日</td><td><span class="status normal">順調</span></td></tr><tr><td>DEMO-003</td><td>47</td><td>58</td><td>+11</td><td>76日</td><td><span class="status attention">要確認</span></td></tr><tr><td>DEMO-004</td><td>68</td><td>91</td><td>+23</td><td>35日</td><td><span class="status normal">順調</span></td></tr></tbody></table></div></section>
+    </section>
 
-      <div class="dashboard-shell">
-        <aside class="dashboard-nav" aria-label="ダッシュボードメニュー">
-          <div class="dashboard-brand"><span>SR</span><strong>Smariha Monitor</strong></div>
-          <a class="active" href="#overview">運用状況</a>
-          <a href="#checks">監視チェック</a>
-          <a href="#history">監視履歴</a>
-          <a href="mailto:info@method-more.com">導入相談</a>
-        </aside>
-
-        <div class="dashboard-main">
-          <header class="dashboard-toolbar" id="overview">
-            <div>
-              <p>監視対象</p>
-              <h3 id="environmentTitle">Prodサンプル</h3>
-            </div>
-            <div class="environment-tabs" aria-label="表示環境">
-              <button class="environment-tab active" type="button" data-environment="prod" aria-pressed="true">Prod</button>
-              <button class="environment-tab" type="button" data-environment="preprod" aria-pressed="false">PreProd</button>
-            </div>
-          </header>
-
-          <p class="sample-notice" id="environmentNotice" role="status">Prodを想定した固定サンプルを表示しています。</p>
-
-          <div class="metric-grid" aria-label="監視サマリー">
-            <article><span>正常</span><strong id="healthyCount">24</strong><small>チェック</small></article>
-            <article><span>要確認</span><strong id="warningCount">1</strong><small>チェック</small></article>
-            <article><span>平均応答</span><strong id="responseTime">286</strong><small>ms</small></article>
-            <article><span>監視環境</span><strong>2</strong><small>環境</small></article>
-          </div>
-
-          <section class="check-panel" id="checks" aria-labelledby="checks-title">
-            <div class="panel-title"><div><p class="eyebrow">CURRENT CHECKS</p><h3 id="checks-title">監視チェック</h3></div><span>固定サンプル</span></div>
-            <div class="check-list" id="checkList"></div>
-          </section>
-
-          <section class="history-panel" id="history" aria-labelledby="history-title">
-            <div class="panel-title"><div><p class="eyebrow">MONITORING HISTORY</p><h3 id="history-title">監視履歴</h3></div></div>
-            <div class="history-list" id="historyList"></div>
-          </section>
-        </div>
-      </div>
+    <section class="dashboard-view" id="pathDashboard" data-view="path" aria-labelledby="path-title" hidden>
+      <div class="view-toolbar"><button class="back-button" type="button" data-back>← MVP選択に戻る</button><span class="sample-pill">全件 架空データ</span></div>
+      <div class="dashboard-title-row"><div><p class="eyebrow">IN-HOSPITAL CARE PATH</p><h2 id="path-title">渓仁会病院向け・<br>院内連携パス管理MVP</h2></div><p>多職種の確認事項と期限を工程別に整理し、院内連携の停滞を早期に見つけるための提案画面です。</p></div>
+      <p class="mvp-warning"><strong>提案用MVP</strong> 数値・患者ID・部署・進捗はすべて架空です。病院の正式採用・承認を示すものではありません。</p>
+      <div class="metric-grid path-metrics"><article><span>連携パス対象</span><strong>36件</strong><small>サンプル</small></article><article><span>本日期限</span><strong>7件</strong><small>架空集計</small></article><article><span>要フォロー</span><strong>3件</strong><small>架空集計</small></article><article><span>完了率</span><strong>86%</strong><small>直近30日</small></article></div>
+      <section class="panel" aria-labelledby="flow-title"><div class="panel-title"><div><p class="eyebrow">PATH PROGRESS</p><h3 id="flow-title">院内連携フロー</h3></div><span>本日の架空状況</span></div><div class="path-flow"><article><b>01</b><span>入院連携</span><strong>9件</strong><small>完了 8 / 要確認 1</small></article><article><b>02</b><span>初期評価共有</span><strong>11件</strong><small>完了 10 / 要確認 1</small></article><article><b>03</b><span>カンファレンス</span><strong>8件</strong><small>完了 7 / 要確認 1</small></article><article><b>04</b><span>退院支援</span><strong>8件</strong><small>完了 8 / 要確認 0</small></article></div></section>
+      <section class="panel patient-panel" aria-labelledby="path-list-title"><div class="panel-title"><div><p class="eyebrow">COORDINATION LIST</p><h3 id="path-list-title">連携タスク一覧</h3></div><span>架空IDのみ</span></div><div class="table-scroll"><table><thead><tr><th>患者ID</th><th>現在工程</th><th>担当</th><th>期限</th><th>次のアクション</th><th>状況</th></tr></thead><tbody><tr><td>PATH-101</td><td>入院連携</td><td>地域連携室</td><td>本日</td><td>紹介状確認</td><td><span class="status normal">進行中</span></td></tr><tr><td>PATH-102</td><td>初期評価共有</td><td>リハビリ部</td><td>本日</td><td>評価入力</td><td><span class="status attention">要確認</span></td></tr><tr><td>PATH-103</td><td>カンファレンス</td><td>病棟</td><td>明日</td><td>日程確定</td><td><span class="status normal">進行中</span></td></tr><tr><td>PATH-104</td><td>退院支援</td><td>医療相談室</td><td>9/08</td><td>家族説明</td><td><span class="status normal">予定済</span></td></tr></tbody></table></div></section>
     </section>
   </main>
 
-  <footer class="corporate-footer">
-    <a class="wordmark footer-wordmark" href="/" aria-label="methodmore ホーム">
-      <span class="wordmark-mark" aria-hidden="true">m</span>
-      <span>methodmore</span>
-    </a>
-    <div class="footer-links">
-      <a href="/">ホーム</a>
-      <a href="mailto:info@method-more.com">お問い合わせ</a>
-    </div>
-    <small>© 2026 methodmore</small>
-  </footer>
-  <script src="/smariha-dashboard/app.js?v=20260904-1" defer></script>
+  <footer class="corporate-footer"><a class="wordmark footer-wordmark" href="/" aria-label="methodmore ホーム"><span class="wordmark-mark" aria-hidden="true">m</span><span>methodmore</span></a><div class="footer-links"><a href="/">ホーム</a><a href="mailto:info@method-more.com">お問い合わせ</a></div><small>© 2026 methodmore</small></footer>
+  <script src="/smariha-dashboard/app.js?v=20260904-2" defer></script>
 </body>
 </html>

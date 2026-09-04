@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 
@@ -35,6 +35,15 @@ const roborehaUpstreamRetryDelays = configuredRoborehaRetryDelays.length > 0
   : [1_500, 3_000, 5_000, 8_000, 13_000, 21_000];
 const roborehaLoginAttempts = new Map();
 let roborehaReadinessPromise;
+const smarihaDashboardPath = '/smariha-dashboard';
+const smarihaDashboardUsername = process.env.SMARIHA_DASHBOARD_USERNAME?.trim() || 'rehadash';
+const smarihaDashboardPasswordHash = process.env.SMARIHA_DASHBOARD_PASSWORD_SHA256?.trim().toLowerCase()
+  || '62530a7bc852b7d6cb8472a50218f44dffa8128b5f45d48ef9de21fc4188005b';
+const smarihaDashboardSessionSecret = process.env.SMARIHA_DASHBOARD_SESSION_SECRET?.trim() || randomBytes(32).toString('hex');
+const smarihaDashboardCookieName = '__Secure-smariha_dashboard';
+const smarihaDashboardSessionSeconds = 8 * 60 * 60;
+const smarihaDashboardLoginAttempts = new Map();
+const smarihaDashboardAuthDisabled = process.env.NODE_ENV !== 'production' && process.env.SMARIHA_DASHBOARD_AUTH_DISABLED === 'true';
 const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.map': 'application/json; charset=utf-8', '.webmanifest': 'application/manifest+json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.xml': 'application/xml; charset=utf-8', '.txt': 'text/plain; charset=utf-8' };
 const securityHeaders = {
   'content-security-policy': "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://api.mapbox.com https://*.tiles.mapbox.com https://tilecache.rainviewer.com https://hangoutnow-demo.onrender.com https://play.google.com https://tools.applemediaservices.com; media-src 'self' blob:; frame-src https://maps.google.com; connect-src 'self' https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com https://api.rainviewer.com https://tilecache.rainviewer.com https://api.open-meteo.com https://www.google-analytics.com https://region1.google-analytics.com; font-src 'self'; worker-src blob:; upgrade-insecure-requests",
@@ -51,6 +60,38 @@ function secureDigest(value, secret) {
 
 function secureEqual(actual, expected, secret) {
   return timingSafeEqual(secureDigest(actual, secret), secureDigest(expected, secret));
+}
+
+function parseCookies(request) {
+  return Object.fromEntries((request.headers.cookie ?? '')
+    .split(';')
+    .map((part) => part.trim().split(/=(.*)/s).slice(0, 2))
+    .filter(([key]) => key));
+}
+
+function smarihaDashboardSessionToken() {
+  const expiresAt = Math.floor(Date.now() / 1000) + smarihaDashboardSessionSeconds;
+  const payload = `v1.${expiresAt}`;
+  const signature = createHmac('sha256', smarihaDashboardSessionSecret).update(payload).digest('base64url');
+  return `${payload}.${signature}`;
+}
+
+function hasValidSmarihaDashboardSession(request) {
+  if (smarihaDashboardAuthDisabled) return true;
+  const token = parseCookies(request)[smarihaDashboardCookieName] ?? '';
+  const match = /^v1\.(\d{10})\.([A-Za-z0-9_-]{43})$/.exec(token);
+  if (!match || Number(match[1]) <= Math.floor(Date.now() / 1000)) return false;
+  const payload = `v1.${match[1]}`;
+  const expected = createHmac('sha256', smarihaDashboardSessionSecret).update(payload).digest('base64url');
+  return secureEqual(match[2], expected, smarihaDashboardSessionSecret);
+}
+
+function validSmarihaDashboardCredentials(username, password) {
+  const usernameValid = secureEqual(username, smarihaDashboardUsername, smarihaDashboardSessionSecret);
+  const suppliedHash = createHash('sha256').update(password).digest('hex');
+  const passwordValid = /^[a-f0-9]{64}$/.test(smarihaDashboardPasswordHash)
+    && timingSafeEqual(Buffer.from(suppliedHash, 'hex'), Buffer.from(smarihaDashboardPasswordHash, 'hex'));
+  return usernameValid && passwordValid;
 }
 
 function sessionToken() {
@@ -322,6 +363,76 @@ createServer(async (request, response) => {
     await proxyRoboreha(request, response);
     return;
   }
+  if (normalizedRequestedPath === smarihaDashboardPath || requestedPath.startsWith(`${smarihaDashboardPath}/`)) {
+    const loginPath = `${smarihaDashboardPath}/login.html`;
+    const loginActionPath = `${smarihaDashboardPath}/login`;
+    const logoutPath = `${smarihaDashboardPath}/logout`;
+    const sessionValid = hasValidSmarihaDashboardSession(request);
+
+    if (request.method === 'POST' && requestedPath === loginActionPath) {
+      const key = loginClientKey(request);
+      const now = Date.now();
+      const previous = smarihaDashboardLoginAttempts.get(key);
+      if (previous?.lockedUntil > now) {
+        response.writeHead(303, { ...securityHeaders, location: `${loginPath}?error=locked`, 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });
+        response.end();
+        return;
+      }
+      try {
+        const form = await readSmallForm(request);
+        if (validSmarihaDashboardCredentials(form.get('username') ?? '', form.get('password') ?? '')) {
+          smarihaDashboardLoginAttempts.delete(key);
+          response.writeHead(303, {
+            ...securityHeaders,
+            location: `${smarihaDashboardPath}/`,
+            'set-cookie': `${smarihaDashboardCookieName}=${smarihaDashboardSessionToken()}; Path=${smarihaDashboardPath}; Max-Age=${smarihaDashboardSessionSeconds}; HttpOnly; Secure; SameSite=Strict`,
+            'cache-control': 'no-store',
+            'x-robots-tag': 'noindex, nofollow, noarchive',
+          });
+          response.end();
+          return;
+        }
+        const failures = (previous?.failures ?? 0) + 1;
+        smarihaDashboardLoginAttempts.set(key, { failures, lockedUntil: failures >= 5 ? now + 15 * 60_000 : 0 });
+        response.writeHead(303, { ...securityHeaders, location: `${loginPath}?error=invalid`, 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });
+        response.end();
+        return;
+      } catch {
+        response.writeHead(400, { ...securityHeaders, 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });
+        response.end('Invalid login request.');
+        return;
+      }
+    }
+
+    if (request.method === 'GET' && requestedPath === logoutPath) {
+      response.writeHead(303, {
+        ...securityHeaders,
+        location: loginPath,
+        'set-cookie': `${smarihaDashboardCookieName}=; Path=${smarihaDashboardPath}; Max-Age=0; HttpOnly; Secure; SameSite=Strict`,
+        'cache-control': 'no-store',
+        'x-robots-tag': 'noindex, nofollow, noarchive',
+      });
+      response.end();
+      return;
+    }
+
+    const publicLoginAsset = request.method === 'GET' && [loginPath, `${smarihaDashboardPath}/login.css`, `${smarihaDashboardPath}/login.js`].includes(requestedPath);
+    if (publicLoginAsset) {
+      if (sessionValid && requestedPath === loginPath) {
+        response.writeHead(303, { ...securityHeaders, location: `${smarihaDashboardPath}/`, 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });
+        response.end();
+        return;
+      }
+    } else if (!sessionValid) {
+      if (request.method === 'GET' && (normalizedRequestedPath === smarihaDashboardPath || requestedPath === `${smarihaDashboardPath}/index.html`)) {
+        response.writeHead(302, { ...securityHeaders, location: loginPath, 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });
+      } else {
+        response.writeHead(401, { ...securityHeaders, 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });
+      }
+      response.end();
+      return;
+    }
+  }
   if (requestedPath === '/demo.html' && request.url === '/demo.html') {
     response.writeHead(302, {
       ...securityHeaders,
@@ -481,7 +592,7 @@ createServer(async (request, response) => {
   if (!file.startsWith(staticRoot)) { response.writeHead(403, securityHeaders).end(); return; }
   try {
     const fileBody = await readFile(file);
-    const isApplicationPage = isHangoutNowAdminPath || requestedPath === '/demo.html' || requestedPath === '/app.html' || requestedPath.startsWith('/coachgo-demo') || requestedPath.startsWith('/coachgo-admin') || requestedPath.startsWith('/divertnavi-app') || requestedPath.startsWith('/minnade-kaigo');
+    const isApplicationPage = isHangoutNowAdminPath || requestedPath === '/demo.html' || requestedPath === '/app.html' || requestedPath.startsWith('/coachgo-demo') || requestedPath.startsWith('/coachgo-admin') || requestedPath.startsWith('/divertnavi-app') || requestedPath.startsWith('/minnade-kaigo') || requestedPath.startsWith('/smariha-dashboard');
     const body = extname(file) === '.html' && !isApplicationPage
       ? Buffer.from(fileBody.toString('utf8').replace('<head>', '<head><link rel="stylesheet" href="/cookie-consent.css?v=20260816-2"><link rel="stylesheet" href="/share.css?v=20260821-2"><script src="/analytics.js?v=20260820-2" defer></script><script src="/attribution.js?v=20260821-2" defer></script><script src="/share.js?v=20260821-3" defer></script>'))
       : fileBody;

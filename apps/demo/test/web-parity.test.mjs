@@ -119,7 +119,7 @@ test('homepage targets Shinjuku solo participants with measurable acquisition li
 });
 
 test('corporate homepage presents the six methodmore products accurately', async () => {
-  const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles, coachDemo, coachStyles, coachBootstrap, coachDemoScript, coachDriveModule, coachUnderpassModule, coachPoliceModule, coachNaturalSpeechModule, coachRoadSnappingModule, coachSmoothLocationModule, coachUserReportAggregationModule, coachVoiceApproachModule, coachMonitorPointsJson, coachUnderpassFeedJson, coachPrivacy, coachSupport, coachDataSources, careDemo, careStyles, careApp, carePersonas, careManifestJson, smarihaDemo, smarihaStyles, smarihaScript, server] = await Promise.all([
+  const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles, coachDemo, coachStyles, coachBootstrap, coachDemoScript, coachDriveModule, coachUnderpassModule, coachPoliceModule, coachNaturalSpeechModule, coachRoadSnappingModule, coachSmoothLocationModule, coachUserReportAggregationModule, coachVoiceApproachModule, coachMonitorPointsJson, coachUnderpassFeedJson, coachPrivacy, coachSupport, coachDataSources, careDemo, careStyles, careApp, carePersonas, careManifestJson, smarihaDemo, smarihaStyles, smarihaScript, smarihaLogin, smarihaLoginScript, server] = await Promise.all([
     readFile(new URL('../public/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/hangout-now.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/divertnavi.html', import.meta.url), 'utf8'),
@@ -152,6 +152,8 @@ test('corporate homepage presents the six methodmore products accurately', async
     readFile(new URL('../public/smariha-dashboard/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/smariha-dashboard/styles.css', import.meta.url), 'utf8'),
     readFile(new URL('../public/smariha-dashboard/app.js', import.meta.url), 'utf8'),
+    readFile(new URL('../public/smariha-dashboard/login.html', import.meta.url), 'utf8'),
+    readFile(new URL('../public/smariha-dashboard/login.js', import.meta.url), 'utf8'),
     readFile(new URL('../server.mjs', import.meta.url), 'utf8'),
   ]);
   const coachMonitorPoints = JSON.parse(coachMonitorPointsJson);
@@ -187,24 +189,31 @@ test('corporate homepage presents the six methodmore products accurately', async
   assert.match(corporate, /href="\/roboreha-app"[^>]*>Webアプリを開く/);
   assert.match(corporate, /<a href="\/#robocare-one">RoboCare One<\/a>/);
   assert.match(corporateStyles, /\.robocare-capabilities/);
-  for (const copy of ['稼働状況・監視・履歴をひとつに', 'スマリハの稼働状況、環境別の外形・内部監視、患者機能チェック、監視履歴を一つの画面で確認する運用管理ダッシュボードです。', '稼働状況監視', 'Prod / PreProd管理', '監視履歴']) {
+  for (const copy of ['病院別の管理業務を、見える化', '実績指数・FIM管理と院内連携パス管理を、病院別の提案用MVPで確認できるログイン制Webアプリです。', '実績指数・FIM管理', '院内連携パス管理', 'ログイン限定公開']) {
     assert.ok(corporate.includes(copy), `スマリハ管理ダッシュボードの製品コピーがありません: ${copy}`);
   }
-  assert.match(corporate, /href="\/smariha-dashboard\/"[^>]*>Webデモを開く/);
+  assert.match(corporate, /href="\/smariha-dashboard\/"[^>]*>Webアプリを開く/);
   assert.doesNotMatch(corporate, /method-more\.com\/ai-ocr|href="\/ai-ocr"/);
   assert.match(corporate, /<a href="\/#smariha-dashboard">スマリハ管理ダッシュボード<\/a>/);
   assert.match(corporateStyles, /\.smariha-dashboard-preview/);
   assert.match(smarihaDemo, /<title>スマリハ管理ダッシュボード｜methodmore<\/title>/);
   assert.match(smarihaDemo, /<link rel="canonical" href="https:\/\/method-more\.com\/smariha-dashboard\/">/);
-  assert.match(smarihaDemo, /公開デモ・架空データ/);
-  assert.match(smarihaDemo, /実際の監視URL、認証情報、患者情報は公開していません/);
-  assert.match(smarihaDemo, /data-environment="prod"/);
-  assert.match(smarihaDemo, /data-environment="preprod"/);
+  for (const copy of ['大勝病院向け', '実績指数およびFIM管理MVP', '渓仁会病院向け', '院内連携パス管理MVP', '病院の正式採用・承認を示すものではありません']) {
+    assert.ok(smarihaDemo.includes(copy), `スマリハ管理MVPの表示がありません: ${copy}`);
+  }
+  assert.match(smarihaDemo, /data-dashboard="outcome"/);
+  assert.match(smarihaDemo, /data-dashboard="path"/);
   assert.doesNotMatch(smarihaDemo, /AI OCR|myportal\.humanbridge\.net/);
-  assert.match(smarihaStyles, /\.dashboard-shell/);
-  assert.match(smarihaScript, /render\('prod'\)/);
-  assert.match(sitemap, /<loc>https:\/\/method-more\.com\/smariha-dashboard\/<\/loc>/);
-  assert.match(server, /requestedPath === '\/smariha-dashboard' \|\| requestedPath === '\/smariha-dashboard\/'/);
+  assert.match(smarihaStyles, /\.mvp-grid/);
+  assert.match(smarihaScript, /showDashboard/);
+  assert.match(smarihaLogin, /action="\/smariha-dashboard\/login"/);
+  assert.match(smarihaLogin, /name="username"/);
+  assert.match(smarihaLogin, /name="password"/);
+  assert.match(smarihaLoginScript, /ユーザー名またはパスワードが違います/);
+  assert.doesNotMatch(smarihaLogin, /rehadash123/);
+  assert.doesNotMatch(smarihaDemo, /rehadash123/);
+  assert.doesNotMatch(sitemap, /<loc>https:\/\/method-more\.com\/smariha-dashboard\/<\/loc>/);
+  assert.match(server, /const smarihaDashboardPath = '\/smariha-dashboard'/);
   assert.match(careDemo, /<title>みんなで介護<\/title>/);
   assert.match(careDemo, /<h1>みんなで介護<\/h1>/);
   assert.match(careDemo, /personas\.js\?v=20260826-3/);

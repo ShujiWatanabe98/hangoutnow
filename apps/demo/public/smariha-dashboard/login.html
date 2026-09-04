@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="theme-color" content="#101d32">
+  <link rel="icon" href="/methodmore-favicon.svg" type="image/svg+xml">
+  <title>ログイン｜スマリハ管理ダッシュボード</title>
+  <link rel="stylesheet" href="/corporate.css?v=20260904-2">
+  <link rel="stylesheet" href="/smariha-dashboard/login.css?v=20260904-1">
+</head>
+<body>
+  <header class="login-header">
+    <a class="wordmark" href="/" aria-label="methodmore ホーム">
+      <span class="wordmark-mark" aria-hidden="true">m</span>
+      <span>methodmore</span>
+    </a>
+  </header>
+
+  <main class="login-main">
+    <section class="login-card" aria-labelledby="login-title">
+      <div class="login-mark" aria-hidden="true">SR</div>
+      <p class="eyebrow">SMART REHA DASHBOARD</p>
+      <h1 id="login-title">スマリハ管理<br>ダッシュボード</h1>
+      <p class="login-lead">閲覧にはユーザー名とパスワードが必要です。</p>
+      <p class="login-error" id="loginError" role="alert" hidden></p>
+      <form method="post" action="/smariha-dashboard/login">
+        <label>ユーザー名
+          <input name="username" type="text" autocomplete="username" required autofocus>
+        </label>
+        <label>パスワード
+          <input name="password" type="password" autocomplete="current-password" required>
+        </label>
+        <button type="submit">ログイン</button>
+      </form>
+      <p class="login-note">提案用MVP・架空データのみ<br>実際の患者情報や院内システムには接続していません。</p>
+    </section>
+  </main>
+  <script src="/smariha-dashboard/login.js?v=20260904-1" defer></script>
+</body>
+</html>
