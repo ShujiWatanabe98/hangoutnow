@@ -6,7 +6,6 @@
   "scripts": {
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "pretest": "npm run prisma:generate -w @hangout-now/api",
     "test": "npm run test --workspaces --if-present",
     "check:shinjuku-launch": "node scripts/check-shinjuku-launch.mjs",
     "coachgo:sync": "node scripts/sync-coachgo-demo.mjs",

@@ -105,7 +105,7 @@ test("Gunma center has one leader, six staff, and attendance records", async () 
       SELECT s.name,
         (SELECT count(*)::int FROM staff_members st WHERE st.store_id=s.id AND st.active) AS staff_count,
         (SELECT count(*)::int FROM staff_members st WHERE st.store_id=s.id AND st.active AND st.role='manager') AS leaders,
-        (SELECT count(*)::int FROM attendance_records ar JOIN staff_members ast ON ast.id=ar.staff_id WHERE ar.store_id=s.id AND ar.work_date=current_date AND ast.active) AS attendance
+        (SELECT count(*)::int FROM attendance_records ar JOIN staff_members ast ON ast.id=ar.staff_id WHERE ar.store_id=s.id AND ar.work_date=(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Tokyo')::date AND ast.active) AS attendance
       FROM stores s WHERE s.id='10000000-0000-0000-0000-000000000001'
     `);
     assert.equal(result.rows[0].name, "ぐんまロボケアセンター");
