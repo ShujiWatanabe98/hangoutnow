@@ -8,6 +8,36 @@ function assetVersion(html, asset) {
   return html.match(new RegExp(`${asset.replace('.', '\\.')}\\?v=([0-9-]+)`))?.[1];
 }
 
+async function smarihaBundle(hospital) {
+  const html = await readFile(new URL(`smariha-dashboard/${hospital}/index.html`, publicDirectory), 'utf8');
+  const asset = html.match(new RegExp(`/smariha-dashboard/${hospital}/(assets/index-[^"']+\\.js)`))?.[1];
+  assert.ok(asset, `${hospital} Smariha JavaScript bundle is missing`);
+  return readFile(new URL(`smariha-dashboard/${hospital}/${asset}`, publicDirectory), 'utf8');
+}
+
+test('Smariha hospital MVP bundles retain their required interactive workflows', async () => {
+  const [taisho, keijinkai] = await Promise.all([
+    smarihaBundle('taisho'),
+    smarihaBundle('keijinkai'),
+  ]);
+
+  for (const contract of [
+    '実績指数の目標値設定',
+    '退院予定日シミュレーション',
+    '運動FIM 13項目',
+    '要カンファレンス',
+    'smariha-taisho-outcome-settings-v1',
+  ]) assert.ok(taisho.includes(contract), `大勝病院MVPの要件がありません: ${contract}`);
+
+  for (const contract of [
+    '患者を選択',
+    '連携パス運用設定',
+    '表示項目の選択',
+    '未完了項目のみ表示',
+    'smariha-keijinkai-path-settings-v1',
+  ]) assert.ok(keijinkai.includes(contract), `渓仁会病院MVPの要件がありません: ${contract}`);
+});
+
 test('OAuth redirects pass through the production web proxy', async () => {
   const server = await readFile(new URL('../server.mjs', import.meta.url), 'utf8');
 
