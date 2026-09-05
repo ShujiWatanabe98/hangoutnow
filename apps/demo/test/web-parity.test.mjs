@@ -25,6 +25,7 @@ test('Smariha hospital MVP bundles retain their required interactive workflows',
     '実績指数の目標値設定',
     '退院予定日シミュレーション',
     '運動FIM 13項目',
+    '時系列で表示するFIM項目',
     '要カンファレンス',
     'smariha-taisho-outcome-settings-v1',
   ]) assert.ok(taisho.includes(contract), `大勝病院MVPの要件がありません: ${contract}`);
