@@ -55,6 +55,7 @@ test('checked-in fortune build is a subpath-scoped public PWA', async () => {
   assert.match(worker, /manifest\.webmanifest/);
   assert.match(worker, /privacy\.html/);
   assert.match(worker, /terms\.html/);
+  assert.match(worker, /denylist:\[\/\\\/privacy\\\.html\$\/,\/\\\/terms\\\.html\$\/\]/);
   assert.match(privacy, /運営者・お問い合わせ/);
   assert.match(privacy, /info@method-more\.com/);
   assert.match(terms, /占いの位置づけ/);
