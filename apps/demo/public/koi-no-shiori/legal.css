@@ -1,0 +1,25 @@
+:root {
+  color: #382a34;
+  background: #fffaf6;
+  font-family: "Noto Sans JP", "Yu Gothic", sans-serif;
+  font-synthesis: none;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: radial-gradient(circle at 12% 0, #f8e7e8, transparent 30rem), #fffaf6; }
+a { color: #693e6e; text-underline-offset: 3px; }
+header, main, footer { width: min(760px, calc(100% - 36px)); margin: 0 auto; }
+header { display: flex; align-items: center; justify-content: space-between; min-height: 76px; }
+.brand { display: inline-flex; align-items: center; gap: 9px; color: #5a315f; font-family: "Yu Mincho", serif; font-weight: 900; text-decoration: none; }
+.brand-mark { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 12px; color: #fff; background: #5a315f; }
+header > a:last-child { font-size: 13px; font-weight: 700; }
+main { margin-top: 22px; padding: clamp(28px, 7vw, 56px); border: 1px solid rgba(90,49,95,.12); border-radius: 28px; background: rgba(255,255,255,.82); box-shadow: 0 18px 60px rgba(73,42,60,.08); }
+.eyebrow { margin: 0 0 10px; color: #a15c7d; font-size: 11px; font-weight: 900; letter-spacing: .18em; }
+h1 { margin: 0; color: #49284e; font-family: "Yu Mincho", serif; font-size: clamp(30px, 7vw, 48px); line-height: 1.35; }
+.updated { margin: 12px 0 36px; color: #887680; font-size: 12px; }
+h2 { margin: 32px 0 9px; color: #49284e; font-family: "Yu Mincho", serif; font-size: 20px; }
+p, li { color: #64545e; font-size: 14px; line-height: 1.9; }
+ul { padding-left: 1.35rem; }
+.contact { margin-top: 36px; padding: 18px; border-radius: 16px; background: #f3e8ec; }
+footer { display: flex; flex-wrap: wrap; gap: 18px; padding: 30px 4px 50px; color: #8d7a84; font-size: 12px; }
+footer span { margin-left: auto; }
+@media (max-width: 540px) { main { padding: 28px 22px; border-radius: 22px; } footer span { width: 100%; margin-left: 0; } }

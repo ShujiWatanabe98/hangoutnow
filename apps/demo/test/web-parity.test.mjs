@@ -536,6 +536,8 @@ test('corporate homepage presents the seven methodmore products accurately', asy
   assert.match(sitemap, /https:\/\/method-more\.com\/coachgo-data-sources\.html/);
   assert.match(sitemap, /https:\/\/method-more\.com\/minnade-kaigo\//);
   assert.match(sitemap, /https:\/\/method-more\.com\/koi-no-shiori\//);
+  assert.match(sitemap, /https:\/\/method-more\.com\/koi-no-shiori\/privacy\.html/);
+  assert.match(sitemap, /https:\/\/method-more\.com\/koi-no-shiori\/terms\.html/);
   assert.match(corporateStyles, /\.divert-art/);
   assert.match(corporateStyles, /\.coach-art/);
   assert.match(corporateStyles, /\.care-art/);
