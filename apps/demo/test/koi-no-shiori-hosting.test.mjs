@@ -60,9 +60,12 @@ test('checked-in fortune build is a subpath-scoped public PWA', async () => {
   assert.match(worker, /terms\.html/);
   assert.match(worker, /denylist:\[\/\\\/privacy\\\.html\$\/,\/\\\/terms\\\.html\$\/\]/);
   assert.match(privacy, /運営者・お問い合わせ/);
+  assert.match(privacy, /自動送信はありません/);
   assert.match(privacy, /info@method-more\.com/);
   assert.match(terms, /占いの位置づけ/);
   assert.match(bundle, /あなたの1枚を、無料で引く/);
+  assert.match(bundle, /7日後再訪/);
+  assert.match(bundle, /30日後再訪/);
   assert.match(bundle, /https:\/\/method-more\.com\/koi-no-shiori/);
 });
 
