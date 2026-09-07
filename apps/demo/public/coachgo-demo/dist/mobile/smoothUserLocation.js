@@ -1,6 +1,8 @@
 export const STATIONARY_DISTANCE_METERS = 8;
 export const MIN_LOCATION_ANIMATION_MS = 500;
 export const MAX_LOCATION_ANIMATION_MS = 1_400;
+export const MAX_LOCATION_PREDICTION_MS = 1_800;
+export const MAX_LOCATION_PREDICTION_METERS = 35;
 const earthRadiusMeters = 6_371_000;
 export function userLocationDistanceMeters(from, to) {
     const latitude1 = from[1] * Math.PI / 180;
@@ -38,6 +40,31 @@ export function interpolateUserLocation(from, to, progress) {
     return [
         from[0] + (to[0] - from[0]) * eased,
         from[1] + (to[1] - from[1]) * eased,
+    ];
+}
+export function blendUserLocation(from, to, ratio) {
+    const bounded = Math.max(0, Math.min(1, ratio));
+    return [
+        from[0] + (to[0] - from[0]) * bounded,
+        from[1] + (to[1] - from[1]) * bounded,
+    ];
+}
+export function predictUserLocation(previousFix, latestFix, sampleIntervalMs, elapsedSinceLatestFixMs, maxPredictionMs = MAX_LOCATION_PREDICTION_MS, maxPredictionMeters = MAX_LOCATION_PREDICTION_METERS) {
+    for (const value of [sampleIntervalMs, elapsedSinceLatestFixMs, maxPredictionMs, maxPredictionMeters]) {
+        if (!Number.isFinite(value) || value < 0) {
+            throw new Error("location prediction values must be non-negative and finite");
+        }
+    }
+    const fixDistanceMeters = userLocationDistanceMeters(previousFix, latestFix);
+    if (sampleIntervalMs === 0 || fixDistanceMeters === 0 || maxPredictionMs === 0 || maxPredictionMeters === 0) {
+        return latestFix;
+    }
+    const predictionMs = Math.min(elapsedSinceLatestFixMs, maxPredictionMs);
+    const predictedDistanceMeters = Math.min(fixDistanceMeters * predictionMs / sampleIntervalMs, maxPredictionMeters);
+    const extensionRatio = predictedDistanceMeters / fixDistanceMeters;
+    return [
+        latestFix[0] + (latestFix[0] - previousFix[0]) * extensionRatio,
+        latestFix[1] + (latestFix[1] - previousFix[1]) * extensionRatio,
     ];
 }
 export function screenRelativeUserHeading(heading, mapBearing) {

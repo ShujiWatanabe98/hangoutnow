@@ -1,7 +1,7 @@
 /* global document, HTMLElement, window */
 document.documentElement.dataset.coachBootstrap = "ready";
 
-import("/coachgo-demo/dist/mobile/demo.js?v=20260902-1").catch((error) => {
+import("/coachgo-demo/dist/mobile/demo.js?v=20260907-1").catch((error) => {
   const mapStatus = document.querySelector("#map-load-state");
   if (mapStatus instanceof HTMLElement) {
     const message = document.createElement("span");

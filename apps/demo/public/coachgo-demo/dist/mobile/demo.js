@@ -1,16 +1,16 @@
-import { buildHazardPointGuidance, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260902-1";
-import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260902-1";
-import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260902-1";
-import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260902-1";
-import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260902-1";
-import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260902-1";
-import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260902-1";
-import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260902-1";
-import { interpolateUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260902-1";
-import { resolveVoiceInputRuntime, shouldRunPassiveVoiceCommandRecognition, } from "./voiceInputRuntime.js?v=20260902-1";
-import { aggregateNearbyUserReports, SAME_USER_REPORT_RADIUS_METERS, } from "./userReportAggregation.js?v=20260902-1";
-import { snapReportLocationToRoad } from "./roadSnapping.js?v=20260902-1";
-import { createSharedUserReport, deleteSharedUserReport, loadSharedUserReports, sharedUserReportHazard, } from "./sharedUserReports.js?v=20260902-1";
+import { buildHazardPointGuidance, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260907-1";
+import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260907-1";
+import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260907-1";
+import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260907-1";
+import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260907-1";
+import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260907-1";
+import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260907-1";
+import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260907-1";
+import { blendUserLocation, interpolateUserLocation, MAX_LOCATION_PREDICTION_MS, predictUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260907-1";
+import { resolveVoiceInputRuntime, shouldRunPassiveVoiceCommandRecognition, } from "./voiceInputRuntime.js?v=20260907-1";
+import { aggregateNearbyUserReports, SAME_USER_REPORT_RADIUS_METERS, } from "./userReportAggregation.js?v=20260907-1";
+import { snapReportLocationToRoad } from "./roadSnapping.js?v=20260907-1";
+import { createSharedUserReport, deleteSharedUserReport, loadSharedUserReports, sharedUserReportHazard, } from "./sharedUserReports.js?v=20260907-1";
 function syntheticSharedMapPayload() {
     return {
         schemaVersion: 1,
@@ -101,6 +101,8 @@ const demoVisibilityToggle = requiredElement("#demo-visibility-toggle");
 const demoVisibilityState = requiredElement("#demo-visibility-state");
 const inputPermissionStatus = requiredElement("#input-permission-status");
 const recenterMapButton = requiredElement("#recenter-map");
+const mapOrientationButton = requiredElement("#map-orientation");
+const mapOrientationLabel = requiredElement("#map-orientation-label");
 const registerHazardButton = requiredElement("#register-hazard");
 const undoReportToast = requiredElement("#undo-report-toast");
 const undoReportTitle = requiredElement("#undo-report-title");
@@ -158,6 +160,7 @@ let backgroundNotificationEnabled = true;
 let hazardVoiceEnabled = true;
 const INPUT_SETTINGS_STORAGE_KEY = "coachgo:input-settings-v1";
 const REPORT_OWNER_STORAGE_KEY = "coachgo:report-owner-v1";
+const MAP_ORIENTATION_STORAGE_KEY = "coachgo:map-orientation-v1";
 function readOrCreateReportOwnerId() {
     try {
         const stored = window.localStorage.getItem(REPORT_OWNER_STORAGE_KEY);
@@ -187,12 +190,23 @@ function readStoredInputSettings() {
         return { largeReportIcon: false, voiceInput: true, demoVisible: true };
     }
 }
+function readStoredMapOrientation() {
+    try {
+        return window.localStorage.getItem(MAP_ORIENTATION_STORAGE_KEY) === "HEADING_UP"
+            ? "HEADING_UP"
+            : "NORTH_UP";
+    }
+    catch {
+        return "NORTH_UP";
+    }
+}
 const storedInputSettings = readStoredInputSettings();
 const currentReportOwnerId = readOrCreateReportOwnerId();
 const voiceInputRuntime = resolveVoiceInputRuntime(storedInputSettings.voiceInput, window.ReactNativeWebView !== undefined);
 let largeReportIconEnabled = storedInputSettings.largeReportIcon;
 let voiceInputEnabled = voiceInputRuntime.enabled;
 let demoVisibilityEnabled = storedInputSettings.demoVisible;
+let mapOrientationMode = readStoredMapOrientation();
 let registrationMethod = "CURRENT";
 let pendingMapReportCategory = null;
 let reportRegistrationPending = false;
@@ -201,8 +215,10 @@ let undoReportTimer = null;
 let currentUserLocation = [...SYNTHETIC_USER_LOCATION];
 let renderedUserLocation = [...SYNTHETIC_USER_LOCATION];
 let acceptedUserLocation = null;
+let acceptedUserLocationAt = null;
 let hasLiveUserLocation = false;
 let foregroundLocationWatchId = null;
+let recenterAfterLocationPicker = false;
 let userLocationArrow = null;
 let userLocationAnimationSequence = 0;
 let deviceHeadingDegrees = null;
@@ -245,6 +261,9 @@ let panelTouchDragging = false;
 const VOICE_PROXIMITY_CHECK_INTERVAL_MS = 750;
 const VOICE_ANNOUNCEMENT_COOLDOWN_MS = 12_000;
 const MOVEMENT_HEADING_HOLD_MS = 3_000;
+const LOCATION_FOLLOW_RESPONSE_MS = 160;
+const MIN_LOCATION_SAMPLE_INTERVAL_MS = 250;
+const MAX_LOCATION_SAMPLE_INTERVAL_MS = 2_500;
 const MOBILE_PANEL_QUERY = "(max-width: 760px)";
 function refreshPreferredJapaneseVoice() {
     if (!("speechSynthesis" in window))
@@ -1038,11 +1057,49 @@ function checkLiveLocationApproach(location, now) {
         speakMonitorApproach(entered.point);
     }
 }
+function activeUserHeading(now) {
+    const moving = movementHeadingDegrees !== null && now <= movementHeadingValidUntil;
+    return moving ? movementHeadingDegrees : deviceHeadingDegrees;
+}
+function desiredMapBearing(now) {
+    if (mapOrientationMode === "NORTH_UP")
+        return 0;
+    return activeUserHeading(now) ?? map?.getBearing() ?? 0;
+}
+function renderMapOrientationControl() {
+    const headingUp = mapOrientationMode === "HEADING_UP";
+    mapOrientationButton.setAttribute("aria-pressed", String(headingUp));
+    mapOrientationButton.dataset.mode = mapOrientationMode;
+    mapOrientationButton.setAttribute("aria-label", headingUp
+        ? "進行方向を上に表示中。北を上に切り替える"
+        : "北を上に表示中。進行方向を上に切り替える");
+    mapOrientationButton.title = headingUp ? "進行方向が上" : "北が上";
+    mapOrientationLabel.textContent = headingUp ? "進行方向" : "北固定";
+}
+function setMapOrientationMode(mode) {
+    mapOrientationMode = mode;
+    try {
+        window.localStorage.setItem(MAP_ORIENTATION_STORAGE_KEY, mode);
+    }
+    catch {
+        // A private WebView can reject storage. The selected mode still works for this session.
+    }
+    renderMapOrientationControl();
+    if (pendingMapReportCategory !== null)
+        return;
+    if (demoDriveRunning) {
+        focusDemoVehicle(350);
+    }
+    else {
+        map?.easeTo({ bearing: desiredMapBearing(performance.now()), duration: 350 });
+    }
+    updateUserLocationHeading(performance.now());
+}
 function updateUserLocationHeading(now) {
     if (userLocationArrow === null)
         return;
     const moving = movementHeadingDegrees !== null && now <= movementHeadingValidUntil;
-    const heading = moving ? movementHeadingDegrees : deviceHeadingDegrees;
+    const heading = activeUserHeading(now);
     userLocationArrow.dataset.motion = moving ? "moving" : "stationary";
     userLocationArrow.dataset.headingSource = moving ? "movement" : "device";
     if (heading === null)
@@ -1055,9 +1112,24 @@ function updateDeviceHeading(heading) {
     if (!Number.isFinite(heading))
         return;
     deviceHeadingDegrees = (heading + 360) % 360;
-    updateUserLocationHeading(performance.now());
+    const now = performance.now();
+    if (mapOrientationMode === "HEADING_UP"
+        && now > movementHeadingValidUntil
+        && !demoDriveRunning
+        && pendingMapReportCategory === null) {
+        map?.jumpTo({ bearing: deviceHeadingDegrees });
+    }
+    updateUserLocationHeading(now);
 }
-function animateUserLocation(target, startedAt, duration) {
+function followRenderedUserLocation(now) {
+    if (demoDriveRunning || pendingMapReportCategory !== null)
+        return;
+    map?.jumpTo({
+        center: [renderedUserLocation[0], renderedUserLocation[1]],
+        bearing: desiredMapBearing(now),
+    });
+}
+function settleUserLocation(target, startedAt, duration) {
     const from = renderedUserLocation;
     const sequence = userLocationAnimationSequence + 1;
     userLocationAnimationSequence = sequence;
@@ -1067,9 +1139,7 @@ function animateUserLocation(target, startedAt, duration) {
         const progress = Math.max(0, Math.min(1, (now - startedAt) / duration));
         renderedUserLocation = interpolateUserLocation(from, target, progress);
         userLocationMarker?.setLngLat([renderedUserLocation[0], renderedUserLocation[1]]);
-        if (!demoDriveRunning) {
-            map?.jumpTo({ center: [renderedUserLocation[0], renderedUserLocation[1]] });
-        }
+        followRenderedUserLocation(now);
         updateUserLocationHeading(now);
         if (progress < 1) {
             window.requestAnimationFrame(frame);
@@ -1080,36 +1150,71 @@ function animateUserLocation(target, startedAt, duration) {
     };
     window.requestAnimationFrame(frame);
 }
+function animateContinuousUserLocation(previousFix, latestFix, startedAt, sampleIntervalMs) {
+    const sequence = userLocationAnimationSequence + 1;
+    userLocationAnimationSequence = sequence;
+    let lastFrameAt = startedAt;
+    const frame = (now) => {
+        if (sequence !== userLocationAnimationSequence)
+            return;
+        const elapsedMs = Math.max(0, now - startedAt);
+        const predicted = predictUserLocation(previousFix, latestFix, sampleIntervalMs, elapsedMs);
+        const frameDurationMs = Math.max(0, now - lastFrameAt);
+        lastFrameAt = now;
+        const followRatio = 1 - Math.exp(-frameDurationMs / LOCATION_FOLLOW_RESPONSE_MS);
+        renderedUserLocation = blendUserLocation(renderedUserLocation, predicted, followRatio);
+        userLocationMarker?.setLngLat([renderedUserLocation[0], renderedUserLocation[1]]);
+        followRenderedUserLocation(now);
+        updateUserLocationHeading(now);
+        if (elapsedMs < MAX_LOCATION_PREDICTION_MS) {
+            window.requestAnimationFrame(frame);
+            return;
+        }
+        window.setTimeout(() => { updateUserLocationHeading(performance.now()); }, MOVEMENT_HEADING_HOLD_MS);
+    };
+    window.requestAnimationFrame(frame);
+}
 function handleUserLocationSample(target, now, focusOnFirstFix = false) {
     const firstLiveFix = !hasLiveUserLocation;
     currentUserLocation = [target[0], target[1]];
     hasLiveUserLocation = true;
-    if (acceptedUserLocation === null) {
+    if (acceptedUserLocation === null || acceptedUserLocationAt === null) {
         acceptedUserLocation = target;
+        acceptedUserLocationAt = now;
         renderedUserLocation = target;
         userLocationMarker?.setLngLat([target[0], target[1]]);
         connectionState.dataset.locationMotion = "stationary";
         updateUserLocationHeading(now);
         if (firstLiveFix && focusOnFirstFix) {
-            map?.easeTo({ center: [target[0], target[1]], zoom: DEFAULT_LOCATION_ZOOM, pitch: 22, bearing: 0, duration: 650 });
+            map?.easeTo({
+                center: [target[0], target[1]],
+                zoom: DEFAULT_LOCATION_ZOOM,
+                pitch: 22,
+                bearing: desiredMapBearing(now),
+                duration: 650,
+            });
         }
         return;
     }
     const distanceMeters = userLocationDistanceMeters(acceptedUserLocation, target);
+    const sampleIntervalMs = Math.max(MIN_LOCATION_SAMPLE_INTERVAL_MS, Math.min(MAX_LOCATION_SAMPLE_INTERVAL_MS, now - acceptedUserLocationAt));
     if (!shouldAnimateUserLocation(acceptedUserLocation, target)) {
         movementHeadingValidUntil = -Infinity;
         acceptedUserLocation = target;
+        acceptedUserLocationAt = now;
         connectionState.dataset.locationMotion = "stationary";
-        animateUserLocation(target, now, userLocationAnimationDuration(distanceMeters));
+        settleUserLocation(target, now, userLocationAnimationDuration(distanceMeters));
         return;
     }
-    const duration = userLocationAnimationDuration(distanceMeters);
-    movementHeadingDegrees = userLocationMovementBearing(acceptedUserLocation, target);
-    movementHeadingValidUntil = now + duration + MOVEMENT_HEADING_HOLD_MS;
+    const previousFix = acceptedUserLocation;
+    movementHeadingDegrees = userLocationMovementBearing(previousFix, target);
+    movementHeadingValidUntil = now + MAX_LOCATION_PREDICTION_MS + MOVEMENT_HEADING_HOLD_MS;
     acceptedUserLocation = target;
+    acceptedUserLocationAt = now;
     connectionState.dataset.locationMotion = "moving";
     connectionState.dataset.locationDistanceMeters = distanceMeters.toFixed(1);
-    animateUserLocation(target, now, duration);
+    connectionState.dataset.locationSpeedMetersPerSecond = (distanceMeters / (sampleIntervalMs / 1_000)).toFixed(1);
+    animateContinuousUserLocation(previousFix, target, now, sampleIntervalMs);
 }
 function handleDeviceOrientation(event) {
     const compassEvent = event;
@@ -1147,9 +1252,15 @@ window.addEventListener("coachgo:native-location", ((event) => {
         return;
     if (!Number.isFinite(detail.longitude) || !Number.isFinite(detail.latitude))
         return;
+    if (pendingMapReportCategory !== null)
+        return;
     const location = [detail.longitude, detail.latitude];
     const now = performance.now();
     handleUserLocationSample(location, now, true);
+    if (recenterAfterLocationPicker) {
+        recenterAfterLocationPicker = false;
+        showCurrentLocationOnMap(location, "現在地へ戻りました。");
+    }
     connectionState.dataset.locationWatch = "active";
     renderPermissionStatus();
     checkLiveLocationApproach(location, now);
@@ -1171,18 +1282,65 @@ function startForegroundLocationMonitoring() {
         const latitude = position.coords.latitude;
         if (!Number.isFinite(longitude) || !Number.isFinite(latitude))
             return;
+        if (pendingMapReportCategory !== null)
+            return;
         const location = [longitude, latitude];
         const now = performance.now();
         handleUserLocationSample(location, now, true);
+        if (recenterAfterLocationPicker) {
+            recenterAfterLocationPicker = false;
+            showCurrentLocationOnMap(location, "現在地へ戻りました。");
+        }
         connectionState.dataset.locationWatch = "active";
         renderPermissionStatus();
         checkLiveLocationApproach(location, now);
     }, (error) => {
+        if (recenterAfterLocationPicker) {
+            recenterAfterLocationPicker = false;
+            locationStatus.hidden = false;
+            locationStatus.textContent = error.code === error.PERMISSION_DENIED
+                ? "現在地へ戻るには位置情報の許可が必要です。"
+                : "現在地を取得できませんでした。通信状態をご確認ください。";
+        }
         connectionState.dataset.locationWatch = error.code === error.PERMISSION_DENIED ? "denied" : "error";
         renderPermissionStatus();
-    }, { enableHighAccuracy: true, timeout: 15_000, maximumAge: 5_000 });
+    }, { enableHighAccuracy: true, timeout: 15_000, maximumAge: recenterAfterLocationPicker ? 0 : 5_000 });
     connectionState.dataset.locationWatch = "starting";
     renderPermissionStatus();
+}
+function pauseLocationTrackingForPicker() {
+    recenterAfterLocationPicker = false;
+    userLocationAnimationSequence += 1;
+    acceptedUserLocationAt = null;
+    recenterMapButton.disabled = true;
+    if (window.ReactNativeWebView !== undefined) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+            type: "COACHGO_LOCATION_PICKER",
+            active: true,
+        }));
+    }
+    else if (foregroundLocationWatchId !== null && "geolocation" in navigator) {
+        navigator.geolocation.clearWatch(foregroundLocationWatchId);
+        foregroundLocationWatchId = null;
+    }
+    connectionState.dataset.locationWatch = "picker-paused";
+    renderPermissionStatus();
+}
+function resumeLocationTrackingAfterPicker() {
+    recenterAfterLocationPicker = true;
+    recenterMapButton.disabled = false;
+    locationStatus.hidden = false;
+    locationStatus.textContent = "現在地を取得中…";
+    if (window.ReactNativeWebView !== undefined) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+            type: "COACHGO_LOCATION_PICKER",
+            active: false,
+        }));
+        connectionState.dataset.locationWatch = "native-waiting";
+        renderPermissionStatus();
+        return;
+    }
+    startForegroundLocationMonitoring();
 }
 function createCategoryMarkerCanvas(icon, background) {
     const canvas = document.createElement("canvas");
@@ -1512,7 +1670,7 @@ function focusDemoVehicle(duration = 750) {
         center: [position.coordinate[0], position.coordinate[1]],
         zoom: 15.2,
         pitch: 44,
-        bearing: position.bearing,
+        bearing: mapOrientationMode === "HEADING_UP" ? position.bearing : 0,
         duration,
     });
     demoCameraFollowStartsAt = performance.now() + duration;
@@ -1550,7 +1708,7 @@ function followDemoVehicle(position, now) {
     lastDemoCameraFrameAt = now;
     map.jumpTo({
         center: [position.coordinate[0], position.coordinate[1]],
-        bearing: position.bearing,
+        bearing: mapOrientationMode === "HEADING_UP" ? position.bearing : 0,
     });
 }
 function createDemoVehicleElement(labelText) {
@@ -1785,9 +1943,11 @@ function initializeMapbox() {
             zoom: DEFAULT_LOCATION_ZOOM,
             pitch: 22,
             bearing: 0,
+            dragRotate: false,
             antialias: true,
             attributionControl: true,
         });
+        map.touchZoomRotate.disableRotation();
         initialMapLoadTimeout = window.setTimeout(() => {
             if (initialMapLoadCompleted)
                 return;
@@ -2089,11 +2249,14 @@ async function registerSharedHazard(category, coordinates) {
     return report;
 }
 function closeReportLocationPicker() {
+    const wasOpen = pendingMapReportCategory !== null;
     pendingMapReportCategory = null;
     reportLocationPicker.hidden = true;
     reportLocationPickerStatus.dataset.state = "idle";
     reportLocationPickerStatus.textContent = "地図を動かして、道路を＋の位置に合わせてください。";
     confirmReportLocationButton.disabled = false;
+    if (wasOpen)
+        resumeLocationTrackingAfterPicker();
 }
 function openReportLocationPicker(category) {
     pendingMapReportCategory = category;
@@ -2103,6 +2266,7 @@ function openReportLocationPicker(category) {
     reportLocationPickerStatus.dataset.state = "idle";
     reportLocationPickerStatus.textContent = `${categoryLabels[category]}の登録位置を、中央の＋で指定してください。`;
     map?.easeTo({ center: currentUserLocation, zoom: Math.max(map.getZoom(), DEFAULT_LOCATION_ZOOM), duration: 320 });
+    pauseLocationTrackingForPicker();
 }
 async function snapAndRegisterSessionHazard(category, coordinates, errorTarget) {
     if (reportRegistrationPending)
@@ -2144,8 +2308,6 @@ for (const button of document.querySelectorAll("[data-report-category]")) {
 }
 cancelReportLocationButton.addEventListener("click", () => {
     closeReportLocationPicker();
-    openRegistrationDialog(false);
-    setRegistrationMethod("PICKER");
 });
 confirmReportLocationButton.addEventListener("click", () => {
     if (pendingMapReportCategory === null || map === null)
@@ -2299,7 +2461,13 @@ requiredElement("#undo-report").addEventListener("click", () => {
     void deleteOwnedUserReports([lastReportId]);
 });
 function showCurrentLocationOnMap(location, message) {
-    map?.easeTo({ center: [location[0], location[1]], zoom: DEFAULT_LOCATION_ZOOM, pitch: 22, bearing: 0, duration: 650 });
+    map?.easeTo({
+        center: [location[0], location[1]],
+        zoom: DEFAULT_LOCATION_ZOOM,
+        pitch: 22,
+        bearing: desiredMapBearing(performance.now()),
+        duration: 650,
+    });
     locationStatus.textContent = message;
     window.setTimeout(() => { locationStatus.hidden = true; }, 2_500);
 }
@@ -2339,8 +2507,16 @@ function returnToCurrentLocation() {
     }, { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 });
 }
 recenterMapButton.addEventListener("click", returnToCurrentLocation);
+mapOrientationButton.addEventListener("click", () => {
+    const nextMode = mapOrientationMode === "NORTH_UP" ? "HEADING_UP" : "NORTH_UP";
+    if (nextMode === "HEADING_UP" && window.ReactNativeWebView === undefined) {
+        requestDeviceHeadingPermission();
+    }
+    setMapOrientationMode(nextMode);
+});
 renderPermissionStatus();
 renderInputSettings();
+renderMapOrientationControl();
 renderMap();
 void refreshSharedUserReports(true);
 window.setInterval(() => {

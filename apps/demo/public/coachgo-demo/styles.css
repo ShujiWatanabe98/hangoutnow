@@ -139,6 +139,15 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .current-location-control svg { width: 25px; height: 25px; overflow: visible; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 .current-location-control.large-input-icon svg { width: 35px; height: 35px; }
 .current-location-control .location-dot { fill: currentColor; stroke: #fff; stroke-width: 1.1; }
+.compass-control { border-color: rgba(60,64,67,0.16); color: #49535d; background: #fff; box-shadow: 0 2px 5px rgba(60,64,67,0.22),0 5px 14px rgba(60,64,67,0.14); }
+.compass-control[aria-pressed="true"] { color: #fff; background: #1967d2; }
+.compass-control-content { display: grid; grid-template: 9px 24px 9px / 1fr; place-items: center; line-height: 1; }
+.compass-control-content strong { font-size: 8px; font-weight: 900; }
+.compass-control-content svg { width: 24px; height: 24px; overflow: visible; fill: none; stroke: currentColor; stroke-width: 1.4; }
+.compass-control-content .compass-needle-north { fill: #e34b4b; stroke: #e34b4b; }
+.compass-control[aria-pressed="true"] .compass-needle-north { fill: #fff; stroke: #fff; }
+.compass-control-content .compass-needle-south { fill: currentColor; stroke: currentColor; opacity: 0.45; }
+.compass-control-content small { font-size: 7px; font-weight: 900; white-space: nowrap; }
 .map-action.report { color: #fff; background: #20252c; }
 .map-action.report.large-input-icon .report-action-label > span:first-child { font-size: 26px; }
 .map-action.report.large-input-icon .report-action-label > span:last-child { font-size: 12px; }
