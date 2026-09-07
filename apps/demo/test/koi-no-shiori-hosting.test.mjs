@@ -40,6 +40,9 @@ test('checked-in fortune build is a subpath-scoped public PWA', async () => {
   const worker = await readFile(new URL('sw.js', publicApp), 'utf8');
   const privacy = await readFile(new URL('privacy.html', publicApp), 'utf8');
   const terms = await readFile(new URL('terms.html', publicApp), 'utf8');
+  const bundleName = html.match(/\/koi-no-shiori\/assets\/(index-[^"']+\.js)/)?.[1];
+  assert.ok(bundleName, 'fortune app JavaScript bundle is linked');
+  const bundle = await readFile(new URL(`assets/${bundleName}`, publicApp), 'utf8');
 
   assert.match(html, /<title>恋のしおり｜毎日の恋愛占い<\/title>/);
   assert.match(html, /rel="canonical" href="https:\/\/method-more\.com\/koi-no-shiori"/);
@@ -59,6 +62,8 @@ test('checked-in fortune build is a subpath-scoped public PWA', async () => {
   assert.match(privacy, /運営者・お問い合わせ/);
   assert.match(privacy, /info@method-more\.com/);
   assert.match(terms, /占いの位置づけ/);
+  assert.match(bundle, /あなたの1枚を、無料で引く/);
+  assert.match(bundle, /https:\/\/method-more\.com\/koi-no-shiori/);
 });
 
 test('server exposes the fortune app as indexable while keeping mutable PWA files fresh', async () => {
