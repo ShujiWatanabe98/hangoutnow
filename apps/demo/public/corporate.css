@@ -92,6 +92,30 @@ a:focus-visible { outline: 3px solid #426bdd; outline-offset: 4px; }
 .care-line-one { transform: rotate(126deg); }
 .care-line-two { transform: rotate(-50deg); }
 .care-line-three { transform: rotate(35deg); }
+.fortune-card { grid-column: 1 / -1; }
+.fortune-overview { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.fortune-art { display: grid; place-items: center; height: 100%; min-height: 480px; background: radial-gradient(circle at 18% 18%, rgba(255,255,255,.65), transparent 28%), linear-gradient(145deg, #f8e9ed, #eadcf0 55%, #d8c8e5); }
+.fortune-orbit { position: absolute; left: 50%; top: 50%; border: 1px solid rgba(90,49,95,.24); border-radius: 50%; transform: translate(-50%, -50%); }
+.fortune-orbit-one { width: 310px; height: 310px; }
+.fortune-orbit-two { width: 410px; height: 410px; border-style: dashed; opacity: .7; }
+.fortune-phone { position: relative; z-index: 2; display: flex; align-items: center; flex-direction: column; width: 220px; min-height: 375px; padding: 32px 24px 26px; border: 7px solid #fffaf6; border-radius: 40px; background: #fffaf6; box-shadow: 0 28px 65px rgba(90,49,95,.22); color: #49284e; text-align: center; transform: rotate(3deg); }
+.fortune-phone::before { content: ""; width: 56px; height: 5px; margin: -17px auto 28px; border-radius: 99px; background: #d8c7d9; }
+.fortune-phone-brand { color: #854f76; font-family: serif; font-size: 17px; font-weight: 900; letter-spacing: .08em; }
+.fortune-phone-date { margin-top: 28px; color: #9b7d97; font-size: 10px; font-weight: 900; letter-spacing: .16em; }
+.fortune-phone strong { margin-top: 10px; font-family: serif; font-size: 19px; line-height: 1.45; }
+.fortune-phone-card { display: grid; place-items: center; width: 92px; height: 120px; margin-top: 22px; border: 1px solid #e6d5de; border-radius: 14px; background: linear-gradient(150deg, #693e6e, #a26687); box-shadow: 0 14px 28px rgba(90,49,95,.2); color: #fce4da; font-size: 46px; }
+.fortune-phone small { margin-top: 15px; color: #90778d; font-size: 10px; font-weight: 800; }
+.fortune-star { position: absolute; z-index: 3; color: #fffaf6; text-shadow: 0 9px 22px rgba(90,49,95,.2); }
+.fortune-star-one { left: 16%; top: 20%; font-size: 54px; }
+.fortune-star-two { right: 13%; bottom: 16%; font-size: 70px; }
+.fortune-content > .fortune-kicker { width: fit-content; min-height: 0; margin: 0 0 20px; padding: 9px 13px; border-radius: 999px; background: #f5e7ed; color: #784b70; font-size: 12px; font-weight: 900; }
+.fortune-content h3 em, .fortune-content h4 em { color: #a15c7d; font-style: normal; }
+.fortune-content h4 { margin: 0; color: #49284e; font-size: clamp(28px, 3.6vw, 46px); line-height: 1.16; letter-spacing: -.055em; }
+.fortune-content > .fortune-lead { min-height: 0; margin-top: 23px; color: #746170; font-weight: 500; line-height: 1.9; }
+.fortune-content .card-link { background: #5a315f; }
+.fortune-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--line); background: #fff9fb; }
+.fortune-facts span { position: relative; padding: 22px 26px 22px 47px; color: #775f72; font-size: 13px; font-weight: 800; }
+.fortune-facts span::before { content: "♡"; position: absolute; left: 25px; color: #a15c7d; font-size: 16px; font-weight: 900; }
 .robocare-card { grid-column: 1 / -1; }
 .robocare-overview { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .robocare-art { height: 100%; min-height: 480px; background: radial-gradient(circle at 50% 50%, #f4fffb 0 16%, transparent 17%), linear-gradient(145deg, #d9f4ec, #dfe8f8); }
@@ -191,6 +215,14 @@ a:focus-visible { outline: 3px solid #426bdd; outline-offset: 4px; }
   .section-heading { grid-template-columns: 1fr; gap: 12px; }
   .product-grid, .about { grid-template-columns: 1fr; }
   .product-art { height: 270px; }
+  .fortune-card { grid-column: auto; }
+  .fortune-overview { grid-template-columns: 1fr; }
+  .fortune-card .fortune-art { height: 330px; min-height: 0; }
+  .fortune-phone { width: 176px; min-height: 280px; padding: 24px 18px 18px; border-radius: 32px; }
+  .fortune-phone::before { margin: -13px auto 17px; }
+  .fortune-phone-date { margin-top: 16px; }
+  .fortune-phone-card { width: 70px; height: 88px; margin-top: 14px; font-size: 34px; }
+  .fortune-phone small { margin-top: 9px; }
   .robocare-card { grid-column: auto; }
   .robocare-overview { grid-template-columns: 1fr; }
   .robocare-card .robocare-art { height: 270px; min-height: 0; }
@@ -219,6 +251,8 @@ a:focus-visible { outline: 3px solid #426bdd; outline-offset: 4px; }
   .product-content { padding: 25px; }
   .product-content > p:not(.product-number, .product-status) { min-height: 0; }
   .product-actions { align-items: flex-start; flex-direction: column; }
+  .fortune-facts { grid-template-columns: 1fr; }
+  .fortune-facts span + span { border-top: 1px solid var(--line); }
   .robocare-capabilities { grid-template-columns: 1fr; padding: 20px; }
   .robocare-capability { min-height: 0; }
   .robocare-facts { grid-template-columns: 1fr; }

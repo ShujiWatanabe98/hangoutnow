@@ -46,7 +46,7 @@ const smarihaDashboardLoginAttempts = new Map();
 const smarihaDashboardAuthDisabled = process.env.NODE_ENV !== 'production' && process.env.SMARIHA_DASHBOARD_AUTH_DISABLED === 'true';
 const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.map': 'application/json; charset=utf-8', '.webmanifest': 'application/manifest+json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.xml': 'application/xml; charset=utf-8', '.txt': 'text/plain; charset=utf-8' };
 const securityHeaders = {
-  'content-security-policy': "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://api.mapbox.com https://*.tiles.mapbox.com https://tilecache.rainviewer.com https://hangoutnow-demo.onrender.com https://play.google.com https://tools.applemediaservices.com; media-src 'self' blob:; frame-src https://maps.google.com; connect-src 'self' https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com https://api.rainviewer.com https://tilecache.rainviewer.com https://api.open-meteo.com https://www.google-analytics.com https://region1.google-analytics.com; font-src 'self'; worker-src blob:; upgrade-insecure-requests",
+  'content-security-policy': "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://api.mapbox.com https://*.tiles.mapbox.com https://tilecache.rainviewer.com https://hangoutnow-demo.onrender.com https://play.google.com https://tools.applemediaservices.com; media-src 'self' blob:; frame-src https://maps.google.com; connect-src 'self' https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com https://api.rainviewer.com https://tilecache.rainviewer.com https://api.open-meteo.com https://www.google-analytics.com https://region1.google-analytics.com; font-src 'self'; worker-src 'self' blob:; upgrade-insecure-requests",
   'cross-origin-opener-policy': 'same-origin-allow-popups',
   'permissions-policy': 'camera=(self), geolocation=(self), microphone=(self)',
   'referrer-policy': 'strict-origin-when-cross-origin',
@@ -592,6 +592,8 @@ createServer(async (request, response) => {
       ? '/divertnavi-app/index.html'
     : requestedPath === '/minnade-kaigo' || requestedPath === '/minnade-kaigo/'
       ? '/minnade-kaigo/index.html'
+    : requestedPath === '/koi-no-shiori' || requestedPath === '/koi-no-shiori/'
+      ? '/koi-no-shiori/index.html'
     : requestedPath === '/smariha-dashboard' || requestedPath === '/smariha-dashboard/'
       ? '/smariha-dashboard/index.html'
     : requestedPath === '/smariha-dashboard/taisho' || requestedPath === '/smariha-dashboard/taisho/'
@@ -605,16 +607,18 @@ createServer(async (request, response) => {
   if (!file.startsWith(staticRoot)) { response.writeHead(403, securityHeaders).end(); return; }
   try {
     const fileBody = await readFile(file);
-    const isApplicationPage = isHangoutNowAdminPath || requestedPath === '/demo.html' || requestedPath === '/app.html' || requestedPath.startsWith('/coachgo-demo') || requestedPath.startsWith('/coachgo-admin') || requestedPath.startsWith('/divertnavi-app') || requestedPath.startsWith('/minnade-kaigo') || requestedPath.startsWith('/smariha-dashboard');
+    const isKoiNoShioriPage = requestedPath === '/koi-no-shiori' || requestedPath.startsWith('/koi-no-shiori/');
+    const isApplicationPage = isHangoutNowAdminPath || requestedPath === '/demo.html' || requestedPath === '/app.html' || requestedPath.startsWith('/coachgo-demo') || requestedPath.startsWith('/coachgo-admin') || requestedPath.startsWith('/divertnavi-app') || requestedPath.startsWith('/minnade-kaigo') || requestedPath.startsWith('/smariha-dashboard') || isKoiNoShioriPage;
     const body = extname(file) === '.html' && !isApplicationPage
       ? Buffer.from(fileBody.toString('utf8').replace('<head>', '<head><link rel="stylesheet" href="/cookie-consent.css?v=20260816-2"><link rel="stylesheet" href="/share.css?v=20260821-2"><script src="/analytics.js?v=20260820-2" defer></script><script src="/attribution.js?v=20260821-2" defer></script><script src="/share.js?v=20260821-3" defer></script>'))
       : fileBody;
+    const isMutableKoiNoShioriAsset = requestedPath === '/koi-no-shiori/sw.js' || requestedPath === '/koi-no-shiori/manifest.webmanifest';
     const isVersionedAsset = requestedPath.startsWith('/assets/') || ['.css', '.js', '.svg', '.png', '.jpg', '.jpeg', '.webp'].includes(extname(file));
     response.writeHead(200, {
       ...securityHeaders,
       'content-type': types[extname(file)] ?? 'application/octet-stream',
-      'cache-control': isVersionedAsset ? 'public, max-age=86400, stale-while-revalidate=604800' : 'no-cache',
-      ...(isApplicationPage ? { 'x-robots-tag': 'noindex, nofollow, noarchive' } : {}),
+      'cache-control': !isMutableKoiNoShioriAsset && isVersionedAsset ? 'public, max-age=86400, stale-while-revalidate=604800' : 'no-cache',
+      ...(isApplicationPage && !isKoiNoShioriPage ? { 'x-robots-tag': 'noindex, nofollow, noarchive' } : {}),
     });
     response.end(body);
   } catch { if (!response.headersSent) response.writeHead(404, securityHeaders); response.end('Not found'); }

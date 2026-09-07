@@ -149,7 +149,7 @@ test('homepage targets Shinjuku solo participants with measurable acquisition li
   assert.match(server, /location: '\/shinjuku-working-adult-friends\.html'/);
 });
 
-test('corporate homepage presents the six methodmore products accurately', async () => {
+test('corporate homepage presents the seven methodmore products accurately', async () => {
   const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles, coachDemo, coachStyles, coachBootstrap, coachDemoScript, coachDriveModule, coachUnderpassModule, coachPoliceModule, coachNaturalSpeechModule, coachRoadSnappingModule, coachSmoothLocationModule, coachUserReportAggregationModule, coachVoiceApproachModule, coachMonitorPointsJson, coachUnderpassFeedJson, coachPrivacy, coachSupport, coachDataSources, careDemo, careStyles, careApp, carePersonas, careManifestJson, smarihaDemo, smarihaStyles, smarihaScript, smarihaLogin, smarihaLoginScript, smarihaTaisho, smarihaKeijinkai, server] = await Promise.all([
     readFile(new URL('../public/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/hangout-now.html', import.meta.url), 'utf8'),
@@ -194,7 +194,7 @@ test('corporate homepage presents the six methodmore products accurately', async
 
   assert.match(corporate, /<title>methodmore｜日常の選択を、もっと前へ。<\/title>/);
   assert.match(corporate, /<link rel="canonical" href="https:\/\/method-more\.com\/">/);
-  assert.equal((corporate.match(/<article class="product-card/g) ?? []).length, 6);
+  assert.equal((corporate.match(/<article class="product-card/g) ?? []).length, 7);
   assert.match(corporate, /href="\/hangout-now\.html"/);
   assert.match(corporate, /href="\/divertnavi\.html"/);
   assert.match(corporate, /href="\/divertnavi-app\/">Webアプリを開く<\/a>/);
@@ -202,6 +202,7 @@ test('corporate homepage presents the six methodmore products accurately', async
   assert.match(corporate, /DivertNavi/);
   assert.match(corporate, /CoachGo/);
   assert.match(corporate, /みんなで介護/);
+  assert.match(corporate, /恋の<em>しおり<\/em>/);
   assert.match(corporate, /RoboCare <em>One<\/em>/);
   assert.match(corporate, /スマリハ<br><em>管理ダッシュボード<\/em>/);
   assert.match(corporate, /公開中/);
@@ -213,6 +214,10 @@ test('corporate homepage presents the six methodmore products accurately', async
   assert.match(corporate, /<a href="\/coachgo-demo\/">CoachGo<\/a>/);
   assert.match(corporate, /href="\/minnade-kaigo\/"[^>]*>Webデモを開く/);
   assert.match(corporate, /<a href="\/minnade-kaigo\/">みんなで介護<\/a>/);
+  assert.match(corporate, /href="\/koi-no-shiori\/"[^>]*>無料で占う/);
+  assert.match(corporate, /<a href="\/koi-no-shiori\/">恋のしおり<\/a>/);
+  assert.match(corporate, /今日の恋愛運、22枚の大アルカナから引く1枚タロット、ふたりの相性診断を、登録不要・無料で楽しめるWebアプリです。/);
+  assert.match(corporateStyles, /\.fortune-phone/);
   assert.match(corporate, /MVP \/ DEMO・限定公開/);
   assert.match(corporate, /一人ひとりの<br><em>「もう一歩」<\/em>を<br>つなぐ基幹システム/);
   assert.match(corporate, /顧客はスマートフォンから予約を確認。施設スタッフはiPadで受付、安全確認、HAL機器の割当まで一貫して管理できます/);
@@ -530,6 +535,7 @@ test('corporate homepage presents the six methodmore products accurately', async
   assert.match(sitemap, /https:\/\/method-more\.com\/coachgo-support\.html/);
   assert.match(sitemap, /https:\/\/method-more\.com\/coachgo-data-sources\.html/);
   assert.match(sitemap, /https:\/\/method-more\.com\/minnade-kaigo\//);
+  assert.match(sitemap, /https:\/\/method-more\.com\/koi-no-shiori\//);
   assert.match(corporateStyles, /\.divert-art/);
   assert.match(corporateStyles, /\.coach-art/);
   assert.match(corporateStyles, /\.care-art/);
@@ -565,7 +571,7 @@ test('public server sends browser security headers', async () => {
   );
   assert.match(server, /https:\/\/api\.mapbox\.com/);
   assert.match(server, /media-src 'self' blob:/);
-  assert.match(server, /worker-src blob:/);
+  assert.match(server, /worker-src 'self' blob:/);
   assert.match(server, /requestedPath === '\/divertnavi-app\/'/);
   assert.match(server, /requestedPath === '\/divertnavi-app\/config\.js'/);
   assert.match(server, /process\.env\.MAPBOX_APIKEY/);
