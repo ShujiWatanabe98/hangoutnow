@@ -62,11 +62,11 @@ function ocrEvalEnsurePdfJsLibLoaded() {
             return;
         }
         var scriptCandidates = [
-            '/rehainfo/js/pdf.min.js',
+            '/rehainfo-main/js/pdf.min.js',
             '/js/pdf.min.js',
         ];
         var workerCandidates = [
-            '/rehainfo/js/pdf.worker.min.js',
+            '/rehainfo-main/js/pdf.worker.min.js',
             '/js/pdf.worker.min.js',
         ];
         var idx = 0;
@@ -583,7 +583,7 @@ var ImageManager = {
                 }
                 const msg = err && err.message ? String(err.message) : '';
                 if (msg.indexOf('pdfjsLib') >= 0 || msg.indexOf('could not be loaded') >= 0 || msg.indexOf('load failed') >= 0) {
-                    alert('PDF 変換ライブラリの読み込みに失敗しました。ネットワーク接続または /rehainfo/js/pdf.min.js の配置を確認してください。');
+                    alert('PDF 変換ライブラリの読み込みに失敗しました。ネットワーク接続または /rehainfo-main/js/pdf.min.js の配置を確認してください。');
                 } else if (msg.indexOf('empty pdf') >= 0) {
                     alert('PDF からページを読み取れませんでした。');
                 } else {
@@ -1072,8 +1072,8 @@ var ImageManager = {
 var handleOnclickBack = () => {
     showLoadingSpinner();
     window.location.href = window.ocrMode === 'prescription'
-        ? '/rehainfo/prescriptions/patients'
-        : '/rehainfo/ocr/patients';
+        ? '/rehainfo-main/prescriptions/patients'
+        : '/rehainfo-main/ocr/patients';
 }
 
 // =============================================================================
@@ -1228,7 +1228,7 @@ var uploadAllImages = async function (recId) {
         formData.append('file', image.file);
         formData.append('recId', recId);
 
-        const response = await fetch('/rehainfo/api/ocr/evaluation/upload-image', {
+        const response = await fetch('/rehainfo-main/api/ocr/evaluation/upload-image', {
             method: 'POST',
             body: formData
         });
@@ -1270,8 +1270,8 @@ var registerEvaluation = async function (imageIds, recId) {
     }
 
     const registerUrl = window.ocrMode === 'prescription'
-        ? '/rehainfo/api/prescriptions/register'
-        : '/rehainfo/api/ocr/evaluation/register';
+        ? '/rehainfo-main/api/prescriptions/register'
+        : '/rehainfo-main/api/ocr/evaluation/register';
     const response = await fetch(registerUrl, {
         method: 'POST',
         headers: {
@@ -1341,8 +1341,8 @@ var handleSubmit = async function () {
 
         // Redirect to the saved result list for the active workflow.
         window.location.href = window.ocrMode === 'prescription'
-            ? '/rehainfo/prescriptions/patient/' + recId + '/list'
-            : '/rehainfo/ocr/patient/' + recId + '/list';
+            ? '/rehainfo-main/prescriptions/patient/' + recId + '/list'
+            : '/rehainfo-main/ocr/patient/' + recId + '/list';
 
     } catch (error) {
         // Hide loading spinner

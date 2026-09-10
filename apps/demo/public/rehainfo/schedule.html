@@ -5,20 +5,20 @@
 	<meta name="viewport" content="width=device-width,initial-scale=1" />
 	<meta name="robots" content="noindex,nofollow,noarchive" />
 
-	<link rel="icon" href="/rehainfo/images/intep360.ico?v=1.0.0" type="image/x-icon" />
-	<link href="/rehainfo/css/bootstrap.min.css" rel="stylesheet" />
-	<link href="/rehainfo/css/bootstrap-icons-1.9.1/bootstrap-icons.css" rel="stylesheet" />
-	<link href="/rehainfo/css/sidebar.css?v=1.1.0" rel="stylesheet" />
-	<link href="/rehainfo/css/patient_header.css" rel="stylesheet" />
-	<link href="/rehainfo/css/common.css?v=1.0.1" rel="stylesheet" />
-	<link href="/rehainfo/css/custom.css" rel="stylesheet" />
-	<script src="/rehainfo/js/jquery-3.6.0.min.js"></script>
-	<script src="/rehainfo/js/bootstrap.bundle.min.js"></script>
+	<link rel="icon" href="/rehainfo-main/images/intep360.ico?v=1.0.0" type="image/x-icon" />
+	<link href="/rehainfo-main/css/bootstrap.min.css" rel="stylesheet" />
+	<link href="/rehainfo-main/css/bootstrap-icons-1.9.1/bootstrap-icons.css" rel="stylesheet" />
+	<link href="/rehainfo-main/css/sidebar.css?v=1.1.0" rel="stylesheet" />
+	<link href="/rehainfo-main/css/patient_header.css" rel="stylesheet" />
+	<link href="/rehainfo-main/css/common.css?v=1.0.1" rel="stylesheet" />
+	<link href="/rehainfo-main/css/custom.css" rel="stylesheet" />
+	<script src="/rehainfo-main/js/jquery-3.6.0.min.js"></script>
+	<script src="/rehainfo-main/js/bootstrap.bundle.min.js"></script>
 	
 	
-	<script src="/rehainfo/js/Common.js?v=1.0.2"></script>
-	<script src="/rehainfo/js/BackCancel.js"></script>
-	<script src="/rehainfo/js/sidebar.js?v=1.0.1"></script>
+	<script src="/rehainfo-main/js/Common.js?v=1.0.2"></script>
+	<script src="/rehainfo-main/js/BackCancel.js"></script>
+	<script src="/rehainfo-main/js/sidebar.js?v=1.0.1"></script>
 	<!-- Google Tag Manager -->
 	
 	<!-- End Google Tag Manager -->
@@ -153,12 +153,12 @@
 			--body-bg-color: #E8E9ED !important;
 		}
 	</style>
-	<script src="/rehainfo/source-demo-adapter.js?v=20260910-6"></script>
+	<script src="/rehainfo-main/source-demo-adapter.js?v=20260910-7"></script>
 </head>
 <head>
 	<title>スケジュール | Smart Rehab</title>
-	<link href="/rehainfo/schedule/schedule.css?v=1.3.0" rel="stylesheet" />
-	<script src="/rehainfo/schedule/schedule.js?v=1.3.0" defer="defer"></script>
+	<link href="/rehainfo-main/schedule/schedule.css?v=1.3.0" rel="stylesheet" />
+	<script src="/rehainfo-main/schedule/schedule.js?v=1.3.0" defer="defer"></script>
 </head>
 <body>
 	<main id="rehab-schedule-page">
@@ -170,12 +170,12 @@
 			<div class="container-fluid">
 				<div class="d-flex align-items-center">
 					<a href="#" class="navbar-brand bg-white">
-						<img src="/rehainfo/images/SmartRehab-R_Available_Transparent.png" class="logo-image" />
+						<img src="/rehainfo-main/images/SmartRehab-R_Available_Transparent.png" class="logo-image" />
 					</a>
-					<a href="/rehainfo/schedule" class="btn header-button gks-modify-header-btn ms-2">
+					<a href="/rehainfo-main/schedule" class="btn header-button gks-modify-header-btn ms-2">
 						スケジュール
 					</a>
-					<a href="/rehainfo/therapists" class="btn header-button gks-modify-header-btn ms-2">
+					<a href="/rehainfo-main/therapists" class="btn header-button gks-modify-header-btn ms-2">
 						療法士一覧
 					</a>
 				</div>
@@ -197,18 +197,18 @@
 							
 							
 							
-							<form class="d-flex justify-content-center me-2" action="/rehainfo/adminEvaluationPreset" method="POST">
+							<form class="d-flex justify-content-center me-2" action="/rehainfo-main/adminEvaluationPreset" method="POST">
 								<button type="submit" class="btn gks-setting-btn">
 									<i class="bi bi-gear-fill"></i>
 								</button>
 								<input type="hidden" name="recId"/>
 							</form>
-							<button id="speechMemoButton" type="button" class="btn header-button gks-modify-header-btn" onclick="window.open('/rehainfo/notes', '個人ノート', 'width=1200, height=800')">
+							<button id="speechMemoButton" type="button" class="btn header-button gks-modify-header-btn" onclick="window.open('/rehainfo-main/notes', '個人ノート', 'width=1200, height=800')">
 								個人ノート
 							</button>
 							
 							
-							<form class="header-button" action="/rehainfo/patients" method="GET">
+							<form class="header-button" action="/rehainfo-main/patients" method="GET">
 								<button id="patientListButton" type="submit" class="btn gks-modify-header-btn">
 									患者一覧
 								</button>
@@ -243,7 +243,7 @@
 						</li>
 						<!-- Logout link -->
 						<li>
-							<a class="dropdown-item d-flex align-items-center" href="/rehainfo/logout" style="font-size: 1rem;">
+							<a class="dropdown-item d-flex align-items-center" href="/rehainfo-main/logout" style="font-size: 1rem;">
 								<i class="bi bi-box-arrow-right me-2" style="font-size: 1.2rem; color: var(--main-color);"></i>ログアウト
 							</a>
 							
@@ -256,7 +256,7 @@
 		<div>
 		<div id="loadingOverlay" class="loading-overlay">
 			<div class="spinner-ring">
-				<img class="loading-spinner" src="/rehainfo/images/intep360.svg" alt="loading" />
+				<img class="loading-spinner" src="/rehainfo-main/images/intep360.svg" alt="loading" />
 			</div>
 			<div class="loading-text">処理中......</div>
 		</div>
@@ -268,15 +268,15 @@
 					<input id="scheduleDate" type="date" aria-label="表示日" />
 					<button id="todayButton" type="button">今日</button>
 					<button id="nextDate" type="button" aria-label="翌日"><i class="bi bi-chevron-right"></i></button>
-					<a href="/rehainfo/attendance" class="attendance-link-button">出退勤管理</a>
-					<a href="/rehainfo/ai-schedule" class="attendance-link-button">AIスケジュール</a>
-					<a href="/rehainfo/billing-management" class="attendance-link-button">算定管理</a>
+					<a href="/rehainfo-main/attendance" class="attendance-link-button">出退勤管理</a>
+					<a href="/rehainfo-main/ai-schedule" class="attendance-link-button">AIスケジュール</a>
+					<a href="/rehainfo-main/billing-management" class="attendance-link-button">算定管理</a>
 				</div>
 				<div class="view-switch" role="group" aria-label="表示切替">
 					<select id="teamFilter" aria-label="チーム絞り込み"><option value="">全チーム</option></select>
 					<select id="wardFilter" aria-label="病棟絞り込み"><option value="">全病棟</option></select>
 					<button id="copySchedule" type="button">予定コピー</button>
-					<a href="/rehainfo/schedule-management" class="operations-link">運用管理・集計</a>
+					<a href="/rehainfo-main/schedule-management" class="operations-link">運用管理・集計</a>
 					<button id="therapistView" class="active" type="button"><i class="bi bi-person-badge"></i> 療法士別</button>
 					<button id="patientView" type="button"><i class="bi bi-people"></i> 患者別</button>
 				</div>

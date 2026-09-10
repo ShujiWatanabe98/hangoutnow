@@ -28,8 +28,6 @@ before(async () => {
       SMARIHA_DASHBOARD_USERNAME: username,
       SMARIHA_DASHBOARD_PASSWORD_SHA256: createHash('sha256').update(password).digest('hex'),
       SMARIHA_DASHBOARD_SESSION_SECRET: 'smariha-dashboard-test-session-secret-0123456789',
-      SMARIHA_PRESCRIPTION_STUB_ENABLED: 'true',
-      OPENAI_API_KEY: '',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -49,13 +47,15 @@ after(() => {
 
 test('legacy independently-authored Smariha pages redirect to the canonical source UI', async () => {
   const redirects = [
-    ['/smariha/', '/rehainfo/'],
-    ['/smariha/index.html', '/rehainfo/'],
-    ['/smariha-dashboard/', '/rehainfo/'],
-    ['/smariha-dashboard/taisho/', '/rehainfo/'],
-    ['/smariha-dashboard/keijinkai/', '/rehainfo/'],
-    ['/smariha-scheduler/', '/rehainfo/schedule'],
-    ['/smariha-scheduler/app.js', '/rehainfo/schedule'],
+    ['/rehainfo/', '/rehainfo-main/'],
+    ['/rehainfo/patient/9001/top', '/rehainfo-main/patient/9001/top'],
+    ['/smariha/', '/rehainfo-main/'],
+    ['/smariha/index.html', '/rehainfo-main/'],
+    ['/smariha-dashboard/', '/rehainfo-main/'],
+    ['/smariha-dashboard/taisho/', '/rehainfo-main/'],
+    ['/smariha-dashboard/keijinkai/', '/rehainfo-main/'],
+    ['/smariha-scheduler/', '/rehainfo-main/schedule'],
+    ['/smariha-scheduler/app.js', '/rehainfo-main/schedule'],
   ];
   for (const [path, destination] of redirects) {
     const response = await fetch(`${origin}${path}`, { redirect: 'manual' });
@@ -66,50 +66,50 @@ test('legacy independently-authored Smariha pages redirect to the canonical sour
 });
 
 test('canonical rehainfo source UI is login-protected and serves every audited source template', async () => {
-  const entry = await fetch(`${origin}/rehainfo/`, { redirect: 'manual' });
+  const entry = await fetch(`${origin}/rehainfo-main/`, { redirect: 'manual' });
   assert.equal(entry.status, 302);
-  assert.equal(entry.headers.get('location'), '/rehainfo/login.html');
+  assert.equal(entry.headers.get('location'), '/rehainfo-main/login.html');
   assert.equal(entry.headers.get('x-robots-tag'), 'noindex, nofollow, noarchive');
 
-  const loginPage = await fetch(`${origin}/rehainfo/login.html`);
+  const loginPage = await fetch(`${origin}/rehainfo-main/login.html`);
   const loginHtml = await loginPage.text();
   assert.equal(loginPage.status, 200);
   assert.match(loginHtml, /data-rehainfo-source-template="templates\/login\.html"/);
   assert.match(loginHtml, /メールアドレス/);
-  assert.match(loginHtml, /action="\/rehainfo\/login"/);
+  assert.match(loginHtml, /action="\/rehainfo-main\/login"/);
   assert.match(loginHtml, /name="username"/);
   assert.match(loginHtml, /name="password"/);
   assert.doesNotMatch(loginHtml, /analytics\.js|cookie-consent/);
 
   for (const asset of [
-    '/rehainfo/css/bootstrap.min.css',
-    '/rehainfo/css/variables.css',
-    '/rehainfo/images/SmartRehab-R_Available_Transparent.png',
-    '/rehainfo/images/intep360.svg',
-    '/rehainfo/js/Common.js',
+    '/rehainfo-main/css/bootstrap.min.css',
+    '/rehainfo-main/css/variables.css',
+    '/rehainfo-main/images/SmartRehab-R_Available_Transparent.png',
+    '/rehainfo-main/images/intep360.svg',
+    '/rehainfo-main/js/Common.js',
   ]) assert.equal((await fetch(`${origin}${asset}`)).status, 200, asset);
-  assert.equal((await fetch(`${origin}/rehainfo/source-demo-adapter.js`, { redirect: 'manual' })).status, 401);
-  assert.equal((await fetch(`${origin}/rehainfo/schedule/schedule.js`, { redirect: 'manual' })).status, 401);
-  const protectedPrescription = await fetch(`${origin}/rehainfo/prescriptions/patients`, { redirect: 'manual' });
+  assert.equal((await fetch(`${origin}/rehainfo-main/source-demo-adapter.js`, { redirect: 'manual' })).status, 401);
+  assert.equal((await fetch(`${origin}/rehainfo-main/schedule/schedule.js`, { redirect: 'manual' })).status, 401);
+  const protectedPrescription = await fetch(`${origin}/rehainfo-main/prescriptions/patients`, { redirect: 'manual' });
   assert.equal(protectedPrescription.status, 302);
-  assert.equal(protectedPrescription.headers.get('location'), '/rehainfo/login.html');
+  assert.equal(protectedPrescription.headers.get('location'), '/rehainfo-main/login.html');
 
-  const rejected = await fetch(`${origin}/rehainfo/login`, {
+  const rejected = await fetch(`${origin}/rehainfo-main/login`, {
     method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ username, password: 'wrong-password' }), redirect: 'manual',
   });
   assert.equal(rejected.status, 303);
-  assert.equal(rejected.headers.get('location'), '/rehainfo/login.html?error=invalid');
+  assert.equal(rejected.headers.get('location'), '/rehainfo-main/login.html?error=invalid');
   assert.equal(rejected.headers.has('set-cookie'), false);
 
-  const accepted = await fetch(`${origin}/rehainfo/login`, {
+  const accepted = await fetch(`${origin}/rehainfo-main/login`, {
     method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ username, password }), redirect: 'manual',
   });
   assert.equal(accepted.status, 303);
-  assert.equal(accepted.headers.get('location'), '/rehainfo/');
+  assert.equal(accepted.headers.get('location'), '/rehainfo-main/');
   const setCookie = accepted.headers.get('set-cookie');
-  assert.match(setCookie, /Path=\/rehainfo/);
+  assert.match(setCookie, /Path=\/rehainfo-main/);
   assert.match(setCookie, /HttpOnly/);
   assert.match(setCookie, /Secure/);
   assert.match(setCookie, /SameSite=Strict/);
@@ -133,63 +133,62 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
     ['/schedule-management', 'templates/schedule/operations.html', '<title>運用管理・集計 | Smart Rehab</title>', 'id="approveMonth"'],
   ];
   for (const [path, source, title, marker] of pages) {
-    const response = await fetch(`${origin}/rehainfo${path}`, { headers: { cookie } });
+    const response = await fetch(`${origin}/rehainfo-main${path}`, { headers: { cookie } });
     const html = await response.text();
     assert.equal(response.status, 200, path);
     assert.ok(html.includes(`data-rehainfo-source-template="${source}"`), source);
     assert.ok(html.includes(title), title);
     assert.ok(html.includes(marker), marker);
-    assert.match(html, /\/rehainfo\/source-demo-adapter\.js\?v=20260910-6/);
+    assert.match(html, /\/rehainfo-main\/source-demo-adapter\.js\?v=20260910-7/);
     assert.doesNotMatch(html, /patient-list-source|patient-demo|rehainfo-demo-notice/);
   }
 
-  const adapter = await (await fetch(`${origin}/rehainfo/source-demo-adapter.js`, { headers: { cookie } })).text();
+  const adapter = await (await fetch(`${origin}/rehainfo-main/source-demo-adapter.js`, { headers: { cookie } })).text();
   assert.equal(new Set(adapter.match(/DEMO2609\d{2}/g) ?? []).size, 10);
-  assert.doesNotMatch(adapter, /\/rehainfo-main(?:\/|$)/);
-  assert.doesNotMatch(adapter, /外部AIへ送信せず|外部AIを使わないデモ用の固定結果/);
-  assert.match(adapter, /画像は読取時のみ外部AIへ送信され、結果は必ず原本と照合してください/);
+  assert.doesNotMatch(adapter, /\/rehainfo(?!-main)/);
+  assert.doesNotMatch(adapter, /api\.openai\.com|OPENAI_API_KEY/);
   for (const marker of ['REHAINFO_DEMO_PATIENT_COLUMNS', 'ATTENDANCE_API', 'BILLING_API', 'OPERATIONS_API', 'AI_API', 'PRESCRIPTION_REGISTER_API', 'OCR_REGISTER_API', 'SOAP_STORAGE_KEY', 'prescriptionSummary', 'ocrSummary']) assert.match(adapter, new RegExp(marker));
 
   for (const asset of [
-    '/rehainfo/js/ocr/PatientList.js',
-    '/rehainfo/js/ocr/EvaluationSelect.js',
-    '/rehainfo/css/ocr/evaluationSelect.css',
-    '/rehainfo/css/ocr/ocrList.css',
-    '/rehainfo/css/patientTop.css',
-    '/rehainfo/css/soapList.css',
-    '/rehainfo/js/soapList.js',
-    '/rehainfo/images/icons/ocr/magic-start.svg',
+    '/rehainfo-main/js/ocr/PatientList.js',
+    '/rehainfo-main/js/ocr/EvaluationSelect.js',
+    '/rehainfo-main/css/ocr/evaluationSelect.css',
+    '/rehainfo-main/css/ocr/ocrList.css',
+    '/rehainfo-main/css/patientTop.css',
+    '/rehainfo-main/css/soapList.css',
+    '/rehainfo-main/js/soapList.js',
+    '/rehainfo-main/images/icons/ocr/magic-start.svg',
   ]) assert.equal((await fetch(`${origin}${asset}`, { headers: { cookie } })).status, 200, asset);
 
-  const prescriptionRedirect = await fetch(`${origin}/rehainfo/prescriptions`, { headers: { cookie }, redirect: 'manual' });
+  const prescriptionRedirect = await fetch(`${origin}/rehainfo-main/prescriptions`, { headers: { cookie }, redirect: 'manual' });
   assert.equal(prescriptionRedirect.status, 302);
-  assert.equal(prescriptionRedirect.headers.get('location'), '/rehainfo/prescriptions/patients');
+  assert.equal(prescriptionRedirect.headers.get('location'), '/rehainfo-main/prescriptions/patients');
 
-  const ocrRedirect = await fetch(`${origin}/rehainfo/ocr`, { headers: { cookie }, redirect: 'manual' });
+  const ocrRedirect = await fetch(`${origin}/rehainfo-main/ocr`, { headers: { cookie }, redirect: 'manual' });
   assert.equal(ocrRedirect.status, 302);
-  assert.equal(ocrRedirect.headers.get('location'), '/rehainfo/ocr/patients');
+  assert.equal(ocrRedirect.headers.get('location'), '/rehainfo-main/ocr/patients');
 
   const fakeImage = 'data:image/png;base64,iVBORw0KGgo=';
-  const prescriptionAnalysis = await fetch(`${origin}/rehainfo/api/prescriptions/analyze`, {
+  const prescriptionAnalysis = await fetch(`${origin}/rehainfo-main/api/prescriptions/analyze`, {
     method: 'POST', headers: { cookie, 'content-type': 'application/json' },
     body: JSON.stringify({ patientId: 'DEMO260901', prescriptionDate: '2026-09-10', images: [fakeImage] }),
   });
   assert.equal(prescriptionAnalysis.status, 200);
-  assert.equal((await prescriptionAnalysis.json()).model, 'smariha-prescription-local-stub');
+  assert.equal((await prescriptionAnalysis.json()).model, 'smariha-prescription-public-demo-simulation');
 
-  const ocrAnalysis = await fetch(`${origin}/rehainfo/api/ocr/analyze`, {
+  const ocrAnalysis = await fetch(`${origin}/rehainfo-main/api/ocr/analyze`, {
     method: 'POST', headers: { cookie, 'content-type': 'application/json' },
     body: JSON.stringify({ patientId: 'DEMO260901', evaluationId: 'FIM', evaluationDate: '2026-09-10', images: [fakeImage] }),
   });
   assert.equal(ocrAnalysis.status, 200);
-  assert.equal((await ocrAnalysis.json()).model, 'smariha-aiocr-local-stub');
+  assert.equal((await ocrAnalysis.json()).model, 'smariha-aiocr-public-demo-simulation');
 
-  const scheduleSource = await (await fetch(`${origin}/rehainfo/schedule/schedule.js`, { headers: { cookie } })).text();
-  assert.equal(createHash('sha256').update(scheduleSource).digest('hex'), '76608c376e3a2f3dfef2404c212cdc5e0fa9c117a79b157ec0038a9bc131124a');
+  const scheduleSource = await (await fetch(`${origin}/rehainfo-main/schedule/schedule.js`, { headers: { cookie } })).text();
+  assert.match(scheduleSource, /\/rehainfo-main\/schedule\/api/);
 
-  const logout = await fetch(`${origin}/rehainfo/logout`, { headers: { cookie }, redirect: 'manual' });
+  const logout = await fetch(`${origin}/rehainfo-main/logout`, { headers: { cookie }, redirect: 'manual' });
   assert.equal(logout.status, 303);
-  assert.equal(logout.headers.get('location'), '/rehainfo/login.html');
+  assert.equal(logout.headers.get('location'), '/rehainfo-main/login.html');
   assert.match(logout.headers.get('set-cookie'), /Max-Age=0/);
 });
 

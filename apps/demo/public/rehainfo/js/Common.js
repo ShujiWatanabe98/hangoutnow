@@ -208,7 +208,7 @@ let startHeaderTreatmentImplementTime = function(treatmentPatientIdStr, treatmen
 let startCheckViewEditing = function(recIdParam, transitionHistoryData){
 
 	function checkViewEditing(recId, viewName){
-		let url = '/rehainfo/patient/' + recId + '/checkTransitionHistory';
+		let url = '/rehainfo-main/patient/' + recId + '/checkTransitionHistory';
 		console.log('画面編集状態の問い合わせ実行');
 		$.ajax({
 			type: 'POST',
@@ -314,13 +314,13 @@ function screenUnLock(){
 document.addEventListener("DOMContentLoaded", function () {
 	const requestURI = window.location.pathname;
 	const isAdminPage =
-		requestURI.startsWith('/rehainfo/adminEvaluationPreset') ||
-		requestURI.startsWith('/rehainfo/adminTreatmentPreset') ||
-		requestURI.startsWith('/rehainfo/adminImportData') ||
-		requestURI.startsWith('/rehainfo/patientInfoExport') ||
-		requestURI.startsWith('/rehainfo/evaluationCustomizationTop') ||
-		requestURI.startsWith('/rehainfo/adminDataTransfer') ||
-		requestURI.startsWith('/rehainfo/assignmentStaff');
+		requestURI.startsWith('/rehainfo-main/adminEvaluationPreset') ||
+		requestURI.startsWith('/rehainfo-main/adminTreatmentPreset') ||
+		requestURI.startsWith('/rehainfo-main/adminImportData') ||
+		requestURI.startsWith('/rehainfo-main/patientInfoExport') ||
+		requestURI.startsWith('/rehainfo-main/evaluationCustomizationTop') ||
+		requestURI.startsWith('/rehainfo-main/adminDataTransfer') ||
+		requestURI.startsWith('/rehainfo-main/assignmentStaff');
 
 	const navbar = document.getElementById("gksCommonNavBar");
 	const dropdown = document.getElementById("gksCommonDropdownHeader");
@@ -386,7 +386,7 @@ const formatDateWithFormat = (date, format = 'yyyyMMddHHmmss') => {
 
 // Shared function to call the permission check API
 const fetchImplementPermission = async (recId) => {
-	let url = `/rehainfo/patient/${recId}/treatmentimplement/check-permission`;
+	let url = `/rehainfo-main/patient/${recId}/treatmentimplement/check-permission`;
 	if (window.tabKey) {
 		url = url + `?tabKey=${window.tabKey}`
 	}
@@ -447,7 +447,7 @@ var handlePatientTreatmentImplement = function (recId, rehabStartTime, countUpMo
 
 	$.ajax({
 		type: 'POST',
-		url: '/rehainfo/patient/' + recId + '/top_rest/checkPatientId',
+		url: '/rehainfo-main/patient/' + recId + '/top_rest/checkPatientId',
 		timeout: 60000
 	}).done(function (data) {
 		if (data != "" && data != recId) {
@@ -484,7 +484,7 @@ var processTreatmentImplement =  async function (recId, treatmentStartTime, coun
   }
 
   // Construct URL with required query parameters
-  let href = `/rehainfo/patient/${recId}/treatmentimplement?treatmentStartTime=${treatmentStartTime}`;
+  let href = `/rehainfo-main/patient/${recId}/treatmentimplement?treatmentStartTime=${treatmentStartTime}`;
   if (countUpMode) {
     href += `&countUpMode=${countUpMode}`;
   }
@@ -544,7 +544,7 @@ var navigateToTreatmentRecord = function (recId, role) {
 function navigateToTreatmentRecordInternal(recId, role) {
 	showLoadingSpinner();
 	let form = document.createElement('form');
-	form.action = '/rehainfo/patient/' + recId + '/treatment_record';
+	form.action = '/rehainfo-main/patient/' + recId + '/treatment_record';
 	form.method = 'POST';
 	form.style.display = 'none';
 
@@ -596,9 +596,9 @@ var hideLoadingSpinner = () => {
 // Function to open a new window and navigate to the specified URL
 var goToSmartRehab = function() {
 	const url = window.location.href;
-	const urlMatch = url.match(/(?:\/rehainfo)?\/ocr\/patient\/([^\/]+)/);
+	const urlMatch = url.match(/(?:\/rehainfo-main)?\/ocr\/patient\/([^\/]+)/);
 	if (!urlMatch || urlMatch.length < 2) {
-		window.open('/rehainfo/patients', '_blank');
+		window.open('/rehainfo-main/patients', '_blank');
 		return;
 	}
 	
@@ -607,7 +607,7 @@ var goToSmartRehab = function() {
 		showErrorMessageModal('患者情報が見つかりません');
 		return;
 	}
-	window.open('/rehainfo/patient/' + recId + '/top', '_blank');
+	window.open('/rehainfo-main/patient/' + recId + '/top', '_blank');
 }
 
 // Hide spinner if page becomes visible again (back button scenario)

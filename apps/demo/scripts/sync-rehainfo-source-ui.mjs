@@ -5,11 +5,17 @@ import { dirname, join } from 'node:path';
 const demoRoot = join(import.meta.dirname, '..');
 const sourceRoot = join(demoRoot, 'rehainfo-source');
 const publicRoot = join(demoRoot, 'public', 'rehainfo');
+const sourceRouteBase = '/rehainfo';
+const publicRouteBase = '/rehainfo-main';
 const checkOnly = process.argv.includes('--check');
 const manifest = JSON.parse(await readFile(join(sourceRoot, 'source-manifest.json'), 'utf8'));
 
 function hash(text) {
-  return createHash('sha256').update(text).digest('hex').toUpperCase();
+  return createHash('sha256').update(text.replaceAll('\r\n', '\n')).digest('hex').toUpperCase();
+}
+
+function publicizeRoutes(text) {
+  return text.replaceAll(sourceRouteBase, publicRouteBase);
 }
 
 function openingTagStart(html, markerIndex) {
@@ -61,7 +67,7 @@ function publicMeta(common) {
   meta = removeElement(meta, '<script th:if=');
   meta = removeElement(meta, '(function(w,d,s,l,i)');
   meta = meta.replace('<head>', '<head>\n\t<meta charset="UTF-8" />\n\t<meta name="viewport" content="width=device-width,initial-scale=1" />\n\t<meta name="robots" content="noindex,nofollow,noarchive" />');
-  meta = meta.replace('</head>', '\t<script src="/rehainfo/source-demo-adapter.js?v=20260910-6"></script>\n</head>');
+  meta = meta.replace('</head>', '\t<script src="/rehainfo/source-demo-adapter.js?v=20260910-7"></script>\n</head>');
   return stripThymeleafAttributes(meta);
 }
 
@@ -187,6 +193,7 @@ function renderLogin(source, common, sourcePath, sourceHash) {
   let html = source.replace(/<div th:replace="common :: loading"><\/div>/, publicLoading(common));
   html = html.replace('<head>', '<head>\n<meta name="viewport" content="width=device-width,initial-scale=1" />\n<meta name="robots" content="noindex,nofollow,noarchive" />');
   html = html.replace(/<form action="login\.html"[^>]*method="post">/, '<form action="/rehainfo/login" method="post">');
+  html = html.replace(/(<form action="\/rehainfo\/login" method="post">)[ \t]+/, '$1');
   html = html.replace('<input type="email" th:field="*{email}"', '<input type="text" name="username" autocomplete="username" inputmode="email"');
   html = html.replace('<input type="password" th:field="*{pass}"', '<input type="password" name="password" autocomplete="current-password"');
   const errorRange = elementRange(html, '<div id="errorMsg"');
@@ -394,7 +401,7 @@ for (const page of outputs) {
   const source = await readFile(join(sourceRoot, page.source), 'utf8');
   const expectedHash = manifest.templates[page.source];
   if (!expectedHash || hash(source) !== expectedHash) throw new Error(`Upstream source hash mismatch: ${page.source}`);
-  const rendered = page.render(source, common, page.source, expectedHash);
+  const rendered = publicizeRoutes(page.render(source, common, page.source, expectedHash));
   const outputPath = join(publicRoot, page.output);
   if (checkOnly) {
     const current = await readFile(outputPath, 'utf8').catch(() => '');
@@ -406,13 +413,16 @@ for (const page of outputs) {
 
 for (const asset of sourceAssets) {
   const source = await readFile(join(sourceRoot, 'static', asset));
+  const publicAsset = /\.(?:css|js|svg)$/i.test(asset)
+    ? Buffer.from(publicizeRoutes(source.toString('utf8')), 'utf8')
+    : source;
   const outputPath = join(publicRoot, asset);
   if (checkOnly) {
     const current = await readFile(outputPath).catch(() => Buffer.alloc(0));
-    if (!current.equals(source)) failures.push(asset);
+    if (!current.equals(publicAsset)) failures.push(asset);
   } else {
     await mkdir(dirname(outputPath), { recursive: true });
-    await writeFile(outputPath, source);
+    await writeFile(outputPath, publicAsset);
   }
 }
 

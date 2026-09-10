@@ -1,6 +1,6 @@
 (function () {
 	'use strict';
-	const API = '/rehainfo/therapists/api';
+	const API = '/rehainfo-main/therapists/api';
 	let therapists = [];
 	let modal;
 
