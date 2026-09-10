@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:fragment="http://www.thymeleaf.org/fragment">
+
+<head>
+    <title>Dashboard Content</title>
+    <link href="/rehainfo/css/tooltip.css" rel="stylesheet" />
+	<script src="/rehainfo/js/Common.js?v=1.0.2"></script>
+
+</head>
+
+<body>    
+    <div th:fragment="dashboard-content">
+        <!-- Form hidden -->
+        <form class="d-none" method="POST" id="fim-form">
+            <input name="planId" id="planId" />
+            <input name="periodPlanId" id="periodPlanId" />
+            <input name="targetDate" id="targetDate" />
+            <input name="hcRoleCd" id="hcRoleCd" value="PhysicalTherapist" />
+        </form>
+
+        <!-- Modal -->
+        <div class="modal fade" id="fimNotFound" tabindex="-1"
+            aria-labelledby="fimNotFoundLabel" aria-hidden="true">
+            <div class="modal-dialog custom-modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-body d-flex flex-column align-items-center gap-3">
+                        <img class="mx-auto d-block" src="/rehainfo/images/warning_icon.svg"></img>
+                        <h5>評価実績がありません。</h5>
+                    </div>
+                    <div class="modal-footer" style="border-top: none; display: flex;">
+                        <button type="button" class="btn btn-custom btn-main" style="flex: 1;"
+                            data-bs-dismiss="modal">戻る</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-content">
+            <!-- Loading Overlay -->
+            <div class="dashboard-loading-overlay position-absolute">
+                <div class="d-flex justify-content-center align-items-center h-100">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="sr-only"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="dashboard-content-left">
+                <div class="fim-container">
+                    <div class="title">
+                        <span class="text text-22 text-white text-bold">現在のFIM</span>
+                        <span class="text text-14 text-white" id="hospitalizationDays">在棟日数：-</span>
+                    </div>
+                    <div class="title-index">
+                        <span class="text text-16 text-white">合計</span>
+                        <span class="text text-16 text-white">運動</span>
+                        <span class="text text-16 text-white">認知</span>
+                        <span class="text text-18 text-white text-bold">実績指数</span>
+                    </div>
+                    <div class="fim-index">
+                        <span class="text text-35 text-white text-bold" id="totalScore">-</span>
+                        <span class="text text-30 text-white" id="exerciseScore">-</span>
+                        <span class="text text-30 text-white" id="cognitiveScore">-</span>
+                        <span class="text text-41 text-white text-bold" id="calculationFim">-</span>
+                    </div>
+                    <div class="last-fim-index">
+                        <span class="text text-14 text-white" id="lastTotalScore">前回：-</span>
+                        <span class="text text-14 text-white" id="lastExerciseScore">前回：-</span>
+                        <span class="text text-14 text-white" id="lastCognitiveScore">前回：-</span>
+                        <span class="text text-14 text-white" id="fimGain">FIM利得：-</span>
+                    </div>
+                </div>
+                <div class="bottom-content-left">
+                    <div class="evaluation-container">
+                        <div class="title">
+                            <div class="star-icon"></div>
+                            <span class="text text-22 text-blue text-bold">評価一覧</span>
+                        </div>
+                        <div class="evaluation-table-container">
+                            <table class="evaluation-table" id="evaluationTable">
+                                <tr>
+                                    <th class="text text-13 text-white">項目</th>
+                                    <th class="text text-13 text-white">評価値</th>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="group-container" id="groupContainer">
+                        <div class="problems-container">
+                            <div class="title">
+                                <div class="light-bulb-icon"></div>
+                                <span class="text text-22 text-blue text-bold text-white">問題点</span>
+                            </div>
+                            <div class="problems-list" id="problemsList">
+                                <span class="text text-13 text-white">ー</span>
+                            </div>
+                            <div class="view-more d-none">
+                                <span class="text text-13 text-white">さらに見る</span>
+                                <div class="right-arrow-icon"></div>
+                            </div>
+                        </div>
+                        <div class="goal-and-target-container">
+                            <div class="title">
+                                <div class="goal-and-target-icon"></div>
+                                <span class="text text-22 text-blue text-bold text-white">ゴール・目標値</span>
+                            </div>
+                            <div class="goal-and-target-list" id="goalAndTargetList">
+                                <span class="text text-13 text-white">ー</span>
+                            </div>
+                            <div class="view-more d-none">
+                                <span class="text text-13 text-white">さらに見る</span>
+                                <div class="right-arrow-icon"></div>
+                            </div>
+                        </div>
+                        <div class="treatment-container">
+                            <div class="title">
+                                <div class="treatment-icon"></div>
+                                <span class="text text-22 text-blue text-bold text-white">治療プログラム</span>
+                            </div>
+                            <div class="treatment-list" id="treatmentList">
+                                <span class="text text-13 text-white">ー</span>
+                            </div>
+                            <div class="view-more d-none">
+                                <span class="text text-13 text-white">さらに見る</span>
+                                <div class="right-arrow-icon"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="dashboard-content-right">
+                <div class="image-and-video">
+                    <div class="image-and-video-item" id="imageAndVideoItem1">
+                        <div class="title">
+                            <span class="text text-20 text-medium">画像・動画①</span>
+                        </div>
+                        <div class="show-image-and-video d-flex align-items-end"></div>
+                        <div class="date-and-title">
+                            <span class="text text-12 date"></span>
+                            <span class="text text-12 description"></span>
+                            <span class="plus-square-icon link-image-and-video" data-link-item-id="1">
+                                <i class="bi bi-plus-square"></i>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="image-and-video-item" id="imageAndVideoItem2">
+                        <div class="title">
+                            <span class="text text-20 text-medium">画像・動画②</span>
+                        </div>
+                        <div class="show-image-and-video d-flex align-items-end"></div>
+                        <div class="date-and-title">
+                            <span class="text text-12 date"></span>
+                            <span class="text text-12 description"></span>
+                            <span class="plus-square-icon link-image-and-video" data-link-item-id="2">
+                                <i class="bi bi-plus-square"></i>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="chart-content">
+                    <select class="chart-select" id="chartSelect"></select>
+                    <div class="chart-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

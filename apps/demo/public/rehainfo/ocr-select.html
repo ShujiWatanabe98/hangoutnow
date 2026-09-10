@@ -1,0 +1,572 @@
+<!DOCTYPE HTML>
+<html data-rehainfo-source-template="templates/ocr/evaluationSelect.html" data-rehainfo-source-sha256="37806169D29362C27455105C8D0604C788ADAD337CE5858B8BC75D477BE60443" xmlns:th="http://www.thymeleaf.org" lang="ja">
+
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width,initial-scale=1" />
+	<meta name="robots" content="noindex,nofollow,noarchive" />
+
+	<link rel="icon" href="/rehainfo/images/intep360.ico?v=1.0.0" type="image/x-icon" />
+	<link href="/rehainfo/css/bootstrap.min.css" rel="stylesheet" />
+	<link href="/rehainfo/css/bootstrap-icons-1.9.1/bootstrap-icons.css" rel="stylesheet" />
+	<link href="/rehainfo/css/sidebar.css?v=1.1.0" rel="stylesheet" />
+	<link href="/rehainfo/css/patient_header.css" rel="stylesheet" />
+	<link href="/rehainfo/css/common.css?v=1.0.1" rel="stylesheet" />
+	<link href="/rehainfo/css/custom.css" rel="stylesheet" />
+	<script src="/rehainfo/js/jquery-3.6.0.min.js"></script>
+	<script src="/rehainfo/js/bootstrap.bundle.min.js"></script>
+	
+	
+	<script src="/rehainfo/js/Common.js?v=1.0.2"></script>
+	<script src="/rehainfo/js/BackCancel.js"></script>
+	<script src="/rehainfo/js/sidebar.js?v=1.0.1"></script>
+	<!-- Google Tag Manager -->
+	
+	<!-- End Google Tag Manager -->
+	<style>
+		/* 注意事項 */
+		.login-button {
+			border: 1px solid #bec0c7;
+			box-shadow: rgb(170, 173, 180) 1px 1px 1px;
+		}
+
+		.mic-icon {
+		    color: rgb(74 88 124);
+		    border: 1px solid rgb(74 88 124);
+		}
+
+		.speech-icon {
+			margin-bottom: .5rem !important;
+		}
+		
+		.logo-image {
+			width: auto;
+			object-fit: contain;
+			max-width: 120px;
+			background-color: white;
+		}
+		
+		/* .loading-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(255, 255, 255, 0.9);
+			display: none;
+			justify-content: center;
+			align-items: center;
+			z-index: 9999;
+			flex-direction: column;
+		}
+
+		.loading-spinner {
+			width: 80px;
+			height: 80px;
+			animation: spin 1s linear infinite;
+		}
+
+		.loading-text {
+			margin-top: 20px;
+			font-size: 18px;
+			font-weight: 500;
+			color: #202B4C;
+		}
+
+		@keyframes spin {
+			0% { transform: rotate(0deg); }
+			100% { transform: rotate(360deg); }
+		} */
+		/* Overlay styles */
+		.loading-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(255, 255, 255, 0.9);
+			display: none;
+			justify-content: center;
+			align-items: center;
+			z-index: 9999;
+			flex-direction: column;
+		}
+
+		.loading-spinner {
+			width: 80px;
+			height: 80px;
+		}
+
+		/* Spinner ring wrapper */
+		.spinner-ring {
+			position: relative;
+			width: 100px;
+			height: 100px;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+		}
+
+		/* Circular border (the rotating outline) */
+		.spinner-ring::before {
+			content: "";
+			position: absolute;
+			width: 100px;
+			height: 100px;
+			border: 6px solid #ccc;         /* gray base */
+			border-top: 6px solid #202B4C;  /* top colored */
+			border-radius: 50%;
+			animation: spin 1s linear infinite;
+		}
+
+		/* The image stays still */
+		.loading-icon {
+			width: 60px;
+			height: 60px;
+			background-image: url("");
+			z-index: 1;
+		}
+
+		/* Text */
+		.loading-text {
+			margin-top: 20px;
+			font-size: 18px;
+			font-weight: 500;
+			color: #202B4C;
+		}
+
+		/* Rotation animation */
+		@keyframes spin {
+			0%   { transform: rotate(0deg); }
+			100% { transform: rotate(360deg); }
+		}
+
+		/* 治療実施／治療記録: JS/DOMの読み込み完了まで操作をブロックするため初期表示する。
+		   解除は Common.js が html.block-until-loaded を外し、hideLoadingSpinner がdisplay:noneを付与する。 */
+		html.block-until-loaded #loadingOverlay {
+			display: flex;
+		}
+
+	</style>
+
+	<style>
+		:root {
+			--body-bg-color: #E8E9ED !important;
+		}
+	</style>
+	<script src="/rehainfo/source-demo-adapter.js?v=20260910-5"></script>
+</head>
+
+<head>
+
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>評価シートを選択 - OCR Evaluation</title>
+    <link href="/rehainfo/css/bootstrap.min.css" rel="stylesheet">
+    </link>
+    <link href="/rehainfo/css/bootstrap-icons-1.9.1/bootstrap-icons.css" rel="stylesheet" />
+    <link href="/rehainfo/css/variables.css" rel="stylesheet">
+    </link>
+    <link href="/rehainfo/css/jquery.datetimepicker.min.css" rel="stylesheet" />
+    <link href="/rehainfo/css/ocr/evaluationSelect.css" rel="stylesheet" />
+    
+    <script src="/rehainfo/js/jquery.datetimepicker.full.min.js"></script>
+    
+    
+    <script src="/rehainfo/js/ocr/EvaluationSelect.js?v=1.0.4"></script>
+    <style>
+        .btn-select-image {
+            color: #1C2950;
+            font-size: 18px;
+            border-color: #1C2950;
+            background-color: #ffffff;
+        }
+
+        .btn-select-camera {
+            color: white;
+            background-color: #1C2950;
+            font-size: 18px;
+        }
+    </style>
+</head>
+
+<body data-ocr-page="read">
+    <!-- Hidden input for patient record ID -->
+    <input type="hidden" id="patient-rec-id" value="" />
+    <header class="sticky-top" style="z-index:1050;">
+		<!-- Google Tag Manager (noscript) -->
+		
+		<!-- End Google Tag Manager (noscript) -->
+		<nav id="gksCommonNavBar" class="navbar navbar-expand-md navbar-light"
+			style="background-color: #1C2950; padding: 8px 24px;">
+			<div class="container-fluid d-flex justify-content-between align-items-center" style="padding: 0;">
+				<div>
+					<a href="#" style="text-decoration: none;">
+						<img src="/rehainfo/images/ocr/logo.png" class="logo-image" style="width: 53px; height: 30px; object-fit: contain;" />
+					</a>
+				</div>
+				<div>
+					<a href="#" onclick="window.location.href='/rehainfo/'; return false;" class="d-flex align-items-center" style="text-decoration: none; color: #FFFFFF; gap: 4px;">
+						<span style="font-family: 'Hiragino Kaku Gothic Pro', sans-serif; font-size: 14px; font-weight: 300; line-height: 22px; color: #FFFFFF;">スマートリハを表示</span>
+						<img src="/rehainfo/images/icons/ocr/box-arrow-up-right.svg" style="width: 20px; height: 20px; flex-shrink: 0;" alt="" />
+					</a>
+				</div>
+			</div>
+		</nav>
+	</header>
+    <div>
+		<div id="loadingOverlay" class="loading-overlay">
+			<div class="spinner-ring">
+				<img class="loading-spinner" src="/rehainfo/images/intep360.svg" alt="loading" />
+			</div>
+			<div class="loading-text">処理中......</div>
+		</div>
+	</div>
+    <div>
+		<!-- 警告メッセージ表示用モーダル -->
+		<div class="modal fade show" id="errorMessageModal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog custom-modal-dialog">
+				<div class="modal-content">
+					<div class="modal-body d-flex flex-column align-items-center gap-3">
+						<img class="mx-auto d-block" src="/rehainfo/images/warning_icon.svg"></img>
+						<div class="text-center">
+							<p id="errorModalMessage">エラーメッセージ表示</p>
+						</div>
+					</div>
+					<div class="modal-footer" style="border-top: none; display: flex; gap: 8px;">
+						<button id="errorMessageModalCloseButton" type="button" class="btn btn-main"  data-bs-dismiss="modal" style="flex: 1;">閉じる</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="modal fade show" id="successMessageModal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<div class="modal-body d-flex flex-column align-items-center gap-3">
+						<img class="mx-auto d-block" src="/rehainfo/images/success_icon.svg"></img>
+						<div class="text-center">
+							<p id="successModalMessage">成功メッセージ表示</p>
+						</div>
+					</div>
+					<div class="modal-footer" style="border-top: none; display: flex; gap: 8px;">
+						<button id="successMessageModalCloseButton" type="button" class="btn btn-main"  data-bs-dismiss="modal" style="flex: 1;">閉じる</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Modal -->
+		<div class="modal fade" id="confirmMessageModal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<div class="modal-body d-flex flex-column align-items-center gap-3">
+						<img class="mx-auto d-block" src="/rehainfo/images/warning_icon.svg"></img>
+						<h5 id="confirmMessageText" class="modal-body"></h5>
+					</div>
+					<div class="modal-footer" style="border-top: none; display: flex; gap: 8px;">
+						<button type="button" id="confirmOkButton" class="btn btn-custom gks-btn-outline-primary fw-bold"
+							style="flex: 1;" data-bs-dismiss="modal">はい</button>
+						<button type="button" id="confirmCancelButton" class="btn btn-custom gks-btn-primary fw-bold" style="flex: 1;" onclick="closeConfirmModal(); ">キャンセル</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Fitbit -->
+		<div class="modal fade" id="fitbitConfirmMessageModal" tabindex="-1" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<div class="modal-body d-flex flex-column align-items-center gap-3">
+						<img class="mx-auto d-block" src="/rehainfo/images/warning_icon.svg"></img>
+						<div class="text-center">
+							<p id="fitbitMessage">Fitbitからの返答を待ちしております</p>
+						</div>
+					</div>
+					<div class="modal-footer" style="border-top: none; display: flex; gap: 8px;">
+						<button id="fitbitCloseButton" type="button" class="btn btn-main"  data-bs-dismiss="modal" style="flex: 1;">クローズ</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- 注意事項入力画面 -->
+		<div class="modal fade" id="treatment_precaution_modal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-scrollable modal-dialog-centered" style="width: 400px !important;">
+				<div class="modal-content" style="max-height: calc(100vh - 200px);">
+					<div class="modal-header" style="height: 40px; border-bottom: unset;">
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+					</div>
+
+					<!-- main   bigContainer -->
+					<div class="modal-body" id="attention-body" style="padding: 0 30px 36px 30px;">
+						<!-- List project -->
+						
+						<div class="d-flex justify-content-start">
+							<h6 style="width: fit-content; padding-right: 8px;">■注意事項</h6>
+							<div class="speech-icon">
+								<button class="btn speechInputButton gks-btn-primary" type="button" style="padding: 2px 6px;">
+									<div class="mic-loading mic-display speechLoading"></div>
+									<i class="bi bi-mic-fill speechInputIcon"></i>
+								</button>
+							</div>
+						</div>
+						<div>
+							<textarea id="textarea_treatment_precaution" style="width: 100%; resize:none;" rows="3" class="speechToText">
+							</textarea>
+							<textarea id="textarea_treatment_precaution_bak" class="speechToText" style="display: none;">
+							</textarea>
+						</div>
+
+						<div class="my-3"></div>
+
+						<div class="d-flex justify-content-end">
+							<button id="treatment-precaution-save" type="button" class="btn gks-btn-primary" style="width: 100px; height: 40px; font-size: 16px; font-weight: 700;" data-bs-dismiss="modal" >
+								保存する
+							</button>
+						</div>
+
+
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- 注意事項入力画面 閉じる場合の確認 -->
+		<div class="modal fade gks-close-modal-memo" id="closeModal_precaution" tabindex="-2" aria-labelledby="exampleModalLabel" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered" style="justify-content: center;">
+				<div class="modal-content" style="width: 90%">
+					<div class="modal-body d-flex flex-column justify-content-center">
+						<div style="text-align: center;">
+							入力内容が保存されていません。
+						</div>
+						<div style="text-align: center;">
+							画面を閉じますか？
+						</div>
+					</div>
+					<div class="modal-footer">
+					<button id="closeModal_precaution_confirm" type="button" class="btn gks-btn-outline-primary" data-bs-dismiss="modal" onclick="closePrecautionModal();">はい</button>
+					<button id="closeModal_precaution_cancel" type="button" class="btn gks-btn-primary" data-bs-dismiss="modal">キャンセル</button>
+					</div>
+				</div>
+			</div>
+		</div>
+		<form name="precaution-form" method="POST">
+			<input type="hidden" id="treatmentPrecaution" name="treatmentPrecaution"/>
+		</form>
+		<!-- 音声メモ画面 -->
+		<div class="modal fade" id="noteModal" tabindex="-1" aria-hidden="false">
+			<div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
+				<div class="modal-content pb-5">
+					<div class="modal-body px-0">
+						<div class="modal-header d-flex justify-content-between py-2">
+							<span class="caution-title w-100">音声メモ</span>
+							<button class="btn header-button speechInputButton" type="button">
+								<div class="mic-loading mic-display speechLoading"></div>
+								<i class="bi bi-mic-fill speechInputIcon"></i>
+							</button>
+							<button id="noteCloseBotton" type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+						</div>
+						<div id="noteBody"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- Modal Confirm Yes/No -->
+		<div class="modal fade" id="decisionMessageModal" tabindex="-1" aria-hidden="true" aria-labelledby="treatmentConfirmaitionLabel">
+			<div class="modal-dialog custom-modal-dialog">
+				<div class="modal-content">
+					<div class="modal-body d-flex flex-column align-items-center gap-3">
+						<img class="mx-auto d-block" src="/rehainfo/images/warning_icon.svg"></img>
+						<h5 id="decisionMessageText" class="modal-body"></h5>
+					</div>
+					<div class="modal-footer" style="border-top: none; display: flex; gap: 8px;">
+						<button type="button" id="decisionYesButton" class="btn btn-custom gks-btn-primary fw-bold"
+							style="flex: 1;">はい</button>
+						<button type="button" id="decisionNoButton" class="btn btn-custom gks-btn-outline-primary fw-bold" style="flex: 1;" data-bs-dismiss="modal">いいえ</button>
+					</div>
+				</div>
+			</div>
+		</div>
+		
+	</div>
+    <main>
+        <div class="patient-list-container">
+            <div class="page-header">
+                <h1 class="page-title">
+                    <i class="bi bi-arrow-left back-icon" onclick="handleOnclickBack();"></i>
+                    <span data-ocr-patient-title>評価シートを選択</span>
+                </h1>
+            </div>
+
+            <div>
+                <div class="row g-3 mb-4">
+                    <div class="col-lg-8 col-md-7 col-12">
+                        <div class="bg-white p-3 shadow-sm input-container-card">
+                            <div class="row align-items-center">
+                                <div class="col-auto">
+                                    <label class="fw-bold text-secondary d-flex align-items-center mb-0"
+                                        style="min-width: 90px;">
+                                        評価シート
+                                        <span class="badge-required">必須</span>
+                                    </label>
+                                </div>
+                                <div class="col">
+                                    <div class="search-input-container">
+                                        <input type="text" id="evaluation-sheet-search" class="search-input-field"
+                                            value="" placeholder="選択してください" autocomplete="off" />
+                                        <button class="clear-search-btn" id="clear-search" type="button">
+                                            <i class="bi bi-x"></i>
+                                        </button>
+                                        <button class="search-dropdown-icon" type="button"
+                                            style="pointer-events: none;">
+                                            <i class="bi bi-caret-down-fill"></i>
+                                        </button>
+                                        <div class="autocomplete-dropdown" id="autocomplete-dropdown">
+                                            <div class="autocomplete-item">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Error message for evaluation sheet -->
+                                <div class="invalid-feedback d-block text-danger small mt-1" id="evaluation-sheet-error"
+                                    style="display: none;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4 col-md-5 col-12">
+                        <div class="bg-white p-3 shadow-sm input-container-card">
+                            <div class="row align-items-center date-input-row">
+                                <div class="col-auto">
+                                    <label class="fw-bold text-secondary d-flex align-items-center mb-0"
+                                        style="min-width: 60px;">
+                                        日付
+                                        <span class="badge-required">必須</span>
+                                    </label>
+                                </div>
+                                <div class="col position-relative">
+                                    <input class="form-control border-1" type="text" id="evaluation-date" style="padding-right: 35px;" />
+                                    <button class="date-dropdown-icon" type="button" style="pointer-events: none;">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- Error message for evaluation date -->
+                            <div class="invalid-feedback d-block text-danger small mt-1" id="evaluation-date-error"
+                                style="display: none;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="card border-0 shadow-sm overflow-hidden input-container-card">
+                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center flex-wrap">
+                        <span class="fw-bold">プレビュー表示</span>
+                        <span class="fw-bold d-none" id="image-counter">0/20</span>
+                        <button
+                            class="btn btn-link text-danger text-decoration-none p-0 small fw-bold d-flex align-items-center delete-btn d-none"
+                            id="delete-image-btn" onclick="ImageManager.confirmDelete()">
+                            <i class="bi bi-trash" style="margin-right: 8px;"></i>
+                            画像を削除
+                        </button>
+                    </div>
+                    <!-- Error message for images -->
+                    <div class="invalid-feedback d-block text-danger small" id="images-error" style="display: none;"></div>
+                    <div class="outside-card">
+                        <div class="card-body p-0 position-relative">
+                            <div class="preview-container" id="preview-container">
+                                <!-- Empty State -->
+                                <div class="empty-state" id="empty-state">
+                                    <i class="bi bi-file-earmark-text"
+                                        style="font-size: 45px; color: #9ca3af; margin-bottom: 16px;"></i>
+                                    <p class="empty-state-text">評価シートを選択し<br />画像を選択または カメラで撮影してください</p>
+                                    <div class="empty-state-buttons">
+                                        <button class="btn fw-bolder btn-select-image" style="color: #1C2950;"
+                                            onclick="ImageManager.selectFromLibrary()">
+                                            <i class="bi bi-image"></i> 画像を選択
+                                        </button>
+                                        <button class="btn fw-bolder" style="background-color: #1C2950; color: white;"
+                                            onclick="ImageManager.selectFromCamera()">
+                                            <i class="bi bi-camera"></i> カメラで撮影
+                                        </button>
+                                    </div>
+                                </div>
+                                <!-- Image Display Area -->
+                                <div class="image-display-area" id="image-display-area" style="display: none;">
+                                    <img id="preview-image" src="" alt="preview" />
+
+                                    <!-- Zoom Controls -->
+                                    <div class="zoom-controls d-none">
+                                        <button class="zoom-btn" id="zoom-in-btn" onclick="ImageManager.zoomIn()"
+                                            title="ズームイン">
+                                            <i class="bi bi-zoom-in"></i>
+                                        </button>
+                                        <button class="zoom-btn" id="zoom-out-btn" onclick="ImageManager.zoomOut()"
+                                            title="ズームアウト">
+                                            <i class="bi bi-zoom-out"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="footer-dark-section d-flex justify-content-between align-items-center d-none"
+                                id="footer-dark-section">
+                                <div class="d-flex align-items-center overflow-hidden">
+                                    <div class="thumbnail-gallery me-3" id="thumbnail-gallery">
+                                        <!-- Thumbnails will be added dynamically -->
+                                    </div>
+                                    <button id="add-image-btn" class="add-button" onclick="ImageManager.showAddDialog()">
+                                        <span class="symbols-outlined">+</span>
+                                    </button>
+                                </div>
+                                <button id="ocr-submit-btn" style="text-wrap: nowrap;"
+                                    class="btn btn-primary rounded-pill px-4 py-2 d-flex align-items-center fw-bold shadow-sm"
+                                    onclick="handleSubmit()">
+                                    <img src="/rehainfo/images/icons/ocr/magic-start.svg"
+                                        style="width: 20px; height: 20px; flex-shrink: 0; margin-right: 4px;" alt="" />
+                                    集計・サマリ自動生成
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </main>
+    <!-- Image Selection Modal -->
+    <div class="modal fade" id="imageSourceModal" tabindex="-1" aria-labelledby="imageSourceModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title fw-bold" id="imageSourceModalLabel">画像を追加</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-grid gap-3">
+                        <button class="image-source-option" onclick="ImageManager.selectFromLibrary()">
+                            <i class="bi bi-image"></i>
+                            <span>画像を選択</span>
+                        </button>
+                        <button class="image-source-option" onclick="ImageManager.selectFromCamera()">
+                            <i class="bi bi-camera"></i>
+                            <span>カメラで撮影</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Hidden File Inputs -->
+   <input type="file" id="file-input-library" accept="image/*,application/pdf,.pdf" multiple="multiple" style="display: none;" />
+    <input type="file" id="file-input-camera" accept="image/*" capture="camera" style="display: none;" />
+
+    
+</body>
+
+</html>

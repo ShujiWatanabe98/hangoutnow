@@ -1,0 +1,217 @@
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org" lang="ja">
+
+<head th:replace="common :: meta_header"></head>
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OCR一覧</title>
+    <link href="/rehainfo/css/bootstrap.min.css" rel="stylesheet">
+    </link>
+    <link href="/rehainfo/css/bootstrap-icons-1.9.1/bootstrap-icons.css" rel="stylesheet" />
+    <link href="/rehainfo/css/variables.css" rel="stylesheet">
+    </link>
+    <link href="/rehainfo/css/ocr/ocrList.css?v=1.0.3" rel="stylesheet" />
+    <script src="/rehainfo/js/Common.js?v=1.0.2"></script>
+    <script src="/rehainfo/js/ocr/OcrList.js?v=1.0.2"></script>
+</head>
+
+<body>
+    <div th:replace="common :: topHeaderOCR"></div>
+    <div th:replace="common :: loading"></div>
+    <div th:replace="common :: commonMessageModal"></div>
+    <main>
+        <div class="patient-list-container">
+            <div class="page-header">
+                <h1 class="page-title">
+                    <i class="bi bi-arrow-left back-icon" onclick="handleOnclickBack();"></i>
+                    <span th:text="|${patientInfo.name}さんのOCR一覧|"></span>
+                </h1>
+                <div class="header-buttons">
+                    <button type="button" class="btn-header-action" onclick="navigateToPatientList();">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path
+                                d="M10 9.74349C9.19792 9.74349 8.51132 9.45793 7.94021 8.88682C7.36896 8.31557 7.08333 7.62891 7.08333 6.82682C7.08333 6.02474 7.36896 5.33814 7.94021 4.76703C8.51132 4.19578 9.19792 3.91016 10 3.91016C10.8021 3.91016 11.4887 4.19578 12.0598 4.76703C12.631 5.33814 12.9167 6.02474 12.9167 6.82682C12.9167 7.62891 12.631 8.31557 12.0598 8.88682C11.4887 9.45793 10.8021 9.74349 10 9.74349ZM3.75 14.8237V14.237C3.75 13.829 3.86083 13.4511 4.0825 13.1033C4.30417 12.7555 4.60042 12.4881 4.97125 12.3012C5.79486 11.8974 6.62576 11.5946 7.46396 11.3927C8.30215 11.1907 9.1475 11.0897 10 11.0897C10.8525 11.0897 11.6978 11.1907 12.536 11.3927C13.3742 11.5946 14.2051 11.8974 15.0288 12.3012C15.3996 12.4881 15.6958 12.7555 15.9175 13.1033C16.1392 13.4511 16.25 13.829 16.25 14.237V14.8237C16.25 15.1751 16.1269 15.474 15.8806 15.7204C15.6344 15.9666 15.3355 16.0897 14.984 16.0897H5.01604C4.66451 16.0897 4.36562 15.9666 4.11937 15.7204C3.87312 15.474 3.75 15.1751 3.75 14.8237ZM5 14.8397H15V14.237C15 14.0683 14.9511 13.912 14.8533 13.7683C14.7556 13.6247 14.6228 13.5074 14.4552 13.4166C13.7372 13.063 13.0051 12.7951 12.259 12.6129C11.5127 12.4308 10.7597 12.3397 10 12.3397C9.24028 12.3397 8.48729 12.4308 7.74104 12.6129C6.99493 12.7951 6.26285 13.063 5.54479 13.4166C5.37715 13.5074 5.24444 13.6247 5.14667 13.7683C5.04889 13.912 5 14.0683 5 14.237V14.8397ZM10 8.49349C10.4583 8.49349 10.8507 8.3303 11.1771 8.00391C11.5035 7.67752 11.6667 7.28516 11.6667 6.82682C11.6667 6.36849 11.5035 5.97613 11.1771 5.64974C10.8507 5.32335 10.4583 5.16016 10 5.16016C9.54167 5.16016 9.14931 5.32335 8.82292 5.64974C8.49653 5.97613 8.33333 6.36849 8.33333 6.82682C8.33333 7.28516 8.49653 7.67752 8.82292 8.00391C9.14931 8.3303 9.54167 8.49349 10 8.49349Z"
+                                fill="currentColor" />
+                        </svg>
+                        患者一覧
+                    </button>
+                    <button type="button" class="btn-header-action" th:onclick="|navigateToScan('__${recId}__')|">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path
+                                d="M10.0007 14.2627C10.9569 14.2627 11.7675 13.9302 12.4325 13.2652C13.0975 12.6002 13.43 11.7895 13.43 10.8333C13.43 9.87704 13.0975 9.06642 12.4325 8.40142C11.7675 7.73642 10.9569 7.40392 10.0007 7.40392C9.0444 7.40392 8.23378 7.73642 7.56878 8.40142C6.90378 9.06642 6.57128 9.87704 6.57128 10.8333C6.57128 11.7895 6.90378 12.6002 7.56878 13.2652C8.23378 13.9302 9.0444 14.2627 10.0007 14.2627ZM10.0007 13.0129C9.38523 13.0129 8.86815 12.8034 8.4494 12.3845C8.03051 11.9658 7.82107 11.4487 7.82107 10.8333C7.82107 10.2179 8.03051 9.70079 8.4494 9.28204C8.86815 8.86315 9.38523 8.65371 10.0007 8.65371C10.6161 8.65371 11.1332 8.86315 11.5519 9.28204C11.9708 9.70079 12.1802 10.2179 12.1802 10.8333C12.1802 11.4487 11.9708 11.9658 11.5519 12.3845C11.1332 12.8034 10.6161 13.0129 10.0007 13.0129ZM3.59044 17.0833C3.16947 17.0833 2.81315 16.9375 2.52148 16.6458C2.22982 16.3541 2.08398 15.9978 2.08398 15.5768V6.08975C2.08398 5.66878 2.22982 5.31246 2.52148 5.02079C2.81315 4.72913 3.16947 4.58329 3.59044 4.58329H6.13523L7.22503 3.40225C7.36183 3.25156 7.52718 3.13294 7.72107 3.04642C7.91496 2.95989 8.11926 2.91663 8.33398 2.91663H11.6673C11.882 2.91663 12.0863 2.95989 12.2802 3.04642C12.4741 3.13294 12.6395 3.25156 12.7763 3.40225L13.8661 4.58329H16.4109C16.8318 4.58329 17.1882 4.72913 17.4798 5.02079C17.7715 5.31246 17.9173 5.66878 17.9173 6.08975V15.5768C17.9173 15.9978 17.7715 16.3541 17.4798 16.6458C17.1882 16.9375 16.8318 17.0833 16.4109 17.0833H3.59044ZM3.59044 15.8333H16.4109C16.4857 15.8333 16.5472 15.8093 16.5952 15.7612C16.6433 15.7132 16.6673 15.6517 16.6673 15.5768V6.08975C16.6673 6.01489 16.6433 5.95343 16.5952 5.90538C16.5472 5.85732 16.4857 5.83329 16.4109 5.83329H13.3084L11.7794 4.16663H8.2219L6.69294 5.83329H3.59044C3.51558 5.83329 3.45412 5.85732 3.40607 5.90538C3.35801 5.95343 3.33398 6.01489 3.33398 6.08975V15.5768C3.33398 15.6517 3.35801 15.7132 3.40607 15.7612C3.45412 15.8093 3.51558 15.8333 3.59044 15.8333Z"
+                                fill="currentColor" />
+                        </svg>
+                        スキャン
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-section">
+                <table class="ocr-table" th:if="${evaluations != null and !#lists.isEmpty(evaluations)}">
+                    <thead>
+                        <tr>
+                            <th class="sortable"
+                                th:classappend="${sortField == 'evaluationName'} ? (${sortOrder == 'asc'} ? 'sort-asc' : 'sort-desc') : ''"
+                                onclick="sortTable('evaluationName')">
+                                <div class="sort-header">
+                                    評価名
+                                    <span class="sort-icon">
+                                        <svg class="bi-chevron-up" xmlns="http://www.w3.org/2000/svg" width="16"
+                                            height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                                            stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M2 11 L8 5 L14 11" />
+                                        </svg>
+                                        <svg class="bi-chevron-down" xmlns="http://www.w3.org/2000/svg" width="16"
+                                            height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                                            stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M2 5 L8 11 L14 5" />
+                                        </svg>
+                                    </span>
+                                </div>
+                            </th>
+                            <th class="sortable"
+                                th:classappend="${sortField == 'status'} ? (${sortOrder == 'asc'} ? 'sort-asc' : 'sort-desc') : ''"
+                                onclick="sortTable('status')">
+                                <div class="sort-header">
+                                    ステータス
+                                    <span class="sort-icon">
+                                        <svg class="bi-chevron-up" xmlns="http://www.w3.org/2000/svg" width="16"
+                                            height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                                            stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M2 11 L8 5 L14 11" />
+                                        </svg>
+                                        <svg class="bi-chevron-down" xmlns="http://www.w3.org/2000/svg" width="16"
+                                            height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                                            stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M2 5 L8 11 L14 5" />
+                                        </svg>
+                                    </span>
+                                </div>
+                            </th>
+                            <th class="sortable"
+                                th:classappend="${sortField == 'evaluationDate'} ? (${sortOrder == 'asc'} ? 'sort-asc' : 'sort-desc') : ''"
+                                style="width: 165px;" onclick="sortTable('evaluationDate')">
+                                <div class="sort-header">
+                                    評価日
+                                    <span class="sort-icon">
+                                        <svg class="bi-chevron-up" xmlns="http://www.w3.org/2000/svg" width="16"
+                                            height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                                            stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M2 11 L8 5 L14 11" />
+                                        </svg>
+                                        <svg class="bi-chevron-down" xmlns="http://www.w3.org/2000/svg" width="16"
+                                            height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                                            stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M2 5 L8 11 L14 5" />
+                                        </svg>
+                                    </span>
+                                </div>
+                            </th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="evaluation : ${evaluations}">
+                            <td th:text="${evaluation.evaluationName}">FMA - 上肢</td>
+                            <td>
+                                <!-- エラー時のみバッジ自体を押せるようにし、保存済みのエラー内容をモーダルで表示する -->
+                                <span class="status-badge"
+                                    th:classappend="${evaluation.status == 'REQUEST'} ? 'status-request' :
+                                                      (${evaluation.status == 'PROCESSING'} ? 'status-processing' :
+                                                      (${evaluation.status == 'DONE' or evaluation.status == 'OCR_DONE'} ? 'status-done' :
+                                                      (${evaluation.status == 'ERROR'} ? 'status-failed status-clickable' : 'status-failed')))"
+                                    th:attr="data-error-message=${evaluation.status == 'ERROR' ? evaluation.errorMessage : null},
+                                             onclick=${evaluation.status == 'ERROR' ? 'showOcrErrorDetail(this);' : null},
+                                             title=${evaluation.status == 'ERROR' ? 'クリックするとエラー内容を表示します' : null}"
+                                    th:text="${evaluation.statusLabel}">完了</span>
+                            </td>
+                            <td th:text="${evaluation.evaluationDate}">2025年10月10日</td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button type="button" class="btn-action"
+                                        th:disabled="${evaluation.status != 'DONE' and evaluation.status != 'OCR_DONE'}"
+                                        th:onclick="|navigateToSummary('__${evaluation.id}__')|">
+                                        <img src="/rehainfo/images/icons/ocr/magic-start.svg"
+                                            style="width: 16px; height: 16px; flex-shrink: 0; filter: brightness(0) invert(1);"
+                                            alt="" />
+                                        集計・サマリ
+                                    </button>
+                                    <div class="more-actions-container">
+                                        <button type="button" class="more-actions-btn"
+                                            th:onclick="|toggleMoreActions('__${evaluation.id}__', event)|"
+                                            aria-label="More actions">
+                                            <svg width="32" height="32" viewBox="0 0 32 32" fill="none"
+                                                xmlns="http://www.w3.org/2000/svg">
+                                                <path
+                                                    d="M8.30859 18C7.75859 18 7.28782 17.8041 6.89626 17.4123C6.50448 17.0208 6.30859 16.55 6.30859 16C6.30859 15.45 6.50448 14.9792 6.89626 14.5877C7.28782 14.1959 7.75859 14 8.30859 14C8.85859 14 9.32948 14.1959 9.72126 14.5877C10.1128 14.9792 10.3086 15.45 10.3086 16C10.3086 16.55 10.1128 17.0208 9.72126 17.4123C9.32948 17.8041 8.85859 18 8.30859 18ZM16.0009 18C15.4509 18 14.9802 17.8041 14.5886 17.4123C14.1968 17.0208 14.0009 16.55 14.0009 16C14.0009 15.45 14.1968 14.9792 14.5886 14.5877C14.9802 14.1959 15.4509 14 16.0009 14C16.5509 14 17.0217 14.1959 17.4133 14.5877C17.805 14.9792 18.0009 15.45 18.0009 16C18.0009 16.55 17.805 17.0208 17.4133 17.4123C17.0217 17.8041 16.5509 18 16.0009 18ZM23.6933 18C23.1433 18 22.6724 17.8041 22.2806 17.4123C21.889 17.0208 21.6933 16.55 21.6933 16C21.6933 15.45 21.889 14.9792 22.2806 14.5877C22.6724 14.1959 23.1433 14 23.6933 14C24.2433 14 24.714 14.1959 25.1056 14.5877C25.4974 14.9792 25.6933 15.45 25.6933 16C25.6933 16.55 25.4974 17.0208 25.1056 17.4123C24.714 17.8041 24.2433 18 23.6933 18Z"
+                                                    fill="#1A1A1A" />
+                                            </svg>
+                                        </button>
+                                        <div class="more-actions-dropdown" th:id="|dropdown-__${evaluation.id}__|">
+                                            <button type="button" class="dropdown-item retry"
+                                                th:if="${evaluation.status == 'ERROR'}"
+                                                th:onclick="|retryEvaluation('__${evaluation.id}__')|">
+                                                再処理
+                                            </button>
+                                            <button type="button" class="dropdown-item delete"
+                                                th:onclick="|deleteEvaluation('__${evaluation.id}__')|">
+                                                削除
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="empty-state" th:if="${evaluations == null or #lists.isEmpty(evaluations)}">
+                    <i class="bi bi-inbox"></i>
+                    <p>OCR評価がありません</p>
+                </div>
+            </div>
+
+            <div class="pagination-section" th:if="${totalItems > 0}">
+                <button type="button" class="btn-pagination" th:disabled="${currentPage == 1}"
+                    th:onclick="|goToPage(__${currentPage - 1}__)|">
+                    <i class="bi bi-chevron-left"></i>
+                    前へ
+                </button>
+
+                <th:block th:each="page : ${pageNumbers}">
+                    <button type="button"
+                        th:classappend="${page == currentPage} ? 'btn-pagination active' : 'btn-pagination'"
+                        th:onclick="|goToPage(__${page}__)|" th:disabled="${page == currentPage}"
+                        th:text="${page}">1</button>
+                </th:block>
+
+                <button type="button" class="btn-pagination" th:disabled="${currentPage == totalPages}"
+                    th:onclick="|goToPage(__${currentPage + 1}__)|">
+                    次へ
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+
+                <span class="pagination-info" th:if="${totalPages > 0}">
+                    <span th:text="${(currentPage - 1) * pageSize + 1}">1</span> -
+                    <span
+                        th:text="${currentPage * pageSize > totalItems ? totalItems : currentPage * pageSize}">10</span>
+                    /
+                    <span th:text="${totalItems}">100</span> 件
+                </span>
+            </div>
+        </div>
+    </main>
+
+    <script th:inline="javascript">
+        // Initialize OCR list with server-side data
+        initOcrList(
+            /*[[${recId}]]*/ '',
+            /*[[${sortField}]]*/ null,
+            /*[[${sortOrder}]]*/ 'desc'
+        );
+    </script>
+</body>
+
+</html>

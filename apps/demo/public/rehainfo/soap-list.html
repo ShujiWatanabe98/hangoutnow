@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html data-rehainfo-source-template="templates/soapList.html" data-rehainfo-source-sha256="CFDE665CE1A370D560CE0ED6EABBF6E5103177E0EEF5E2E69EF85FBA78533148" xmlns:th="http://www.thymeleaf.org" lang="ja">
+
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width,initial-scale=1" />
+	<meta name="robots" content="noindex,nofollow,noarchive" />
+
+	<link rel="icon" href="/rehainfo/images/intep360.ico?v=1.0.0" type="image/x-icon" />
+	<link href="/rehainfo/css/bootstrap.min.css" rel="stylesheet" />
+	<link href="/rehainfo/css/bootstrap-icons-1.9.1/bootstrap-icons.css" rel="stylesheet" />
+	<link href="/rehainfo/css/sidebar.css?v=1.1.0" rel="stylesheet" />
+	<link href="/rehainfo/css/patient_header.css" rel="stylesheet" />
+	<link href="/rehainfo/css/common.css?v=1.0.1" rel="stylesheet" />
+	<link href="/rehainfo/css/custom.css" rel="stylesheet" />
+	<script src="/rehainfo/js/jquery-3.6.0.min.js"></script>
+	<script src="/rehainfo/js/bootstrap.bundle.min.js"></script>
+	
+	
+	<script src="/rehainfo/js/Common.js?v=1.0.2"></script>
+	<script src="/rehainfo/js/BackCancel.js"></script>
+	<script src="/rehainfo/js/sidebar.js?v=1.0.1"></script>
+	<!-- Google Tag Manager -->
+	
+	<!-- End Google Tag Manager -->
+	<style>
+		/* 注意事項 */
+		.login-button {
+			border: 1px solid #bec0c7;
+			box-shadow: rgb(170, 173, 180) 1px 1px 1px;
+		}
+
+		.mic-icon {
+		    color: rgb(74 88 124);
+		    border: 1px solid rgb(74 88 124);
+		}
+
+		.speech-icon {
+			margin-bottom: .5rem !important;
+		}
+		
+		.logo-image {
+			width: auto;
+			object-fit: contain;
+			max-width: 120px;
+			background-color: white;
+		}
+		
+		/* .loading-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(255, 255, 255, 0.9);
+			display: none;
+			justify-content: center;
+			align-items: center;
+			z-index: 9999;
+			flex-direction: column;
+		}
+
+		.loading-spinner {
+			width: 80px;
+			height: 80px;
+			animation: spin 1s linear infinite;
+		}
+
+		.loading-text {
+			margin-top: 20px;
+			font-size: 18px;
+			font-weight: 500;
+			color: #202B4C;
+		}
+
+		@keyframes spin {
+			0% { transform: rotate(0deg); }
+			100% { transform: rotate(360deg); }
+		} */
+		/* Overlay styles */
+		.loading-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(255, 255, 255, 0.9);
+			display: none;
+			justify-content: center;
+			align-items: center;
+			z-index: 9999;
+			flex-direction: column;
+		}
+
+		.loading-spinner {
+			width: 80px;
+			height: 80px;
+		}
+
+		/* Spinner ring wrapper */
+		.spinner-ring {
+			position: relative;
+			width: 100px;
+			height: 100px;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+		}
+
+		/* Circular border (the rotating outline) */
+		.spinner-ring::before {
+			content: "";
+			position: absolute;
+			width: 100px;
+			height: 100px;
+			border: 6px solid #ccc;         /* gray base */
+			border-top: 6px solid #202B4C;  /* top colored */
+			border-radius: 50%;
+			animation: spin 1s linear infinite;
+		}
+
+		/* The image stays still */
+		.loading-icon {
+			width: 60px;
+			height: 60px;
+			background-image: url("");
+			z-index: 1;
+		}
+
+		/* Text */
+		.loading-text {
+			margin-top: 20px;
+			font-size: 18px;
+			font-weight: 500;
+			color: #202B4C;
+		}
+
+		/* Rotation animation */
+		@keyframes spin {
+			0%   { transform: rotate(0deg); }
+			100% { transform: rotate(360deg); }
+		}
+
+		/* 治療実施／治療記録: JS/DOMの読み込み完了まで操作をブロックするため初期表示する。
+		   解除は Common.js が html.block-until-loaded を外し、hideLoadingSpinner がdisplay:noneを付与する。 */
+		html.block-until-loaded #loadingOverlay {
+			display: flex;
+		}
+
+	</style>
+
+	<style>
+		:root {
+			--body-bg-color: #E8E9ED !important;
+		}
+	</style>
+	<script src="/rehainfo/source-demo-adapter.js?v=20260910-5"></script>
+</head>
+
+<head>
+	<title>SOAP一覧</title>
+
+	<link href="/rehainfo/css/soapList.css" rel="stylesheet">
+	</link>
+	<script src="/rehainfo/js/jquery.datetimepicker.full.min.js"></script>
+	<link href="/rehainfo/css/jquery.datetimepicker.min.css" rel="stylesheet">
+	</link>
+	<script src="/rehainfo/js/soapDirtyState.js"></script>
+	<script src="/rehainfo/js/soapList.js?v=1.0.3"></script>
+	<script src="/rehainfo/js/AutoSaveManager.js"></script>
+</head>
+
+<body data-patient-page="soap">
+	<main>
+		<header class="sticky-top" style="z-index:1050;">
+		<!-- Google Tag Manager (noscript) -->
+		
+		<!-- End Google Tag Manager (noscript) -->
+		<nav id="gksCommonNavBar" class="navbar navbar-expand-md navbar-light" style="background-color: var(--main-color); height: 60px">
+			<div class="container-fluid">
+				<div class="d-flex align-items-center">
+					<a href="#" class="navbar-brand bg-white">
+						<img src="/rehainfo/images/SmartRehab-R_Available_Transparent.png" class="logo-image" />
+					</a>
+					<a href="/rehainfo/schedule" class="btn header-button gks-modify-header-btn ms-2">
+						スケジュール
+					</a>
+					<a href="/rehainfo/therapists" class="btn header-button gks-modify-header-btn ms-2">
+						療法士一覧
+					</a>
+				</div>
+				<div>
+					
+					<h4 class="text-danger mb-0" id="otherUserEditingMessage">
+					</h4>
+					<form name="user-view-transition-history-check-form" method="POST">
+					</form>
+					<input type="hidden" id="checkTransitionHistoryViewName" name="viewName" />
+
+					
+
+				</div>
+				
+				<!-- New UI -->
+				<div class="collapse navbar-collapse" id="navbarsExample02" style="padding-right: 5px;">
+						<ul class="navbar-nav flex-row flex-wrap ms-md-auto">
+							
+							
+							
+							<form class="d-flex justify-content-center me-2" action="/rehainfo/adminEvaluationPreset" method="POST">
+								<button type="submit" class="btn gks-setting-btn">
+									<i class="bi bi-gear-fill"></i>
+								</button>
+								<input type="hidden" name="recId"/>
+							</form>
+							<button id="speechMemoButton" type="button" class="btn header-button gks-modify-header-btn" onclick="window.open('/rehainfo/notes', '個人ノート', 'width=1200, height=800')">
+								個人ノート
+							</button>
+							
+							
+							<form class="header-button" action="/rehainfo/patients" method="GET">
+								<button id="patientListButton" type="submit" class="btn gks-modify-header-btn">
+									患者一覧
+								</button>
+							</form>
+						</ul>
+				</div>
+				<!-- User Dropdown -->
+				<div class="dropdown" style="margin-right: 8px;">
+					<button
+						class="btn dropdown-toggle d-flex justify-content-center align-items-center gks-user-profile-btn gks-dropdown-toggle"
+						id="userDropdown"
+						data-bs-toggle="dropdown"
+						aria-expanded="false"
+					>
+						<i class="bi bi-person-fill"></i>
+					</button>
+					<ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown" style="width: 240px; margin-top: 12px; padding-top: 0; padding-bottom: 0;">
+						<!-- Header with username -->
+						<li id="gksCommonDropdownHeader" class="dropdown-header text-white d-flex align-items-center" style="background-color: var(--main-color); padding: 10px;">
+							<div class="d-flex justify-content-start align-items-center" style="border-radius: 50%; width: 40px; height: 40px; background-color: white;">
+								<i id="gksCommonDropdownHeaderIcon" class="bi bi-person-fill" style="font-size: 36px; color: var(--main-color); margin-right: 10px; margin-left: 2px;"></i>
+								<span data-source-field="userName" style="font-size: 18px; font-weight: 500;">公開デモ</span>
+							</div>
+						</li>
+						<!-- Divider -->
+						<li>
+							<hr class="dropdown-divider" style="margin: 0;" />
+						</li>
+						<!-- Register link -->
+						<li>
+							
+						</li>
+						<!-- Logout link -->
+						<li>
+							<a class="dropdown-item d-flex align-items-center" href="/rehainfo/logout" style="font-size: 1rem;">
+								<i class="bi bi-box-arrow-right me-2" style="font-size: 1.2rem; color: var(--main-color);"></i>ログアウト
+							</a>
+							
+						</li>
+					</ul>
+				</div>
+			</div>
+		</nav>
+	</header>
+		<!--test-->
+		<div>
+		<div id="loadingOverlay" class="loading-overlay">
+			<div class="spinner-ring">
+				<img class="loading-spinner" src="/rehainfo/images/intep360.svg" alt="loading" />
+			</div>
+			<div class="loading-text">処理中......</div>
+		</div>
+	</div>
+		<!-- 共通モーダル  -->
+		<div>
+		<!-- 警告メッセージ表示用モーダル -->
+		<div class="modal fade show" id="errorMessageModal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog custom-modal-dialog">
+				<div class="modal-content">
+					<div class="modal-body d-flex flex-column align-items-center gap-3">
+						<img class="mx-auto d-block" src="/rehainfo/images/warning_icon.svg"></img>
+						<div class="text-center">
+							<p id="errorModalMessage">エラーメッセージ表示</p>
+						</div>
+					</div>
+					<div class="modal-footer" style="border-top: none; display: flex; gap: 8px;">
+						<button id="errorMessageModalCloseButton" type="button" class="btn btn-main"  data-bs-dismiss="modal" style="flex: 1;">閉じる</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="modal fade show" id="successMessageModal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<div class="modal-body d-flex flex-column align-items-center gap-3">
+						<img class="mx-auto d-block" src="/rehainfo/images/success_icon.svg"></img>
+						<div class="text-center">
+							<p id="successModalMessage">成功メッセージ表示</p>
+						</div>
+					</div>
+					<div class="modal-footer" style="border-top: none; display: flex; gap: 8px;">
+						<button id="successMessageModalCloseButton" type="button" class="btn btn-main"  data-bs-dismiss="modal" style="flex: 1;">閉じる</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Modal -->
+		<div class="modal fade" id="confirmMessageModal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<div class="modal-body d-flex flex-column align-items-center gap-3">
+						<img class="mx-auto d-block" src="/rehainfo/images/warning_icon.svg"></img>
+						<h5 id="confirmMessageText" class="modal-body"></h5>
+					</div>
+					<div class="modal-footer" style="border-top: none; display: flex; gap: 8px;">
+						<button type="button" id="confirmOkButton" class="btn btn-custom gks-btn-outline-primary fw-bold"
+							style="flex: 1;" data-bs-dismiss="modal">はい</button>
+						<button type="button" id="confirmCancelButton" class="btn btn-custom gks-btn-primary fw-bold" style="flex: 1;" onclick="closeConfirmModal(); ">キャンセル</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Fitbit -->
+		<div class="modal fade" id="fitbitConfirmMessageModal" tabindex="-1" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<div class="modal-body d-flex flex-column align-items-center gap-3">
+						<img class="mx-auto d-block" src="/rehainfo/images/warning_icon.svg"></img>
+						<div class="text-center">
+							<p id="fitbitMessage">Fitbitからの返答を待ちしております</p>
+						</div>
+					</div>
+					<div class="modal-footer" style="border-top: none; display: flex; gap: 8px;">
+						<button id="fitbitCloseButton" type="button" class="btn btn-main"  data-bs-dismiss="modal" style="flex: 1;">クローズ</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- 注意事項入力画面 -->
+		<div class="modal fade" id="treatment_precaution_modal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-scrollable modal-dialog-centered" style="width: 400px !important;">
+				<div class="modal-content" style="max-height: calc(100vh - 200px);">
+					<div class="modal-header" style="height: 40px; border-bottom: unset;">
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+					</div>
+
+					<!-- main   bigContainer -->
+					<div class="modal-body" id="attention-body" style="padding: 0 30px 36px 30px;">
+						<!-- List project -->
+						
+						<div class="d-flex justify-content-start">
+							<h6 style="width: fit-content; padding-right: 8px;">■注意事項</h6>
+							<div class="speech-icon">
+								<button class="btn speechInputButton gks-btn-primary" type="button" style="padding: 2px 6px;">
+									<div class="mic-loading mic-display speechLoading"></div>
+									<i class="bi bi-mic-fill speechInputIcon"></i>
+								</button>
+							</div>
+						</div>
+						<div>
+							<textarea id="textarea_treatment_precaution" style="width: 100%; resize:none;" rows="3" class="speechToText">
+							</textarea>
+							<textarea id="textarea_treatment_precaution_bak" class="speechToText" style="display: none;">
+							</textarea>
+						</div>
+
+						<div class="my-3"></div>
+
+						<div class="d-flex justify-content-end">
+							<button id="treatment-precaution-save" type="button" class="btn gks-btn-primary" style="width: 100px; height: 40px; font-size: 16px; font-weight: 700;" data-bs-dismiss="modal" >
+								保存する
+							</button>
+						</div>
+
+
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- 注意事項入力画面 閉じる場合の確認 -->
+		<div class="modal fade gks-close-modal-memo" id="closeModal_precaution" tabindex="-2" aria-labelledby="exampleModalLabel" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered" style="justify-content: center;">
+				<div class="modal-content" style="width: 90%">
+					<div class="modal-body d-flex flex-column justify-content-center">
+						<div style="text-align: center;">
+							入力内容が保存されていません。
+						</div>
+						<div style="text-align: center;">
+							画面を閉じますか？
+						</div>
+					</div>
+					<div class="modal-footer">
+					<button id="closeModal_precaution_confirm" type="button" class="btn gks-btn-outline-primary" data-bs-dismiss="modal" onclick="closePrecautionModal();">はい</button>
+					<button id="closeModal_precaution_cancel" type="button" class="btn gks-btn-primary" data-bs-dismiss="modal">キャンセル</button>
+					</div>
+				</div>
+			</div>
+		</div>
+		<form name="precaution-form" method="POST">
+			<input type="hidden" id="treatmentPrecaution" name="treatmentPrecaution"/>
+		</form>
+		<!-- 音声メモ画面 -->
+		<div class="modal fade" id="noteModal" tabindex="-1" aria-hidden="false">
+			<div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
+				<div class="modal-content pb-5">
+					<div class="modal-body px-0">
+						<div class="modal-header d-flex justify-content-between py-2">
+							<span class="caution-title w-100">音声メモ</span>
+							<button class="btn header-button speechInputButton" type="button">
+								<div class="mic-loading mic-display speechLoading"></div>
+								<i class="bi bi-mic-fill speechInputIcon"></i>
+							</button>
+							<button id="noteCloseBotton" type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+						</div>
+						<div id="noteBody"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- Modal Confirm Yes/No -->
+		<div class="modal fade" id="decisionMessageModal" tabindex="-1" aria-hidden="true" aria-labelledby="treatmentConfirmaitionLabel">
+			<div class="modal-dialog custom-modal-dialog">
+				<div class="modal-content">
+					<div class="modal-body d-flex flex-column align-items-center gap-3">
+						<img class="mx-auto d-block" src="/rehainfo/images/warning_icon.svg"></img>
+						<h5 id="decisionMessageText" class="modal-body"></h5>
+					</div>
+					<div class="modal-footer" style="border-top: none; display: flex; gap: 8px;">
+						<button type="button" id="decisionYesButton" class="btn btn-custom gks-btn-primary fw-bold"
+							style="flex: 1;">はい</button>
+						<button type="button" id="decisionNoButton" class="btn btn-custom gks-btn-outline-primary fw-bold" style="flex: 1;" data-bs-dismiss="modal">いいえ</button>
+					</div>
+				</div>
+			</div>
+		</div>
+		
+	</div>
+		<div>
+		<div class="modal fade" id="autoSaveModal" tabindex="-1" aria-labelledby="autoSaveModalLabel" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content">
+					<div class="modal-body d-flex flex-column align-items-center gap-3 py-4">
+						<img class="mx-auto d-block" src="/rehainfo/images/warning_icon.svg" alt="warning"></img>
+						<h5 class="mb-0 text-center">新しく入力・編集されたデータがあります。<br/>保存しますか？</h5>
+					</div>
+					<div class="modal-footer" style="border-top: none; display: flex; gap: 8px;">
+						<button type="button" class="btn gks-btn-primary fw-bold" style="flex: 1;" data-action="save-navigate">
+							はい
+						</button>
+						<button type="button" class="btn gks-btn-outline-primary fw-bold" style="flex: 1;" data-action="discard-navigate">
+							いいえ
+						</button>
+						<button type="button" class="btn btn-secondary fw-bold" style="flex: 1;" data-action="cancel" data-bs-dismiss="modal">
+							キャンセル
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+		<div class="d-flex flex-row w-100">
+			<!-- 左メニュー -->
+			<nav class="sidebar">
+		<div class="d-flex justify-content-center align-items-center sidebar-header">
+			<h5 class="text-center sidebar-title" style="padding-top: 24px; padding-bottom: 8px; font-weight: 500; font-size: 22px; line-height: 22px;">
+				患者メニュー
+			</h5>
+			<button class="sidebar-toggle" title="メニューを展開する">
+				<i class="bi bi-chevron-right"></i>
+			</button>
+			
+		</div>
+		<ul class="nav nav-pills flex-column">
+			<div class="sidebar-item container-fluid py-1">
+				<a class="navbar-brand sidebar-link d-flex align-items-center gks-side-menu-select-option"
+				onclick="showLoadingSpinner()" title="患者TOP">
+					<i class="bi bi-grid-3x3-gap-fill me-1"></i>
+					<div class="sidebar-text-wrapper">
+						<span class="sidebar-text">患者TOP</span>
+					</div>
+				</a>
+				<div style="width: 3px;">
+				</div>
+			</div>
+			<div class="sidebar-item container-fluid py-1">
+				<a class="navbar-brand sidebar-link d-flex align-items-center gks-side-menu-select-option"
+				onclick="showLoadingSpinner()" title="患者情報">
+					<i class="bi bi-person-fill me-1"></i>
+					<div class="sidebar-text-wrapper">
+						<span class="sidebar-text">患者情報</span>
+					</div>
+				</a>
+			</div>
+			<div class="sidebar-item container-fluid py-1">
+				<a class="navbar-brand sidebar-link d-flex align-items-center gks-side-menu-select-option"
+					onclick="showLoadingSpinner()" title="評価閲覧">
+					<i class="bi bi-file-bar-graph-fill me-1"></i>
+					<div class="sidebar-text-wrapper">
+						<span class="sidebar-text">評価閲覧</span>
+					</div>
+				</a>
+			</div>
+
+			<div class="sidebar-item container-fluid py-1">
+				<a class="navbar-brand sidebar-link d-flex align-items-center gks-side-menu-select-option"
+					onclick="showLoadingSpinner()" title="治療実績">
+					<i class="bi bi-bar-chart-fill me-1"></i>
+					<div class="sidebar-text-wrapper">
+						<span class="sidebar-text">治療実績</span>
+					</div>
+				</a>
+			</div>
+
+			<div class="sidebar-item container-fluid py-1">
+				<a class="navbar-brand sidebar-link d-flex align-items-center gks-side-menu-select-option"
+					onclick="showLoadingSpinner()" title="検査結果平均値表示">
+					<i class="bi bi-graph-up me-1"></i>
+					<div class="sidebar-text-wrapper">
+						<span class="sidebar-text">検査結果平均値表示</span>
+					</div>
+				</a>
+			</div>
+
+			<div class="sidebar-item container-fluid py-1">
+				<a class="navbar-brand sidebar-link d-flex align-items-center gks-side-menu-select-option"
+					onclick="showLoadingSpinner()" title="治療実施内容・実施期間平均値表示">
+					<i class="bi bi-graph-up me-1"></i>
+					<div class="sidebar-text-wrapper">
+						<span class="sidebar-text">
+							治療実施内容・<br />実施期間平均値表示
+						</span>
+					</div>
+				</a>
+			</div>
+
+			<div class="sidebar-item container-fluid py-1">
+				<a class="navbar-brand sidebar-link d-flex align-items-center gks-side-menu-select-option" style="cursor: pointer;" title="写真・動画一覧">
+					<i class="bi bi-folder-fill me-1"></i>
+					<div class="sidebar-text-wrapper">
+						<span class="sidebar-text">写真・動画一覧</span>
+					</div>
+				</a>
+			</div>
+
+			<div class="sidebar-item container-fluid py-1">
+				<a class="navbar-brand sidebar-link d-flex align-items-center gks-side-menu-select-option" style="cursor: pointer;" title="Fitbit連携">
+					<i class="bi bi-smartwatch me-1"></i>
+					<div class="sidebar-text-wrapper">
+						<span class="sidebar-text">Fitbit連携</span>
+					</div>
+				</a>
+				<form id="fitbit-form" action="" method="POST">
+					<input type="hidden" id="recId" name="recId" value=""/>
+					<input type="hidden" id="planId" name="planId" value=""/>
+					<input type="hidden" id="targetDate" name="targetDate" value=""/>
+					<input type="hidden" id="hcRoleCd" name="hcRoleCd" value=""/>
+				</form>
+			</div>
+
+			<div class="sidebar-item container-fluid py-1">
+				<a class="navbar-brand sidebar-link d-flex align-items-center gks-side-menu-select-option"
+					onclick="showLoadingSpinner()" title="入退院時サマリ出力">
+					<i class="gks-discharge-summary-output-icon me-1"></i>
+					<div class="sidebar-text-wrapper">
+						<span class="sidebar-text">入退院時サマリ出力</span>
+					</div>
+				</a>
+			</div>
+
+			<div class="sidebar-item container-fluid py-1">
+				<a class="navbar-brand sidebar-link d-flex align-items-center gks-side-menu-select-option"
+					onclick="showLoadingSpinner()" title="データ連携">
+					<i class="gks-patient-data-link-icon me-1"></i>
+					<div class="sidebar-text-wrapper">
+						<span class="sidebar-text">データ連携</span>
+					</div>
+				</a>
+			</div>
+
+		</ul>
+	</nav>
+
+			<div id="soap-list-container" class="container-fluid soap-list-container">
+				<!-- ヘッダの患者情報部分をcommonと置換  -->
+				<div id="headerPatientInfo"
+			class="d-flex justify-content-center gks-patient-header-common"
+			>
+			 	<div class="d-flex flex-row justify-content-start align-items-center gks-header-container">
+					<div class="gks-header-item" data-patient-field="patientId" style="padding-left: 16px;"></div>
+					<div class="gks-header-item" data-patient-field="name" style="font-size: 20px;"></div>
+					<div class="gks-header-item" data-patient-field="nameKana"></div>
+					<div class="gks-header-item" data-patient-field="gender" style="font-size: 20px;"></div>
+					<div class="gks-header-item" data-patient-field="age" style="font-size: 20px;"></div>
+					<div class="gks-header-item" data-patient-field="birth"></div>
+
+					<div class="gks-header-item" data-patient-field="doctor"></div>
+					
+
+					
+					<div data-patient-field="disease"></div>
+					
+					
+				</div>
+			</div>
+				<div class="d-flex justify-content-between position-sticky header-soap-list" style="top: 162px;">
+					<h5 class="soap-list-title">SOAP一覧
+					</h5>
+					<div class="col-md-6 d-grid gap-3 d-flex justify-content-md-end">
+						<script type="text/javascript">
+							/*<![CDATA[*/
+							const recId = window.REHAINFO_ACTIVE_REC_ID || '';
+							const hcRoleCd = 'PhysicalTherapist';
+							/*]]>*/
+						</script>
+						<div class="btn-group btn-role-group" role="group" aria-label="Basic radio toggle button group">
+							<!-- Physical Therapist Button -->
+							<button class="btn btn-custom btn-physical-therapist" id="btn-role-PhysicalTherapist" onclick="onClickRoleButton('PhysicalTherapist')">PT</button>
+							<!-- Occupational Therapist Button -->
+							<button class="btn btn-custom btn-occupational-therapist" id="btn-role-OccupationalTherapist" onclick="onClickRoleButton('OccupationalTherapist')">OT</button>
+							<!-- Speech Therapist Button -->
+							<button class="btn btn-custom btn-speech-therapist" id="btn-role-SpeechTherapist" onclick="onClickRoleButton('SpeechTherapist')">ST</button>
+						</div>
+						<div style="width: 100px;">
+							<a class="btn second-btn btn-lg border border-dark" id="btn-add-new-soap" onclick="onClickAddNewSoap()">
+								<i class="bi bi-plus-lg"></i> 追加登録
+							</a>
+						</div>
+
+						<a class="btn back-btn btn-lg bg-white border border-dark"
+							onclick="backButton()">
+							<i class="bi bi-arrow-left-circle"></i> 戻る
+						</a>
+
+					</div>
+				</div>
+				<div id="soap-list-container-content">
+					<div class="row mt-3">
+						<div class="soap-left-container col-2 position-sticky" style="height: fit-content; top: 200px;">
+							<!-- Date picker input -->
+							<div class="soap-picker-container position-relative">
+								<input type="text" class="form-control" id="soapDateInput" name="soapDateInput"
+									placeholder="YYYY/MM/DD" />
+								<i class="bi bi-calendar-date position-absolute"
+									style="right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: #6c757d;"></i>
+							</div>
+							<div class="d-flex align-items-center justify-content-between mt-2">
+								<div class="gks-caret-left-btn" style="color: #E0E0E0; font-size: 30px; cursor: pointer;" id="previousMonthBtn" onclick="onClickPreviousMonth()">
+									<i class="bi bi-caret-left-fill me-1"></i>
+								</div>
+								<label class="gks-header-1 gks-not-break-line" id="soapDateLabel"></label>
+								<div class="gks-caret-left-btn" style="color: #E0E0E0; font-size: 30px; cursor: pointer;" id="nextMonthBtn" onclick="onClickNextMonth()">
+									<i class="bi bi-caret-right-fill me-1"></i>
+								</div>
+							</div>
+							<div class="d-flex flex-column align-items-center" id="soapDateList">
+							</div>
+						</div>
+						<div class="soap-right-container col-10" id="soap-right-container">
+						</div>
+					</div>
+					<div class="d-flex justify-content-end my-2">
+						<div>
+							<a class="btn back-btn" id="scrollToTopBtn">
+								<i class="bi bi-caret-up-fill"></i> 最上部へ
+							</a>
+						</div>
+					</div>
+				</div>
+				<!-- Loading indicator -->
+				<div id="soap-loading-container" class="d-none">
+					<div class="d-flex justify-content-center align-items-center" style="height: 60vh;">
+						<div class="text-center">
+							<div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+								<span class="visually-hidden">Loading...</span>
+							</div>
+							<div class="mt-3">
+								<h5 class="text-muted">SOAP一覧を読み込み中...</h5>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+
+			<!-- modal add new soap -->
+			<div class="modal fade gks-close-modal-memo" tabindex="-2"
+				aria-labelledby="exampleModalLabel" aria-hidden="true">
+				<div class="modal-dialog modal-dialog-centered">
+					<div class="modal-content custom-modal-content">
+						<div class="modal-body">
+							<div class="d-flex align-items-center check-box-container">
+								<input class="form-check-input radio-large" type="radio" name="addNewSoapType"
+									id="addNewSoapTypeRadio1" value="0" checked="true" />
+								<label class="gks-normal-text-16" for="addNewSoapTypeRadio1">
+									本日
+								</label>
+							</div>
+							<div class="d-flex align-items-center check-box-container">
+								<input class="form-check-input radio-large" type="radio" name="addNewSoapType"
+									id="addNewSoapTypeRadio2" value="0"/>
+								<label class="gks-normal-text-16" for="addNewSoapTypeRadio2">
+									日付指定
+								</label>
+								<div class="position-relative">
+									<!-- not recommended input type date -->
+									<input type="text" class="form-control" id="addNewSoapDateInput"
+										placeholder="YYYY/MM/DD" />
+									<i class="bi bi-calendar-date position-absolute"
+										style="right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: #6c757d;"></i>
+								</div>
+							</div>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-modal gks-btn-outline-primary"
+								data-bs-dismiss="modal">戻る</button>
+							<button type="button" class="btn btn-modal gks-btn-primary" onclick="addNewSoap()" data-bs-dismiss="modal">追加
+							</button>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- modal update soap -->
+			<div class="modal fade gks-close-modal-memo update-soap-modal" id="updateSoapModal_all" tabindex="-2"
+				aria-labelledby="exampleModalLabel" aria-hidden="true">
+				<div class="modal-dialog modal-dialog-centered">
+					<div class="modal-content custom-modal-content">
+						<div class="modal-body">
+							<div class="gks-normal-text-16 text-center">全てのデータを一括で最新データに更新します
+							</div>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-modal gks-btn-outline-primary"
+								data-bs-dismiss="modal">戻る</button>
+							<button type="button" class="btn btn-modal gks-btn-primary" data-bs-dismiss="modal">上書き
+							</button>
+							<button type="button" class="btn btn-modal gks-btn-primary" data-bs-dismiss="modal">挿入
+							</button>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- modal update soap -->
+			<div class="modal fade gks-close-modal-memo update-soap-modal" tabindex="-2"
+				aria-labelledby="exampleModalLabel" aria-hidden="true">
+				<div class="modal-dialog modal-dialog-centered">
+					<div class="modal-content custom-modal-content">
+						<div class="modal-body">
+							<div class="gks-normal-text-16 text-center">最新データに更新します
+							</div>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-modal gks-btn-outline-primary"
+								data-bs-dismiss="modal">戻る</button>
+							<button type="button" class="btn btn-modal gks-btn-primary" data-bs-dismiss="modal">上書き
+							</button>
+							<button type="button" class="btn btn-modal gks-btn-primary" data-bs-dismiss="modal">挿入
+							</button>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- modal update O -->
+			<div class="modal fade gks-close-modal-memo update-soap-modal" tabindex="-2"
+				aria-labelledby="exampleModalLabel" aria-hidden="true">
+				<div class="modal-dialog modal-dialog-centered">
+					<div class="modal-content custom-modal-content">
+						<div class="modal-body" id="updateSoapModal_o_body">
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-modal gks-btn-outline-primary"
+								data-bs-dismiss="modal">戻る</button>
+							<button type="button" class="btn btn-modal gks-btn-primary" data-bs-dismiss="modal">上書き
+							</button>
+							<button type="button" class="btn btn-modal gks-btn-primary" data-bs-dismiss="modal">挿入
+							</button>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- modal copy soap -->
+			<div class="modal fade gks-close-modal-memo copy-soap-modal" tabindex="-2"
+				aria-labelledby="exampleModalLabel" aria-hidden="true">
+				<div class="modal-dialog modal-dialog-centered">
+					<div class="modal-content custom-modal-content">
+						<div class="modal-body">
+							<div class="gks-normal-text-16">複写先を選択してください</div>
+							<div class="mt-2 d-flex justify-content-center">
+								<select
+									class="form-select gks-input-select">
+								</select>
+							</div>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-modal gks-btn-outline-primary"
+								data-bs-dismiss="modal">戻る</button>
+							<button type="button" class="btn btn-modal gks-btn-primary" data-bs-dismiss="modal">複写
+							</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</main>
+
+</body>
+
+</html>

@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:fragment="http://www.thymeleaf.org/fragment" lang="ja">
+
+<head th:replace="common :: meta_header">
+</head>
+
+<head>
+    <title>患者TOP</title>
+    <!-- 予定テーブル表示用  -->
+    <script src="/rehainfo/js/PatientTop.js?v=1.0.0"></script>
+    <script src="/rehainfo/js/Precaution.js"></script>
+    <script src="/rehainfo/js/chart.js"></script>
+    <script src="/rehainfo/js/Chart.bundle.js"></script>
+    <script src="/rehainfo/js/chartjs-plugin-colorschemes.js"></script>
+    <script src="/rehainfo/js/html2canvas.min.js"></script>
+    <script src="/rehainfo/js/jspdf.umd.min.js"></script>
+    <script src="/rehainfo/js/Dashboard.js?v=1.0.1"></script>
+    <script src="/rehainfo/js/Math.js"></script>
+    <script src="/rehainfo/js/EvaluationTreatmentPlanSearch.js?v=1.0.0"></script>
+    <link href="/rehainfo/css/jquery.datetimepicker.min.css" rel="stylesheet"></link>
+    <script src="/rehainfo/js/jquery.datetimepicker.full.min.js"></script>
+    <link href="/rehainfo/css/patientTop.css?v=1.0.2" rel="stylesheet">
+    </link>
+</head>
+
+<body>
+    <main id="patient-top-page">
+        <div th:replace="common :: topHeader"></div>
+        <!--test-->
+        <div th:replace="common :: loading"></div>
+        <!-- 共通モーダル  -->
+        <div th:replace="common :: commonMessageModal">
+        </div>
+        <div class="d-flex flex-row w-100">
+            <!-- 左メニュー -->
+            <nav th:replace="common :: sideMenu" class="sidebar bg-primary">
+            </nav>
+
+            <div class="container-fluid bg-light dashboard-container">
+                <!-- ヘッダの患者情報部分をcommonと置換  -->
+                <div th:replace="common :: headerPatientInfo">
+                </div>
+                <div class="modal fade" id="notification-modal" tabindex="-1" aria-hidden="false">
+                    <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered modal-patient-top-dialog">
+                        <div class="modal-content" style="width: 100%">
+                            <div class="modal-header">
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body" id="notification_body">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div th:if="${patientInfo.active} eq true and ${patientPastData.size() > 0}" class="modal fade" id="past-data-modal" tabindex="-1" aria-hidden="false">
+                    <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body" id="past-data-body">
+                                <table class="table table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>入院日</th>
+                                            <th>退院日</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr th:each="pastData, index : ${patientPastData}">
+                                            <td th:text="${index.index + 1}"></td>
+                                            <td th:text="${pastData.hospitalizationStartDate == '' ? 'ー' : pastData.hospitalizationStartDate}"></td>
+                                            <td th:text="${pastData.hospitalizationEndDate == '' ? 'ー' : pastData.hospitalizationEndDate}"></td>
+                                            <td>
+                                                <a class="text-decoration-none" role="button"
+                                                    th:href="'/rehainfo/patient/' + ${pastData.recId} + '/top'">
+                                                    <i class="bi bi-box-arrow-in-left mx-auto d-flex"
+                                                        style="font-size: 20px; height: 20px; width: 20px; color: #1b294e;"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row" style="background: var(--body-bg-color);">
+                    <div class="col-12 d-flex align-items-center justify-content-between">
+                        <div th:replace="common :: commonTopButton"></div>
+                    </div>
+                </div>
+
+                <div class="row scrollable-content">
+                    <div class="col-12">
+                        <div class="bg-white">
+                            <div class="tab-navigation">
+                                <div class="navigation-buttons">
+                                    <button id="dashboard" type="button"
+                                        class="navigation-btn active"><span>ダッシュボード</span></button>
+                                    <button id="calendar" type="button"
+                                        class="navigation-btn"><span>カレンダー</span></button>
+                                </div>
+                                <div class="navigation-icons">
+                                    <div class="open-new-tap-icon"></div>
+                                    <div class="print-icon" id="printIcon"></div>
+                                    <div class="print-loading-overlay d-none">
+                                        <div class="d-flex justify-content-center align-items-center h-100">
+                                            <div class="spinner-border text-primary" style="width: 25px; height: 25px;">
+                                                <span class="sr-only"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="dashboardContent" class="d-none">
+                                <script type="text/javascript" th:inline="javascript">
+                                    /*<![CDATA[*/
+                                    const recId = /*[[${recId}]]*/ '';
+                                    const patientId = /*[[${patientInfo.patientId}]]*/ '';
+                                    const hcRoleCd = /*[[${hcRoleCd}]]*/ '';
+                                    const topPageView = /*[[${topPageView}]]*/ '';
+                                    const defaultFimCategoryId = /*[[${defaultFimCategoryId}]]*/ '';
+                                    /*]]>*/
+                                </script>
+                                <div class="dashboard-content-header">
+                                    <div class="btn-group" role="group" id="roleGroup">
+                                        <button type="button" class="btn btn-custom btn-therapist btn-physical-therapist" data-role="PhysicalTherapist"
+                                            th:classappend="${hcRoleCd == 'PhysicalTherapist'} ? ' active' : ''">PT</button>
+                                        <button type="button" class="btn btn-custom btn-therapist btn-occupational-therapist" data-role="OccupationalTherapist"
+                                            th:classappend="${hcRoleCd == 'OccupationalTherapist'} ? ' active' : ''">OT</button>
+                                        <button type="button" class="btn btn-custom btn-therapist btn-speech-therapist" data-role="SpeechTherapist"
+                                            th:classappend="${hcRoleCd == 'SpeechTherapist'} ? ' active' : ''">ST</button>
+                                    </div>
+                                </div>
+                                <div th:replace="fragments/dashboardContent :: dashboard-content"></div>
+                            </div>
+                            <div id="calendarContent" class="row d-none">
+                                <a class="btn bg-white" style="min-height:60px;" id="notification_link"
+                                    data-bs-toggle="modal" data-bs-target="#notification-modal">
+                                </a>
+
+                                <script type="text/javascript" th:inline="javascript">
+                                    /*<![CDATA[*/
+                                    addNotification([[${ currentPlanList }]], [[${ previousPlanList }]], [[${ currentTreatmentPlanList }]], [[${ fromPatientList }]], [[${ selectedHcRoleCd }]], [[${ currentDate }]]);
+                                    /*]]>*/
+                                </script>
+                                <div class="container-fluid">
+                                    <div class="row my-2 align-items-center">
+                                        <div class="col-4">
+                                            <div class="mb-1" th:text="'入院日: ' + ${enterDate}"></div>
+                                            <input type="text" id="calendarJumpDate"
+                                                class="form-control form-control-sm"
+                                                style="width: 150px; cursor: pointer; margin-top: 8px; background-color: #fff;"
+                                                title="日付選択"
+                                                th:attr="data-rec-id=${recId},
+                                                         data-from-list=${fromPatientList},
+                                                         data-preserve-calendar=${preserveCalendar},
+                                                         data-hc-role-cd=${selectedHcRoleCd},
+                                                         data-server-first-date=${firstDate}" />
+                                        </div>
+                                        <div class="col-4">
+                                            <div class="mb-1" th:text="'退院予定日: '+ ${exitPlanDate}"></div>
+                                        </div>
+                                        <div class="col-4 text-right">
+                                            <div class="btn-group btn-role-group" role="group"
+                                                aria-label="Basic radio toggle button group">
+                                                <!-- Physical Therapist Button -->
+                                                <input type="radio" class="btn-check" name="btnradio" id="btnradio1"
+                                                    autocomplete="off" onclick="submitHcRoleCd('PhysicalTherapist')" />
+                                                <label class="btn btn-custom btn-therapist btn-physical-therapist"
+                                                    th:classappend="${selectedHcRoleCd != 'OccupationalTherapist' and selectedHcRoleCd != 'SpeechTherapist'} ? ' active' : ''"
+                                                    for="btnradio1">PT</label>
+
+                                                <!-- Occupational Therapist Button -->
+                                                <input type="radio" class="btn-check" name="btnradio" id="btnradio2"
+                                                    autocomplete="off"
+                                                    onclick="submitHcRoleCd('OccupationalTherapist')" />
+                                                <label class="btn btn-custom btn-therapist btn-occupational-therapist"
+                                                    th:classappend="${selectedHcRoleCd == 'OccupationalTherapist'} ? ' active' : ''"
+                                                    for="btnradio2">OT</label>
+
+                                                <!-- Speech Therapist Button -->
+                                                <input type="radio" class="btn-check" name="btnradio" id="btnradio3"
+                                                    autocomplete="off" onclick="submitHcRoleCd('SpeechTherapist')" />
+                                                <label class="btn btn-custom btn-therapist btn-speech-therapist"
+                                                    th:classappend="${selectedHcRoleCd == 'SpeechTherapist'} ? ' active' : ''"
+                                                    for="btnradio3">ST</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div id="plan_table" style="overflow:auto">
+                                        <script type="text/javascript" th:inline="javascript">
+                                            /*<![CDATA[*/
+                                            createPlanTable("plan_table", [[${ recId }]], [[${ firstDate }]], [[${ dateList }]], [[${ evaluationPlanList }]], [[${ treatmentPlanList }]], [[${ currentDateIndex }]], [[${ dateYmdList }]], [[${ selectedHcRoleCd }]]);
+                                            /*]]>*/
+                                        </script>
+                                    </div>
+                                    <div class="btn-toolbar justify-content-between mb-2 align-items-center">
+                                        <div class="btn-group">
+                                            <button class="btn-light"
+                                                th:onclick="|scrollPrev('__${selectedHcRoleCd}__')|">◀</button>
+                                        </div>
+                                        <!-- Jump date input moved to top left -->
+                                        <div class="btn-group ml-auto">
+                                            <button class="btn-light"
+                                                th:onclick="|scrollNext('__${selectedHcRoleCd}__')|">▶</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <form action="" method="POST" id="scroll-form"></form>
+                        <form action="" method="POST" id="role-form"></form>
+                        <form action="" method="POST" id="treatment-implement-check-form"></form>
+                        <form action="" method="POST" id="statistics-visualization-form"></form>
+                        <form action="" method="POST" id="evaluation-plan-form"></form>
+                        <form action="" method="POST" id="treatment-form"></form>
+                    </div>
+                </div>
+            </div>
+            <!-- Modal -->
+            <div class="modal fade" id="treatmentConfirmaition" tabindex="-1"
+                aria-labelledby="treatmentConfirmaitionLabel" aria-hidden="true">
+                <div class="modal-dialog custom-modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-body d-flex flex-column align-items-center gap-3">
+                            <img class="mx-auto d-block" src="../../images/warning_icon.svg"></img>
+                            <h5>時間計測を実施しますか？</h5>
+                        </div>
+                        <div class="modal-footer" style="border-top: none; display: flex; gap: 8px;">
+                            <button id="treatmentImplementModalButton" type="button" class="btn btn-custom btn-main"
+                                style="flex: 1;" th:onclick="|handlePatientTreatmentImplement('__${recId}__',__${rehabStartTime}__, true)|">はい</button>
+            
+                            <button type="button" class="btn btn-custom btn-outline-main" style="flex: 1;"
+                                th:onclick="|handlePatientTreatmentImplement('__${recId}__',__${rehabStartTime}__, false)|">いいえ</button>
+            
+                            <button type="button" class="btn btn-custom btn-outline-main" style="flex: 1;"
+                                data-bs-dismiss="modal">キャンセル</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+
+</html>

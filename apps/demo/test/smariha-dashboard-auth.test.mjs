@@ -9,6 +9,7 @@ const username = 'dashboard-test-user';
 const password = 'dashboard-test-password';
 let demo;
 let origin;
+let demoOutput = '';
 
 before(async () => {
   const portProbe = createServer();
@@ -27,16 +28,19 @@ before(async () => {
       SMARIHA_DASHBOARD_USERNAME: username,
       SMARIHA_DASHBOARD_PASSWORD_SHA256: createHash('sha256').update(password).digest('hex'),
       SMARIHA_DASHBOARD_SESSION_SECRET: 'smariha-dashboard-test-session-secret-0123456789',
+      SMARIHA_PRESCRIPTION_STUB_ENABLED: 'true',
       OPENAI_API_KEY: '',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
+  demo.stdout.on('data', (chunk) => { demoOutput += chunk.toString(); });
+  demo.stderr.on('data', (chunk) => { demoOutput += chunk.toString(); });
 
   for (let attempt = 0; attempt < 60; attempt += 1) {
     try { if ((await fetch(`${origin}/`)).ok) return; } catch {}
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
-  throw new Error('Demo server did not start');
+  throw new Error(`Demo server did not start\n${demoOutput}`);
 });
 
 after(() => {
@@ -113,6 +117,11 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
 
   const pages = [
     ['/', 'templates/patientList.html', '<title>担当患者一覧</title>', 'id="searchAccordion"'],
+    ['/patient/9001/top', 'templates/patientTop.html', '<title>患者TOP</title>', 'id="patient-top-page"'],
+    ['/patient/9001/treatment-soap/soap-list', 'templates/soapList.html', '<title>SOAP一覧</title>', 'id="soap-list-container"'],
+    ['/ocr/patients', 'templates/ocr/patientList.html', '<title>患者一覧 - AIOCR</title>', 'data-ocr-page="patients"'],
+    ['/ocr/patient/9001/evaluation-select', 'templates/ocr/evaluationSelect.html', '<title>評価シートを選択 - OCR Evaluation</title>', 'id="evaluation-sheet-search"'],
+    ['/ocr/patient/9001/list', 'templates/ocr/ocrList.html', '<title>OCR一覧</title>', 'id="ocr-list-body"'],
     ['/prescriptions/patients', 'templates/ocr/patientList.html', '<title>患者一覧 - AI処方箋</title>', 'AI処方箋 患者一覧'],
     ['/prescriptions/patient/9001/read', 'templates/prescription/read.html', '<title>処方箋読込 - AI処方箋</title>', 'id="ocr-submit-btn"'],
     ['/prescriptions/patient/9001/list', 'templates/prescription/list.html', '<title>保存済み処方箋 - AI処方箋</title>', 'id="prescription-list-body"'],
@@ -130,24 +139,48 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
     assert.ok(html.includes(`data-rehainfo-source-template="${source}"`), source);
     assert.ok(html.includes(title), title);
     assert.ok(html.includes(marker), marker);
-    assert.match(html, /\/rehainfo\/source-demo-adapter\.js\?v=20260910-4/);
+    assert.match(html, /\/rehainfo\/source-demo-adapter\.js\?v=20260910-5/);
     assert.doesNotMatch(html, /patient-list-source|patient-demo|rehainfo-demo-notice/);
   }
 
   const adapter = await (await fetch(`${origin}/rehainfo/source-demo-adapter.js`, { headers: { cookie } })).text();
   assert.equal(new Set(adapter.match(/DEMO2609\d{2}/g) ?? []).size, 10);
-  for (const marker of ['REHAINFO_DEMO_PATIENT_COLUMNS', 'ATTENDANCE_API', 'BILLING_API', 'OPERATIONS_API', 'AI_API', 'PRESCRIPTION_REGISTER_API', 'prescriptionSummary']) assert.match(adapter, new RegExp(marker));
+  assert.doesNotMatch(adapter, /\/rehainfo-main(?:\/|$)/);
+  for (const marker of ['REHAINFO_DEMO_PATIENT_COLUMNS', 'ATTENDANCE_API', 'BILLING_API', 'OPERATIONS_API', 'AI_API', 'PRESCRIPTION_REGISTER_API', 'OCR_REGISTER_API', 'SOAP_STORAGE_KEY', 'prescriptionSummary', 'ocrSummary']) assert.match(adapter, new RegExp(marker));
 
   for (const asset of [
     '/rehainfo/js/ocr/PatientList.js',
     '/rehainfo/js/ocr/EvaluationSelect.js',
     '/rehainfo/css/ocr/evaluationSelect.css',
+    '/rehainfo/css/ocr/ocrList.css',
+    '/rehainfo/css/patientTop.css',
+    '/rehainfo/css/soapList.css',
+    '/rehainfo/js/soapList.js',
     '/rehainfo/images/icons/ocr/magic-start.svg',
   ]) assert.equal((await fetch(`${origin}${asset}`, { headers: { cookie } })).status, 200, asset);
 
   const prescriptionRedirect = await fetch(`${origin}/rehainfo/prescriptions`, { headers: { cookie }, redirect: 'manual' });
   assert.equal(prescriptionRedirect.status, 302);
   assert.equal(prescriptionRedirect.headers.get('location'), '/rehainfo/prescriptions/patients');
+
+  const ocrRedirect = await fetch(`${origin}/rehainfo/ocr`, { headers: { cookie }, redirect: 'manual' });
+  assert.equal(ocrRedirect.status, 302);
+  assert.equal(ocrRedirect.headers.get('location'), '/rehainfo/ocr/patients');
+
+  const fakeImage = 'data:image/png;base64,iVBORw0KGgo=';
+  const prescriptionAnalysis = await fetch(`${origin}/rehainfo/api/prescriptions/analyze`, {
+    method: 'POST', headers: { cookie, 'content-type': 'application/json' },
+    body: JSON.stringify({ patientId: 'DEMO260901', prescriptionDate: '2026-09-10', images: [fakeImage] }),
+  });
+  assert.equal(prescriptionAnalysis.status, 200);
+  assert.equal((await prescriptionAnalysis.json()).model, 'smariha-prescription-local-stub');
+
+  const ocrAnalysis = await fetch(`${origin}/rehainfo/api/ocr/analyze`, {
+    method: 'POST', headers: { cookie, 'content-type': 'application/json' },
+    body: JSON.stringify({ patientId: 'DEMO260901', evaluationId: 'FIM', evaluationDate: '2026-09-10', images: [fakeImage] }),
+  });
+  assert.equal(ocrAnalysis.status, 200);
+  assert.equal((await ocrAnalysis.json()).model, 'smariha-aiocr-local-stub');
 
   const scheduleSource = await (await fetch(`${origin}/rehainfo/schedule/schedule.js`, { headers: { cookie } })).text();
   assert.equal(createHash('sha256').update(scheduleSource).digest('hex'), '76608c376e3a2f3dfef2404c212cdc5e0fa9c117a79b157ec0038a9bc131124a');

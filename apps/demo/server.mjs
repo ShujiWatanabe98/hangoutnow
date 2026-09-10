@@ -156,6 +156,21 @@ async function readSmallForm(request) {
   });
 }
 
+function openAiResponseText(body) {
+  if (typeof body?.output_text === 'string') return body.output_text;
+  for (const output of body?.output ?? []) {
+    for (const content of output?.content ?? []) {
+      if (content?.type === 'output_text' && typeof content.text === 'string') return content.text;
+    }
+  }
+  return '';
+}
+
+function parseOpenAiJson(text) {
+  const cleaned = String(text).trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  return JSON.parse(cleaned);
+}
+
 async function readJsonRequest(request, maxBytes = 20 * 1024 * 1024) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -176,21 +191,6 @@ async function readJsonRequest(request, maxBytes = 20 * 1024 * 1024) {
     });
     request.on('error', reject);
   });
-}
-
-function openAiResponseText(body) {
-  if (typeof body?.output_text === 'string') return body.output_text;
-  for (const output of body?.output ?? []) {
-    for (const content of output?.content ?? []) {
-      if (content?.type === 'output_text' && typeof content.text === 'string') return content.text;
-    }
-  }
-  return '';
-}
-
-function parseOpenAiJson(text) {
-  const cleaned = String(text).trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
-  return JSON.parse(cleaned);
 }
 
 function smartRehabAiRateAllowed(request) {
@@ -526,17 +526,97 @@ createServer(async (request, response) => {
     }
   }
   if ((request.method === 'GET' || request.method === 'HEAD')
-      && (normalizedRequestedPath === '/rehainfo/prescriptions')) {
+      && (normalizedRequestedPath === `${rehainfoSourceUiPath}/prescriptions` || normalizedRequestedPath === `${rehainfoSourceUiPath}/patients`)) {
     response.writeHead(302, {
       ...securityHeaders,
-      location: '/rehainfo/prescriptions/patients',
+      location: normalizedRequestedPath === `${rehainfoSourceUiPath}/patients` ? `${rehainfoSourceUiPath}/` : `${rehainfoSourceUiPath}/prescriptions/patients`,
       'cache-control': 'no-store',
       'x-robots-tag': 'noindex, nofollow, noarchive',
     });
     response.end();
     return;
   }
-  if (request.method === 'POST' && requestedPath === '/rehainfo/api/prescriptions/analyze') {
+  if ((request.method === 'GET' || request.method === 'HEAD') && normalizedRequestedPath === `${rehainfoSourceUiPath}/ocr`) {
+    response.writeHead(302, {
+      ...securityHeaders, location: `${rehainfoSourceUiPath}/ocr/patients`, 'cache-control': 'no-store',
+      'x-robots-tag': 'noindex, nofollow, noarchive',
+    });
+    response.end();
+    return;
+  }
+  if (request.method === 'POST' && requestedPath === `${rehainfoSourceUiPath}/api/ocr/analyze`) {
+    const apiKey = process.env.OPENAI_API_KEY?.trim() ?? '';
+    const model = process.env.OPENAI_MODEL?.trim() || 'gpt-5.6-sol';
+    const origin = request.headers.origin;
+    if (origin) {
+      let sameOrigin = false;
+      try { sameOrigin = new URL(origin).host === request.headers.host; } catch {}
+      if (!sameOrigin) {
+        response.writeHead(403, { ...securityHeaders, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+        response.end(JSON.stringify({ message: '同一サイトからのみ利用できます。' }));
+        return;
+      }
+    }
+    if (!apiKey && !smarihaPrescriptionStubEnabled) {
+      response.writeHead(503, { ...securityHeaders, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+      response.end(JSON.stringify({ message: 'AIOCRの解析環境が設定されていません。' }));
+      return;
+    }
+    if (!smartRehabAiRateAllowed(request)) {
+      response.writeHead(429, { ...securityHeaders, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'retry-after': '3600' });
+      response.end(JSON.stringify({ message: 'AI読取の利用上限に達しました。1時間後に再度お試しください。' }));
+      return;
+    }
+    try {
+      const body = await readJsonRequest(request);
+      const patientId = String(body.patientId ?? '');
+      const evaluationId = String(body.evaluationId ?? '');
+      const evaluationDate = String(body.evaluationDate ?? '');
+      const images = Array.isArray(body.images) ? body.images : [];
+      const allowedEvaluations = new Set(['FIM', 'BBS', 'SLTA', 'WAIS-IV', 'WMS-R', 'BIT', 'CAT-R', 'STEF']);
+      const imagePattern = /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
+      const totalBytes = images.reduce((sum, image) => sum + Buffer.byteLength(String(image)), 0);
+      if (!/^DEMO\d{6}$/.test(patientId) || !allowedEvaluations.has(evaluationId)
+          || !/^\d{4}-\d{2}-\d{2}$/.test(evaluationDate) || images.length < 1 || images.length > 20
+          || totalBytes > 19 * 1024 * 1024 || images.some((image) => !imagePattern.test(String(image)))) {
+        response.writeHead(400, { ...securityHeaders, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+        response.end(JSON.stringify({ message: '患者・評価シート・日付・画像の入力内容を確認してください。' }));
+        return;
+      }
+      if (smarihaPrescriptionStubEnabled) {
+        response.writeHead(200, { ...securityHeaders, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });
+        response.end(JSON.stringify({ model: 'smariha-aiocr-local-stub', result: {
+          summary: `${evaluationId}の架空評価シートを読み取りました。`, findings: ['合計 88点', '前回比 +6点'], confidence: 1,
+          warnings: ['実患者データではありません'],
+        } }));
+        return;
+      }
+      const prompt = [
+        'あなたは日本のリハビリテーション評価シートOCR支援者です。添付画像だけを読み取り、推測で補完せずJSONのみ返してください。',
+        'スキーマ: {"summary":"短い要約","findings":["画像から読み取れた評価項目と値"],"confidence":0から1,"warnings":["不鮮明または未記載の注意点"]}',
+        `評価種別は ${evaluationId} です。患者ID ${patientId}、画面指定日 ${evaluationDate} は照合用であり、画像にない情報として転記しないでください。`,
+        '数値・単位・左右・小数点を原画像どおりに扱い、不鮮明な値はfindingsへ確定値として出さずwarningsへ記載してください。',
+      ].join('\n');
+      const content = [{ type: 'input_text', text: prompt }, ...images.map((image) => ({ type: 'input_image', image_url: String(image), detail: 'high' }))];
+      const upstream = await fetch('https://api.openai.com/v1/responses', {
+        method: 'POST', headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ model, store: false, reasoning: { effort: 'low' }, max_output_tokens: 1800, input: [{ role: 'user', content }] }),
+        signal: AbortSignal.timeout(120_000),
+      });
+      const upstreamBody = await upstream.json().catch(() => ({}));
+      if (!upstream.ok) throw new Error(`OPENAI_${upstream.status}`);
+      const result = parseOpenAiJson(openAiResponseText(upstreamBody));
+      if (!result || !Array.isArray(result.findings) || !Array.isArray(result.warnings)) throw new Error('INVALID_AI_RESULT');
+      response.writeHead(200, { ...securityHeaders, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });
+      response.end(JSON.stringify({ result, model }));
+    } catch (error) {
+      const tooLarge = error instanceof Error && error.message === 'REQUEST_TOO_LARGE';
+      response.writeHead(tooLarge ? 413 : 502, { ...securityHeaders, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+      response.end(JSON.stringify({ message: tooLarge ? '画像の合計サイズが上限を超えています。' : 'AIOCRの読取に失敗しました。時間をおいて再度お試しください。' }));
+    }
+    return;
+  }
+  if (request.method === 'POST' && requestedPath === `${rehainfoSourceUiPath}/api/prescriptions/analyze`) {
     const apiKey = process.env.OPENAI_API_KEY?.trim() ?? '';
     const model = process.env.OPENAI_MODEL?.trim() || 'gpt-5.6-sol';
     const origin = request.headers.origin;
@@ -575,30 +655,22 @@ createServer(async (request, response) => {
       }
       if (smarihaPrescriptionStubEnabled) {
         response.writeHead(200, { ...securityHeaders, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });
-        response.end(JSON.stringify({
-          model: 'smariha-prescription-local-stub',
-          result: {
-            prescriptionDate: prescriptionDate.replaceAll('-', '/'),
-            medicalInstitution: '公開確認用医療機関',
-            doctorName: '確認用 医師',
-            medications: [{ name: '確認用薬剤', amount: '1', unit: '錠', usage: '1日1回', days: '3日分', notes: '架空データ' }],
-            notes: 'ローカル検証用の架空読取結果です。',
-            confidence: 1,
-            warnings: ['実患者データではありません']
-          }
-        }));
+        response.end(JSON.stringify({ model: 'smariha-prescription-local-stub', result: {
+          prescriptionDate: prescriptionDate.replaceAll('-', '/'), medicalInstitution: '公開確認用医療機関', doctorName: '確認用 医師',
+          medications: [{ name: '確認用薬剤', amount: '1', unit: '錠', usage: '1日1回', days: '3日分', notes: '架空データ' }],
+          notes: 'ローカル検証用の架空読取結果です。', confidence: 1, warnings: ['実患者データではありません'],
+        } }));
         return;
       }
       const prompt = [
-        'あなたは日本の医療文書OCR支援者です。添付された架空の処方箋画像だけを読み取り、推測で補完せずJSONのみ返してください。',
+        'あなたは日本の医療文書OCR支援者です。添付された処方箋画像だけを読み取り、推測で補完せずJSONのみ返してください。',
         'スキーマ: {"prescriptionDate":"YYYY/MM/DDまたは空文字","medicalInstitution":"","doctorName":"","medications":[{"name":"","amount":"","unit":"","usage":"","days":"","notes":""}],"notes":"","confidence":0から1,"warnings":[""]}',
         '不鮮明・未記載は空文字にしてwarningsへ理由を記載してください。',
         `患者ID ${patientId}、画面指定日 ${prescriptionDate} は照合用であり、画像にない情報として転記しないでください。`,
       ].join('\n');
       const content = [{ type: 'input_text', text: prompt }, ...images.map((image) => ({ type: 'input_image', image_url: String(image), detail: 'high' }))];
       const upstream = await fetch('https://api.openai.com/v1/responses', {
-        method: 'POST',
-        headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
+        method: 'POST', headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
         body: JSON.stringify({ model, store: false, reasoning: { effort: 'low' }, max_output_tokens: 1800, input: [{ role: 'user', content }] }),
         signal: AbortSignal.timeout(120_000),
       });
@@ -751,8 +823,13 @@ createServer(async (request, response) => {
   }
   const isHangoutNowAdminPath = normalizedRequestedPath === hangoutNowAdminPath || requestedPath.startsWith(`${hangoutNowAdminPath}/`);
   const staticRoot = isHangoutNowAdminPath ? hangoutNowAdminRoot : root;
-  const prescriptionReadPage = /^\/rehainfo\/prescriptions\/patient\/[^/]+\/read\/?$/.test(requestedPath);
-  const prescriptionListPage = /^\/rehainfo\/prescriptions\/patient\/[^/]+\/list\/?$/.test(requestedPath);
+  const rehainfoPhysicalRequestPath = requestedPath;
+  const prescriptionReadPage = /^\/rehainfo\/prescriptions\/patient\/[^/]+\/read\/?$/.test(rehainfoPhysicalRequestPath);
+  const prescriptionListPage = /^\/rehainfo\/prescriptions\/patient\/[^/]+\/list\/?$/.test(rehainfoPhysicalRequestPath);
+  const patientTopPage = /^\/rehainfo\/patient\/[^/]+\/top\/?$/.test(rehainfoPhysicalRequestPath);
+  const soapListPage = /^\/rehainfo\/patient\/[^/]+\/treatment-soap\/soap-list\/?$/.test(rehainfoPhysicalRequestPath);
+  const ocrSelectPage = /^\/rehainfo\/ocr\/patient\/[^/]+\/evaluation-select\/?$/.test(rehainfoPhysicalRequestPath);
+  const ocrListPage = /^\/rehainfo\/ocr\/patient\/[^/]+\/list\/?$/.test(rehainfoPhysicalRequestPath);
   const pathname = isHangoutNowAdminPath
     ? normalizedRequestedPath === hangoutNowAdminPath
       ? '/index.html'
@@ -779,35 +856,45 @@ createServer(async (request, response) => {
       ? '/smariha-scheduler/index.html'
     : requestedPath === '/smariha' || requestedPath === '/smariha/'
       ? '/smariha/index.html'
-    : requestedPath === '/rehainfo' || requestedPath === '/rehainfo/'
+    : rehainfoPhysicalRequestPath === '/rehainfo' || rehainfoPhysicalRequestPath === '/rehainfo/'
       ? '/rehainfo/index.html'
-    : requestedPath === '/rehainfo/prescriptions/patients' || requestedPath === '/rehainfo/prescriptions/patients/'
+    : patientTopPage
+      ? '/rehainfo/patient-top.html'
+    : soapListPage
+      ? '/rehainfo/soap-list.html'
+    : rehainfoPhysicalRequestPath === '/rehainfo/ocr/patients' || rehainfoPhysicalRequestPath === '/rehainfo/ocr/patients/'
+      ? '/rehainfo/ocr-patients.html'
+    : ocrSelectPage
+      ? '/rehainfo/ocr-select.html'
+    : ocrListPage
+      ? '/rehainfo/ocr-list.html'
+    : rehainfoPhysicalRequestPath === '/rehainfo/prescriptions/patients' || rehainfoPhysicalRequestPath === '/rehainfo/prescriptions/patients/'
       ? '/rehainfo/prescription-patients.html'
     : prescriptionReadPage
       ? '/rehainfo/prescription-read.html'
     : prescriptionListPage
       ? '/rehainfo/prescription-list.html'
-    : requestedPath === '/rehainfo/schedule' || requestedPath === '/rehainfo/schedule/'
+    : rehainfoPhysicalRequestPath === '/rehainfo/schedule' || rehainfoPhysicalRequestPath === '/rehainfo/schedule/'
       ? '/rehainfo/schedule.html'
-    : requestedPath === '/rehainfo/therapists' || requestedPath === '/rehainfo/therapists/'
+    : rehainfoPhysicalRequestPath === '/rehainfo/therapists' || rehainfoPhysicalRequestPath === '/rehainfo/therapists/'
       ? '/rehainfo/therapists.html'
-    : requestedPath === '/rehainfo/attendance' || requestedPath === '/rehainfo/attendance/'
+    : rehainfoPhysicalRequestPath === '/rehainfo/attendance' || rehainfoPhysicalRequestPath === '/rehainfo/attendance/'
       ? '/rehainfo/attendance.html'
-    : requestedPath === '/rehainfo/ai-schedule' || requestedPath === '/rehainfo/ai-schedule/'
+    : rehainfoPhysicalRequestPath === '/rehainfo/ai-schedule' || rehainfoPhysicalRequestPath === '/rehainfo/ai-schedule/'
       ? '/rehainfo/ai-schedule.html'
-    : requestedPath === '/rehainfo/billing-management' || requestedPath === '/rehainfo/billing-management/'
+    : rehainfoPhysicalRequestPath === '/rehainfo/billing-management' || rehainfoPhysicalRequestPath === '/rehainfo/billing-management/'
       ? '/rehainfo/billing-management.html'
-    : requestedPath === '/rehainfo/schedule-management' || requestedPath === '/rehainfo/schedule-management/'
+    : rehainfoPhysicalRequestPath === '/rehainfo/schedule-management' || rehainfoPhysicalRequestPath === '/rehainfo/schedule-management/'
       ? '/rehainfo/schedule-management.html'
       : divertNaviDashboardPath && normalizedRequestedPath === divertNaviDashboardPath
         ? '/divertnavi-app/index.html'
-      : requestedPath;
+      : rehainfoPhysicalRequestPath;
   const file = normalize(join(staticRoot, pathname));
   if (!file.startsWith(staticRoot)) { response.writeHead(403, securityHeaders).end(); return; }
   try {
     const fileBody = await readFile(file);
     const isKoiNoShioriPage = requestedPath === '/koi-no-shiori' || requestedPath.startsWith('/koi-no-shiori/');
-    const isApplicationPage = isHangoutNowAdminPath || requestedPath === '/demo.html' || requestedPath === '/app.html' || requestedPath.startsWith('/coachgo-demo') || requestedPath.startsWith('/coachgo-admin') || requestedPath.startsWith('/divertnavi-app') || requestedPath.startsWith('/minnade-kaigo') || requestedPath.startsWith('/smariha-dashboard') || requestedPath.startsWith('/smariha-scheduler') || requestedPath.startsWith('/smariha/') || requestedPath === '/smariha' || requestedPath.startsWith('/rehainfo/') || requestedPath === '/rehainfo' || isKoiNoShioriPage;
+    const isApplicationPage = isHangoutNowAdminPath || requestedPath === '/demo.html' || requestedPath === '/app.html' || requestedPath.startsWith('/coachgo-demo') || requestedPath.startsWith('/coachgo-admin') || requestedPath.startsWith('/divertnavi-app') || requestedPath.startsWith('/minnade-kaigo') || requestedPath.startsWith('/smariha-dashboard') || requestedPath.startsWith('/smariha-scheduler') || requestedPath.startsWith('/smariha/') || requestedPath === '/smariha' || requestedPath.startsWith(`${rehainfoSourceUiPath}/`) || requestedPath === rehainfoSourceUiPath || isKoiNoShioriPage;
     const body = extname(file) === '.html' && !isApplicationPage
       ? Buffer.from(fileBody.toString('utf8').replace('<head>', '<head><link rel="stylesheet" href="/cookie-consent.css?v=20260816-2"><link rel="stylesheet" href="/share.css?v=20260821-2"><script src="/analytics.js?v=20260820-2" defer></script><script src="/attribution.js?v=20260821-2" defer></script><script src="/share.js?v=20260821-3" defer></script>'))
       : fileBody;

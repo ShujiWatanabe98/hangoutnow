@@ -1,0 +1,446 @@
+/**
+ * OCR List Page Styles
+ * Styles for the OCR evaluation list page
+ */
+
+body {
+    background-color: #E8E9ED;
+    font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+    padding: 24px;
+}
+
+.patient-list-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    gap: 16px;
+}
+
+.header-buttons {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.btn-header-action {
+    background-color: transparent;
+    color: var(--color-function-navy-011-c-2950, #1C2950);
+    border: 1px solid var(--color-function-navy-011-c-2950, #1C2950);
+    border-radius: 4px;
+    padding: 8px 16px;
+    font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.5em;
+    cursor: pointer;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background-color 0.2s ease;
+}
+
+.btn-header-action i {
+    font-size: 16px;
+}
+
+.btn-header-action:hover {
+    background-color: #1a2548;
+    color: #FFFFFF;
+}
+
+.btn-header-action:active {
+    background-color: #141f3b;
+}
+
+.page-title {
+    font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif;
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.25em;
+    color: #1A1A1A;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.back-icon {
+    cursor: pointer;
+    font-size: 24px;
+}
+
+.back-icon:hover {
+    opacity: 0.7;
+}
+
+.table-section {
+    background-color: #FFFFFF;
+    border-radius: 8px;
+}
+
+.ocr-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.ocr-table thead {
+    background-color: #F5F5F5;
+}
+
+.ocr-table th {
+    padding: 12px 16px;
+    text-align: left;
+    font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.5em;
+    color: #333333;
+    border-bottom: 2px solid #E0E0E0;
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+}
+
+.ocr-table th.sortable {
+    padding-right: 32px;
+}
+
+.sort-header {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.sort-icon {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    height: 14px;
+    opacity: 0.8;
+    color: #999999;
+}
+
+.ocr-table th:hover .sort-icon {
+    opacity: 1;
+}
+
+.sort-icon i {
+    font-size: 10px;
+    line-height: 1;
+    color: #666666;
+}
+
+.ocr-table th.sort-asc .sort-icon .bi-chevron-up,
+.ocr-table th.sort-desc .sort-icon .bi-chevron-down {
+    opacity: 1;
+    color: #1C2950;
+}
+
+.ocr-table td {
+    padding: 16px;
+    font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif;
+    font-size: 16px;
+    font-weight: 300;
+    line-height: 1.5em;
+    color: #333333;
+    border-bottom: 1px solid #E0E0E0;
+}
+
+.ocr-table tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+.ocr-table tbody tr:hover {
+    background-color: #F9F9F9;
+}
+
+.ocr-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Status Badge Styles */
+.status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    min-width: 110px;
+    text-align: center;
+}
+
+.status-request {
+    background-color: #E3F2FD;
+    color: #1565C0;
+}
+
+.status-processing {
+    background-color: #0080BF;
+    color: #FFFFFF;
+}
+
+.status-done {
+    background-color: #009966;
+    color: #FFFFFF;
+}
+
+.status-failed {
+    background-color: #FFEBEE;
+    color: #C62828;
+}
+
+/* エラーのバッジだけ押せる。押すと保存済みのエラー内容をモーダルで表示する */
+.status-clickable {
+    cursor: pointer;
+}
+
+.status-clickable:hover {
+    background-color: #FFCDD2;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-start;
+    align-items: center;
+}
+
+.more-actions-container {
+    position: relative;
+    display: inline-block;
+}
+
+.more-actions-btn {
+    background-color: transparent;
+    border: none;
+    color: #1A1A1A;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+    width: 80px;
+    height: 32px;
+}
+
+.more-actions-btn:hover {
+    background-color: #F5F5F5;
+}
+
+.more-actions-btn i {
+    font-size: 18px;
+}
+
+.more-actions-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background-color: #FFFFFF;
+    border: 1px solid #E0E0E0;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    display: none;
+    margin-top: 4px;
+    padding: 8px;
+    height: auto;
+}
+
+.more-actions-dropdown.show {
+    display: block;
+}
+
+.dropdown-item {
+    display: block;
+    width: 100%;
+    padding: 10px 16px;
+    text-align: left;
+    background-color: transparent;
+    border: none;
+    color: #333333;
+    font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif;
+    font-size: 16px;
+    font-weight: normal;
+    line-height: 1.5;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.dropdown-item:hover {
+    background-color: #F5F5F5;
+}
+
+.dropdown-item.delete:hover {
+    background-color: #FFEBEE;
+    color: #C62828;
+}
+
+.dropdown-item.retry {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.dropdown-item.retry:hover {
+    background-color: #E3F2FD;
+    color: #1565C0;
+}
+.btn-action {
+    background-color: #1C2950;
+    color: #FFFFFF;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.5em;
+    cursor: pointer;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-action i {
+    font-size: 16px;
+}
+
+.btn-action:hover {
+    background-color: #1a2548;
+    color: #FFFFFF;
+}
+
+.btn-action:active {
+    background-color: #141f3b;
+}
+
+.btn-action:disabled {
+    background-color: #CCCCCC;
+    color: #666666;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.btn-action:disabled:hover {
+    background-color: #CCCCCC;
+}
+
+.pagination-section {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-top: 24px;
+}
+
+.pagination-info {
+    font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif;
+    font-size: 14px;
+    font-weight: 300;
+    color: #666666;
+    margin: 0 16px;
+}
+
+.btn-pagination {
+    background-color: #FFFFFF;
+    color: #1C2950;
+    border: 1px solid #CCCCCC;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.5em;
+    cursor: pointer;
+    min-width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-pagination:hover:not(:disabled) {
+    background-color: #F5F5F5;
+    border-color: #1C2950;
+}
+
+.btn-pagination:disabled {
+    opacity: 0.5;
+    cursor: auto;
+}
+
+.btn-pagination.active {
+    background-color: #1C2950;
+    color: #FFFFFF;
+    border-color: #1C2950;
+    opacity: 1;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #999999;
+}
+
+.empty-state i {
+    font-size: 48px;
+    margin-bottom: 16px;
+    color: #CCCCCC;
+}
+
+.empty-state p {
+    font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif;
+    font-size: 16px;
+    font-weight: 300;
+    margin: 0;
+}
+
+@media (max-width: 768px) {
+    .ocr-table {
+        font-size: 14px;
+    }
+
+    .ocr-table th,
+    .ocr-table td {
+        padding: 12px 8px;
+    }
+
+    .action-buttons {
+        flex-direction: column;
+    }
+
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .header-buttons {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .btn-header-action {
+        flex: 1;
+        min-width: 120px;
+    }
+}

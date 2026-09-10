@@ -1,0 +1,816 @@
+<!DOCTYPE HTML>
+<html data-rehainfo-source-template="templates/ocr/patientList.html" data-rehainfo-source-sha256="B387248237C6D00C6EE31D497FC9359B2EE504A3333CC3814B589A1253A1539A" xmlns:th="http://www.thymeleaf.org" lang="ja">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width,initial-scale=1" />
+	<meta name="robots" content="noindex,nofollow,noarchive" />
+
+	<link rel="icon" href="/rehainfo/images/intep360.ico?v=1.0.0" type="image/x-icon" />
+	<link href="/rehainfo/css/bootstrap.min.css" rel="stylesheet" />
+	<link href="/rehainfo/css/bootstrap-icons-1.9.1/bootstrap-icons.css" rel="stylesheet" />
+	<link href="/rehainfo/css/sidebar.css?v=1.1.0" rel="stylesheet" />
+	<link href="/rehainfo/css/patient_header.css" rel="stylesheet" />
+	<link href="/rehainfo/css/common.css?v=1.0.1" rel="stylesheet" />
+	<link href="/rehainfo/css/custom.css" rel="stylesheet" />
+	<script src="/rehainfo/js/jquery-3.6.0.min.js"></script>
+	<script src="/rehainfo/js/bootstrap.bundle.min.js"></script>
+	
+	
+	<script src="/rehainfo/js/Common.js?v=1.0.2"></script>
+	<script src="/rehainfo/js/BackCancel.js"></script>
+	<script src="/rehainfo/js/sidebar.js?v=1.0.1"></script>
+	<!-- Google Tag Manager -->
+	
+	<!-- End Google Tag Manager -->
+	<style>
+		/* 注意事項 */
+		.login-button {
+			border: 1px solid #bec0c7;
+			box-shadow: rgb(170, 173, 180) 1px 1px 1px;
+		}
+
+		.mic-icon {
+		    color: rgb(74 88 124);
+		    border: 1px solid rgb(74 88 124);
+		}
+
+		.speech-icon {
+			margin-bottom: .5rem !important;
+		}
+		
+		.logo-image {
+			width: auto;
+			object-fit: contain;
+			max-width: 120px;
+			background-color: white;
+		}
+		
+		/* .loading-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(255, 255, 255, 0.9);
+			display: none;
+			justify-content: center;
+			align-items: center;
+			z-index: 9999;
+			flex-direction: column;
+		}
+
+		.loading-spinner {
+			width: 80px;
+			height: 80px;
+			animation: spin 1s linear infinite;
+		}
+
+		.loading-text {
+			margin-top: 20px;
+			font-size: 18px;
+			font-weight: 500;
+			color: #202B4C;
+		}
+
+		@keyframes spin {
+			0% { transform: rotate(0deg); }
+			100% { transform: rotate(360deg); }
+		} */
+		/* Overlay styles */
+		.loading-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(255, 255, 255, 0.9);
+			display: none;
+			justify-content: center;
+			align-items: center;
+			z-index: 9999;
+			flex-direction: column;
+		}
+
+		.loading-spinner {
+			width: 80px;
+			height: 80px;
+		}
+
+		/* Spinner ring wrapper */
+		.spinner-ring {
+			position: relative;
+			width: 100px;
+			height: 100px;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+		}
+
+		/* Circular border (the rotating outline) */
+		.spinner-ring::before {
+			content: "";
+			position: absolute;
+			width: 100px;
+			height: 100px;
+			border: 6px solid #ccc;         /* gray base */
+			border-top: 6px solid #202B4C;  /* top colored */
+			border-radius: 50%;
+			animation: spin 1s linear infinite;
+		}
+
+		/* The image stays still */
+		.loading-icon {
+			width: 60px;
+			height: 60px;
+			background-image: url("");
+			z-index: 1;
+		}
+
+		/* Text */
+		.loading-text {
+			margin-top: 20px;
+			font-size: 18px;
+			font-weight: 500;
+			color: #202B4C;
+		}
+
+		/* Rotation animation */
+		@keyframes spin {
+			0%   { transform: rotate(0deg); }
+			100% { transform: rotate(360deg); }
+		}
+
+		/* 治療実施／治療記録: JS/DOMの読み込み完了まで操作をブロックするため初期表示する。
+		   解除は Common.js が html.block-until-loaded を外し、hideLoadingSpinner がdisplay:noneを付与する。 */
+		html.block-until-loaded #loadingOverlay {
+			display: flex;
+		}
+
+	</style>
+
+	<style>
+		:root {
+			--body-bg-color: #E8E9ED !important;
+		}
+	</style>
+	<script src="/rehainfo/source-demo-adapter.js?v=20260910-5"></script>
+</head>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>患者一覧 - AIOCR</title>
+    <link href="/rehainfo/css/bootstrap.min.css" rel="stylesheet">
+    </link>
+    <link href="/rehainfo/css/bootstrap-icons-1.9.1/bootstrap-icons.css" rel="stylesheet" />
+    <link href="/rehainfo/css/variables.css" rel="stylesheet">
+    </link>
+    
+    <script>
+        window.initialPatientsDataJson = /*[[${allPatientsJson}]]*/ '[]';
+        window.initialResponsibleOnly = /*[[${responsibleOnly}]]*/ true;
+        window.hasInitialData = /*[[${hasInitialData}]]*/ false;
+        window.prescriptionMode = false;
+    </script>
+    <script>
+        try {
+            window.initialPatientsData = JSON.parse(window.initialPatientsDataJson);
+        } catch (e) {
+            window.initialPatientsData = [];
+        }
+    </script>
+    <script src="/rehainfo/js/ocr/PatientList.js?v=1.0.3"></script>
+    <style>
+        body {
+            background-color: #E8E9ED;
+            font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        main {
+            flex: 1;
+            padding: 24px;
+        }
+
+        .patient-list-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .page-title {
+            font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            line-height: 1.25em;
+            color: #1a1a1a;
+            margin: 0;
+        }
+
+        .search-filter-section {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .search-label {
+            font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            line-height: 1.5em;
+            color: #333333;
+            white-space: nowrap;
+        }
+
+        .search-input-group {
+            width: 38vw;
+            position: relative;
+            max-width: 480px;
+        }
+
+        .search-input-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999999;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .form-label {
+            font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            line-height: 1.25em;
+            color: #666666;
+            margin: 0;
+        }
+
+        .input-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .form-control-custom {
+            width: 100%;
+            background-color: #FFFFFF;
+            border: 1px solid #CCCCCC;
+            border-radius: 4px;
+            padding: 0px 14px;
+            padding-left: 46px;
+            padding-right: 46px;
+            height: 48px;
+            font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif;
+            font-size: 16px;
+            font-weight: 300;
+            line-height: 1.5em;
+            color: #333333;
+        }
+
+        .search-control-custom {
+            width: 100%;
+            background-color: #FFFFFF;
+            border: 1px solid #CCCCCC;
+            border-radius: 4px;
+            padding: 0px 14px;
+            padding-left: 46px;
+            padding-right: 46px;
+            height: 48px;
+            font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif;
+            font-size: 16px;
+            font-weight: 300;
+            line-height: 1.5em;
+            color: #333333;
+        }
+
+        .search-control-custom:focus {
+            outline: none;
+            border: 1px solid #1C2950;
+        }
+
+        .form-control-custom:focus {
+            outline: none;
+            border: 1px solid #1C2950;
+        }
+
+        .input-clear-btn {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            color: #999999;
+            z-index: 2;
+        }
+
+        .input-clear-btn:hover {
+            color: #666666;
+        }
+
+        .input-clear-btn i {
+            font-size: 16px;
+        }
+
+        .input-wrapper.is-focused.has-value .input-clear-btn,
+        .search-input-wrapper .input-wrapper.is-focused.has-value .input-clear-btn {
+            display: flex;
+        }
+        
+        .search-input-wrapper .input-wrapper {
+            position: relative;
+        }
+
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            white-space: nowrap;
+        }
+
+        .toggle-label {
+            font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            line-height: 1.5em;
+            color: #1C2950;
+            cursor: pointer;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 48px;
+            height: 24px;
+            background-color: #CCCCCC;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .toggle-switch.active {
+            background-color: #1C2950;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background-color: #FFFFFF;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(24px);
+        }
+
+        .toggle-input {
+            display: none;
+        }
+
+        .table-section {
+            background-color: #FFFFFF;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+
+        .patient-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .patient-table thead {
+            background-color: #F5F5F5;
+        }
+
+        .patient-table th {
+            padding: 12px 16px;
+            text-align: left;
+            font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            line-height: 1.5em;
+            color: #333333;
+            border-bottom: 2px solid #E0E0E0;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            width: 20%;
+        }
+
+        .patient-table th.sortable {
+            padding-right: 32px;
+        }
+
+        .sort-header {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .sort-icon {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            height: 14px;
+            opacity: 0.8;
+            color: #999999;
+        }
+
+        .patient-table th:hover .sort-icon {
+            opacity: 1;
+        }
+
+        .sort-icon i {
+            font-size: 10px;
+            line-height: 1;
+            color: #666666;
+        }
+
+        .patient-table th.sort-asc .sort-icon .bi-chevron-up,
+        .patient-table th.sort-desc .sort-icon .bi-chevron-down {
+            opacity: 1;
+            color: #1C2950;
+        }
+
+        .patient-table td {
+            padding: 16px;
+            font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif;
+            font-size: 16px;
+            font-weight: 300;
+            line-height: 1.5em;
+            color: #333333;
+            border-bottom: 1px solid #E0E0E0;
+        }
+
+        .patient-table tbody tr {
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .patient-table tbody tr:hover {
+            background-color: #F9F9F9;
+        }
+
+        .patient-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-start;
+        }
+
+        .btn-action {
+            background-color: #1C2950;
+            color: #FFFFFF;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 16px;
+            font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            line-height: 1.5em;
+            cursor: pointer;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-action i {
+            font-size: 16px;
+        }
+
+        .btn-action:hover {
+            background-color: #1a2548;
+            color: #FFFFFF;
+        }
+
+        .btn-action:active {
+            background-color: #141f3b;
+        }
+
+        .pagination-section {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-top: 24px;
+        }
+
+        .pagination-info {
+            font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif;
+            font-size: 14px;
+            font-weight: 300;
+            color: #666666;
+            margin: 0 16px;
+        }
+
+        .btn-pagination {
+            background-color: #FFFFFF;
+            color: #1C2950;
+            border: 1px solid #CCCCCC;
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            line-height: 1.5em;
+            cursor: pointer;
+            min-width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-pagination:hover:not(:disabled) {
+            background-color: #F5F5F5;
+            border-color: #1C2950;
+        }
+
+        .btn-pagination:disabled {
+            opacity: 0.5;
+            cursor: auto;
+        }
+
+        .btn-pagination.active {
+            background-color: #1C2950;
+            color: #FFFFFF;
+            border-color: #1C2950;
+            opacity: 1;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999999;
+        }
+
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 16px;
+            color: #CCCCCC;
+        }
+
+        .empty-state p {
+            font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif;
+            font-size: 16px;
+            font-weight: 300;
+            margin: 0;
+        }
+
+        @media (max-width: 768px) {
+            .search-row {
+                flex-direction: column;
+            }
+
+            .filter-group {
+                min-width: 100%;
+            }
+
+            .patient-table {
+                font-size: 14px;
+            }
+
+            .patient-table th,
+            .patient-table td {
+                padding: 12px 8px;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body data-mode="ocr" data-ocr-page="patients">
+    <header class="sticky-top" style="z-index:1050;">
+		<!-- Google Tag Manager (noscript) -->
+		
+		<!-- End Google Tag Manager (noscript) -->
+		<nav id="gksCommonNavBar" class="navbar navbar-expand-md navbar-light"
+			style="background-color: #1C2950; padding: 8px 24px;">
+			<div class="container-fluid d-flex justify-content-between align-items-center" style="padding: 0;">
+				<div>
+					<a href="#" style="text-decoration: none;">
+						<img src="/rehainfo/images/ocr/logo.png" class="logo-image" style="width: 53px; height: 30px; object-fit: contain;" />
+					</a>
+				</div>
+				<div>
+					<a href="#" onclick="window.location.href='/rehainfo/'; return false;" class="d-flex align-items-center" style="text-decoration: none; color: #FFFFFF; gap: 4px;">
+						<span style="font-family: 'Hiragino Kaku Gothic Pro', sans-serif; font-size: 14px; font-weight: 300; line-height: 22px; color: #FFFFFF;">スマートリハを表示</span>
+						<img src="/rehainfo/images/icons/ocr/box-arrow-up-right.svg" style="width: 20px; height: 20px; flex-shrink: 0;" alt="" />
+					</a>
+				</div>
+			</div>
+		</nav>
+	</header>
+    <div>
+		<div id="loadingOverlay" class="loading-overlay">
+			<div class="spinner-ring">
+				<img class="loading-spinner" src="/rehainfo/images/intep360.svg" alt="loading" />
+			</div>
+			<div class="loading-text">処理中......</div>
+		</div>
+	</div>
+    <main>
+        <div class="patient-list-container">
+            <div class="page-header">
+                <h1 class="page-title">患者一覧</h1>
+            </div>
+
+            <div>
+                <form class="search-filter-section" id="searchForm">
+                    <span class="search-label">検索条件</span>
+                    
+                    <div class="search-input-group">
+                            <div class="search-input-wrapper">
+                                <div class="input-wrapper" id="searchInputWrapper">
+                                    <i class="bi bi-search search-icon"></i>
+                                    <input type="text" 
+                                           id="searchInput" 
+                                           name="search" 
+                                           class="search-control-custom"
+                                           placeholder="患者ID / 患者名 で検索"
+                                           oninput="toggleClearButton('searchInput')"
+                                           onfocus="handleInputFocus('searchInput')"
+                                           onblur="handleInputBlur('searchInput', event)" />
+                                    <button type="button" 
+                                            class="input-clear-btn" 
+                                            onmousedown="event.preventDefault(); clearInput('searchInput', event)"
+                                            aria-label="Clear input">
+                                        <i class="bi bi-x-circle-fill"></i>
+                                    </button>
+                                </div>
+                            </div>
+                    </div>
+
+                    <div class="toggle-group">
+                        <label for="responsibleOnlyToggle" class="toggle-label">担当患者のみ表示</label>
+                        <input type="checkbox" 
+                               id="responsibleOnlyToggle"
+                               class="toggle-input" />
+                        <div class="toggle-switch" 
+                             id="toggleSwitch"
+                             onclick="document.getElementById('responsibleOnlyToggle').click();">
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="table-section">
+                <table class="patient-table">
+                    <thead>
+                        <tr>
+                            <th class="sortable" onclick="sortTable('patientId')">
+                                <div class="sort-header">
+                                    患者ID
+                                    <span class="sort-icon">
+                                        <svg class="bi-chevron-up" xmlns="http://www.w3.org/2000/svg"
+                                            width="16" height="16"
+                                            viewBox="0 0 16 16"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="4"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round">
+                                            <path d="M2 11 L8 5 L14 11" />
+                                        </svg>
+                                        <svg class="bi-chevron-down" xmlns="http://www.w3.org/2000/svg"
+                                            width="16" height="16"
+                                            viewBox="0 0 16 16"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="4"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round">
+                                            <path d="M2 5 L8 11 L14 5" />
+                                        </svg>
+                                    </span>
+                                </div>
+                            </th>
+                            <th class="sortable" onclick="sortTable('patientName')">
+                                <div class="sort-header">
+                                    患者名
+                                    <span class="sort-icon">
+                                        <svg class="bi-chevron-up" xmlns="http://www.w3.org/2000/svg"
+                                            width="16" height="16"
+                                            viewBox="0 0 16 16"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="4"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round">
+                                            <path d="M2 11 L8 5 L14 11" />
+                                        </svg>
+                                        <svg class="bi-chevron-down" xmlns="http://www.w3.org/2000/svg"
+                                            width="16" height="16"
+                                            viewBox="0 0 16 16"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="4"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round">
+                                            <path d="M2 5 L8 11 L14 5" />
+                                        </svg>
+                                    </span>
+                                </div>
+                            </th>
+                            <th class="sortable" onclick="sortTable('gender')">
+                                <div class="sort-header">
+                                    性別
+                                    <span class="sort-icon">
+                                        <svg class="bi-chevron-up" xmlns="http://www.w3.org/2000/svg"
+                                            width="16" height="16"
+                                            viewBox="0 0 16 16"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="4"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round">
+                                            <path d="M2 11 L8 5 L14 11" />
+                                        </svg>
+                                        <svg class="bi-chevron-down" xmlns="http://www.w3.org/2000/svg"
+                                            width="16" height="16"
+                                            viewBox="0 0 16 16"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="4"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round">
+                                            <path d="M2 5 L8 11 L14 5" />
+                                        </svg>
+                                    </span>
+                                </div>
+                            </th>
+                            <th class="sortable" onclick="sortTable('age')">
+                                <div class="sort-header">
+                                    年齢
+                                    <span class="sort-icon">
+                                        <svg class="bi-chevron-up" xmlns="http://www.w3.org/2000/svg"
+                                            width="16" height="16"
+                                            viewBox="0 0 16 16"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="4"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round">
+                                            <path d="M2 11 L8 5 L14 11" />
+                                        </svg>
+                                        <svg class="bi-chevron-down" xmlns="http://www.w3.org/2000/svg"
+                                            width="16" height="16"
+                                            viewBox="0 0 16 16"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="4"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round">
+                                            <path d="M2 5 L8 11 L14 5" />
+                                        </svg>
+                                    </span>
+                                </div>
+                            </th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pagination-section">
+            </div>
+        </div>
+    </main>
+</body>
+
+</html>

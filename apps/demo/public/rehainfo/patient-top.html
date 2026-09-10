@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html data-rehainfo-source-template="templates/patientTop.html" data-rehainfo-source-sha256="98005451C315347F7946B96FFC6F44199E901894DE9B35080A0394B3ADD42C26" xmlns:th="http://www.thymeleaf.org" xmlns:fragment="http://www.thymeleaf.org/fragment" lang="ja">
+
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width,initial-scale=1" />
+	<meta name="robots" content="noindex,nofollow,noarchive" />
+
+	<link rel="icon" href="/rehainfo/images/intep360.ico?v=1.0.0" type="image/x-icon" />
+	<link href="/rehainfo/css/bootstrap.min.css" rel="stylesheet" />
+	<link href="/rehainfo/css/bootstrap-icons-1.9.1/bootstrap-icons.css" rel="stylesheet" />
+	<link href="/rehainfo/css/sidebar.css?v=1.1.0" rel="stylesheet" />
+	<link href="/rehainfo/css/patient_header.css" rel="stylesheet" />
+	<link href="/rehainfo/css/common.css?v=1.0.1" rel="stylesheet" />
+	<link href="/rehainfo/css/custom.css" rel="stylesheet" />
+	<script src="/rehainfo/js/jquery-3.6.0.min.js"></script>
+	<script src="/rehainfo/js/bootstrap.bundle.min.js"></script>
+	
+	
+	<script src="/rehainfo/js/Common.js?v=1.0.2"></script>
+	<script src="/rehainfo/js/BackCancel.js"></script>
+	<script src="/rehainfo/js/sidebar.js?v=1.0.1"></script>
+	<!-- Google Tag Manager -->
+	
+	<!-- End Google Tag Manager -->
+	<style>
+		/* 注意事項 */
+		.login-button {
+			border: 1px solid #bec0c7;
+			box-shadow: rgb(170, 173, 180) 1px 1px 1px;
+		}
+
+		.mic-icon {
+		    color: rgb(74 88 124);
+		    border: 1px solid rgb(74 88 124);
+		}
+
+		.speech-icon {
+			margin-bottom: .5rem !important;
+		}
+		
+		.logo-image {
+			width: auto;
+			object-fit: contain;
+			max-width: 120px;
+			background-color: white;
+		}
+		
+		/* .loading-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(255, 255, 255, 0.9);
+			display: none;
+			justify-content: center;
+			align-items: center;
+			z-index: 9999;
+			flex-direction: column;
+		}
+
+		.loading-spinner {
+			width: 80px;
+			height: 80px;
+			animation: spin 1s linear infinite;
+		}
+
+		.loading-text {
+			margin-top: 20px;
+			font-size: 18px;
+			font-weight: 500;
+			color: #202B4C;
+		}
+
+		@keyframes spin {
+			0% { transform: rotate(0deg); }
+			100% { transform: rotate(360deg); }
+		} */
+		/* Overlay styles */
+		.loading-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(255, 255, 255, 0.9);
+			display: none;
+			justify-content: center;
+			align-items: center;
+			z-index: 9999;
+			flex-direction: column;
+		}
+
+		.loading-spinner {
+			width: 80px;
+			height: 80px;
+		}
+
+		/* Spinner ring wrapper */
+		.spinner-ring {
+			position: relative;
+			width: 100px;
+			height: 100px;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+		}
+
+		/* Circular border (the rotating outline) */
+		.spinner-ring::before {
+			content: "";
+			position: absolute;
+			width: 100px;
+			height: 100px;
+			border: 6px solid #ccc;         /* gray base */
+			border-top: 6px solid #202B4C;  /* top colored */
+			border-radius: 50%;
+			animation: spin 1s linear infinite;
+		}
+
+		/* The image stays still */
+		.loading-icon {
+			width: 60px;
+			height: 60px;
+			background-image: url("");
+			z-index: 1;
+		}
+
+		/* Text */
+		.loading-text {
+			margin-top: 20px;
+			font-size: 18px;
+			font-weight: 500;
+			color: #202B4C;
+		}
+
+		/* Rotation animation */
+		@keyframes spin {
+			0%   { transform: rotate(0deg); }
+			100% { transform: rotate(360deg); }
+		}
+
+		/* 治療実施／治療記録: JS/DOMの読み込み完了まで操作をブロックするため初期表示する。
+		   解除は Common.js が html.block-until-loaded を外し、hideLoadingSpinner がdisplay:noneを付与する。 */
+		html.block-until-loaded #loadingOverlay {
+			display: flex;
+		}
+
+	</style>
+
+	<style>
+		:root {
+			--body-bg-color: #E8E9ED !important;
+		}
+	</style>
+	<script src="/rehainfo/source-demo-adapter.js?v=20260910-5"></script>
+</head>
+
+<head>
+    <title>患者TOP</title>
+    <!-- 予定テーブル表示用  -->
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    <link href="/rehainfo/css/jquery.datetimepicker.min.css" rel="stylesheet"></link>
+    
+    <link href="/rehainfo/css/patientTop.css?v=1.0.2" rel="stylesheet">
+    </link>
+</head>
+
+<body data-patient-page="top">
+    <main id="patient-top-page">
+        <header class="sticky-top" style="z-index:1050;">
+		<!-- Google Tag Manager (noscript) -->
+		
+		<!-- End Google Tag Manager (noscript) -->
+		<nav id="gksCommonNavBar" class="navbar navbar-expand-md navbar-light" style="background-color: var(--main-color); height: 60px">
+			<div class="container-fluid">
+				<div class="d-flex align-items-center">
+					<a href="#" class="navbar-brand bg-white">
+						<img src="/rehainfo/images/SmartRehab-R_Available_Transparent.png" class="logo-image" />
+					</a>
+					<a href="/rehainfo/schedule" class="btn header-button gks-modify-header-btn ms-2">
+						スケジュール
+					</a>
+					<a href="/rehainfo/therapists" class="btn header-button gks-modify-header-btn ms-2">
+						療法士一覧
+					</a>
+				</div>
+				<div>
+					
+					<h4 class="text-danger mb-0" id="otherUserEditingMessage">
+					</h4>
+					<form name="user-view-transition-history-check-form" method="POST">
+					</form>
+					<input type="hidden" id="checkTransitionHistoryViewName" name="viewName" />
+
+					
+
+				</div>
+				
+				<!-- New UI -->
+				<div class="collapse navbar-collapse" id="navbarsExample02" style="padding-right: 5px;">
+						<ul class="navbar-nav flex-row flex-wrap ms-md-auto">
+							
+							
+							
+							<form class="d-flex justify-content-center me-2" action="/rehainfo/adminEvaluationPreset" method="POST">
+								<button type="submit" class="btn gks-setting-btn">
+									<i class="bi bi-gear-fill"></i>
+								</button>
+								<input type="hidden" name="recId"/>
+							</form>
+							<button id="speechMemoButton" type="button" class="btn header-button gks-modify-header-btn" onclick="window.open('/rehainfo/notes', '個人ノート', 'width=1200, height=800')">
+								個人ノート
+							</button>
+							
+							
+							<form class="header-button" action="/rehainfo/patients" method="GET">
+								<button id="patientListButton" type="submit" class="btn gks-modify-header-btn">
+									患者一覧
+								</button>
+							</form>
+						</ul>
+				</div>
+				<!-- User Dropdown -->
+				<div class="dropdown" style="margin-right: 8px;">
+					<button
+						class="btn dropdown-toggle d-flex justify-content-center align-items-center gks-user-profile-btn gks-dropdown-toggle"
+						id="userDropdown"
+						data-bs-toggle="dropdown"
+						aria-expanded="false"
+					>
+						<i class="bi bi-person-fill"></i>
+					</button>
+					<ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown" style="width: 240px; margin-top: 12px; padding-top: 0; padding-bottom: 0;">
+						<!-- Header with username -->
+						<li id="gksCommonDropdownHeader" class="dropdown-header text-white d-flex align-items-center" style="background-color: var(--main-color); padding: 10px;">
+							<div class="d-flex justify-content-start align-items-center" style="border-radius: 50%; width: 40px; height: 40px; background-color: white;">
+								<i id="gksCommonDropdownHeaderIcon" class="bi bi-person-fill" style="font-size: 36px; color: var(--main-color); margin-right: 10px; margin-left: 2px;"></i>
+								<span data-source-field="userName" style="font-size: 18px; font-weight: 500;">公開デモ</span>
+							</div>
+						</li>
+						<!-- Divider -->
+						<li>
+							<hr class="dropdown-divider" style="margin: 0;" />
+						</li>
+						<!-- Register link -->
+						<li>
+							
+						</li>
+						<!-- Logout link -->
+						<li>
+							<a class="dropdown-item d-flex align-items-center" href="/rehainfo/logout" style="font-size: 1rem;">
+								<i class="bi bi-box-arrow-right me-2" style="font-size: 1.2rem; color: var(--main-color);"></i>ログアウト
+							</a>
+							
+						</li>
+					</ul>
+				</div>
+			</div>
+		</nav>
+	</header>
+        <!--test-->
+        <div>
+		<div id="loadingOverlay" class="loading-overlay">
+			<div class="spinner-ring">
+				<img class="loading-spinner" src="/rehainfo/images/intep360.svg" alt="loading" />
+			</div>
+			<div class="loading-text">処理中......</div>
+		</div>
+	</div>
+        <!-- 共通モーダル  -->
+        <div>
+		<!-- 警告メッセージ表示用モーダル -->
+		<div class="modal fade show" id="errorMessageModal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog custom-modal-dialog">
+				<div class="modal-content">
+					<div class="modal-body d-flex flex-column align-items-center gap-3">
+						<img class="mx-auto d-block" src="/rehainfo/images/warning_icon.svg"></img>
+						<div class="text-center">
+							<p id="errorModalMessage">エラーメッセージ表示</p>
+						</div>
+					</div>
+					<div class="modal-footer" style="border-top: none; display: flex; gap: 8px;">
+						<button id="errorMessageModalCloseButton" type="button" class="btn btn-main"  data-bs-dismiss="modal" style="flex: 1;">閉じる</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="modal fade show" id="successMessageModal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<div class="modal-body d-flex flex-column align-items-center gap-3">
+						<img class="mx-auto d-block" src="/rehainfo/images/success_icon.svg"></img>
+						<div class="text-center">
+							<p id="successModalMessage">成功メッセージ表示</p>
+						</div>
+					</div>
+					<div class="modal-footer" style="border-top: none; display: flex; gap: 8px;">
+						<button id="successMessageModalCloseButton" type="button" class="btn btn-main"  data-bs-dismiss="modal" style="flex: 1;">閉じる</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Modal -->
+		<div class="modal fade" id="confirmMessageModal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<div class="modal-body d-flex flex-column align-items-center gap-3">
+						<img class="mx-auto d-block" src="/rehainfo/images/warning_icon.svg"></img>
+						<h5 id="confirmMessageText" class="modal-body"></h5>
+					</div>
+					<div class="modal-footer" style="border-top: none; display: flex; gap: 8px;">
+						<button type="button" id="confirmOkButton" class="btn btn-custom gks-btn-outline-primary fw-bold"
+							style="flex: 1;" data-bs-dismiss="modal">はい</button>
+						<button type="button" id="confirmCancelButton" class="btn btn-custom gks-btn-primary fw-bold" style="flex: 1;" onclick="closeConfirmModal(); ">キャンセル</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Fitbit -->
+		<div class="modal fade" id="fitbitConfirmMessageModal" tabindex="-1" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<div class="modal-body d-flex flex-column align-items-center gap-3">
+						<img class="mx-auto d-block" src="/rehainfo/images/warning_icon.svg"></img>
+						<div class="text-center">
+							<p id="fitbitMessage">Fitbitからの返答を待ちしております</p>
+						</div>
+					</div>
+					<div class="modal-footer" style="border-top: none; display: flex; gap: 8px;">
+						<button id="fitbitCloseButton" type="button" class="btn btn-main"  data-bs-dismiss="modal" style="flex: 1;">クローズ</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- 注意事項入力画面 -->
+		<div class="modal fade" id="treatment_precaution_modal" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-scrollable modal-dialog-centered" style="width: 400px !important;">
+				<div class="modal-content" style="max-height: calc(100vh - 200px);">
+					<div class="modal-header" style="height: 40px; border-bottom: unset;">
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+					</div>
+
+					<!-- main   bigContainer -->
+					<div class="modal-body" id="attention-body" style="padding: 0 30px 36px 30px;">
+						<!-- List project -->
+						
+						<div class="d-flex justify-content-start">
+							<h6 style="width: fit-content; padding-right: 8px;">■注意事項</h6>
+							<div class="speech-icon">
+								<button class="btn speechInputButton gks-btn-primary" type="button" style="padding: 2px 6px;">
+									<div class="mic-loading mic-display speechLoading"></div>
+									<i class="bi bi-mic-fill speechInputIcon"></i>
+								</button>
+							</div>
+						</div>
+						<div>
+							<textarea id="textarea_treatment_precaution" style="width: 100%; resize:none;" rows="3" class="speechToText">
+							</textarea>
+							<textarea id="textarea_treatment_precaution_bak" class="speechToText" style="display: none;">
+							</textarea>
+						</div>
+
+						<div class="my-3"></div>
+
+						<div class="d-flex justify-content-end">
+							<button id="treatment-precaution-save" type="button" class="btn gks-btn-primary" style="width: 100px; height: 40px; font-size: 16px; font-weight: 700;" data-bs-dismiss="modal" >
+								保存する
+							</button>
+						</div>
+
+
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- 注意事項入力画面 閉じる場合の確認 -->
+		<div class="modal fade gks-close-modal-memo" id="closeModal_precaution" tabindex="-2" aria-labelledby="exampleModalLabel" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered" style="justify-content: center;">
+				<div class="modal-content" style="width: 90%">
+					<div class="modal-body d-flex flex-column justify-content-center">
+						<div style="text-align: center;">
+							入力内容が保存されていません。
+						</div>
+						<div style="text-align: center;">
+							画面を閉じますか？
+						</div>
+					</div>
+					<div class="modal-footer">
+					<button id="closeModal_precaution_confirm" type="button" class="btn gks-btn-outline-primary" data-bs-dismiss="modal" onclick="closePrecautionModal();">はい</button>
+					<button id="closeModal_precaution_cancel" type="button" class="btn gks-btn-primary" data-bs-dismiss="modal">キャンセル</button>
+					</div>
+				</div>
+			</div>
+		</div>
+		<form name="precaution-form" method="POST">
+			<input type="hidden" id="treatmentPrecaution" name="treatmentPrecaution"/>
+		</form>
+		<!-- 音声メモ画面 -->
+		<div class="modal fade" id="noteModal" tabindex="-1" aria-hidden="false">
+			<div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
+				<div class="modal-content pb-5">
+					<div class="modal-body px-0">
+						<div class="modal-header d-flex justify-content-between py-2">
+							<span class="caution-title w-100">音声メモ</span>
+							<button class="btn header-button speechInputButton" type="button">
+								<div class="mic-loading mic-display speechLoading"></div>
+								<i class="bi bi-mic-fill speechInputIcon"></i>
+							</button>
+							<button id="noteCloseBotton" type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+						</div>
+						<div id="noteBody"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- Modal Confirm Yes/No -->
+		<div class="modal fade" id="decisionMessageModal" tabindex="-1" aria-hidden="true" aria-labelledby="treatmentConfirmaitionLabel">
+			<div class="modal-dialog custom-modal-dialog">
+				<div class="modal-content">
+					<div class="modal-body d-flex flex-column align-items-center gap-3">
+						<img class="mx-auto d-block" src="/rehainfo/images/warning_icon.svg"></img>
+						<h5 id="decisionMessageText" class="modal-body"></h5>
+					</div>
+					<div class="modal-footer" style="border-top: none; display: flex; gap: 8px;">
+						<button type="button" id="decisionYesButton" class="btn btn-custom gks-btn-primary fw-bold"
+							style="flex: 1;">はい</button>
+						<button type="button" id="decisionNoButton" class="btn btn-custom gks-btn-outline-primary fw-bold" style="flex: 1;" data-bs-dismiss="modal">いいえ</button>
+					</div>
+				</div>
+			</div>
+		</div>
+		
+	</div>
+        <div class="d-flex flex-row w-100">
+            <!-- 左メニュー -->
+            <nav class="sidebar">
+		<div class="d-flex justify-content-center align-items-center sidebar-header">
+			<h5 class="text-center sidebar-title" style="padding-top: 24px; padding-bottom: 8px; font-weight: 500; font-size: 22px; line-height: 22px;">
+				患者メニュー
+			</h5>
+			<button class="sidebar-toggle" title="メニューを展開する">
+				<i class="bi bi-chevron-right"></i>
+			</button>
+			
+		</div>
+		<ul class="nav nav-pills flex-column">
+			<div class="sidebar-item container-fluid py-1">
+				<a class="navbar-brand sidebar-link d-flex align-items-center gks-side-menu-select-option"
+				onclick="showLoadingSpinner()" title="患者TOP">
+					<i class="bi bi-grid-3x3-gap-fill me-1"></i>
+					<div class="sidebar-text-wrapper">
+						<span class="sidebar-text">患者TOP</span>
+					</div>
+				</a>
+				<div style="width: 3px;">
+				</div>
+			</div>
+			<div class="sidebar-item container-fluid py-1">
+				<a class="navbar-brand sidebar-link d-flex align-items-center gks-side-menu-select-option"
+				onclick="showLoadingSpinner()" title="患者情報">
+					<i class="bi bi-person-fill me-1"></i>
+					<div class="sidebar-text-wrapper">
+						<span class="sidebar-text">患者情報</span>
+					</div>
+				</a>
+			</div>
+			<div class="sidebar-item container-fluid py-1">
+				<a class="navbar-brand sidebar-link d-flex align-items-center gks-side-menu-select-option"
+					onclick="showLoadingSpinner()" title="評価閲覧">
+					<i class="bi bi-file-bar-graph-fill me-1"></i>
+					<div class="sidebar-text-wrapper">
+						<span class="sidebar-text">評価閲覧</span>
+					</div>
+				</a>
+			</div>
+
+			<div class="sidebar-item container-fluid py-1">
+				<a class="navbar-brand sidebar-link d-flex align-items-center gks-side-menu-select-option"
+					onclick="showLoadingSpinner()" title="治療実績">
+					<i class="bi bi-bar-chart-fill me-1"></i>
+					<div class="sidebar-text-wrapper">
+						<span class="sidebar-text">治療実績</span>
+					</div>
+				</a>
+			</div>
+
+			<div class="sidebar-item container-fluid py-1">
+				<a class="navbar-brand sidebar-link d-flex align-items-center gks-side-menu-select-option"
+					onclick="showLoadingSpinner()" title="検査結果平均値表示">
+					<i class="bi bi-graph-up me-1"></i>
+					<div class="sidebar-text-wrapper">
+						<span class="sidebar-text">検査結果平均値表示</span>
+					</div>
+				</a>
+			</div>
+
+			<div class="sidebar-item container-fluid py-1">
+				<a class="navbar-brand sidebar-link d-flex align-items-center gks-side-menu-select-option"
+					onclick="showLoadingSpinner()" title="治療実施内容・実施期間平均値表示">
+					<i class="bi bi-graph-up me-1"></i>
+					<div class="sidebar-text-wrapper">
+						<span class="sidebar-text">
+							治療実施内容・<br />実施期間平均値表示
+						</span>
+					</div>
+				</a>
+			</div>
+
+			<div class="sidebar-item container-fluid py-1">
+				<a class="navbar-brand sidebar-link d-flex align-items-center gks-side-menu-select-option" style="cursor: pointer;" title="写真・動画一覧">
+					<i class="bi bi-folder-fill me-1"></i>
+					<div class="sidebar-text-wrapper">
+						<span class="sidebar-text">写真・動画一覧</span>
+					</div>
+				</a>
+			</div>
+
+			<div class="sidebar-item container-fluid py-1">
+				<a class="navbar-brand sidebar-link d-flex align-items-center gks-side-menu-select-option" style="cursor: pointer;" title="Fitbit連携">
+					<i class="bi bi-smartwatch me-1"></i>
+					<div class="sidebar-text-wrapper">
+						<span class="sidebar-text">Fitbit連携</span>
+					</div>
+				</a>
+				<form id="fitbit-form" action="" method="POST">
+					<input type="hidden" id="recId" name="recId" value=""/>
+					<input type="hidden" id="planId" name="planId" value=""/>
+					<input type="hidden" id="targetDate" name="targetDate" value=""/>
+					<input type="hidden" id="hcRoleCd" name="hcRoleCd" value=""/>
+				</form>
+			</div>
+
+			<div class="sidebar-item container-fluid py-1">
+				<a class="navbar-brand sidebar-link d-flex align-items-center gks-side-menu-select-option"
+					onclick="showLoadingSpinner()" title="入退院時サマリ出力">
+					<i class="gks-discharge-summary-output-icon me-1"></i>
+					<div class="sidebar-text-wrapper">
+						<span class="sidebar-text">入退院時サマリ出力</span>
+					</div>
+				</a>
+			</div>
+
+			<div class="sidebar-item container-fluid py-1">
+				<a class="navbar-brand sidebar-link d-flex align-items-center gks-side-menu-select-option"
+					onclick="showLoadingSpinner()" title="データ連携">
+					<i class="gks-patient-data-link-icon me-1"></i>
+					<div class="sidebar-text-wrapper">
+						<span class="sidebar-text">データ連携</span>
+					</div>
+				</a>
+			</div>
+
+		</ul>
+	</nav>
+
+            <div class="container-fluid bg-light dashboard-container">
+                <!-- ヘッダの患者情報部分をcommonと置換  -->
+                <div id="headerPatientInfo"
+			class="d-flex justify-content-center gks-patient-header-common"
+			>
+			 	<div class="d-flex flex-row justify-content-start align-items-center gks-header-container">
+					<div class="gks-header-item" data-patient-field="patientId" style="padding-left: 16px;"></div>
+					<div class="gks-header-item" data-patient-field="name" style="font-size: 20px;"></div>
+					<div class="gks-header-item" data-patient-field="nameKana"></div>
+					<div class="gks-header-item" data-patient-field="gender" style="font-size: 20px;"></div>
+					<div class="gks-header-item" data-patient-field="age" style="font-size: 20px;"></div>
+					<div class="gks-header-item" data-patient-field="birth"></div>
+
+					<div class="gks-header-item" data-patient-field="doctor"></div>
+					
+
+					
+					<div data-patient-field="disease"></div>
+					
+					
+				</div>
+			</div>
+                <div class="modal fade" id="notification-modal" tabindex="-1" aria-hidden="false">
+                    <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered modal-patient-top-dialog">
+                        <div class="modal-content" style="width: 100%">
+                            <div class="modal-header">
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body" id="notification_body">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                
+
+                <div class="row" style="background: var(--body-bg-color);">
+                    <div class="col-12 d-flex align-items-center justify-content-between">
+                        <div class="bg-light patient-btn-wrapper top-group-button" style="overflow-x: scroll;">
+		<div class="d-flex align-items-center btn-wrapper">
+			<div id="evaluation_treatment_plan_search" style="margin: 0 1rem;"
+				class="d-flex align-items-center"></div>
+			
+			<div class="patient-btn-group">
+				<div>
+					<button id="treatmentImplementButton" class="button-square" type="button">
+						<div class="role">PT
+						</div>
+						
+						
+						<div class="btn-text" data-patient-field="treatmentTimes"></div>
+					</button>
+				</div>
+				<div>
+					<a class="button-square text-decoration-none" role="button"
+						onclick="showLoadingSpinner()">
+						<img class="mx-auto d-block" src="/rehainfo/images/evaluation_plan_icon.svg"></img>
+						<div class="btn-text">評価計画</div>
+					</a>
+				</div>
+				<div>
+					<a class="button-square text-decoration-none" role="button"
+						onclick="showLoadingSpinner()">
+						<img class="mx-auto d-block" src="/rehainfo/images/problems_icon.svg"></img>
+						<div class="btn-text">問題点</div>
+					</a>
+				</div>
+				<div>
+					<a class="button-square text-decoration-none" role="button"
+						onclick="showLoadingSpinner()">
+						<img class="mx-auto d-block" src="/rehainfo/images/goals_icon.svg"></img>
+						<div class="btn-text">ゴール・目標値</div>
+					</a>
+				</div>
+				<div>
+					<a class="button-square text-decoration-none" role="button"
+						onclick="showLoadingSpinner()">
+						<img class="mx-auto d-block" src="/rehainfo/images/plan_icon.svg"></img>
+						<div class="btn-text">治療計画</div>
+					</a>
+				</div>
+				<div>
+					<a class="button-square text-decoration-none" role="button">
+						<img class="mx-auto d-block" style="font-size: 60px; height: 60px; width: 60px; color: #1b294e;" src="/rehainfo/images/icons/admin-treatment-preset-icon.svg"></img>
+						<div class="btn-text">治療記録</div>
+					</a>
+				</div>
+				<div>
+					<a class="button-square text-decoration-none" role="button">
+						<i class="bi bi-camera-fill mx-auto d-flex" style="font-size: 60px; height: 60px; width: 60px; color: #1b294e;"></i>
+						<div class="btn-text">カメラ起動</div>
+					</a>
+				</div>
+				
+				<div>
+					<a class="button-square text-decoration-none" role="button"
+						data-bs-toggle="modal" data-bs-target="#aiPromptVerifyModal">
+						<i class="bi bi-chat-left-text-fill mx-auto d-flex" style="font-size: 60px; height: 60px; width: 60px; color: #1b294e;"></i>
+						<div class="btn-text">AI LLM</div>
+					</a>
+				</div>				
+				<div>
+					<a class="button-square text-decoration-none" role="button" data-patient-action="soap" href="#"
+						onclick="showLoadingSpinner()">
+						<i class="bi bi-pencil-square mx-auto d-flex" style="font-size: 60px; height: 60px; width: 60px; color: #1b294e;"></i>
+						<div class="btn-text">SOAP</div>
+					</a>
+				</div>
+				<div>
+					<a class="button-square text-decoration-none" role="button">
+						<img class="mx-auto d-block" src="/rehainfo/images/event_input_icon.svg"></img>
+						<div class="btn-text">イベント</div>
+					</a>
+				</div>
+				<div>
+					<a class="button-square text-decoration-none" role="button"
+					   onclick="showLoadingSpinner()">
+						<img class="mx-auto d-block" height="60px" src="/rehainfo/images/sub_doctor_schedule.svg"></img>
+						<div class="btn-text">代診表</div>
+					</a>
+				</div>
+				
+				
+			</div>
+
+			<form action="" method="POST" id="scroll-form"></form>
+			<form action="" method="POST" id="role-form"></form>
+			<form action="" method="POST" id="treatment-implement-check-form"></form>
+			<form action="" method="POST" id="statistics-visualization-form"></form>
+		</div>
+	</div>
+                    </div>
+                </div>
+
+                <div class="row scrollable-content">
+                    <div class="col-12">
+                        <div class="bg-white">
+                            <div class="tab-navigation">
+                                <div class="navigation-buttons">
+                                    <button id="dashboard" type="button"
+                                        class="navigation-btn active"><span>ダッシュボード</span></button>
+                                    <button id="calendar" type="button"
+                                        class="navigation-btn"><span>カレンダー</span></button>
+                                </div>
+                                <div class="navigation-icons">
+                                    <div class="open-new-tap-icon"></div>
+                                    <div class="print-icon" id="printIcon"></div>
+                                    <div class="print-loading-overlay d-none">
+                                        <div class="d-flex justify-content-center align-items-center h-100">
+                                            <div class="spinner-border text-primary" style="width: 25px; height: 25px;">
+                                                <span class="sr-only"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="dashboardContent">
+                                
+                                <div class="dashboard-content-header">
+                                    <div class="btn-group" role="group" id="roleGroup">
+                                        <button type="button" class="btn btn-custom btn-therapist btn-physical-therapist" data-role="PhysicalTherapist">PT</button>
+                                        <button type="button" class="btn btn-custom btn-therapist btn-occupational-therapist" data-role="OccupationalTherapist">OT</button>
+                                        <button type="button" class="btn btn-custom btn-therapist btn-speech-therapist" data-role="SpeechTherapist">ST</button>
+                                    </div>
+                                </div>
+                                <div>
+        <!-- Form hidden -->
+        <form class="d-none" method="POST" id="fim-form">
+            <input name="planId" id="planId" />
+            <input name="periodPlanId" id="periodPlanId" />
+            <input name="targetDate" id="targetDate" />
+            <input name="hcRoleCd" id="hcRoleCd" value="PhysicalTherapist" />
+        </form>
+
+        <!-- Modal -->
+        <div class="modal fade" id="fimNotFound" tabindex="-1"
+            aria-labelledby="fimNotFoundLabel" aria-hidden="true">
+            <div class="modal-dialog custom-modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-body d-flex flex-column align-items-center gap-3">
+                        <img class="mx-auto d-block" src="/rehainfo/images/warning_icon.svg"></img>
+                        <h5>評価実績がありません。</h5>
+                    </div>
+                    <div class="modal-footer" style="border-top: none; display: flex;">
+                        <button type="button" class="btn btn-custom btn-main" style="flex: 1;"
+                            data-bs-dismiss="modal">戻る</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-content">
+            <!-- Loading Overlay -->
+            <div class="dashboard-loading-overlay position-absolute">
+                <div class="d-flex justify-content-center align-items-center h-100">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="sr-only"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="dashboard-content-left">
+                <div class="fim-container">
+                    <div class="title">
+                        <span class="text text-22 text-white text-bold">現在のFIM</span>
+                        <span class="text text-14 text-white" id="hospitalizationDays">在棟日数：-</span>
+                    </div>
+                    <div class="title-index">
+                        <span class="text text-16 text-white">合計</span>
+                        <span class="text text-16 text-white">運動</span>
+                        <span class="text text-16 text-white">認知</span>
+                        <span class="text text-18 text-white text-bold">実績指数</span>
+                    </div>
+                    <div class="fim-index">
+                        <span class="text text-35 text-white text-bold" id="totalScore">-</span>
+                        <span class="text text-30 text-white" id="exerciseScore">-</span>
+                        <span class="text text-30 text-white" id="cognitiveScore">-</span>
+                        <span class="text text-41 text-white text-bold" id="calculationFim">-</span>
+                    </div>
+                    <div class="last-fim-index">
+                        <span class="text text-14 text-white" id="lastTotalScore">前回：-</span>
+                        <span class="text text-14 text-white" id="lastExerciseScore">前回：-</span>
+                        <span class="text text-14 text-white" id="lastCognitiveScore">前回：-</span>
+                        <span class="text text-14 text-white" id="fimGain">FIM利得：-</span>
+                    </div>
+                </div>
+                <div class="bottom-content-left">
+                    <div class="evaluation-container">
+                        <div class="title">
+                            <div class="star-icon"></div>
+                            <span class="text text-22 text-blue text-bold">評価一覧</span>
+                        </div>
+                        <div class="evaluation-table-container">
+                            <table class="evaluation-table" id="evaluationTable">
+                                <tr>
+                                    <th class="text text-13 text-white">項目</th>
+                                    <th class="text text-13 text-white">評価値</th>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="group-container" id="groupContainer">
+                        <div class="problems-container">
+                            <div class="title">
+                                <div class="light-bulb-icon"></div>
+                                <span class="text text-22 text-blue text-bold text-white">問題点</span>
+                            </div>
+                            <div class="problems-list" id="problemsList">
+                                <span class="text text-13 text-white">ー</span>
+                            </div>
+                            <div class="view-more d-none">
+                                <span class="text text-13 text-white">さらに見る</span>
+                                <div class="right-arrow-icon"></div>
+                            </div>
+                        </div>
+                        <div class="goal-and-target-container">
+                            <div class="title">
+                                <div class="goal-and-target-icon"></div>
+                                <span class="text text-22 text-blue text-bold text-white">ゴール・目標値</span>
+                            </div>
+                            <div class="goal-and-target-list" id="goalAndTargetList">
+                                <span class="text text-13 text-white">ー</span>
+                            </div>
+                            <div class="view-more d-none">
+                                <span class="text text-13 text-white">さらに見る</span>
+                                <div class="right-arrow-icon"></div>
+                            </div>
+                        </div>
+                        <div class="treatment-container">
+                            <div class="title">
+                                <div class="treatment-icon"></div>
+                                <span class="text text-22 text-blue text-bold text-white">治療プログラム</span>
+                            </div>
+                            <div class="treatment-list" id="treatmentList">
+                                <span class="text text-13 text-white">ー</span>
+                            </div>
+                            <div class="view-more d-none">
+                                <span class="text text-13 text-white">さらに見る</span>
+                                <div class="right-arrow-icon"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="dashboard-content-right">
+                <div class="image-and-video">
+                    <div class="image-and-video-item" id="imageAndVideoItem1">
+                        <div class="title">
+                            <span class="text text-20 text-medium">画像・動画①</span>
+                        </div>
+                        <div class="show-image-and-video d-flex align-items-end"></div>
+                        <div class="date-and-title">
+                            <span class="text text-12 date"></span>
+                            <span class="text text-12 description"></span>
+                            <span class="plus-square-icon link-image-and-video" data-link-item-id="1">
+                                <i class="bi bi-plus-square"></i>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="image-and-video-item" id="imageAndVideoItem2">
+                        <div class="title">
+                            <span class="text text-20 text-medium">画像・動画②</span>
+                        </div>
+                        <div class="show-image-and-video d-flex align-items-end"></div>
+                        <div class="date-and-title">
+                            <span class="text text-12 date"></span>
+                            <span class="text text-12 description"></span>
+                            <span class="plus-square-icon link-image-and-video" data-link-item-id="2">
+                                <i class="bi bi-plus-square"></i>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="chart-content">
+                    <select class="chart-select" id="chartSelect"></select>
+                    <div class="chart-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+                            </div>
+                            <div id="calendarContent" class="row d-none">
+                                <a class="btn bg-white" style="min-height:60px;" id="notification_link"
+                                    data-bs-toggle="modal" data-bs-target="#notification-modal">
+                                </a>
+
+                                
+                                <div class="container-fluid">
+                                    <div class="row my-2 align-items-center">
+                                        <div class="col-4">
+                                            <div class="mb-1"></div>
+                                            <input type="text" id="calendarJumpDate"
+                                                class="form-control form-control-sm"
+                                                style="width: 150px; cursor: pointer; margin-top: 8px; background-color: #fff;"
+                                                title="日付選択" />
+                                        </div>
+                                        <div class="col-4">
+                                            <div class="mb-1"></div>
+                                        </div>
+                                        <div class="col-4 text-right">
+                                            <div class="btn-group btn-role-group" role="group"
+                                                aria-label="Basic radio toggle button group">
+                                                <!-- Physical Therapist Button -->
+                                                <input type="radio" class="btn-check" name="btnradio" id="btnradio1"
+                                                    autocomplete="off" onclick="submitHcRoleCd('PhysicalTherapist')" />
+                                                <label class="btn btn-custom btn-therapist btn-physical-therapist"
+                                                    for="btnradio1">PT</label>
+
+                                                <!-- Occupational Therapist Button -->
+                                                <input type="radio" class="btn-check" name="btnradio" id="btnradio2"
+                                                    autocomplete="off"
+                                                    onclick="submitHcRoleCd('OccupationalTherapist')" />
+                                                <label class="btn btn-custom btn-therapist btn-occupational-therapist"
+                                                    for="btnradio2">OT</label>
+
+                                                <!-- Speech Therapist Button -->
+                                                <input type="radio" class="btn-check" name="btnradio" id="btnradio3"
+                                                    autocomplete="off" onclick="submitHcRoleCd('SpeechTherapist')" />
+                                                <label class="btn btn-custom btn-therapist btn-speech-therapist"
+                                                    for="btnradio3">ST</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div id="plan_table" style="overflow:auto">
+                                        
+                                    </div>
+                                    <div class="btn-toolbar justify-content-between mb-2 align-items-center">
+                                        <div class="btn-group">
+                                            <button class="btn-light">◀</button>
+                                        </div>
+                                        <!-- Jump date input moved to top left -->
+                                        <div class="btn-group ml-auto">
+                                            <button class="btn-light">▶</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <form action="" method="POST" id="scroll-form"></form>
+                        <form action="" method="POST" id="role-form"></form>
+                        <form action="" method="POST" id="treatment-implement-check-form"></form>
+                        <form action="" method="POST" id="statistics-visualization-form"></form>
+                        <form action="" method="POST" id="evaluation-plan-form"></form>
+                        <form action="" method="POST" id="treatment-form"></form>
+                    </div>
+                </div>
+            </div>
+            <!-- Modal -->
+            <div class="modal fade" id="treatmentConfirmaition" tabindex="-1"
+                aria-labelledby="treatmentConfirmaitionLabel" aria-hidden="true">
+                <div class="modal-dialog custom-modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-body d-flex flex-column align-items-center gap-3">
+                            <img class="mx-auto d-block" src="/rehainfo/images/warning_icon.svg"></img>
+                            <h5>時間計測を実施しますか？</h5>
+                        </div>
+                        <div class="modal-footer" style="border-top: none; display: flex; gap: 8px;">
+                            <button id="treatmentImplementModalButton" type="button" class="btn btn-custom btn-main"
+                                style="flex: 1;">はい</button>
+            
+                            <button type="button" class="btn btn-custom btn-outline-main" style="flex: 1;">いいえ</button>
+            
+                            <button type="button" class="btn btn-custom btn-outline-main" style="flex: 1;"
+                                data-bs-dismiss="modal">キャンセル</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+
+</html>

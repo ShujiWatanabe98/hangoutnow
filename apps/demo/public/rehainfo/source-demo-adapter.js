@@ -9,12 +9,21 @@
   const AI_API = '/rehainfo/ai-schedule/api';
   const OCR_PATIENT_API = '/rehainfo/api/ocr/patients';
   const OCR_UPLOAD_API = '/rehainfo/api/ocr/evaluation/upload-image';
+  const OCR_REGISTER_API = '/rehainfo/api/ocr/evaluation/register';
+  const OCR_ANALYZE_API = '/rehainfo/api/ocr/analyze';
   const PRESCRIPTION_REGISTER_API = '/rehainfo/api/prescriptions/register';
   const PRESCRIPTION_ANALYZE_API = '/rehainfo/api/prescriptions/analyze';
   const STORAGE_KEY = 'rehainfo-source-ui-demo-v1';
   const PRESCRIPTION_STORAGE_KEY = 'rehainfo-source-ui-prescriptions-v1';
+  const OCR_STORAGE_KEY = 'rehainfo-source-ui-ocr-v1';
+  const SOAP_STORAGE_KEY = 'rehainfo-source-ui-soap-v1';
   const originalFetch = window.fetch.bind(window);
   const uploadedPrescriptionImages = new Map();
+  const activePatientMatch = /^\/rehainfo\/patient\/([^/]+)\/(?:top|treatment-soap\/soap-list)\/?$/.exec(location.pathname);
+  window.REHAINFO_ACTIVE_REC_ID = activePatientMatch ? decodeURIComponent(activePatientMatch[1]) : '';
+  window.navigateToPatientList = function () { window.location.href = '/rehainfo/ocr/patients'; };
+  window.handleOnclickBack = function () { window.history.back(); };
+  window.sortTable = window.sortTable || function () {};
 
   const therapists = [
     { id: 'PT01', name: '開発 太郎', subLabel: 'PT', nameKana: 'カイハツ タロウ', employmentType: '常勤', phone: '', email: 'pt01@example.local', team: 'PTチーム1', ward: null, monthlyTargetUnits: null },
@@ -127,6 +136,22 @@
     return match ? decodeURIComponent(match[1]) : '';
   }
 
+  function ocrRouteRecId() {
+    const match = /^\/rehainfo\/ocr\/patient\/([^/]+)\/(?:evaluation-select|list)\/?$/.exec(location.pathname);
+    return match ? decodeURIComponent(match[1]) : '';
+  }
+
+  function readListStore(key) {
+    try {
+      const value = JSON.parse(localStorage.getItem(key) || '[]');
+      return Array.isArray(value) ? value : [];
+    } catch (_) { return []; }
+  }
+
+  function writeListStore(key, records) {
+    localStorage.setItem(key, JSON.stringify(records.slice(0, 100)));
+  }
+
   function fileAsDataUrl(file) {
     return new Promise(function (resolve, reject) {
       const reader = new FileReader();
@@ -208,6 +233,112 @@
       return json({ success: true, prescriptionId: record.id, status: record.status });
     }
     return null;
+  }
+
+  function ocrSummary(result) {
+    const lines = [];
+    if (result.summary) lines.push(result.summary);
+    if (Array.isArray(result.findings)) result.findings.filter(Boolean).forEach(function (item) { lines.push(`・${item}`); });
+    if (Array.isArray(result.warnings) && result.warnings.filter(Boolean).length) lines.push(`要確認：${result.warnings.filter(Boolean).join('／')}`);
+    return lines.join('\n') || '評価シートの文字を読み取れませんでした';
+  }
+
+  async function ocrApi(url, options) {
+    const parsed = new URL(url, location.origin);
+    const method = String(options.method || 'GET').toUpperCase();
+    if (method !== 'POST' || parsed.pathname !== OCR_REGISTER_API) return null;
+    let payload;
+    try { payload = JSON.parse(options.body || '{}'); } catch (_) { payload = {}; }
+    const targetPatient = prescriptionPatient(payload.recId);
+    const imageIds = Array.isArray(payload.imageIds) ? payload.imageIds : [];
+    const images = imageIds.map(function (id) { return uploadedPrescriptionImages.get(String(id)); }).filter(Boolean);
+    const allowedSheets = ['FIM', 'BBS', 'SLTA', 'WAIS-IV', 'WMS-R', 'BIT', 'CAT-R', 'STEF'];
+    if (!targetPatient || !allowedSheets.includes(String(payload.evaluationId)) || images.length < 1 || images.length > 20) {
+      return json({ success: false, errorMessage: '患者・評価シート・画像（最大20枚）を確認してください。' }, 400);
+    }
+    const normalizedDate = String(payload.evaluationDate || '').replaceAll('/', '-');
+    const analyzedResponse = await originalFetch(OCR_ANALYZE_API, {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ patientId: targetPatient.patientId, evaluationId: String(payload.evaluationId), evaluationDate: normalizedDate, images: images })
+    });
+    const analyzed = await analyzedResponse.json().catch(function () { return {}; });
+    if (!analyzedResponse.ok || !analyzed.result) {
+      return json({ success: false, errorMessage: analyzed.message || 'AIOCRの読取に失敗しました。' }, analyzedResponse.status || 502);
+    }
+    const record = {
+      id: `PUBLIC-OCR-${Date.now()}`, recId: String(payload.recId), evaluationId: String(payload.evaluationId),
+      evaluationDate: String(payload.evaluationDate || ''), summary: ocrSummary(analyzed.result), status: '完了',
+      createdAt: new Date().toISOString(), model: analyzed.model || '', fictionalDemoOnly: true
+    };
+    writeListStore(OCR_STORAGE_KEY, [record].concat(readListStore(OCR_STORAGE_KEY)));
+    imageIds.forEach(function (id) { uploadedPrescriptionImages.delete(String(id)); });
+    return json({ success: true, evaluationId: record.id, status: record.status });
+  }
+
+  function defaultSoapRecords() {
+    return [{
+      treatmentDate: '2026/09/10', treatmentTimes: 1, actualByRole: 'PhysicalTherapist',
+      treatmentStartTime: '09:00', treatmentEndTime: '09:40', actualMinutes: 40, userName: '公開デモ 理学療法士',
+      treatmentS: [{ freetext: '歩行時の不安は少なくなったとの訴え。' }],
+      treatmentO: [{ freeText: '平行棒内を見守りで10m歩行。疼痛の増悪なし。', evaluationDetail: [], inTreatmentDetail: [], outTreatmentDetail: [], eventDetail: [] }],
+      treatmentA: [{ freeText: '立位バランスと右下肢支持性が改善傾向。', problemList: [] }],
+      treatmentP: [{ freeText: '歩行練習と下肢筋力訓練を継続する。', evaluationList: [], inTreatmentList: [], outTreatmentList: [] }]
+    }];
+  }
+
+  function readSoapStore(recId) {
+    try {
+      const store = JSON.parse(localStorage.getItem(SOAP_STORAGE_KEY) || '{}');
+      return Array.isArray(store[recId]) ? store[recId] : defaultSoapRecords();
+    } catch (_) { return defaultSoapRecords(); }
+  }
+
+  function writeSoapStore(recId, records) {
+    let store;
+    try { store = JSON.parse(localStorage.getItem(SOAP_STORAGE_KEY) || '{}'); } catch (_) { store = {}; }
+    store[recId] = records;
+    localStorage.setItem(SOAP_STORAGE_KEY, JSON.stringify(store));
+  }
+
+  async function soapApi(url, options) {
+    const parsed = new URL(url, location.origin);
+    const match = /^\/rehainfo\/patient\/([^/]+)\/(?:treatment-soap\/([^/?]+)|delete-treatment-soap)$/.exec(parsed.pathname);
+    if (!match) return null;
+    const recId = decodeURIComponent(match[1]);
+    const action = match[2] || 'delete';
+    const method = String(options.method || 'GET').toUpperCase();
+    const records = readSoapStore(recId);
+    if (action === 'list' && method === 'GET') return json({ treatmentSoapList: records, previousMonth: null, nextMonth: null });
+    if (action === 'previous-soap' && method === 'GET') return json(records[records.length - 1] || defaultSoapRecords()[0]);
+    if (action === 'get-last-5-soap' && method === 'GET') return json(records.slice(0, 5));
+    if ((action === 'save' || action === 'save-list') && method === 'POST') {
+      let payload;
+      try { payload = JSON.parse(options.body || 'null'); } catch (_) { payload = null; }
+      if (Array.isArray(payload) && payload.length) writeSoapStore(recId, payload);
+      else if (payload && typeof payload === 'object') {
+        const next = records.filter(function (item) { return !(item.treatmentDate === payload.treatmentDate && item.treatmentTimes === payload.treatmentTimes); });
+        writeSoapStore(recId, [payload].concat(next));
+      }
+      return json({ success: true });
+    }
+    if (action === 'add-new-soap' && method === 'POST') {
+      const date = parsed.searchParams.get('treatmentDate') || new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
+      const next = defaultSoapRecords()[0];
+      next.treatmentDate = date;
+      next.treatmentTimes = 1 + records.filter(function (item) { return item.treatmentDate === date; }).length;
+      next.treatmentStartTime = null; next.treatmentEndTime = null; next.actualMinutes = null;
+      writeSoapStore(recId, [next].concat(records));
+      return json({ success: true });
+    }
+    if (action === 'delete' && method === 'POST') {
+      let payload;
+      if (options.body instanceof URLSearchParams) payload = { treatmentDate: options.body.get('treatmentDate'), treatmentTimes: Number(options.body.get('treatmentTimes')) };
+      else { try { payload = JSON.parse(options.body || '{}'); } catch (_) { payload = {}; } }
+      writeSoapStore(recId, records.filter(function (item) { return !(item.treatmentDate === payload.treatmentDate && item.treatmentTimes === payload.treatmentTimes); }));
+      return json({ success: true });
+    }
+    if (method === 'GET') return json(records[0] || defaultSoapRecords()[0]);
+    return json({ success: true });
   }
 
   function therapist(id) {
@@ -431,7 +562,12 @@
     const parsed = new URL(url, location.origin);
     const method = String(options.method || 'GET').toUpperCase();
     if ([OCR_PATIENT_API, OCR_UPLOAD_API, PRESCRIPTION_REGISTER_API].includes(parsed.pathname)) return prescriptionApi(url, options);
-    const payload = options.body ? JSON.parse(options.body) : {};
+    if (parsed.pathname === OCR_REGISTER_API) return ocrApi(url, options);
+    if (/^\/rehainfo\/patient\/[^/]+\/(?:treatment-soap\/|delete-treatment-soap)/.test(parsed.pathname)) return soapApi(url, options);
+    let payload = {};
+    if (options.body && typeof options.body === 'string') {
+      try { payload = JSON.parse(options.body); } catch (_) { payload = {}; }
+    }
     if (parsed.pathname.startsWith(API)) return demoApi(url, options);
     if (parsed.pathname.startsWith(THERAPIST_API)) {
       if (method === 'GET') return json({ therapists: therapists });
@@ -462,7 +598,8 @@
     const url = typeof input === 'string' ? input : input.url;
     const path = new URL(url, location.origin).pathname;
     if ([API, THERAPIST_API, ATTENDANCE_API, BILLING_API, OPERATIONS_API, AI_API].some(function (prefix) { return path.startsWith(prefix); })
-        || [OCR_PATIENT_API, OCR_UPLOAD_API, PRESCRIPTION_REGISTER_API].includes(path)) {
+        || [OCR_PATIENT_API, OCR_UPLOAD_API, OCR_REGISTER_API, PRESCRIPTION_REGISTER_API].includes(path)
+        || /^\/rehainfo\/patient\/[^/]+\/(?:treatment-soap\/|delete-treatment-soap)/.test(path)) {
       return sourceApi(url, options || {});
     }
     return originalFetch(input, options);
@@ -470,8 +607,107 @@
 
   document.addEventListener('DOMContentLoaded', function () {
     const prescriptionPage = document.body.dataset.prescriptionPage || '';
-    const recId = prescriptionRouteRecId();
+    const patientPage = document.body.dataset.patientPage || '';
+    const ocrPage = document.body.dataset.ocrPage || '';
+    const recId = prescriptionRouteRecId() || ocrRouteRecId() || window.REHAINFO_ACTIVE_REC_ID;
     const targetPatient = prescriptionPatient(recId);
+    if (targetPatient && patientPage) {
+      const patientValues = {
+        patientId: `患者ID：${targetPatient.patientId}`, name: targetPatient.patientName, nameKana: targetPatient.patientNameKana,
+        gender: targetPatient.gender, age: targetPatient.age, birth: `1948(昭和23)年04月12日`,
+        doctor: '主治医：公開デモ 医師', disease: `右上下肢：${targetPatient.rehabilitationClass}`,
+        treatmentTimes: `${targetPatient.treatmentTimes}回目`
+      };
+      Object.keys(patientValues).forEach(function (field) {
+        document.querySelectorAll(`[data-patient-field="${field}"]`).forEach(function (element) { element.textContent = patientValues[field]; });
+      });
+    }
+    if (patientPage === 'top' && targetPatient) {
+      const soap = document.querySelector('[data-patient-action="soap"]');
+      if (soap) soap.href = `/rehainfo/patient/${encodeURIComponent(recId)}/treatment-soap/soap-list`;
+      const text = {
+        hospitalizationDays: '在棟日数：24日', totalScore: '88', exerciseScore: '61', cognitiveScore: '27', calculationFim: '0.43',
+        lastTotalScore: '前回：82', lastExerciseScore: '前回：56', lastCognitiveScore: '前回：26', fimGain: 'FIM利得：6'
+      };
+      Object.keys(text).forEach(function (id) { const element = document.getElementById(id); if (element) element.textContent = text[id]; });
+      const evaluationTable = document.getElementById('evaluationTable');
+      if (evaluationTable) evaluationTable.insertAdjacentHTML('beforeend', '<tr><td>10m歩行</td><td>18.2秒</td></tr><tr><td>BBS</td><td>42点</td></tr><tr><td>握力（右）</td><td>18.5kg</td></tr>');
+      const dashboardLists = {
+        problemsList: ['歩行時のふらつき', '右下肢支持性の低下'],
+        goalAndTargetList: ['病棟内歩行を見守りで実施', '退院時FIM 95点'],
+        treatmentList: ['歩行・バランス練習', '下肢筋力訓練']
+      };
+      Object.keys(dashboardLists).forEach(function (id) {
+        const element = document.getElementById(id);
+        if (element) { element.textContent = ''; dashboardLists[id].forEach(function (value) { const row = document.createElement('span'); row.className = 'text text-13 text-white d-block'; row.textContent = value; element.appendChild(row); }); }
+      });
+      document.querySelectorAll('.dashboard-loading-overlay').forEach(function (element) { element.classList.add('d-none'); });
+      const dashboardButton = document.getElementById('dashboard');
+      const calendarButton = document.getElementById('calendar');
+      const dashboardContent = document.getElementById('dashboardContent');
+      const calendarContent = document.getElementById('calendarContent');
+      if (dashboardButton && calendarButton && dashboardContent && calendarContent) {
+        dashboardButton.addEventListener('click', function () { dashboardContent.classList.remove('d-none'); calendarContent.classList.add('d-none'); dashboardButton.classList.add('active'); calendarButton.classList.remove('active'); });
+        calendarButton.addEventListener('click', function () { dashboardContent.classList.add('d-none'); calendarContent.classList.remove('d-none'); calendarButton.classList.add('active'); dashboardButton.classList.remove('active'); });
+      }
+      const planTable = document.getElementById('plan_table');
+      if (planTable) planTable.innerHTML = '<table class="table table-bordered bg-white"><thead><tr><th>日付</th><th>9:00</th><th>10:00</th><th>13:40</th></tr></thead><tbody><tr><td>9/10</td><td>歩行練習</td><td>自主訓練</td><td>評価</td></tr><tr><td>9/11</td><td>筋力訓練</td><td>病棟ADL</td><td>歩行練習</td></tr></tbody></table>';
+      document.querySelectorAll('a.button-square[href="#"], button.button-square').forEach(function (element) {
+        if (element === soap) return;
+        element.addEventListener('click', function (event) { event.preventDefault(); window.alert('公開版では架空データの画面確認のみ利用できます。'); });
+      });
+    }
+    if (patientPage === 'soap') {
+      const pt = document.getElementById('btn-role-PhysicalTherapist');
+      if (pt) pt.classList.add('active');
+      const notice = document.createElement('p');
+      notice.className = 'alert alert-warning py-2 mt-2 mb-0';
+      notice.textContent = '公開版は架空データ専用です。入力したSOAPはこのブラウザ内にのみ保存されます。';
+      const title = document.querySelector('.header-soap-list');
+      if (title) title.insertAdjacentElement('afterend', notice);
+    }
+    if (ocrPage === 'read' && targetPatient) {
+      const recIdInput = document.getElementById('patient-rec-id');
+      const dateInput = document.getElementById('evaluation-date');
+      const title = document.querySelector('[data-ocr-patient-title]');
+      if (recIdInput) recIdInput.value = recId;
+      if (dateInput && !dateInput.value) dateInput.value = new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
+      if (title) title.textContent = `${targetPatient.patientName}さんの評価シートを選択`;
+      const dropdown = document.getElementById('autocomplete-dropdown');
+      const input = document.getElementById('evaluation-sheet-search');
+      const sheets = [['FIM', 'FIM'], ['BBS', 'Berg Balance Scale'], ['SLTA', '標準失語症検査'], ['WAIS-IV', 'WAIS-IV'], ['WMS-R', 'WMS-R'], ['BIT', 'BIT行動性無視検査'], ['CAT-R', 'CAT-R'], ['STEF', 'STEF']];
+      if (dropdown && input) {
+        dropdown.textContent = '';
+        sheets.forEach(function (sheet) {
+          const item = document.createElement('div'); item.className = 'autocomplete-item'; item.dataset.id = sheet[0]; item.dataset.value = sheet[1]; item.textContent = sheet[1];
+          item.addEventListener('click', function () { input.value = sheet[1]; input.dataset.sheetId = sheet[0]; dropdown.style.display = 'none'; });
+          dropdown.appendChild(item);
+        });
+      }
+      const emptyText = document.querySelector('.empty-state-text');
+      if (emptyText) emptyText.innerHTML = '評価シートを選択し、架空の評価画像を選択またはカメラで撮影してください<br>外部AIへ送信せず、固定の架空結果を表示します';
+    }
+    if (ocrPage === 'list' && targetPatient) {
+      const title = document.querySelector('[data-ocr-patient-title]');
+      const table = document.getElementById('ocr-list-table');
+      const body = document.getElementById('ocr-list-body');
+      const empty = document.getElementById('ocr-list-empty');
+      const records = readListStore(OCR_STORAGE_KEY).filter(function (item) { return item.recId === recId; }).slice(0, 10);
+      if (title) title.textContent = `${targetPatient.patientName}さんのOCR一覧`;
+      if (body) {
+        body.textContent = '';
+        records.forEach(function (item) {
+          const row = document.createElement('tr');
+          [item.evaluationId, item.status, item.evaluationDate].forEach(function (value) { const cell = document.createElement('td'); cell.textContent = value; row.appendChild(cell); });
+          const actionCell = document.createElement('td'); const button = document.createElement('button'); button.type = 'button'; button.className = 'btn-action'; button.textContent = '集計・サマリ';
+          button.addEventListener('click', function () { window.alert(item.summary); }); actionCell.appendChild(button); row.appendChild(actionCell); body.appendChild(row);
+        });
+      }
+      if (table) table.hidden = records.length === 0;
+      if (empty) empty.hidden = records.length > 0;
+      const scan = document.querySelector('[data-ocr-scan-button]');
+      if (scan) scan.addEventListener('click', function () { window.location.href = `/rehainfo/ocr/patient/${encodeURIComponent(recId)}/evaluation-select`; });
+    }
     if (prescriptionPage === 'read' && targetPatient) {
       const recIdInput = document.getElementById('patient-rec-id');
       const dateInput = document.getElementById('evaluation-date');
@@ -480,7 +716,7 @@
       if (recIdInput) recIdInput.value = recId;
       if (dateInput && !dateInput.value) dateInput.value = new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
       if (title) title.textContent = `${targetPatient.patientName}さんの処方箋読込`;
-      if (note) note.textContent = '公開版では架空の処方箋画像のみ使用してください。AI読取結果は保存後に表示し、必ず原本と照合してください。';
+      if (note) note.textContent = '公開版では架空の処方箋画像のみ使用してください。画像は外部AIへ送信せず、固定の架空結果を表示します。';
     }
     if (prescriptionPage === 'list' && targetPatient) {
       const title = document.querySelector('[data-prescription-patient-title]');
@@ -492,7 +728,7 @@
       const records = readPrescriptionStore().filter(function (item) { return item.recId === recId; }).slice(0, 10);
       if (title) title.textContent = `${targetPatient.patientName}さんの保存済み処方箋`;
       if (readLink) readLink.href = `/rehainfo/prescriptions/patient/${encodeURIComponent(recId)}/read`;
-      if (warning) warning.textContent = '公開版は架空データ専用です。AI読取結果は参考情報として、薬剤名・用量・用法・日数を必ず処方箋原本と照合してください。';
+      if (warning) warning.textContent = '公開版は架空データ専用です。表示内容は外部AIを使わないデモ用の固定結果です。';
       if (body) {
         body.textContent = '';
         records.forEach(function (item) {
@@ -537,7 +773,7 @@
       });
       const assigned = document.getElementById('radio_api');
       if (assigned) assigned.addEventListener('change', applyPatientFilters);
-      window.onPatientClick = function () { window.alert('公開版は架空データの一覧確認用です。患者カルテは開きません。'); };
+      window.onPatientClick = function (_event, _groupId, selectedRecId) { window.location.href = `/rehainfo/patient/${encodeURIComponent(selectedRecId)}/top`; };
     }
 
     document.addEventListener('submit', function (event) {

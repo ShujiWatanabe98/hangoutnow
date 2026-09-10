@@ -61,7 +61,7 @@ function publicMeta(common) {
   meta = removeElement(meta, '<script th:if=');
   meta = removeElement(meta, '(function(w,d,s,l,i)');
   meta = meta.replace('<head>', '<head>\n\t<meta charset="UTF-8" />\n\t<meta name="viewport" content="width=device-width,initial-scale=1" />\n\t<meta name="robots" content="noindex,nofollow,noarchive" />');
-  meta = meta.replace('</head>', '\t<script src="/rehainfo/source-demo-adapter.js?v=20260910-4"></script>\n</head>');
+  meta = meta.replace('</head>', '\t<script src="/rehainfo/source-demo-adapter.js?v=20260910-5"></script>\n</head>');
   return stripThymeleafAttributes(meta);
 }
 
@@ -92,6 +92,60 @@ function publicOcrHeader(common) {
   header = removeElement(header, '<noscript th:if=');
   header = header.replace('onclick="goToSmartRehab()"', "onclick=\"window.location.href='/rehainfo/'; return false;\"");
   return stripThymeleafAttributes(header);
+}
+
+function withoutScripts(html) {
+  return html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '');
+}
+
+function publicSideMenu(common) {
+  let menu = withoutScripts(fragment(common, 'sideMenu'));
+  const unsupportedAdminLinks = [
+    'href="/rehainfo/adminEvaluationPreset"', 'href="/rehainfo/adminTreatmentPreset"',
+    'href="/rehainfo/patientInfoExport"', 'href="/rehainfo/adminImportData"',
+    'href="/rehainfo/evaluationCustomizationTop"', 'href="/rehainfo/adminDataTransfer"',
+    'href="/rehainfo/assignmentStaff"', 'href="/rehainfo/displayCustomizationTop"'
+  ];
+  for (const marker of unsupportedAdminLinks) menu = removeElement(menu, marker);
+  menu = menu.replace('class="sidebar bg-primary"', 'class="sidebar bg-primary" data-source-fragment="sideMenu"');
+  return stripThymeleafAttributes(menu);
+}
+
+function publicPatientHeader(common) {
+  let header = fragment(common, 'headerPatientInfo');
+  header = removeElement(header, 'th:if="${patientInfo.doctorName == \'\'}"');
+  header = removeElement(header, 'th:if="${patientInfo.diseasePart == \'\' and patientInfo.diseaseName == \'\'}"');
+  header = removeElement(header, 'th:if="${patientInfo.diseasePart == \'\' and patientInfo.diseaseName != \'\'}"');
+  header = removeElement(header, 'th:if="${patientInfo.diseasePart != \'\' and patientInfo.diseaseName == \'\'}"');
+  const fields = [
+    ['th:text="${\'患者ID：\' + patientInfo.patientId}"', 'data-patient-field="patientId"'],
+    ['th:text="${patientInfo.name}"', 'data-patient-field="name"'],
+    ['th:text="${patientInfo.nameKana}"', 'data-patient-field="nameKana"'],
+    ['th:text="${patientInfo.gender}"', 'data-patient-field="gender"'],
+    ['th:text="${patientInfo.age + \'歳\'}"', 'data-patient-field="age"'],
+    ['th:text="${patientInfo != null and patientInfo.birthG != null and patientInfo.birthJa != null ? patientInfo?.birthG?.substring(0,4) + \'(\' + patientInfo.birthJa + \')\' + patientInfo.birthG.substring(4) : \'\' }"', 'data-patient-field="birth"'],
+    ['th:text="${\'主治医：\' + patientInfo.doctorName}"', 'data-patient-field="doctor"'],
+    ['th:text="${patientInfo.diseasePart + \'：\' + patientInfo.diseaseName}"', 'data-patient-field="disease"']
+  ];
+  for (const [source, replacement] of fields) header = header.replace(source, replacement);
+  return stripThymeleafAttributes(header);
+}
+
+function publicCommonTopButtons(common) {
+  let buttons = withoutScripts(fragment(common, 'commonTopButton'));
+  while (buttons.includes('<div th:classappend="${aiFeatureEnabled}')) buttons = removeElement(buttons, '<div th:classappend="${aiFeatureEnabled}');
+  buttons = removeElement(buttons, '<div th:if="${patientInfo.active} eq false">');
+  buttons = removeElement(buttons, '<div th:if="${patientInfo != null and patientPastData');
+  buttons = removeElement(buttons, '<div class="role" th:if="${hcRoleCd == \'OccupationalTherapist\'}">');
+  buttons = removeElement(buttons, '<div class="role" th:if="${hcRoleCd == \'SpeechTherapist\'}">');
+  buttons = buttons.replace('th:text="*{patientInfo.treatmentTimes + \'回目\'}"', 'data-patient-field="treatmentTimes"')
+    .replace('th:href="\'/rehainfo/patient/\' + ${recId} + \'/treatment-soap/soap-list\'"', 'data-patient-action="soap" href="#"')
+    .replaceAll('../../images/', '/rehainfo/images/');
+  return stripThymeleafAttributes(buttons);
+}
+
+function publicAutoSaveModal(common) {
+  return stripThymeleafAttributes(fragment(common, 'autoSaveModal'));
 }
 
 function publicLoading(common) {
@@ -191,12 +245,109 @@ function renderPrescriptionList(source, common, sourcePath, sourceHash) {
   return stripThymeleafAttributes(html);
 }
 
+function renderOcrPatients(source, common, sourcePath, sourceHash) {
+  source = removeElement(source, '<script src="/rehainfo/js/Common.js');
+  let html = source;
+  html = html.replace(/<head th:replace="common :: meta_header">\s*<\/head>/, publicMeta(common));
+  html = html.replace(/<div th:replace="common :: topHeaderOCR"><\/div>/, publicOcrHeader(common));
+  html = html.replace(/<div th:replace="common :: loading"><\/div>/, publicLoading(common));
+  html = html.replace(/<title[^>]*>患者一覧<\/title>/, '<title>患者一覧 - AIOCR</title>');
+  html = html.replace("window.prescriptionMode = /*[[${prescriptionMode}]]*/ false;", 'window.prescriptionMode = false;');
+  html = html.replace(/<body[^>]*>/, '<body data-mode="ocr" data-ocr-page="patients">');
+  html = html.replace(/<h1 class="page-title"[^>]*>患者一覧<\/h1>/, '<h1 class="page-title">患者一覧</h1>');
+  html = addSourceMarker(html, sourcePath, sourceHash);
+  return stripThymeleafAttributes(html);
+}
+
+function renderOcrSelect(source, common, sourcePath, sourceHash) {
+  for (const marker of [
+    '<script src="/rehainfo/js/jquery-3.6.0.min.js',
+    '<script src="/rehainfo/js/Common.js',
+    '<script src="/rehainfo/js/bootstrap.bundle.min.js',
+    '<script src="/rehainfo/js/ocr/PatientList.js'
+  ]) source = removeElement(source, marker);
+  let html = source;
+  html = html.replace(/<head th:replace="common :: meta_header">\s*<\/head>/, publicMeta(common));
+  html = html.replace(/<div th:replace="common :: topHeaderOCR"><\/div>/, publicOcrHeader(common));
+  html = html.replace(/<div th:replace="common :: loading"><\/div>/, publicLoading(common));
+  html = html.replace(/<div th:replace="common :: commonMessageModal">\s*<\/div>/, publicMessageModal(common));
+  html = html.replace('<body>', '<body data-ocr-page="read">');
+  html = html.replace('<input type="hidden" id="patient-rec-id" th:value="${patientInfo.teamId}" />', '<input type="hidden" id="patient-rec-id" value="" />');
+  html = html.replace(/<span th:text="\|\$\{patientInfo\.name\}さんの評価シートを選択\|"><\/span>/, '<span data-ocr-patient-title>評価シートを選択</span>');
+  html = addSourceMarker(html, sourcePath, sourceHash);
+  return stripThymeleafAttributes(html);
+}
+
+function renderOcrList(source, common, sourcePath, sourceHash) {
+  for (const marker of ['<script src="/rehainfo/js/Common.js', '<script src="/rehainfo/js/ocr/OcrList.js', '<script th:inline="javascript">']) {
+    source = removeElement(source, marker);
+  }
+  let html = source;
+  html = html.replace(/<head th:replace="common :: meta_header">\s*<\/head>/, publicMeta(common));
+  html = html.replace(/<div th:replace="common :: topHeaderOCR"><\/div>/, publicOcrHeader(common));
+  html = html.replace(/<div th:replace="common :: loading"><\/div>/, publicLoading(common));
+  html = html.replace(/<div th:replace="common :: commonMessageModal">\s*<\/div>/, publicMessageModal(common));
+  html = html.replace('<body>', '<body data-ocr-page="list">');
+  html = html.replace(/<span th:text="\|\$\{patientInfo\.name\}さんのOCR一覧\|"><\/span>/, '<span data-ocr-patient-title>OCR一覧</span>');
+  html = html.replace('<table class="ocr-table">', '<table class="ocr-table" id="ocr-list-table">');
+  html = html.replace('<button type="button" class="btn-header-action">\n                        <svg', '<button type="button" class="btn-header-action" data-ocr-scan-button>\n                        <svg');
+  html = html.replace('<tbody>', '<tbody id="ocr-list-body">');
+  html = html.replace('<div class="empty-state" th:if="${evaluations == null or #lists.isEmpty(evaluations)}">', '<div class="empty-state" id="ocr-list-empty">');
+  html = html.replace('<div class="pagination-section" th:if="${totalItems > 0}">', '<div class="pagination-section" id="ocr-list-pagination" hidden="hidden">');
+  html = addSourceMarker(html, sourcePath, sourceHash);
+  return stripThymeleafAttributes(html);
+}
+
+function renderPatientTop(source, common, sourcePath, sourceHash) {
+  let html = withoutScripts(source);
+  html = removeElement(html, '<div th:if="${patientInfo.active} eq true and ${patientPastData.size() > 0}"');
+  html = html.replace(/<head th:replace="common :: meta_header">\s*<\/head>/, publicMeta(common));
+  html = html.replace(/<div th:replace="common :: topHeader"><\/div>/, publicHeader(common));
+  html = html.replace(/<div th:replace="common :: loading"><\/div>/, publicLoading(common));
+  html = html.replace(/<div th:replace="common :: commonMessageModal">\s*<\/div>/, publicMessageModal(common));
+  html = html.replace(/<nav th:replace="common :: sideMenu"[^>]*>\s*<\/nav>/, publicSideMenu(common));
+  html = html.replace(/<div th:replace="common :: headerPatientInfo">\s*<\/div>/, publicPatientHeader(common));
+  html = html.replace(/<div th:replace="common :: commonTopButton"><\/div>/, publicCommonTopButtons(common));
+  let dashboardHtml = withoutScripts(fragment(dashboard, 'dashboard-content'));
+  dashboardHtml = stripThymeleafAttributes(dashboardHtml).replaceAll('../../images/', '/rehainfo/images/');
+  html = html.replace(/<div th:replace="fragments\/dashboardContent :: dashboard-content"><\/div>/, dashboardHtml);
+  html = html.replace('<body>', '<body data-patient-page="top">');
+  html = html.replace('<div id="dashboardContent" class="d-none">', '<div id="dashboardContent">');
+  html = html.replaceAll('../../images/', '/rehainfo/images/');
+  html = addSourceMarker(html, sourcePath, sourceHash);
+  return stripThymeleafAttributes(html);
+}
+
+function renderSoapList(source, common, sourcePath, sourceHash) {
+  let html = source;
+  html = html.replace(/<head th:replace="common :: meta_header">\s*<\/head>/, publicMeta(common));
+  html = html.replace(/<div th:replace="common :: topHeader"><\/div>/, publicHeader(common));
+  html = html.replace(/<div th:replace="common :: loading"><\/div>/, publicLoading(common));
+  html = html.replace(/<div th:replace="common :: commonMessageModal">\s*<\/div>/, publicMessageModal(common));
+  html = html.replace(/<div th:replace="common :: autoSaveModal"><\/div>/, publicAutoSaveModal(common));
+  html = html.replace(/<nav th:replace="common :: sideMenu"[^>]*>\s*<\/nav>/, publicSideMenu(common));
+  html = html.replace(/<div th:replace="common :: headerPatientInfo">\s*<\/div>/, publicPatientHeader(common));
+  html = html.replace('<body>', '<body data-patient-page="soap">');
+  html = html.replace("const recId = /*[[${recId}]]*/ '';", "const recId = window.REHAINFO_ACTIVE_REC_ID || '';");
+  html = html.replace("const hcRoleCd = /*[[${hcRoleCd}]]*/ '';", "const hcRoleCd = 'PhysicalTherapist';");
+  html = addSourceMarker(html, sourcePath, sourceHash);
+  return stripThymeleafAttributes(html);
+}
+
 const commonPath = 'templates/common.html';
 const common = await readFile(join(sourceRoot, commonPath), 'utf8');
 if (hash(common) !== manifest.templates[commonPath]) throw new Error(`Upstream source hash mismatch: ${commonPath}`);
+const dashboardPath = 'templates/fragments/dashboardContent.html';
+const dashboard = await readFile(join(sourceRoot, dashboardPath), 'utf8');
+if (hash(dashboard) !== manifest.templates[dashboardPath]) throw new Error(`Upstream source hash mismatch: ${dashboardPath}`);
 const outputs = [
   { source: 'templates/patientList.html', output: 'index.html', render: renderPatientList },
   { source: 'templates/login.html', output: 'login.html', render: renderLogin },
+  { source: 'templates/patientTop.html', output: 'patient-top.html', render: renderPatientTop },
+  { source: 'templates/soapList.html', output: 'soap-list.html', render: renderSoapList },
+  { source: 'templates/ocr/patientList.html', output: 'ocr-patients.html', render: renderOcrPatients },
+  { source: 'templates/ocr/evaluationSelect.html', output: 'ocr-select.html', render: renderOcrSelect },
+  { source: 'templates/ocr/ocrList.html', output: 'ocr-list.html', render: renderOcrList },
   { source: 'templates/ocr/patientList.html', output: 'prescription-patients.html', render: renderPrescriptionPatients },
   { source: 'templates/prescription/read.html', output: 'prescription-read.html', render: renderPrescriptionRead },
   { source: 'templates/prescription/list.html', output: 'prescription-list.html', render: renderPrescriptionList },
@@ -220,12 +371,22 @@ const sourceAssets = [
   'css/jquery.datetimepicker.min.css', 'css/ocr/evaluationSelect.css',
   'js/jquery.datetimepicker.full.min.js', 'js/pdf.min.js', 'js/pdf.worker.min.js',
   'js/ocr/PatientList.js', 'js/ocr/EvaluationSelect.js',
+  'css/patientTop.css', 'css/soapList.css', 'css/ocr/ocrList.css',
+  'js/soapList.js', 'js/soapDirtyState.js', 'js/AutoSaveManager.js',
   'schedule/schedule.css', 'schedule/schedule.js', 'schedule/therapists.css', 'schedule/therapists.js',
   'schedule/attendance.css', 'schedule/attendance.js', 'schedule/ai.css', 'schedule/ai.js',
   'schedule/billing-management.css', 'schedule/billing-management.js', 'schedule/operations.css', 'schedule/operations.js',
   'images/SmartRehab-R_Available_Transparent.png', 'images/intep360.ico', 'images/intep360.svg',
   'images/ocr/logo.png', 'images/icons/ocr/box-arrow-up-right.svg', 'images/icons/ocr/magic-start.svg',
   'images/warning_icon.svg', 'images/success_icon.svg'
+  , 'images/evaluation_plan_icon.svg', 'images/problems_icon.svg', 'images/goals_icon.svg', 'images/plan_icon.svg',
+  'images/event_input_icon.svg', 'images/sub_doctor_schedule.svg', 'images/icons/admin-treatment-preset-icon.svg',
+  'images/icons/dashboard/arrow-down-icon.svg', 'images/icons/dashboard/arrow-down.svg', 'images/icons/dashboard/arrow-downward.svg',
+  'images/icons/dashboard/arrow-up.svg', 'images/icons/dashboard/arrow-upward.svg', 'images/icons/dashboard/column-chart.svg',
+  'images/icons/dashboard/goal-and-target.svg', 'images/icons/dashboard/icon-park-outline_share.svg',
+  'images/icons/dashboard/image1.png', 'images/icons/dashboard/image2.png', 'images/icons/dashboard/light-bulb.svg',
+  'images/icons/dashboard/mdi-light_printer.svg', 'images/icons/dashboard/right-arrow.svg',
+  'images/icons/dashboard/star-icon.svg', 'images/icons/dashboard/treatment.svg'
 ];
 
 const failures = [];

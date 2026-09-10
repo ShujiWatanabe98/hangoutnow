@@ -7,6 +7,11 @@
   "routes": {
     "/rehainfo/": "templates/patientList.html",
     "/rehainfo/login.html": "templates/login.html",
+    "/rehainfo/patient/{recId}/top": "templates/patientTop.html + templates/fragments/dashboardContent.html",
+    "/rehainfo/patient/{recId}/treatment-soap/soap-list": "templates/soapList.html",
+    "/rehainfo/ocr/patients": "templates/ocr/patientList.html",
+    "/rehainfo/ocr/patient/{recId}/evaluation-select": "templates/ocr/evaluationSelect.html",
+    "/rehainfo/ocr/patient/{recId}/list": "templates/ocr/ocrList.html",
     "/rehainfo/prescriptions/patients": "templates/ocr/patientList.html",
     "/rehainfo/prescriptions/patient/{recId}/read": "templates/prescription/read.html",
     "/rehainfo/prescriptions/patient/{recId}/list": "templates/prescription/list.html",
@@ -23,7 +28,8 @@
     "/smariha-scheduler": "/rehainfo/schedule"
   },
   "sourceManifest": "apps/demo/rehainfo-source/source-manifest.json",
-  "dataMode": "fictional-browser-demo; extracted prescription text is stored only in browser localStorage",
+  "dataMode": "fictional-browser-demo; SOAP and extracted AI text are stored only in browser localStorage",
   "prescriptionImageProcessing": "OpenAI Responses API with store=false; images are discarded after the response",
+  "aiOcrImageProcessing": "OpenAI Responses API with store=false; images are discarded after the response",
   "externalClinicalSystemsConnected": false
 }

@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ja">
+
+<head th:replace="common :: meta_header">
+</head>
+
+<head>
+	<title>SOAP一覧</title>
+
+	<link href="/rehainfo/css/soapList.css" rel="stylesheet">
+	</link>
+	<script src="/rehainfo/js/jquery.datetimepicker.full.min.js"></script>
+	<link href="/rehainfo/css/jquery.datetimepicker.min.css" rel="stylesheet">
+	</link>
+	<script src="/rehainfo/js/soapDirtyState.js"></script>
+	<script src="/rehainfo/js/soapList.js?v=1.0.3"></script>
+	<script src="/rehainfo/js/AutoSaveManager.js"></script>
+</head>
+
+<body>
+	<main>
+		<div th:replace="common :: topHeader"></div>
+		<!--test-->
+		<div th:replace="common :: loading"></div>
+		<!-- 共通モーダル  -->
+		<div th:replace="common :: commonMessageModal">
+		</div>
+		<div th:replace="common :: autoSaveModal"></div>
+		<div class="d-flex flex-row w-100">
+			<!-- 左メニュー -->
+			<nav th:replace="common :: sideMenu" class="sidebar bg-primary">
+			</nav>
+
+			<div id="soap-list-container" class="container-fluid soap-list-container">
+				<!-- ヘッダの患者情報部分をcommonと置換  -->
+				<div th:replace="common :: headerPatientInfo">
+				</div>
+				<div class="d-flex justify-content-between position-sticky header-soap-list" style="top: 162px;">
+					<h5 class="soap-list-title">SOAP一覧
+					</h5>
+					<div class="col-md-6 d-grid gap-3 d-flex justify-content-md-end">
+						<script type="text/javascript" th:inline="javascript">
+							/*<![CDATA[*/
+							const recId = /*[[${recId}]]*/ '';
+							const hcRoleCd = /*[[${hcRoleCd}]]*/ '';
+							/*]]>*/
+						</script>
+						<div class="btn-group btn-role-group" role="group" aria-label="Basic radio toggle button group">
+							<!-- Physical Therapist Button -->
+							<button class="btn btn-custom btn-physical-therapist" id="btn-role-PhysicalTherapist" onclick="onClickRoleButton('PhysicalTherapist')"
+								th:classappend="${hcRoleCd == 'PhysicalTherapist'} ? ' active' : ''">PT</button>
+							<!-- Occupational Therapist Button -->
+							<button class="btn btn-custom btn-occupational-therapist" id="btn-role-OccupationalTherapist" onclick="onClickRoleButton('OccupationalTherapist')"
+								th:classappend="${hcRoleCd == 'OccupationalTherapist'} ? ' active' : ''">OT</button>
+							<!-- Speech Therapist Button -->
+							<button class="btn btn-custom btn-speech-therapist" id="btn-role-SpeechTherapist" onclick="onClickRoleButton('SpeechTherapist')"
+								th:classappend="${hcRoleCd == 'SpeechTherapist'} ? ' active' : ''">ST</button>
+						</div>
+						<div style="width: 100px;">
+							<a class="btn second-btn btn-lg border border-dark" id="btn-add-new-soap" onclick="onClickAddNewSoap()">
+								<i class="bi bi-plus-lg"></i> 追加登録
+							</a>
+						</div>
+
+						<a class="btn back-btn btn-lg bg-white border border-dark"
+							onclick="backButton()">
+							<i class="bi bi-arrow-left-circle"></i> 戻る
+						</a>
+
+					</div>
+				</div>
+				<div id="soap-list-container-content">
+					<div class="row mt-3">
+						<div class="soap-left-container col-2 position-sticky" style="height: fit-content; top: 200px;">
+							<!-- Date picker input -->
+							<div class="soap-picker-container position-relative">
+								<input type="text" class="form-control" id="soapDateInput" name="soapDateInput"
+									placeholder="YYYY/MM/DD" />
+								<i class="bi bi-calendar-date position-absolute"
+									style="right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: #6c757d;"></i>
+							</div>
+							<div class="d-flex align-items-center justify-content-between mt-2">
+								<div class="gks-caret-left-btn" style="color: #E0E0E0; font-size: 30px; cursor: pointer;" id="previousMonthBtn" onclick="onClickPreviousMonth()">
+									<i class="bi bi-caret-left-fill me-1"></i>
+								</div>
+								<label class="gks-header-1 gks-not-break-line" id="soapDateLabel"></label>
+								<div class="gks-caret-left-btn" style="color: #E0E0E0; font-size: 30px; cursor: pointer;" id="nextMonthBtn" onclick="onClickNextMonth()">
+									<i class="bi bi-caret-right-fill me-1"></i>
+								</div>
+							</div>
+							<div class="d-flex flex-column align-items-center" id="soapDateList">
+							</div>
+						</div>
+						<div class="soap-right-container col-10" id="soap-right-container">
+						</div>
+					</div>
+					<div class="d-flex justify-content-end my-2">
+						<div>
+							<a class="btn back-btn" th:onclick="|scrollToTop()|" id="scrollToTopBtn">
+								<i class="bi bi-caret-up-fill"></i> 最上部へ
+							</a>
+						</div>
+					</div>
+				</div>
+				<!-- Loading indicator -->
+				<div id="soap-loading-container" class="d-none">
+					<div class="d-flex justify-content-center align-items-center" style="height: 60vh;">
+						<div class="text-center">
+							<div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+								<span class="visually-hidden">Loading...</span>
+							</div>
+							<div class="mt-3">
+								<h5 class="text-muted">SOAP一覧を読み込み中...</h5>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+
+			<!-- modal add new soap -->
+			<div class="modal fade gks-close-modal-memo" th:id="addNewSoapModal" tabindex="-2"
+				aria-labelledby="exampleModalLabel" aria-hidden="true">
+				<div class="modal-dialog modal-dialog-centered">
+					<div class="modal-content custom-modal-content">
+						<div class="modal-body">
+							<div class="d-flex align-items-center check-box-container">
+								<input class="form-check-input radio-large" type="radio" name="addNewSoapType"
+									id="addNewSoapTypeRadio1" value="0" checked="true" />
+								<label class="gks-normal-text-16" for="addNewSoapTypeRadio1">
+									本日
+								</label>
+							</div>
+							<div class="d-flex align-items-center check-box-container">
+								<input class="form-check-input radio-large" type="radio" name="addNewSoapType"
+									id="addNewSoapTypeRadio2" value="0"/>
+								<label class="gks-normal-text-16" for="addNewSoapTypeRadio2">
+									日付指定
+								</label>
+								<div class="position-relative">
+									<!-- not recommended input type date -->
+									<input type="text" class="form-control" id="addNewSoapDateInput"
+										placeholder="YYYY/MM/DD" />
+									<i class="bi bi-calendar-date position-absolute"
+										style="right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: #6c757d;"></i>
+								</div>
+							</div>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-modal gks-btn-outline-primary"
+								data-bs-dismiss="modal">戻る</button>
+							<button type="button" class="btn btn-modal gks-btn-primary" onclick="addNewSoap()" data-bs-dismiss="modal">追加
+							</button>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- modal update soap -->
+			<div class="modal fade gks-close-modal-memo update-soap-modal" id="updateSoapModal_all" tabindex="-2"
+				aria-labelledby="exampleModalLabel" aria-hidden="true">
+				<div class="modal-dialog modal-dialog-centered">
+					<div class="modal-content custom-modal-content">
+						<div class="modal-body">
+							<div class="gks-normal-text-16 text-center">全てのデータを一括で最新データに更新します
+							</div>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-modal gks-btn-outline-primary"
+								data-bs-dismiss="modal">戻る</button>
+							<button type="button" class="btn btn-modal gks-btn-primary"
+								th:onclick="|updateSoap('overwrite')|" data-bs-dismiss="modal">上書き
+							</button>
+							<button type="button" class="btn btn-modal gks-btn-primary"
+								th:onclick="|updateSoap('insert')|" data-bs-dismiss="modal">挿入
+							</button>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- modal update soap -->
+			<div class="modal fade gks-close-modal-memo update-soap-modal" th:id="updateSoapModal_1" tabindex="-2"
+				aria-labelledby="exampleModalLabel" aria-hidden="true">
+				<div class="modal-dialog modal-dialog-centered">
+					<div class="modal-content custom-modal-content">
+						<div class="modal-body">
+							<div class="gks-normal-text-16 text-center">最新データに更新します
+							</div>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-modal gks-btn-outline-primary"
+								data-bs-dismiss="modal">戻る</button>
+							<button type="button" class="btn btn-modal gks-btn-primary"
+								th:onclick="|updateSoap('overwrite')|" data-bs-dismiss="modal">上書き
+							</button>
+							<button type="button" class="btn btn-modal gks-btn-primary"
+								th:onclick="|updateSoap('insert')|" data-bs-dismiss="modal">挿入
+							</button>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- modal update O -->
+			<div class="modal fade gks-close-modal-memo update-soap-modal" th:id="updateSoapModal_o" tabindex="-2"
+				aria-labelledby="exampleModalLabel" aria-hidden="true">
+				<div class="modal-dialog modal-dialog-centered">
+					<div class="modal-content custom-modal-content">
+						<div class="modal-body" id="updateSoapModal_o_body">
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-modal gks-btn-outline-primary"
+								data-bs-dismiss="modal">戻る</button>
+							<button type="button" class="btn btn-modal gks-btn-primary"
+								th:onclick="|updateSoap('overwrite')|" data-bs-dismiss="modal">上書き
+							</button>
+							<button type="button" class="btn btn-modal gks-btn-primary"
+								th:onclick="|updateSoap('insert')|" data-bs-dismiss="modal">挿入
+							</button>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- modal copy soap -->
+			<div class="modal fade gks-close-modal-memo copy-soap-modal" th:id="copySoapModal" tabindex="-2"
+				aria-labelledby="exampleModalLabel" aria-hidden="true">
+				<div class="modal-dialog modal-dialog-centered">
+					<div class="modal-content custom-modal-content">
+						<div class="modal-body">
+							<div class="gks-normal-text-16">複写先を選択してください</div>
+							<div class="mt-2 d-flex justify-content-center">
+								<select th:onchange="|setCopySoap(this)|" th:id="'copySoapSelect'"
+									class="form-select gks-input-select">
+								</select>
+							</div>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-modal gks-btn-outline-primary"
+								data-bs-dismiss="modal">戻る</button>
+							<button type="button" class="btn btn-modal gks-btn-primary"
+								th:onclick="|copyPastSoap()|" data-bs-dismiss="modal">複写
+							</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</main>
+
+</body>
+
+</html>

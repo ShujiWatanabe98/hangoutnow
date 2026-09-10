@@ -1,0 +1,228 @@
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org" lang="ja">
+
+<head th:replace="common :: meta_header"></head>
+
+<head>
+
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>評価シートを選択 - OCR Evaluation</title>
+    <link href="/rehainfo/css/bootstrap.min.css" rel="stylesheet">
+    </link>
+    <link href="/rehainfo/css/bootstrap-icons-1.9.1/bootstrap-icons.css" rel="stylesheet" />
+    <link href="/rehainfo/css/variables.css" rel="stylesheet">
+    </link>
+    <link href="/rehainfo/css/jquery.datetimepicker.min.css" rel="stylesheet" />
+    <link href="/rehainfo/css/ocr/evaluationSelect.css" rel="stylesheet" />
+    <script src="/rehainfo/js/jquery-3.6.0.min.js"></script>
+    <script src="/rehainfo/js/jquery.datetimepicker.full.min.js"></script>
+    <script src="/rehainfo/js/Common.js?v=1.0.2"></script>
+    <script src="/rehainfo/js/ocr/PatientList.js?v=1.0.0"></script>
+    <script src="/rehainfo/js/ocr/EvaluationSelect.js?v=1.0.4"></script>
+    <style>
+        .btn-select-image {
+            color: #1C2950;
+            font-size: 18px;
+            border-color: #1C2950;
+            background-color: #ffffff;
+        }
+
+        .btn-select-camera {
+            color: white;
+            background-color: #1C2950;
+            font-size: 18px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Hidden input for patient record ID -->
+    <input type="hidden" id="patient-rec-id" th:value="${patientInfo.teamId}" />
+    <div th:replace="common :: topHeaderOCR"></div>
+    <div th:replace="common :: loading"></div>
+    <div th:replace="common :: commonMessageModal"></div>
+    <main>
+        <div class="patient-list-container">
+            <div class="page-header">
+                <h1 class="page-title">
+                    <i class="bi bi-arrow-left back-icon" onclick="handleOnclickBack();"></i>
+                    <span th:text="|${patientInfo.name}さんの評価シートを選択|"></span>
+                </h1>
+            </div>
+
+            <div>
+                <div class="row g-3 mb-4">
+                    <div class="col-lg-8 col-md-7 col-12">
+                        <div class="bg-white p-3 shadow-sm input-container-card">
+                            <div class="row align-items-center">
+                                <div class="col-auto">
+                                    <label class="fw-bold text-secondary d-flex align-items-center mb-0"
+                                        style="min-width: 90px;">
+                                        評価シート
+                                        <span class="badge-required">必須</span>
+                                    </label>
+                                </div>
+                                <div class="col">
+                                    <div class="search-input-container">
+                                        <input type="text" id="evaluation-sheet-search" class="search-input-field"
+                                            value="" placeholder="選択してください" autocomplete="off" />
+                                        <button class="clear-search-btn" id="clear-search" type="button">
+                                            <i class="bi bi-x"></i>
+                                        </button>
+                                        <button class="search-dropdown-icon" type="button"
+                                            style="pointer-events: none;">
+                                            <i class="bi bi-caret-down-fill"></i>
+                                        </button>
+                                        <div class="autocomplete-dropdown" id="autocomplete-dropdown">
+                                            <div class="autocomplete-item"
+                                                th:each="category : ${ocrEvaluationCategories}"
+                                                th:attr="data-id=${category.id}, data-value=${category.label}, data-ocr-preset=${category.ocrPresetValue}"
+                                                th:text="${category.label}">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Error message for evaluation sheet -->
+                                <div class="invalid-feedback d-block text-danger small mt-1" id="evaluation-sheet-error"
+                                    style="display: none;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4 col-md-5 col-12">
+                        <div class="bg-white p-3 shadow-sm input-container-card">
+                            <div class="row align-items-center date-input-row">
+                                <div class="col-auto">
+                                    <label class="fw-bold text-secondary d-flex align-items-center mb-0"
+                                        style="min-width: 60px;">
+                                        日付
+                                        <span class="badge-required">必須</span>
+                                    </label>
+                                </div>
+                                <div class="col position-relative">
+                                    <input class="form-control border-1" type="text" id="evaluation-date"
+                                        th:value="${today}" style="padding-right: 35px;" />
+                                    <button class="date-dropdown-icon" type="button" style="pointer-events: none;">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- Error message for evaluation date -->
+                            <div class="invalid-feedback d-block text-danger small mt-1" id="evaluation-date-error"
+                                style="display: none;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="card border-0 shadow-sm overflow-hidden input-container-card">
+                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center flex-wrap">
+                        <span class="fw-bold">プレビュー表示</span>
+                        <span class="fw-bold d-none" id="image-counter">0/20</span>
+                        <button
+                            class="btn btn-link text-danger text-decoration-none p-0 small fw-bold d-flex align-items-center delete-btn d-none"
+                            id="delete-image-btn" onclick="ImageManager.confirmDelete()">
+                            <i class="bi bi-trash" style="margin-right: 8px;"></i>
+                            画像を削除
+                        </button>
+                    </div>
+                    <!-- Error message for images -->
+                    <div class="invalid-feedback d-block text-danger small" id="images-error" style="display: none;"></div>
+                    <div class="outside-card">
+                        <div class="card-body p-0 position-relative">
+                            <div class="preview-container" id="preview-container">
+                                <!-- Empty State -->
+                                <div class="empty-state" id="empty-state">
+                                    <i class="bi bi-file-earmark-text"
+                                        style="font-size: 45px; color: #9ca3af; margin-bottom: 16px;"></i>
+                                    <p class="empty-state-text">評価シートを選択し<br />画像を選択または カメラで撮影してください</p>
+                                    <div class="empty-state-buttons">
+                                        <button class="btn fw-bolder btn-select-image" style="color: #1C2950;"
+                                            onclick="ImageManager.selectFromLibrary()">
+                                            <i class="bi bi-image"></i> 画像を選択
+                                        </button>
+                                        <button class="btn fw-bolder" style="background-color: #1C2950; color: white;"
+                                            onclick="ImageManager.selectFromCamera()">
+                                            <i class="bi bi-camera"></i> カメラで撮影
+                                        </button>
+                                    </div>
+                                </div>
+                                <!-- Image Display Area -->
+                                <div class="image-display-area" id="image-display-area" style="display: none;">
+                                    <img id="preview-image" src="" alt="preview" />
+
+                                    <!-- Zoom Controls -->
+                                    <div class="zoom-controls d-none">
+                                        <button class="zoom-btn" id="zoom-in-btn" onclick="ImageManager.zoomIn()"
+                                            title="ズームイン">
+                                            <i class="bi bi-zoom-in"></i>
+                                        </button>
+                                        <button class="zoom-btn" id="zoom-out-btn" onclick="ImageManager.zoomOut()"
+                                            title="ズームアウト">
+                                            <i class="bi bi-zoom-out"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="footer-dark-section d-flex justify-content-between align-items-center d-none"
+                                id="footer-dark-section">
+                                <div class="d-flex align-items-center overflow-hidden">
+                                    <div class="thumbnail-gallery me-3" id="thumbnail-gallery">
+                                        <!-- Thumbnails will be added dynamically -->
+                                    </div>
+                                    <button id="add-image-btn" class="add-button" onclick="ImageManager.showAddDialog()">
+                                        <span class="symbols-outlined">+</span>
+                                    </button>
+                                </div>
+                                <button id="ocr-submit-btn" style="text-wrap: nowrap;"
+                                    class="btn btn-primary rounded-pill px-4 py-2 d-flex align-items-center fw-bold shadow-sm"
+                                    onclick="handleSubmit()">
+                                    <img src="/rehainfo/images/icons/ocr/magic-start.svg"
+                                        style="width: 20px; height: 20px; flex-shrink: 0; margin-right: 4px;" alt="" />
+                                    集計・サマリ自動生成
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </main>
+    <!-- Image Selection Modal -->
+    <div class="modal fade" id="imageSourceModal" tabindex="-1" aria-labelledby="imageSourceModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title fw-bold" id="imageSourceModalLabel">画像を追加</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-grid gap-3">
+                        <button class="image-source-option" onclick="ImageManager.selectFromLibrary()">
+                            <i class="bi bi-image"></i>
+                            <span>画像を選択</span>
+                        </button>
+                        <button class="image-source-option" onclick="ImageManager.selectFromCamera()">
+                            <i class="bi bi-camera"></i>
+                            <span>カメラで撮影</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Hidden File Inputs -->
+   <input type="file" id="file-input-library" accept="image/*,application/pdf,.pdf" multiple="multiple" style="display: none;" />
+    <input type="file" id="file-input-camera" accept="image/*" capture="camera" style="display: none;" />
+
+    <script src="/rehainfo/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>
