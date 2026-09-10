@@ -46,6 +46,7 @@ const smarihaDashboardSessionSecret = process.env.SMARIHA_DASHBOARD_SESSION_SECR
 const smarihaDashboardCookieName = '__Secure-smariha_dashboard';
 const smarihaDashboardSessionSeconds = 8 * 60 * 60;
 const smarihaDashboardLoginAttempts = new Map();
+const smartRehabAiAttempts = new Map();
 const smarihaDashboardAuthDisabled = process.env.NODE_ENV !== 'production' && process.env.SMARIHA_DASHBOARD_AUTH_DISABLED === 'true';
 const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.map': 'application/json; charset=utf-8', '.webmanifest': 'application/manifest+json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.xml': 'application/xml; charset=utf-8', '.txt': 'text/plain; charset=utf-8' };
 const securityHeaders = {
@@ -152,6 +153,53 @@ async function readSmallForm(request) {
     request.on('end', () => resolve(new URLSearchParams(text)));
     request.on('error', reject);
   });
+}
+
+async function readJsonRequest(request, maxBytes = 20 * 1024 * 1024) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    let tooLarge = false;
+    request.on('data', (chunk) => {
+      size += chunk.length;
+      if (size > maxBytes) {
+        tooLarge = true;
+        return;
+      }
+      chunks.push(chunk);
+    });
+    request.on('end', () => {
+      if (tooLarge) { reject(new Error('REQUEST_TOO_LARGE')); return; }
+      try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')); }
+      catch { reject(new Error('INVALID_JSON')); }
+    });
+    request.on('error', reject);
+  });
+}
+
+function openAiResponseText(body) {
+  if (typeof body?.output_text === 'string') return body.output_text;
+  for (const output of body?.output ?? []) {
+    for (const content of output?.content ?? []) {
+      if (content?.type === 'output_text' && typeof content.text === 'string') return content.text;
+    }
+  }
+  return '';
+}
+
+function parseOpenAiJson(text) {
+  const cleaned = String(text).trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  return JSON.parse(cleaned);
+}
+
+function smartRehabAiRateAllowed(request) {
+  const key = loginClientKey(request);
+  const now = Date.now();
+  const recent = (smartRehabAiAttempts.get(key) ?? []).filter((time) => now - time < 60 * 60_000);
+  if (recent.length >= 8) return false;
+  recent.push(now);
+  smartRehabAiAttempts.set(key, recent);
+  return true;
 }
 
 function wakingPage() {
@@ -453,6 +501,69 @@ createServer(async (request, response) => {
       response.end();
       return;
     }
+  }
+  if (request.method === 'POST' && requestedPath === '/rehainfo/api/prescriptions/analyze') {
+    const apiKey = process.env.OPENAI_API_KEY?.trim() ?? '';
+    const model = process.env.OPENAI_MODEL?.trim() || 'gpt-5.6-sol';
+    const origin = request.headers.origin;
+    if (origin) {
+      let sameOrigin = false;
+      try { sameOrigin = new URL(origin).host === request.headers.host; } catch {}
+      if (!sameOrigin) {
+        response.writeHead(403, { ...securityHeaders, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+        response.end(JSON.stringify({ message: '同一サイトからのみ利用できます。' }));
+        return;
+      }
+    }
+    if (!apiKey) {
+      response.writeHead(503, { ...securityHeaders, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+      response.end(JSON.stringify({ message: 'AI処方箋の解析環境が設定されていません。' }));
+      return;
+    }
+    if (!smartRehabAiRateAllowed(request)) {
+      response.writeHead(429, { ...securityHeaders, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'retry-after': '3600' });
+      response.end(JSON.stringify({ message: 'AI読取の利用上限に達しました。1時間後に再度お試しください。' }));
+      return;
+    }
+    try {
+      const body = await readJsonRequest(request);
+      const patientId = String(body.patientId ?? '');
+      const prescriptionDate = String(body.prescriptionDate ?? '');
+      const images = Array.isArray(body.images) ? body.images : [];
+      const imagePattern = /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
+      const totalBytes = images.reduce((sum, image) => sum + Buffer.byteLength(String(image)), 0);
+      if (!/^DEMO\d{6}$/.test(patientId) || !/^\d{4}-\d{2}-\d{2}$/.test(prescriptionDate)
+          || images.length < 1 || images.length > 4 || totalBytes > 19 * 1024 * 1024
+          || images.some((image) => !imagePattern.test(String(image)))) {
+        response.writeHead(400, { ...securityHeaders, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+        response.end(JSON.stringify({ message: '患者・日付・画像の入力内容を確認してください。' }));
+        return;
+      }
+      const prompt = [
+        'あなたは日本の医療文書OCR支援者です。添付された架空の処方箋画像だけを読み取り、推測で補完せずJSONのみ返してください。',
+        'スキーマ: {"prescriptionDate":"YYYY/MM/DDまたは空文字","medicalInstitution":"","doctorName":"","medications":[{"name":"","amount":"","unit":"","usage":"","days":"","notes":""}],"notes":"","confidence":0から1,"warnings":[""]}',
+        '不鮮明・未記載は空文字にしてwarningsへ理由を記載してください。',
+        `患者ID ${patientId}、画面指定日 ${prescriptionDate} は照合用であり、画像にない情報として転記しないでください。`,
+      ].join('\n');
+      const content = [{ type: 'input_text', text: prompt }, ...images.map((image) => ({ type: 'input_image', image_url: String(image), detail: 'high' }))];
+      const upstream = await fetch('https://api.openai.com/v1/responses', {
+        method: 'POST',
+        headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ model, store: false, reasoning: { effort: 'low' }, max_output_tokens: 1800, input: [{ role: 'user', content }] }),
+        signal: AbortSignal.timeout(120_000),
+      });
+      const upstreamBody = await upstream.json().catch(() => ({}));
+      if (!upstream.ok) throw new Error(`OPENAI_${upstream.status}`);
+      const result = parseOpenAiJson(openAiResponseText(upstreamBody));
+      if (!result || !Array.isArray(result.medications)) throw new Error('INVALID_AI_RESULT');
+      response.writeHead(200, { ...securityHeaders, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });
+      response.end(JSON.stringify({ result, model }));
+    } catch (error) {
+      const tooLarge = error instanceof Error && error.message === 'REQUEST_TOO_LARGE';
+      response.writeHead(tooLarge ? 413 : 502, { ...securityHeaders, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+      response.end(JSON.stringify({ message: tooLarge ? '画像の合計サイズが上限を超えています。' : 'AI処方箋の読取に失敗しました。時間をおいて再度お試しください。' }));
+    }
+    return;
   }
   if (requestedPath === '/demo.html' && request.url === '/demo.html') {
     response.writeHead(302, {

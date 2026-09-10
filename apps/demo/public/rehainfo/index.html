@@ -6,15 +6,17 @@
 	<meta name="robots" content="noindex,nofollow,noarchive" />
 	<meta name="theme-color" content="#1b294e" />
 	<link rel="canonical" href="https://method-more.com/rehainfo/" />
-	<title>スケジュール | Smart Rehab</title>
+	<title>患者一覧 | Smart Rehab</title>
 	<link href="/rehainfo/css/bootstrap.min.css?v=source-20260910" rel="stylesheet" />
 	<link href="/rehainfo/css/bootstrap-icons-1.9.1/bootstrap-icons.css?v=source-20260910" rel="stylesheet" />
 	<link href="/rehainfo/css/variables.css?v=source-20260910" rel="stylesheet" />
 	<link href="/rehainfo/rehainfo-demo.css?v=20260910-1" rel="stylesheet" />
+	<link href="/rehainfo/patient-demo.css?v=20260910-2" rel="stylesheet" />
 	<link href="/rehainfo/schedule/schedule.css?v=source-1.3.0" rel="stylesheet" />
 	<script src="/rehainfo/js/bootstrap.bundle.min.js?v=source-20260910" defer="defer"></script>
 	<script src="/rehainfo/rehainfo-demo-adapter.js?v=20260910-1" defer="defer"></script>
 	<script src="/rehainfo/schedule/schedule.js?v=source-1.3.0" defer="defer"></script>
+	<script src="/rehainfo/patient-demo.js?v=20260910-2" defer="defer"></script>
 </head>
 <body>
 	<main id="rehab-schedule-page">
@@ -23,7 +25,9 @@
 				<div class="container-fluid">
 					<div class="d-flex align-items-center">
 						<a href="/rehainfo/" class="navbar-brand bg-white"><img src="/rehainfo/images/SmartRehab-R_Available_Transparent.png" class="logo-image" alt="Smart Rehab®" /></a>
-						<a href="/rehainfo/" class="btn header-button gks-modify-header-btn ms-2 active">スケジュール</a>
+						<a href="#patients" id="patientViewNav" class="btn header-button gks-modify-header-btn ms-2 active">患者一覧</a>
+						<a href="#schedule" id="scheduleViewNav" class="btn header-button gks-modify-header-btn ms-2">スケジュール</a>
+						<button type="button" id="prescriptionViewNav" class="btn header-button gks-modify-header-btn ms-2">AI処方箋</button>
 						<a href="/smariha/" class="btn header-button gks-modify-header-btn ms-2">統合ポータル</a>
 					</div>
 					<div class="d-flex align-items-center gap-2"><span class="rehainfo-source-badge">REHAINFO実装・架空データ</span><a href="/rehainfo/logout" class="btn header-button gks-modify-header-btn">ログアウト</a></div>
@@ -31,7 +35,22 @@
 			</nav>
 		</header>
 		<div class="rehainfo-demo-notice" role="status"><strong>DEMO</strong><span>rehainfoの実際の画面テンプレート・CSS・JavaScriptを使用しています。表示内容はすべて架空です。</span></div>
-		<section class="schedule-shell">
+		<section id="patientPage" class="patient-page-shell">
+			<div id="patientDischargeNotice" class="alert alert-success" role="status" hidden></div>
+			<div class="patient-page-heading">
+				<div><p class="patient-eyebrow">SMART REHAB / PATIENTS</p><h1>患者一覧</h1><p>患者情報、退院、AI処方箋を一つの画面で管理します。</p></div>
+				<div class="patient-summary-cards" aria-label="患者集計"><span>入院中<strong id="activePatientCount">0</strong></span><span>退院済み<strong id="dischargedPatientCount">0</strong></span><span>AI処方箋<strong id="prescriptionCount">0</strong></span></div>
+			</div>
+			<div class="patient-search-panel">
+				<label for="patientSearch">患者ID・患者名</label>
+				<div class="patient-search-controls"><input id="patientSearch" class="form-control" type="search" placeholder="患者ID / 患者名 / カナで検索" /><label class="form-check"><input id="showDischargedPatients" class="form-check-input" type="checkbox" /><span>退院済みも表示</span></label></div>
+			</div>
+			<div class="patient-table-frame">
+				<table class="patient-table"><thead><tr><th>患者ID</th><th>患者氏名</th><th>性別</th><th>生年月日</th><th>リハビリ区分</th><th>起算日</th><th>入外区分</th><th>病棟名</th><th>操作</th></tr></thead><tbody id="patientRows"></tbody></table>
+				<div id="patientEmpty" class="patient-empty" hidden>条件に一致する患者はいません。</div>
+			</div>
+		</section>
+		<section id="schedulePage" class="schedule-shell d-none">
 			<div class="schedule-toolbar">
 				<div class="date-navigation">
 					<button id="previousDate" type="button" aria-label="前日"><i class="bi bi-chevron-left"></i></button>
@@ -145,6 +164,55 @@
 				</div>
 			</div>
 		</div>
+	</div>
+
+	<div class="modal fade" id="patientDetailModal" tabindex="-1" aria-labelledby="patientDetailModalTitle" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content">
+			<div class="modal-header"><div><small class="patient-modal-eyebrow">患者情報</small><h2 id="patientDetailModalTitle" class="modal-title fs-5"></h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="閉じる"></button></div>
+			<div class="modal-body"><div id="patientDetailContent" class="patient-detail-grid"></div></div>
+			<div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">閉じる</button></div>
+		</div></div>
+	</div>
+
+	<div class="modal fade" id="patientDischargeModal" tabindex="-1" aria-labelledby="patientDischargeModalTitle" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+			<div class="modal-header"><h2 id="patientDischargeModalTitle" class="modal-title fs-5">退院日の設定</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="閉じる"></button></div>
+			<div class="modal-body">
+				<div class="patient-discharge-summary mb-3"><strong id="patientDischargePatientName"></strong><span id="patientDischargePatientId"></span><span>入院日：<span id="patientDischargeAdmissionDate" class="d-inline"></span></span></div>
+				<p>退院日を入力すると、患者情報の「退院日」へ自動的に保存されます。</p>
+				<label for="patientDischargeDate" class="form-label fw-bold">退院日</label>
+				<input type="date" id="patientDischargeDate" class="form-control" required />
+				<div id="patientDischargeError" class="alert alert-danger mt-3 mb-0" role="alert" hidden></div>
+			</div>
+			<div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">キャンセル</button><button type="button" class="btn btn-danger" id="patientDischargeSubmit">退院する</button></div>
+		</div></div>
+	</div>
+
+	<div class="modal fade" id="prescriptionModal" tabindex="-1" aria-labelledby="prescriptionModalTitle" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-centered modal-xl"><div class="modal-content prescription-modal-content">
+			<div class="modal-header"><div><small class="patient-modal-eyebrow">AI PRESCRIPTION</small><h2 id="prescriptionModalTitle" class="modal-title fs-5">AI処方箋</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="閉じる"></button></div>
+			<div class="modal-body">
+				<div class="prescription-layout">
+					<section class="prescription-input-panel">
+						<label for="prescriptionPatient" class="form-label fw-bold">患者</label><select id="prescriptionPatient" class="form-select"></select>
+						<label for="prescriptionDate" class="form-label fw-bold mt-3">日付</label><input id="prescriptionDate" class="form-control" type="date" />
+						<label for="prescriptionImages" class="prescription-dropzone mt-3"><i class="bi bi-images"></i><strong>処方箋画像を選択</strong><span>PNG・JPEG・WebP、最大4枚</span><input id="prescriptionImages" type="file" accept="image/png,image/jpeg,image/webp" multiple /></label>
+						<div id="prescriptionPreview" class="prescription-preview"></div>
+						<p class="prescription-privacy">公開検証環境です。実在する患者の処方箋や個人情報はアップロードしないでください。画像は解析のためAI APIへ送信され、このアプリには保存されません。</p>
+						<button type="button" id="analyzePrescription" class="btn prescription-primary w-100"><i class="bi bi-stars"></i> AIで読み取る</button>
+						<div id="prescriptionStatus" class="prescription-status" role="status" hidden></div>
+					</section>
+					<section class="prescription-result-panel">
+						<div class="prescription-result-heading"><div><span>読取結果</span><small>内容を確認してから保存してください</small></div><span id="prescriptionConfidence" class="confidence-chip" hidden></span></div>
+						<div class="prescription-result-grid"><label>処方日<input id="resultPrescriptionDate" class="form-control" type="text" /></label><label>医療機関<input id="resultInstitution" class="form-control" type="text" /></label><label>医師名<input id="resultDoctor" class="form-control" type="text" /></label></div>
+						<label class="form-label fw-bold mt-3" for="resultMedications">薬剤</label><textarea id="resultMedications" class="form-control" rows="6" placeholder="薬剤名、用量、用法、日数"></textarea>
+						<label class="form-label fw-bold mt-3" for="resultNotes">備考・注意事項</label><textarea id="resultNotes" class="form-control" rows="3"></textarea>
+						<button type="button" id="savePrescription" class="btn prescription-save mt-3" disabled><i class="bi bi-check2-circle"></i> 患者の処方箋一覧へ保存</button>
+						<div class="prescription-history"><h3>保存済みAI処方箋</h3><div id="prescriptionHistory"></div></div>
+					</section>
+				</div>
+			</div>
+		</div></div>
 	</div>
 </body>
 </html>

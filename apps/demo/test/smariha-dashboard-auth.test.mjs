@@ -27,6 +27,7 @@ before(async () => {
       SMARIHA_DASHBOARD_USERNAME: username,
       SMARIHA_DASHBOARD_PASSWORD_SHA256: createHash('sha256').update(password).digest('hex'),
       SMARIHA_DASHBOARD_SESSION_SECRET: 'smariha-dashboard-test-session-secret-0123456789',
+      OPENAI_API_KEY: '',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -177,6 +178,8 @@ test('rehainfo source UI is linked as a protected fictional-data demo', async ()
   assert.equal(publicLogo.headers.get('content-type'), 'image/png');
   const protectedSource = await fetch(`${origin}/rehainfo/schedule/schedule.js`, { redirect: 'manual' });
   assert.equal(protectedSource.status, 401);
+  const protectedPatients = await fetch(`${origin}/rehainfo/patient-demo.js`, { redirect: 'manual' });
+  assert.equal(protectedPatients.status, 401);
 
   const accepted = await fetch(`${origin}/rehainfo/login`, {
     method: 'POST',
@@ -197,9 +200,29 @@ test('rehainfo source UI is linked as a protected fictional-data demo', async ()
   const html = await page.text();
   assert.equal(page.status, 200);
   assert.match(html, /rehab-schedule-page/);
+  assert.match(html, /患者一覧/);
+  assert.match(html, /AI処方箋/);
+  assert.match(html, /id="patientDischargeDate"/);
   assert.match(html, /リハビリ予約表/);
   assert.match(html, /rehainfoの実際の画面テンプレート・CSS・JavaScript/);
   assert.match(html, /\/rehainfo\/schedule\/schedule\.js\?v=source-1\.3\.0/);
+  assert.doesNotMatch(html, /過去・本日・将来の日付を設定できます。|data-discharge-date-offset|>昨日<|>本日<|>明日</);
+
+  const patientSource = await fetch(`${origin}/rehainfo/patient-demo.js`, { headers: { cookie } });
+  const patientSourceCode = await patientSource.text();
+  assert.equal(patientSource.status, 200);
+  assert.equal((patientSourceCode.match(/id:'DEMO2609\d{2}'/g) ?? []).length, 10);
+  assert.match(patientSourceCode, /smart-rehab-public-patients-v2/);
+  assert.match(patientSourceCode, /\/rehainfo\/api\/prescriptions\/analyze/);
+  assert.match(patientSourceCode, /state\.dischargeDates\[patient\.id\] = input\.value/);
+
+  const unavailableAi = await fetch(`${origin}/rehainfo/api/prescriptions/analyze`, {
+    method: 'POST',
+    headers: { cookie, 'content-type': 'application/json' },
+    body: JSON.stringify({ patientId: 'DEMO260901', prescriptionDate: '2026-09-10', images: ['data:image/png;base64,AA=='] }),
+  });
+  assert.equal(unavailableAi.status, 503);
+  assert.match((await unavailableAi.json()).message, /設定されていません/);
 
   const source = await fetch(`${origin}/rehainfo/schedule/schedule.js`, { headers: { cookie } });
   const sourceCode = await source.text();

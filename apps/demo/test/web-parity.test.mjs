@@ -210,7 +210,7 @@ test('corporate homepage presents the nine methodmore products accurately', asyn
   assert.match(corporate, /恋の<em>しおり<\/em>/);
   assert.match(corporate, /RoboCare <em>One<\/em>/);
   assert.match(corporate, /スマリハ<br><em>管理ダッシュボード<\/em>/);
-  assert.match(corporate, /スマリハ<br><em>スケジューラー<\/em>/);
+  assert.match(corporate, /Smart Rehab<br><em>患者・退院・AI処方箋<\/em>/);
   assert.match(corporate, /スマリハ<br><em>統合ポータル<\/em>/);
   assert.match(corporate, /公開中/);
   assert.match(corporate, /Android MVP 開発中/);
@@ -266,7 +266,7 @@ test('corporate homepage presents the nine methodmore products accurately', asyn
   assert.match(server, /const smarihaDashboardPath = '\/smariha-dashboard'/);
   assert.match(server, /requestedPath === '\/smariha-dashboard\/taisho\/'/);
   assert.match(server, /requestedPath === '\/smariha-dashboard\/keijinkai\/'/);
-  for (const copy of ['既存予定を守りながら、配置を最適化', 'rehainfoの実際の画面テンプレート・CSS・JavaScriptを使い、療法士・患者・単位・院内予定を確認できるログイン制デモです。', '重複・単位チェック', '未配置予約とリスケ提案', '療法士承認後に反映']) {
+  for (const copy of ['既存予定を守りながら、配置を最適化', 'rehainfoで開発した患者管理、退院機能、AI処方箋、療法士・単位・院内予定を一つに統合したログイン制デモです。', '架空患者10件・退院管理', 'AI処方箋の読取・保存', '予定・単位・院内予定']) {
     assert.ok(corporate.includes(copy), `スマリハスケジューラーの製品コピーがありません: ${copy}`);
   }
   assert.match(corporate, /href="\/rehainfo\/"[^>]*>実際のUIを開く/);
