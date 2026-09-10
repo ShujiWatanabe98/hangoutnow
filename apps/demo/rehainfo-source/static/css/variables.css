@@ -1,0 +1,24 @@
+:root {
+    --main-color: #1B294E;
+    --main-darker-color: #141F3D;
+    --text-color: #333333;
+    --border-color: #CED4DA;
+    --back-btn-border-color: #6A757B;
+    --back-btn-border-lighter-color: #7D8B92;
+    --main-bg-color: #F6F9FF;
+    --box-shadow-color: #0000001A;
+    --disabled-bg-color: #9EA3A9;
+    --body-bg-color: #F7F8F6;
+    --checkbox-border-color: #DDDFDE;
+    --error-text-color: ##FF0000;
+    --btn-gray-bg-color: #485371;
+    --white-color: #FFFFFF;
+    --danger-color: #C22828;
+    --black-color: #181818;
+    --physical-therapist-color: #0B6FFA;
+    --occupational-therapist-color: #DB5666;
+    --speech-therapist-color: #47A282;
+    --highlight-problem-color: #FCE5CD;
+    --highlight-greater-color: #FFF8E8;
+    --highlight-less-color: #E8F7FF;
+}

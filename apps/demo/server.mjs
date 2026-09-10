@@ -416,6 +416,19 @@ createServer(async (request, response) => {
   }
   const activeSmarihaPath = [rehainfoSourceUiPath, smarihaPortalPath, smarihaSchedulerPath, smarihaDashboardPath]
     .find((path) => normalizedRequestedPath === path || requestedPath.startsWith(`${path}/`)) ?? smarihaDashboardPath;
+  const legacySmarihaPath = [smarihaPortalPath, smarihaSchedulerPath, smarihaDashboardPath]
+    .find((path) => normalizedRequestedPath === path || requestedPath.startsWith(`${path}/`));
+  if (legacySmarihaPath && (request.method === 'GET' || request.method === 'HEAD')) {
+    const destination = legacySmarihaPath === smarihaSchedulerPath ? `${rehainfoSourceUiPath}/schedule` : `${rehainfoSourceUiPath}/`;
+    response.writeHead(302, {
+      ...securityHeaders,
+      location: destination,
+      'cache-control': 'no-store',
+      'x-robots-tag': 'noindex, nofollow, noarchive',
+    });
+    response.end();
+    return;
+  }
   const isSmarihaProtectedPath = [rehainfoSourceUiPath, smarihaPortalPath, smarihaDashboardPath, smarihaSchedulerPath].some((path) =>
     normalizedRequestedPath === path || requestedPath.startsWith(`${path}/`));
   if (isSmarihaProtectedPath) {
@@ -472,7 +485,14 @@ createServer(async (request, response) => {
     }
 
     const rehainfoPublicLoginAssets = activeSmarihaPath === rehainfoSourceUiPath
-      ? [`${rehainfoSourceUiPath}/css/bootstrap.min.css`, `${rehainfoSourceUiPath}/css/variables.css`, `${rehainfoSourceUiPath}/images/SmartRehab-R_Available_Transparent.png`]
+      ? [
+          `${rehainfoSourceUiPath}/css/bootstrap.min.css`,
+          `${rehainfoSourceUiPath}/css/variables.css`,
+          `${rehainfoSourceUiPath}/images/SmartRehab-R_Available_Transparent.png`,
+          `${rehainfoSourceUiPath}/images/intep360.ico`,
+          `${rehainfoSourceUiPath}/images/intep360.svg`,
+          `${rehainfoSourceUiPath}/js/Common.js`,
+        ]
       : [];
     const publicLoginAsset = request.method === 'GET' && [loginPath, `${activeSmarihaPath}/login.css`, `${activeSmarihaPath}/login.js`, `${activeSmarihaPath}/smartrehab-logo.png`, ...rehainfoPublicLoginAssets].includes(requestedPath);
     if (publicLoginAsset) {
@@ -731,6 +751,16 @@ createServer(async (request, response) => {
       ? '/rehainfo/index.html'
     : requestedPath === '/rehainfo/schedule' || requestedPath === '/rehainfo/schedule/'
       ? '/rehainfo/schedule.html'
+    : requestedPath === '/rehainfo/therapists' || requestedPath === '/rehainfo/therapists/'
+      ? '/rehainfo/therapists.html'
+    : requestedPath === '/rehainfo/attendance' || requestedPath === '/rehainfo/attendance/'
+      ? '/rehainfo/attendance.html'
+    : requestedPath === '/rehainfo/ai-schedule' || requestedPath === '/rehainfo/ai-schedule/'
+      ? '/rehainfo/ai-schedule.html'
+    : requestedPath === '/rehainfo/billing-management' || requestedPath === '/rehainfo/billing-management/'
+      ? '/rehainfo/billing-management.html'
+    : requestedPath === '/rehainfo/schedule-management' || requestedPath === '/rehainfo/schedule-management/'
+      ? '/rehainfo/schedule-management.html'
       : divertNaviDashboardPath && normalizedRequestedPath === divertNaviDashboardPath
         ? '/divertnavi-app/index.html'
       : requestedPath;

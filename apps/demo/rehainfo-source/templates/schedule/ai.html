@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ja">
+<head th:replace="common :: meta_header"></head>
+<head><title>AIスケジュール | Smart Rehab</title><link href="/rehainfo/schedule/ai.css?v=1.1.0" rel="stylesheet"/><script src="/rehainfo/schedule/ai.js?v=1.1.0" defer="defer"></script></head>
+<body><main><div th:replace="common :: topHeader"></div><section class="ai-shell">
+<header><a href="/rehainfo/schedule">← スケジュール</a><h1>AIスケジュール</h1><label>対象月 <input id="aiMonth" type="month"/></label><button id="generatePlan">選択患者をAI分析して月間案を作成</button></header>
+<div id="aiMessage"></div><div class="ai-layout">
+<section class="patient-panel"><div class="panel-title"><strong>患者選択</strong><input id="patientSearch" placeholder="患者ID・氏名"/><button id="selectAll">全選択</button></div><div id="patientList"></div></section>
+<section class="plan-panel"><div class="panel-title"><strong>AI分析・承認</strong><select id="planSelect"><option value="">計画を選択</option></select></div><div id="planSummary" class="plan-summary"></div><div id="analysisList"></div>
+<h2>療法士別承認・効果マッチング</h2><div id="approvalList"></div><div class="proposal-wrap"><table><thead><tr><th>提案</th><th>日付</th><th>患者</th><th>療法士</th><th>効果適合度</th><th>時間</th><th>単位</th><th>状態</th></tr></thead><tbody id="proposalList"></tbody></table></div><button id="applyPlan" class="apply-button" disabled="disabled">全承認済み案を本スケジュールへ反映</button>
+</section></div></section></main></body></html>

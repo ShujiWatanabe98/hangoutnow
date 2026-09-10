@@ -1,0 +1,550 @@
+@import './variables.css';
+@import './fonts.css';
+
+body {
+    background-color: var(--body-bg-color);
+    font-family: 'Noto Sans JP', sans-serif;
+}
+
+/**
+ マイクボタンロード中の回転用
+*/
+.mic-loading {
+    width: 21px;
+    height: 21px;
+    border-radius: 50%;
+    border: 3px solid #fff;
+    border-top-color: #bccee7e3;
+    box-sizing: border-box;
+    -webkit-animation: mic-loading 1.2s linear infinite;
+}
+
+/**
+ マイクのアイコンを表示するか、ロードボタンを表示するかを制御する
+*/
+.mic-display {
+    display: none;
+}
+
+@keyframes mic-loading{
+    0%{transform:rotate(0deg)}
+    100%{transform:rotate(360deg)}
+}
+@-webkit-keyframes mic-loading{
+    0%{-webkit-transform:rotate(0deg)}
+    100%{-webkit-transform:rotate(360deg)}
+}
+
+.gks-csv-download-icon {
+    background-image: url('../images/csvDownloadIcon.svg');
+    width: 21px;
+    height: 24px;
+}
+
+.gks-danger-text {
+    color: var(--danger-color);
+}
+
+.gks-header-1 {
+  font-size: 24px;
+  line-height: 24px;
+  font-weight: 700;
+  color: var(--main-color);
+}
+
+.gks-header-2 {
+  font-size: 18px;
+  line-height: 18px;
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+.gks-header-3 {
+  font-size: 16px;
+  line-height: 16px;
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+.gks-text-1 {
+    font-size: 24px;
+    line-height: 24px;
+    font-weight: 700;
+    color: var(--text-color);
+}
+
+.gks-text-2 {
+    font-size: 18px;
+    line-height: 18px;
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.gks-text-3 {
+    font-size: 16px;
+    line-height: 16px;
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.gks-setting-btn {
+    color: white;
+    background-color: #707070 !important;
+    border-color: #707070 !important;
+}
+
+.gks-setting-btn:hover {
+    color: white;
+    background-color: #707070 !important;
+    border-color: #707070 !important;
+}
+
+.gks-modify-header-btn {
+    color: var(--main-color);
+    background-color: white;
+    border-color: white;
+
+}
+.gks-modify-header-btn:hover {
+    color: white;
+    background-color: var(--main-color);
+    border-color: white;
+}
+.gks-modify-header-btn:active {
+    color: white;
+    background-color: #004080;
+    border-color: #004080;
+}
+.ocr-link-header-button {
+    min-width: 90px;
+}
+
+/* Remove dropdown caret */
+.gks-dropdown-toggle::after {
+    display: none !important;
+}
+.gks-header-container {
+    width: 100%;
+    box-shadow: 0px 4px 3px rgba(0, 0, 0, 0.1);
+    background: white;
+    margin: 20px 24px 22px 19px;
+}
+
+.gks-header-item {
+    padding-right: 40px;
+    font-size: 14px;
+    font-weight: 400;
+}
+
+.gks-user-profile-btn {
+    background-color: white;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    padding: 0;
+    > i {
+        color: var(--main-color);
+        font-size: 36px;
+    }
+}
+
+.gks-user-profile-btn:hover {
+    background-color: var(--main-color);
+    > i {
+        color: white;
+    }
+}
+
+.gks-treatment-implement-header {
+    background-color: white;
+    width: 260px;
+    height: 44px;
+    position: absolute;
+    left: calc(50% - 130px);
+    padding: .25rem .5rem;
+    cursor: pointer;
+}
+
+.gks-side-menu-select-option::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 0;
+    height: 100%;
+    background-color: var(--main-color);
+}
+.gks-side-menu-select-option:hover::after {
+    width: 3px;
+}
+
+.gks-treatment-patient-id {
+    background-color: white;
+    width: 260px;
+    height: 44px;
+    position: absolute;
+    left: calc(50% - 130px);
+    border-radius: unset !important;
+    cursor: pointer;
+}
+
+.gks-common-admin-evaluation-preset-icon {
+    background-image: url('../images/icons/admin-evaluation-preset-icon.svg');
+    width: 16px;
+    height: 17px;
+}
+
+
+.gks-common-admin-treatment-preset-icon {
+    background-image: url('../images/icons/admin-treatment-preset-icon.svg');
+    width: 18px;
+    height: 21px;
+}
+
+.gks-common-admin-export-icon {
+    background-image: url('../images/icons/admin-export-icon.svg');
+    width: 13px;
+    height: 15px;
+}
+
+.gks-common-admin-evaluation-preset-icon {
+    background-image: url('../images/icons/admin-evaluation-preset-icon.svg');
+    width: 16px;
+    height: 17px;
+}
+
+.gks-discharge-summary-output-icon {
+    background-image: url('../images/icons/discharge-summary-output-icon.svg');
+    width: 13px;
+    height: 15px;
+}
+
+.gks-patient-data-link-icon {
+    background-image: url('../images/icons/patient-data-link.svg');
+    background-size: contain;
+    background-repeat: no-repeat;
+    width: 14px;
+    height: 14px;
+}
+
+.gks-patient-soap-list-icon {
+    background-image: url('../images/icons/plan.svg');
+    background-size: contain;
+    background-repeat: no-repeat;
+    width: 14px;
+    height: 14px;
+}
+
+.gks-assignment-staff-list-icon {
+    background-image: url('../images/therapist.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    width: 14px;
+    height: 14px;
+}
+
+.gks-disply-custom-icon {
+    background-image: url('../images/display_custom.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    width: 14px;
+    height: 14px;
+}
+
+.gks-admin-user-profile-btn {
+    > i {
+        color: #323232 !important;
+    }
+}
+
+.gks-admin-user-profile-btn:hover {
+    background-color: #323232 !important;
+
+    > i:hover {
+        color: white !important;
+    }
+}
+
+
+.gks-admin-main-background-color {
+    background-color: #323232 !important;
+}
+
+.gks-admin-main-color {
+    color: #323232 !important;
+}
+
+.gks-admin-modify-header-btn:hover {
+    background-color: #323232 !important;
+}
+
+#notificationPopup .btn-main,
+#errorMessageModal .btn-main,
+#successMessageModal .btn-main {
+    color: white;
+    background-color: var(--main-color);
+}
+
+#notificationPopup .btn-main:hover,
+#errorMessageModal .btn-main:hover,
+#successMessageModal .btn-main:hover {
+    opacity: 0.75;
+}
+
+#fitbitConfirmMessageModal .btn-main {
+    color: white;
+    background-color: var(--main-color);
+}
+
+#fitbitConfirmMessageModal .btn-main:hover {
+    opacity: 0.75;
+}
+
+.scrollable-content {
+    max-height: calc(100vh - 60px);
+    overflow-y: auto;
+}
+
+.admin-scrollable-content {
+    max-height: calc(100vh - 210px);
+    overflow-y: auto;
+}
+
+.modal-footer .main-btn {
+    color: white;
+    background-color: var(--main-color);
+    border-color: var(--main-color);
+}
+
+.modal-footer .back-btn {
+    color: var(--back-btn-border-color);
+    background-color: white;
+    border-color: var(--back-btn-border-color);
+}
+
+.gks-btn-primary {
+    background-color: var(--main-color) !important;
+    color: white !important;
+}
+
+.gks-btn-primary:hover {
+    background-color: #141f3b !important;
+}
+
+.gks-btn-primary:active {
+    background-color: #0f172a !important; /* darker shade */
+    transform: scale(0.97);               /* subtle press-down effect */
+}
+.gks-btn-outline-primary {
+    background-color: white !important;
+    border-color: var(--main-color) !important;
+    color: var(--main-color) !important;
+}
+
+.gks-btn-outline-primary:hover {
+    background-color:var(--main-color) !important;
+    border-color: var(--main-color) !important;
+    color: white !important;
+}
+
+#confirmMessageModal .btn-custom {
+    width: 80px;
+    height: 40px;
+    border: 1px solid var(--main-color);
+    font-weight: 700;
+    font-size: 16px;
+    line-height: 16px;
+}
+
+.gks-close-modal-memo {
+    /* Modal Dialog */
+    .modal-dialog {
+        max-width: 400px;
+        margin: auto;
+    }
+    .modal-footer {
+        border-top: unset !important;
+        justify-content: center !important
+    }
+
+    .gks-btn-outline-primary,.gks-btn-primary {
+        width: 175px !important;
+        height: 40px !important;
+    }
+    
+}
+
+.btn-therapist {
+    font-weight: 500;
+}
+
+.btn-therapist:has(+ .btn-therapist.active) {
+    border-right: none;
+}
+
+.btn-therapist:not(:first-child) {
+    border-left: none;
+}
+
+.btn-physical-therapist {
+    color: var(--physical-therapist-color) !important;
+    background-color: var(--white-color);
+    border-color: var(--physical-therapist-color) !important;
+}
+
+.btn-occupational-therapist {
+    color: var(--occupational-therapist-color) !important;
+    background-color: var(--white-color);
+    border-color: var(--occupational-therapist-color) !important;
+}
+
+.btn-speech-therapist {
+    color: var(--speech-therapist-color) !important;
+    background-color: var(--white-color);
+    border-color: var(--speech-therapist-color) !important;
+}
+
+.btn-physical-therapist.active {
+    background-color: var(--physical-therapist-color) !important;
+    color: var(--white-color) !important;
+    border-color: var(--physical-therapist-color) !important;
+}
+
+.btn-occupational-therapist.active {
+    background-color: var(--occupational-therapist-color) !important;
+    color: var(--white-color) !important;
+    border-color: var(--occupational-therapist-color) !important;
+}
+
+.btn-speech-therapist.active {
+    background-color: var(--speech-therapist-color) !important;
+    color: var(--white-color) !important;
+    border-color: var(--speech-therapist-color) !important;
+}
+
+.fw-medium {
+    font-weight: 500;
+}
+
+.fs-14px {
+    font-size: 14px;
+    line-height: 14px;
+}
+
+.fs-15px {
+    font-size: 15px;
+    line-height: 15px;
+}
+
+.fs-16px {
+    font-size: 16px;
+    line-height: 16px;
+}
+
+.p-10px {
+    padding: 10px !important;
+}
+
+.pt-20px {
+    padding-top: 20px;
+}
+
+.px-10px {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+}
+
+.px-20px {
+    padding-left: 20px;
+    padding-right: 20px;
+}
+
+.py-10px {
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+.py-20px {
+    padding-top: 20px;
+    padding-bottom: 20px;
+}
+
+.mt-20px {
+    margin-top: 20px;
+}
+
+.mt-30px {
+    margin-top: 30px;
+}
+
+.mb-20px {
+    margin-bottom: 20px;
+}
+
+.mb-30px {
+    margin-bottom: 30px;
+}
+
+.gap-10px {
+    gap: 10px;
+}
+
+.gap-20px {
+    gap: 20px;
+}
+
+.gap-30px {
+    gap: 30px;
+}
+
+.gap-40px {
+    gap: 40px;
+}
+
+.gap-x-40px {
+    column-gap: 40px;
+}
+
+.gap-y-20px {
+    row-gap: 20px;
+}
+
+.h-200px {
+    height: 200px;
+}
+
+.mw-400px {
+    max-width: 400px;
+}
+
+.custom-modal-dialog {
+    top: 50px;
+}
+
+#roleGroup.btn-group button {
+  width: 80px;
+  height: 40px;
+  background-color: #ffffff;
+  border: 1px solid #1b294e;
+  color: #1b294e;
+  font-weight: 500;
+  font-size: 15px;
+  line-height: 15px;
+}
+
+#roleGroup.btn-group button.active {
+  background-color: #1b294e;
+  color: #ffffff;
+}
+
+.z-index-1060 {
+  z-index: 1060 !important;
+}
+.z-index-1070 {
+  z-index: 1070 !important;
+}
+
+.z-index-1069 {
+  z-index: 1069 !important;
+}

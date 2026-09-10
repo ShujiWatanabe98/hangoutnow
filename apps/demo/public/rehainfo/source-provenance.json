@@ -1,57 +1,25 @@
 {
-  "source": "rehainfo-main",
-  "copiedAt": "2026-09-10",
-  "files": [
-    {
-      "sourcePath": "src/main/resources/templates/common.html and src/main/resources/templates/patientList.html",
-      "deployedPath": "/rehainfo/index.html",
-      "sha256": "A07ED6A1551380A2DDB6613D9957EA37A489A1E6ED1AE17817CB21730A31AA12"
-    },
-    {
-      "sourcePath": "src/main/resources/templates/common.html and src/main/resources/templates/patientList.html styles",
-      "deployedPath": "/rehainfo/patient-list-source.css",
-      "sha256": "3560FAFA300B69B3648804CF0F7156BF2CE775A7FF8BA083F0F1BCD2C0D2BB56"
-    },
-    {
-      "sourcePath": "patient-list interaction adapter with fictional demo data",
-      "deployedPath": "/rehainfo/patient-list-source.js",
-      "sha256": "74D662E13DC965227107ABFDD509AD9AB5F5CEEA3DE8F1949CADD50BB6F0A994"
-    },
-    {
-      "sourcePath": "previous public integrated patient and schedule demo",
-      "deployedPath": "/rehainfo/schedule.html",
-      "sha256": "AA33F69E3D0C49A3F1DC0FB951FC2FE27B3808B4E641E5E9F9C502B3A381C3AC"
-    },
-    {
-      "sourcePath": "PatientDischarge.js and AiPrescriptionController.java behavior",
-      "deployedPath": "/rehainfo/patient-demo.js",
-      "sha256": "A5B1EB709DF9FA66F67ADDA4E857BC1763F26F6C91BCAC06367873460685A295"
-    },
-    {
-      "sourcePath": "PatientDischarge.css and prescription UI styles",
-      "deployedPath": "/rehainfo/patient-demo.css",
-      "sha256": "7F6C0FD3CFC95CAAE0451B7C377DA740DC87B487A64B596CA6277CB01553C26D"
-    },
-    {
-      "sourcePath": "fictional patient data adapter",
-      "deployedPath": "/rehainfo/rehainfo-demo-adapter.js",
-      "sha256": "8C79667C89A8F7BA31393070A447322285F2BB530060EA7F85BBA50496FAF08E"
-    },
-    {
-      "sourcePath": "src/main/resources/static/schedule/schedule.js",
-      "deployedPath": "/rehainfo/schedule/schedule.js",
-      "sha256": "76608C376E3A2F3DFEF2404C212CDC5E0FA9C117A79B157EC0038A9BC131124A"
-    },
-    {
-      "sourcePath": "src/main/resources/static/schedule/schedule.css",
-      "deployedPath": "/rehainfo/schedule/schedule.css",
-      "sha256": "79D6486614D0FB9117FBBD4C1A33EDD4443DD130A11F3959A4A626158C7BF7D8"
-    }
-  ],
-  "features": ["source-matched-patient-list", "patient-filtering", "patient-selection", "preserved-schedule-demo"],
-  "patientCount": 10,
-  "seedPrescriptionCount": 1,
-  "persistence": "browser-local-storage",
+  "source": "rehainfo-main/src/main/resources",
+  "capturedAt": "2026-09-10",
+  "sourcePolicy": "Public Smart Rehab screens must be generated from copied upstream Thymeleaf templates. Independently authored replacement UI is forbidden.",
+  "generationCommand": "npm run sync:rehainfo -w @hangout-now/demo",
+  "verificationCommand": "npm run check:rehainfo-source -w @hangout-now/demo",
+  "routes": {
+    "/rehainfo/": "templates/patientList.html",
+    "/rehainfo/login.html": "templates/login.html",
+    "/rehainfo/schedule": "templates/schedule/index.html",
+    "/rehainfo/therapists": "templates/schedule/therapists.html",
+    "/rehainfo/attendance": "templates/schedule/attendance.html",
+    "/rehainfo/ai-schedule": "templates/schedule/ai.html",
+    "/rehainfo/billing-management": "templates/schedule/billing-management.html",
+    "/rehainfo/schedule-management": "templates/schedule/operations.html"
+  },
+  "legacyIndependentRoutes": {
+    "/smariha": "/rehainfo/",
+    "/smariha-dashboard": "/rehainfo/",
+    "/smariha-scheduler": "/rehainfo/schedule"
+  },
+  "sourceManifest": "apps/demo/rehainfo-source/source-manifest.json",
   "dataMode": "fictional-browser-demo",
   "externalClinicalSystemsConnected": false
 }

@@ -1,0 +1,16 @@
+{
+  "upstreamRepository": "rehainfo-main",
+  "capturedAt": "2026-09-10",
+  "policy": "Public Smart Rehab HTML is generated only from these copied upstream templates. Directly authored replacement screens are forbidden.",
+  "templates": {
+    "templates/common.html": "9710A93262E39874CECD2EB6564CFB226D8A556F803D4723DCF7F783C0C9486D",
+    "templates/login.html": "B066D29888953E92E9CF7371A19485EF3E523C2595E894D3782912D00D305E3F",
+    "templates/patientList.html": "6F6BF87A95B6966B3DFB9CC326A1C5BF2022A23CA25AB27D6BDDB91B9341A91B",
+    "templates/schedule/ai.html": "4F03E5D382D1E8C710A55CF757B8AD4801EAAA5E3656CAA8078513D5E5ECA082",
+    "templates/schedule/attendance.html": "C3D1FBA800935FF9A1D14A6AC42BD8D7BD1BB5FFF0A0A695E6196B2AEC80F6FB",
+    "templates/schedule/billing-management.html": "F5DF72EAA4F910B4DC7A33F4148C140BBEF1C35C1EF4026601A6B24F0D1865EE",
+    "templates/schedule/index.html": "84E1B7C8B033D3762600CBA7BADBA56159837576088618BFB19EDBADD401395C",
+    "templates/schedule/operations.html": "62AFDF0E517AA53D7B93561542ECCAD220587FC5BECE9E40EF5EB5A031847C2B",
+    "templates/schedule/therapists.html": "4D33E9B186EA4F76DD0E775AA9235D1674C1804D0B77984ED7F2C8C641FAD60C"
+  }
+}

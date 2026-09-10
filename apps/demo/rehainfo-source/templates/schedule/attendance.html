@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ja">
+<head th:replace="common :: meta_header"></head>
+<head>
+	<title>出退勤管理 | Smart Rehab</title>
+	<link href="/rehainfo/schedule/attendance.css?v=1.2.0" rel="stylesheet" />
+	<script src="/rehainfo/schedule/attendance.js?v=1.2.0" defer="defer"></script>
+</head>
+<body>
+	<main id="attendance-page">
+		<div th:replace="common :: topHeader"></div>
+		<div th:replace="common :: loading"></div>
+		<section class="attendance-shell">
+			<div class="attendance-heading"><div><h1>出退勤管理</h1><p>療法士の勤務状況と打刻を管理します</p></div><a href="/rehainfo/schedule" class="btn back-schedule-button"><i class="bi bi-calendar3"></i> スケジュールへ戻る</a></div>
+			<div class="attendance-toolbar"><button id="previousAttendanceDate" type="button" aria-label="前月"><i class="bi bi-chevron-left"></i></button><input id="attendanceDate" type="month" aria-label="表示月" /><button id="attendanceToday" type="button">今月</button><button id="nextAttendanceDate" type="button" aria-label="翌月"><i class="bi bi-chevron-right"></i></button><span>対象療法士 <strong id="attendanceCount">0</strong>名</span></div>
+			<div class="attendance-palette" role="group" aria-label="勤務区分を選択"><span>マウス設定</span><button type="button" class="active" data-work-type="通常勤務">通常</button><button type="button" data-work-type="早番">早</button><button type="button" data-work-type="遅番">遅</button><button type="button" data-work-type="休日勤務">休出</button><button type="button" data-work-type="院内研修">研修</button><button type="button" data-work-type="有休">有休</button><button type="button" data-work-type="公休">公休</button><small>区分を選び、日付セルをクリックまたはドラッグして設定／セルをダブルクリックで詳細編集</small></div>
+			<div id="attendanceAlert" class="attendance-alert d-none"></div>
+			<div id="monthlyAttendanceBoard" class="monthly-attendance-board" aria-label="月間出退勤表"></div>
+		</section>
+	</main>
+	<div class="modal fade" id="attendanceEditModal" tabindex="-1" aria-labelledby="attendanceEditTitle" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-centered"><div class="modal-content attendance-edit-modal">
+			<div class="modal-header"><div><small id="editTherapistRole"></small><h2 id="attendanceEditTitle">出退勤を編集</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="閉じる"></button></div>
+			<div class="modal-body">
+				<input id="editTherapistId" type="hidden" />
+				<div class="attendance-edit-grid">
+					<div><label for="editWorkType">勤務区分</label><select id="editWorkType" class="form-select"><option>早番</option><option>通常勤務</option><option>遅番</option><option>休日勤務</option><option>院内研修</option><option>有休</option><option>公休</option></select></div>
+					<div><label for="editStatus">状態</label><select id="editStatus" class="form-select"><option>出勤前</option><option>勤務中</option><option>休憩中</option><option>退勤済み</option><option>有休</option><option>公休</option></select></div>
+					<div><label for="editScheduledStart">勤務予定 開始</label><input id="editScheduledStart" class="form-control" type="time" /></div>
+					<div><label for="editScheduledEnd">勤務予定 終了</label><input id="editScheduledEnd" class="form-control" type="time" /></div>
+					<div><label for="editClockIn">出勤</label><input id="editClockIn" class="form-control" type="time" /></div>
+					<div><label for="editClockOut">退勤</label><input id="editClockOut" class="form-control" type="time" /></div>
+					<div><label for="editBreakStart">休憩開始</label><input id="editBreakStart" class="form-control" type="time" /></div>
+					<div><label for="editBreakEnd">休憩終了</label><input id="editBreakEnd" class="form-control" type="time" /></div>
+				</div>
+				<div id="attendanceEditValidation" class="attendance-edit-validation d-none"></div>
+			</div>
+			<div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">キャンセル</button><button id="saveAttendanceEdit" type="button" class="btn attendance-save-button">保存</button></div>
+		</div></div>
+	</div>
+</body>
+</html>

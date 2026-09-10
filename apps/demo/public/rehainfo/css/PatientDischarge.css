@@ -1,0 +1,49 @@
+.patient-discharge-button {
+    border: 1px solid #c82333;
+    color: #a71d2a;
+}
+
+.patient-discharge-button:hover,
+.patient-discharge-button:focus {
+    background-color: #fff1f2;
+    color: #8f1723;
+}
+
+.patient-discharge-button .bi {
+    color: #a71d2a;
+    font-size: 26px;
+    height: 28px;
+}
+
+.btn-patient-list-discharge {
+    background-color: #fff;
+    border: 1px solid #c82333;
+    color: #a71d2a;
+}
+
+.left-fifth-line {
+    border-top: 1px solid #eef0f3;
+    margin-top: 4px;
+    padding: 7px 0 2px;
+}
+
+.patient-discharge-summary {
+    background: #f7f8fa;
+    border-radius: 8px;
+    padding: 12px 16px;
+}
+
+.patient-discharge-summary strong,
+.patient-discharge-summary span {
+    display: block;
+}
+
+#patientDischargeNotice {
+    margin: 12px 20px 0;
+}
+
+@media (max-width: 575.98px) {
+    #patientDischargeNotice {
+        margin: 8px;
+    }
+}

@@ -1,0 +1,8 @@
+/* 患者ヘッダ情報 */
+.patient-header { background-color: #F7F8F6;}
+/* 治療実施中の場合はこちらに切替 */
+.patient-header-treatment-implement { background-color: #E8E9ED;}
+
+.gks-patient-header-common {
+    position:sticky; top:60px; z-index:1000; min-height: 102px; margin-left: -12px; margin-right: -12px;
+}

@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html data-rehainfo-source-template="templates/schedule/ai.html" data-rehainfo-source-sha256="4F03E5D382D1E8C710A55CF757B8AD4801EAAA5E3656CAA8078513D5E5ECA082" xmlns:th="http://www.thymeleaf.org" lang="ja">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width,initial-scale=1" />
+	<meta name="robots" content="noindex,nofollow,noarchive" />
+
+	<link rel="icon" href="/rehainfo/images/intep360.ico?v=1.0.0" type="image/x-icon" />
+	<link href="/rehainfo/css/bootstrap.min.css" rel="stylesheet" />
+	<link href="/rehainfo/css/bootstrap-icons-1.9.1/bootstrap-icons.css" rel="stylesheet" />
+	<link href="/rehainfo/css/sidebar.css?v=1.1.0" rel="stylesheet" />
+	<link href="/rehainfo/css/patient_header.css" rel="stylesheet" />
+	<link href="/rehainfo/css/common.css?v=1.0.1" rel="stylesheet" />
+	<link href="/rehainfo/css/custom.css" rel="stylesheet" />
+	<script src="/rehainfo/js/jquery-3.6.0.min.js"></script>
+	<script src="/rehainfo/js/bootstrap.bundle.min.js"></script>
+	
+	
+	<script src="/rehainfo/js/Common.js?v=1.0.2"></script>
+	<script src="/rehainfo/js/BackCancel.js"></script>
+	<script src="/rehainfo/js/sidebar.js?v=1.0.1"></script>
+	<!-- Google Tag Manager -->
+	
+	<!-- End Google Tag Manager -->
+	<style>
+		/* 注意事項 */
+		.login-button {
+			border: 1px solid #bec0c7;
+			box-shadow: rgb(170, 173, 180) 1px 1px 1px;
+		}
+
+		.mic-icon {
+		    color: rgb(74 88 124);
+		    border: 1px solid rgb(74 88 124);
+		}
+
+		.speech-icon {
+			margin-bottom: .5rem !important;
+		}
+		
+		.logo-image {
+			width: auto;
+			object-fit: contain;
+			max-width: 120px;
+			background-color: white;
+		}
+		
+		/* .loading-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(255, 255, 255, 0.9);
+			display: none;
+			justify-content: center;
+			align-items: center;
+			z-index: 9999;
+			flex-direction: column;
+		}
+
+		.loading-spinner {
+			width: 80px;
+			height: 80px;
+			animation: spin 1s linear infinite;
+		}
+
+		.loading-text {
+			margin-top: 20px;
+			font-size: 18px;
+			font-weight: 500;
+			color: #202B4C;
+		}
+
+		@keyframes spin {
+			0% { transform: rotate(0deg); }
+			100% { transform: rotate(360deg); }
+		} */
+		/* Overlay styles */
+		.loading-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(255, 255, 255, 0.9);
+			display: none;
+			justify-content: center;
+			align-items: center;
+			z-index: 9999;
+			flex-direction: column;
+		}
+
+		.loading-spinner {
+			width: 80px;
+			height: 80px;
+		}
+
+		/* Spinner ring wrapper */
+		.spinner-ring {
+			position: relative;
+			width: 100px;
+			height: 100px;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+		}
+
+		/* Circular border (the rotating outline) */
+		.spinner-ring::before {
+			content: "";
+			position: absolute;
+			width: 100px;
+			height: 100px;
+			border: 6px solid #ccc;         /* gray base */
+			border-top: 6px solid #202B4C;  /* top colored */
+			border-radius: 50%;
+			animation: spin 1s linear infinite;
+		}
+
+		/* The image stays still */
+		.loading-icon {
+			width: 60px;
+			height: 60px;
+			background-image: url("");
+			z-index: 1;
+		}
+
+		/* Text */
+		.loading-text {
+			margin-top: 20px;
+			font-size: 18px;
+			font-weight: 500;
+			color: #202B4C;
+		}
+
+		/* Rotation animation */
+		@keyframes spin {
+			0%   { transform: rotate(0deg); }
+			100% { transform: rotate(360deg); }
+		}
+
+		/* 治療実施／治療記録: JS/DOMの読み込み完了まで操作をブロックするため初期表示する。
+		   解除は Common.js が html.block-until-loaded を外し、hideLoadingSpinner がdisplay:noneを付与する。 */
+		html.block-until-loaded #loadingOverlay {
+			display: flex;
+		}
+
+	</style>
+
+	<style>
+		:root {
+			--body-bg-color: #E8E9ED !important;
+		}
+	</style>
+	<script src="/rehainfo/source-demo-adapter.js?v=20260910-3"></script>
+</head>
+<head><title>AIスケジュール | Smart Rehab</title><link href="/rehainfo/schedule/ai.css?v=1.1.0" rel="stylesheet"/><script src="/rehainfo/schedule/ai.js?v=1.1.0" defer="defer"></script></head>
+<body><main><header class="sticky-top" style="z-index:1050;">
+		<!-- Google Tag Manager (noscript) -->
+		
+		<!-- End Google Tag Manager (noscript) -->
+		<nav id="gksCommonNavBar" class="navbar navbar-expand-md navbar-light" style="background-color: var(--main-color); height: 60px">
+			<div class="container-fluid">
+				<div class="d-flex align-items-center">
+					<a href="#" class="navbar-brand bg-white">
+						<img src="/rehainfo/images/SmartRehab-R_Available_Transparent.png" class="logo-image" />
+					</a>
+					<a href="/rehainfo/schedule" class="btn header-button gks-modify-header-btn ms-2">
+						スケジュール
+					</a>
+					<a href="/rehainfo/therapists" class="btn header-button gks-modify-header-btn ms-2">
+						療法士一覧
+					</a>
+				</div>
+				<div>
+					
+					<h4 class="text-danger mb-0" id="otherUserEditingMessage">
+					</h4>
+					<form name="user-view-transition-history-check-form" method="POST">
+					</form>
+					<input type="hidden" id="checkTransitionHistoryViewName" name="viewName" />
+
+					
+
+				</div>
+				
+				<!-- New UI -->
+				<div class="collapse navbar-collapse" id="navbarsExample02" style="padding-right: 5px;">
+						<ul class="navbar-nav flex-row flex-wrap ms-md-auto">
+							
+							
+							
+							<form class="d-flex justify-content-center me-2" action="/rehainfo/adminEvaluationPreset" method="POST">
+								<button type="submit" class="btn gks-setting-btn">
+									<i class="bi bi-gear-fill"></i>
+								</button>
+								<input type="hidden" name="recId"/>
+							</form>
+							<button id="speechMemoButton" type="button" class="btn header-button gks-modify-header-btn" onclick="window.open('/rehainfo/notes', '個人ノート', 'width=1200, height=800')">
+								個人ノート
+							</button>
+							
+							
+							<form class="header-button" action="/rehainfo/patients" method="GET">
+								<button id="patientListButton" type="submit" class="btn gks-modify-header-btn">
+									患者一覧
+								</button>
+							</form>
+						</ul>
+				</div>
+				<!-- User Dropdown -->
+				<div class="dropdown" style="margin-right: 8px;">
+					<button
+						class="btn dropdown-toggle d-flex justify-content-center align-items-center gks-user-profile-btn gks-dropdown-toggle"
+						id="userDropdown"
+						data-bs-toggle="dropdown"
+						aria-expanded="false"
+					>
+						<i class="bi bi-person-fill"></i>
+					</button>
+					<ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown" style="width: 240px; margin-top: 12px; padding-top: 0; padding-bottom: 0;">
+						<!-- Header with username -->
+						<li id="gksCommonDropdownHeader" class="dropdown-header text-white d-flex align-items-center" style="background-color: var(--main-color); padding: 10px;">
+							<div class="d-flex justify-content-start align-items-center" style="border-radius: 50%; width: 40px; height: 40px; background-color: white;">
+								<i id="gksCommonDropdownHeaderIcon" class="bi bi-person-fill" style="font-size: 36px; color: var(--main-color); margin-right: 10px; margin-left: 2px;"></i>
+								<span data-source-field="userName" style="font-size: 18px; font-weight: 500;">公開デモ</span>
+							</div>
+						</li>
+						<!-- Divider -->
+						<li>
+							<hr class="dropdown-divider" style="margin: 0;" />
+						</li>
+						<!-- Register link -->
+						<li>
+							
+						</li>
+						<!-- Logout link -->
+						<li>
+							<a class="dropdown-item d-flex align-items-center" href="/rehainfo/logout" style="font-size: 1rem;">
+								<i class="bi bi-box-arrow-right me-2" style="font-size: 1.2rem; color: var(--main-color);"></i>ログアウト
+							</a>
+							
+						</li>
+					</ul>
+				</div>
+			</div>
+		</nav>
+	</header><section class="ai-shell">
+<header><a href="/rehainfo/schedule">← スケジュール</a><h1>AIスケジュール</h1><label>対象月 <input id="aiMonth" type="month"/></label><button id="generatePlan">選択患者をAI分析して月間案を作成</button></header>
+<div id="aiMessage"></div><div class="ai-layout">
+<section class="patient-panel"><div class="panel-title"><strong>患者選択</strong><input id="patientSearch" placeholder="患者ID・氏名"/><button id="selectAll">全選択</button></div><div id="patientList"></div></section>
+<section class="plan-panel"><div class="panel-title"><strong>AI分析・承認</strong><select id="planSelect"><option value="">計画を選択</option></select></div><div id="planSummary" class="plan-summary"></div><div id="analysisList"></div>
+<h2>療法士別承認・効果マッチング</h2><div id="approvalList"></div><div class="proposal-wrap"><table><thead><tr><th>提案</th><th>日付</th><th>患者</th><th>療法士</th><th>効果適合度</th><th>時間</th><th>単位</th><th>状態</th></tr></thead><tbody id="proposalList"></tbody></table></div><button id="applyPlan" class="apply-button" disabled="disabled">全承認済み案を本スケジュールへ反映</button>
+</section></div></section></main></body></html>

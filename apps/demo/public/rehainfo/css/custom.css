@@ -1,0 +1,150 @@
+.label-danger {
+    padding-top: 0.125rem !important;
+    padding-bottom: 0.125rem !important;
+    margin-top: -0.5rem;
+}
+
+/* Large radio button styling */
+.radio-large {
+    width: 20px !important;
+    height: 20px !important;
+    margin-right: 0.5rem;
+    cursor: pointer;
+    accent-color: #007bff;
+}
+
+.radio-large:checked {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+
+.radio-large:focus {
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    border-color: #80bdff;
+}
+
+.checkbox-container {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+}
+
+.checkbox-container .nested-checkbox {
+    flex: none;
+}
+
+/* Style for the toggle button */
+.toggle-button {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-right: 5px;
+    cursor: pointer;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    transition: transform 0.2s ease;
+}
+
+.toggle-button.collapsed {
+    /* Right-pointing arrow for collapsed state */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23000' viewBox='0 0 16 16'%3E%3Cpath d='M6 2l6 6-6 6V2z'/%3E%3C/svg%3E");
+}
+
+.toggle-button.expanded {
+    /* Down-pointing arrow for expanded state */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23000' viewBox='0 0 16 16'%3E%3Cpath d='M2 6l6 6 6-6H2z'/%3E%3C/svg%3E");
+}
+
+.children-container {
+    margin-left: 20px; /* Adjust as needed */
+}
+
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.25rem;
+}
+
+/* Placeholder for alignment when there's no toggle button */
+.checkbox-container span {
+    display: inline-block;
+    width: 21px; /* Adjust to match toggle button width */
+}
+
+.top-group-button .patient-btn-wrapper {
+    position: sticky;
+    top: 162px;
+    z-index: 1000;
+}
+
+.top-group-button.patient-btn-wrapper {
+    /* Hide scrollbar but keep scroll functionality */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* Internet Explorer 10+ */
+}
+
+.top-group-button.patient-btn-wrapper::-webkit-scrollbar {
+    display: none; /* WebKit browsers (Chrome, Safari, Edge) */
+}
+  
+.top-group-button .btn-wrapper {
+    background: var(--body-bg-color);
+    padding-bottom: 20px;
+    height: 95px;
+}
+  
+.top-group-button .patient-btn-group {
+    display: flex;
+    align-self: center;
+    gap: 8px;
+    background: var(--body-bg-color);
+    transform-origin: left;
+}
+  
+.top-group-button .button-square {
+    width: 75px;
+    height: 75px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0px 4px 3px 0px var(--box-shadow-color);
+    background-color: #ffffff;
+    font-size: 10px;
+    font-weight: normal;
+    border: none;
+    gap: 9px;
+}
+  
+.top-group-button .button-square .role {
+    font-size: 25px;
+    font-weight: bold;
+    color: #1b294e;
+}
+
+.top-group-button .button-square:hover {
+    transform: scale(1.1);
+    box-shadow: 0px 8px 6px 0px var(--box-shadow-color);
+}
+
+.top-group-button .button-square:active {
+    top: 1px;
+    transform: scale(0.9);
+    box-shadow: 0px 0px 0px 0px var(--box-shadow-color);
+}
+  
+.top-group-button .button-square .btn-text {
+    font-size: 10px;
+    color: #1b294e;
+    font-weight: normal;
+  }
+
+.top-group-button .patient-btn-group>div>a>img,
+.top-group-button .patient-btn-group>div>a>i {
+  width: 36px!important;
+  height: 36px!important;
+}
+.top-group-button .patient-btn-group>div>a>i {
+  font-size: 36px!important;
+}

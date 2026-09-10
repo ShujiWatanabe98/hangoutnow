@@ -1,8 +1,6 @@
 <!DOCTYPE HTML>
-<html data-rehainfo-source-template="templates/login.html" data-rehainfo-source-sha256="B066D29888953E92E9CF7371A19485EF3E523C2595E894D3782912D00D305E3F" xmlns:th="http://www.thymeleaf.org" lang="ja" >
+<html xmlns:th="http://www.thymeleaf.org" lang="ja" >
 <head>
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<meta name="robots" content="noindex,nofollow,noarchive" />
 <link rel="icon" href="/rehainfo/images/intep360.ico?v=1.0.0" type="image/x-icon" />
 <meta charset="UTF-8" />
 <title>ログイン</title>
@@ -152,16 +150,9 @@
 
   <main>
     <!--test-->
-		<div>
-		<div id="loadingOverlay" class="loading-overlay">
-			<div class="spinner-ring">
-				<img class="loading-spinner" src="/rehainfo/images/intep360.svg" alt="loading" />
-			</div>
-			<div class="loading-text">処理中......</div>
-		</div>
-	</div>
+		<div th:replace="common :: loading"></div>
 
-    <form action="/rehainfo/login" method="post">        
+    <form action="login.html" th:action="@{/login/exec}" th:object="${loginModel}" method="post">        
       <div class="d-flex justify-content-center align-items-center" style="min-height: 200px;">
           <a href="#" class="icon mb-2 mb-lg-0 text-dark text-decoration-none">
               <img src="/rehainfo/images/SmartRehab-R_Available_Transparent.png" width="100%" height="auto" style="max-width: 300px; mix-blend-mode: multiply;"></img>
@@ -172,19 +163,35 @@
           <div class="mb-3 input">
             <label for="exampleInputEmail1" class="form-label">メールアドレス</label>
             <div class="w-100">
-              <input type="text" name="username" autocomplete="username" inputmode="email" required="required" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp"  placeholder="MailAddress"/>
+              <input type="email" th:field="*{email}" required="required" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp"  placeholder="MailAddress"/>
             </div>
           </div>
           <div class="mb-3 input">
             <label for="exampleInputPassword1" class="form-label">パスワード</label>
             <div class="w-100">
-              <input type="password" name="password" autocomplete="current-password" required="required" class="form-control" id="exampleInputPassword1"  placeholder="Password"/>
+              <input type="password" th:field="*{pass}" required="required" class="form-control" id="exampleInputPassword1"  placeholder="Password"/>
             </div>
           </div>
           <div class="d-flex justify-content-center mb-4">
             <button type="submit" class="btn btn-login" onclick="showLoadingSpinner()">ログイン</button>
           </div>
-          <div id="errorMsg" class="flex-columnr text-center" style="color: red;"></div>
+          <div id="errorMsg" class="flex-columnr text-center" style="color: red;">
+            <article th:if="${#fields.hasErrors('all')}" class="d-flex justify-content-center">
+              <ul>
+                  <li th:each="err : ${#fields.errors('all')}" th:text="${err}" style="color: red;">エラー文言エラー文言</li>
+              </ul>
+            </article>
+            <article th:if="${resultFlg}" >
+              <fieldset>
+                <legend style="font-size: 16px;">【ログインに失敗しました】</legend>
+                <p th:if="${not #lists.isEmpty(ErrorMessage)}" >
+                  <label>
+                    <span th:text="${ErrorMessage}" th:remove="tag">OK</span>
+                  </label>
+                </p>
+              </fieldset>
+            </article>
+          </div>
           <p class="d-flex justify-content-center mt-4">
             <a href="/personal/account/password/index">パスワードを忘れた場合はこちら</a>
           </p>
@@ -192,6 +199,5 @@
       </div>
     </form>
   </main>
-  <script src="/rehainfo/login.js?v=20260910-2" defer="defer"></script>
 </body>
 </html>

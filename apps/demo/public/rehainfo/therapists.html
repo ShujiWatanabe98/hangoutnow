@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html data-rehainfo-source-template="templates/schedule/therapists.html" data-rehainfo-source-sha256="4D33E9B186EA4F76DD0E775AA9235D1674C1804D0B77984ED7F2C8C641FAD60C" xmlns:th="http://www.thymeleaf.org" lang="ja">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width,initial-scale=1" />
+	<meta name="robots" content="noindex,nofollow,noarchive" />
+
+	<link rel="icon" href="/rehainfo/images/intep360.ico?v=1.0.0" type="image/x-icon" />
+	<link href="/rehainfo/css/bootstrap.min.css" rel="stylesheet" />
+	<link href="/rehainfo/css/bootstrap-icons-1.9.1/bootstrap-icons.css" rel="stylesheet" />
+	<link href="/rehainfo/css/sidebar.css?v=1.1.0" rel="stylesheet" />
+	<link href="/rehainfo/css/patient_header.css" rel="stylesheet" />
+	<link href="/rehainfo/css/common.css?v=1.0.1" rel="stylesheet" />
+	<link href="/rehainfo/css/custom.css" rel="stylesheet" />
+	<script src="/rehainfo/js/jquery-3.6.0.min.js"></script>
+	<script src="/rehainfo/js/bootstrap.bundle.min.js"></script>
+	
+	
+	<script src="/rehainfo/js/Common.js?v=1.0.2"></script>
+	<script src="/rehainfo/js/BackCancel.js"></script>
+	<script src="/rehainfo/js/sidebar.js?v=1.0.1"></script>
+	<!-- Google Tag Manager -->
+	
+	<!-- End Google Tag Manager -->
+	<style>
+		/* 注意事項 */
+		.login-button {
+			border: 1px solid #bec0c7;
+			box-shadow: rgb(170, 173, 180) 1px 1px 1px;
+		}
+
+		.mic-icon {
+		    color: rgb(74 88 124);
+		    border: 1px solid rgb(74 88 124);
+		}
+
+		.speech-icon {
+			margin-bottom: .5rem !important;
+		}
+		
+		.logo-image {
+			width: auto;
+			object-fit: contain;
+			max-width: 120px;
+			background-color: white;
+		}
+		
+		/* .loading-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(255, 255, 255, 0.9);
+			display: none;
+			justify-content: center;
+			align-items: center;
+			z-index: 9999;
+			flex-direction: column;
+		}
+
+		.loading-spinner {
+			width: 80px;
+			height: 80px;
+			animation: spin 1s linear infinite;
+		}
+
+		.loading-text {
+			margin-top: 20px;
+			font-size: 18px;
+			font-weight: 500;
+			color: #202B4C;
+		}
+
+		@keyframes spin {
+			0% { transform: rotate(0deg); }
+			100% { transform: rotate(360deg); }
+		} */
+		/* Overlay styles */
+		.loading-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(255, 255, 255, 0.9);
+			display: none;
+			justify-content: center;
+			align-items: center;
+			z-index: 9999;
+			flex-direction: column;
+		}
+
+		.loading-spinner {
+			width: 80px;
+			height: 80px;
+		}
+
+		/* Spinner ring wrapper */
+		.spinner-ring {
+			position: relative;
+			width: 100px;
+			height: 100px;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+		}
+
+		/* Circular border (the rotating outline) */
+		.spinner-ring::before {
+			content: "";
+			position: absolute;
+			width: 100px;
+			height: 100px;
+			border: 6px solid #ccc;         /* gray base */
+			border-top: 6px solid #202B4C;  /* top colored */
+			border-radius: 50%;
+			animation: spin 1s linear infinite;
+		}
+
+		/* The image stays still */
+		.loading-icon {
+			width: 60px;
+			height: 60px;
+			background-image: url("");
+			z-index: 1;
+		}
+
+		/* Text */
+		.loading-text {
+			margin-top: 20px;
+			font-size: 18px;
+			font-weight: 500;
+			color: #202B4C;
+		}
+
+		/* Rotation animation */
+		@keyframes spin {
+			0%   { transform: rotate(0deg); }
+			100% { transform: rotate(360deg); }
+		}
+
+		/* 治療実施／治療記録: JS/DOMの読み込み完了まで操作をブロックするため初期表示する。
+		   解除は Common.js が html.block-until-loaded を外し、hideLoadingSpinner がdisplay:noneを付与する。 */
+		html.block-until-loaded #loadingOverlay {
+			display: flex;
+		}
+
+	</style>
+
+	<style>
+		:root {
+			--body-bg-color: #E8E9ED !important;
+		}
+	</style>
+	<script src="/rehainfo/source-demo-adapter.js?v=20260910-3"></script>
+</head>
+<head>
+	<title>療法士一覧 | Smart Rehab</title>
+	<link href="/rehainfo/schedule/therapists.css?v=1.1.0" rel="stylesheet" />
+	<script src="/rehainfo/schedule/therapists.js?v=1.1.0" defer="defer"></script>
+</head>
+<body>
+	<main id="therapist-directory-page">
+		<header class="sticky-top" style="z-index:1050;">
+		<!-- Google Tag Manager (noscript) -->
+		
+		<!-- End Google Tag Manager (noscript) -->
+		<nav id="gksCommonNavBar" class="navbar navbar-expand-md navbar-light" style="background-color: var(--main-color); height: 60px">
+			<div class="container-fluid">
+				<div class="d-flex align-items-center">
+					<a href="#" class="navbar-brand bg-white">
+						<img src="/rehainfo/images/SmartRehab-R_Available_Transparent.png" class="logo-image" />
+					</a>
+					<a href="/rehainfo/schedule" class="btn header-button gks-modify-header-btn ms-2">
+						スケジュール
+					</a>
+					<a href="/rehainfo/therapists" class="btn header-button gks-modify-header-btn ms-2">
+						療法士一覧
+					</a>
+				</div>
+				<div>
+					
+					<h4 class="text-danger mb-0" id="otherUserEditingMessage">
+					</h4>
+					<form name="user-view-transition-history-check-form" method="POST">
+					</form>
+					<input type="hidden" id="checkTransitionHistoryViewName" name="viewName" />
+
+					
+
+				</div>
+				
+				<!-- New UI -->
+				<div class="collapse navbar-collapse" id="navbarsExample02" style="padding-right: 5px;">
+						<ul class="navbar-nav flex-row flex-wrap ms-md-auto">
+							
+							
+							
+							<form class="d-flex justify-content-center me-2" action="/rehainfo/adminEvaluationPreset" method="POST">
+								<button type="submit" class="btn gks-setting-btn">
+									<i class="bi bi-gear-fill"></i>
+								</button>
+								<input type="hidden" name="recId"/>
+							</form>
+							<button id="speechMemoButton" type="button" class="btn header-button gks-modify-header-btn" onclick="window.open('/rehainfo/notes', '個人ノート', 'width=1200, height=800')">
+								個人ノート
+							</button>
+							
+							
+							<form class="header-button" action="/rehainfo/patients" method="GET">
+								<button id="patientListButton" type="submit" class="btn gks-modify-header-btn">
+									患者一覧
+								</button>
+							</form>
+						</ul>
+				</div>
+				<!-- User Dropdown -->
+				<div class="dropdown" style="margin-right: 8px;">
+					<button
+						class="btn dropdown-toggle d-flex justify-content-center align-items-center gks-user-profile-btn gks-dropdown-toggle"
+						id="userDropdown"
+						data-bs-toggle="dropdown"
+						aria-expanded="false"
+					>
+						<i class="bi bi-person-fill"></i>
+					</button>
+					<ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown" style="width: 240px; margin-top: 12px; padding-top: 0; padding-bottom: 0;">
+						<!-- Header with username -->
+						<li id="gksCommonDropdownHeader" class="dropdown-header text-white d-flex align-items-center" style="background-color: var(--main-color); padding: 10px;">
+							<div class="d-flex justify-content-start align-items-center" style="border-radius: 50%; width: 40px; height: 40px; background-color: white;">
+								<i id="gksCommonDropdownHeaderIcon" class="bi bi-person-fill" style="font-size: 36px; color: var(--main-color); margin-right: 10px; margin-left: 2px;"></i>
+								<span data-source-field="userName" style="font-size: 18px; font-weight: 500;">公開デモ</span>
+							</div>
+						</li>
+						<!-- Divider -->
+						<li>
+							<hr class="dropdown-divider" style="margin: 0;" />
+						</li>
+						<!-- Register link -->
+						<li>
+							
+						</li>
+						<!-- Logout link -->
+						<li>
+							<a class="dropdown-item d-flex align-items-center" href="/rehainfo/logout" style="font-size: 1rem;">
+								<i class="bi bi-box-arrow-right me-2" style="font-size: 1.2rem; color: var(--main-color);"></i>ログアウト
+							</a>
+							
+						</li>
+					</ul>
+				</div>
+			</div>
+		</nav>
+	</header>
+		<div>
+		<div id="loadingOverlay" class="loading-overlay">
+			<div class="spinner-ring">
+				<img class="loading-spinner" src="/rehainfo/images/intep360.svg" alt="loading" />
+			</div>
+			<div class="loading-text">処理中......</div>
+		</div>
+	</div>
+		<section class="directory-shell">
+			<div class="directory-title-row">
+				<div><h1>療法士一覧</h1><p>リハビリを担当する療法士の登録・確認を行います</p></div>
+				<button id="addTherapistButton" class="btn directory-primary-button" type="button"><i class="bi bi-person-plus"></i> 療法士を登録</button>
+			</div>
+			<div id="therapistAlert" class="directory-alert d-none" role="alert"></div>
+			<div class="directory-toolbar">
+				<label for="therapistSearch"><i class="bi bi-search"></i></label>
+				<input id="therapistSearch" type="search" placeholder="療法士ID・氏名・職種で検索" />
+				<div class="target-month-control"><label for="targetMonth">対象月</label><input id="targetMonth" type="month" /></div>
+				<span>登録数 <strong id="therapistCount">0</strong>名</span>
+			</div>
+			<div class="directory-table-frame">
+				<table class="directory-table">
+					<thead><tr><th>療法士ID</th><th>氏名</th><th>氏名カナ</th><th>職種</th><th>勤務形態</th><th>月の目標単位</th><th>電話番号</th><th>メールアドレス</th></tr></thead>
+					<tbody id="therapistTableBody"></tbody>
+				</table>
+			</div>
+		</section>
+	</main>
+	<div class="modal fade" id="therapistModal" tabindex="-1" aria-labelledby="therapistModalTitle" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-centered"><div class="modal-content directory-modal-content">
+			<div class="modal-header"><div><small>療法士台帳</small><h2 id="therapistModalTitle">療法士を登録</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="閉じる"></button></div>
+			<div class="modal-body">
+				<div class="form-grid"><div><label for="therapistId">療法士ID <span>必須</span></label><input id="therapistId" class="form-control" maxlength="12" /></div><div><label for="therapistRole">職種 <span>必須</span></label><select id="therapistRole" class="form-select"><option value="PT">PT</option><option value="OT">OT</option><option value="ST">ST</option></select></div></div>
+				<div class="form-row"><label for="therapistName">氏名 <span>必須</span></label><input id="therapistName" class="form-control" maxlength="40" /></div>
+				<div class="form-row"><label for="therapistKana">氏名カナ</label><input id="therapistKana" class="form-control" maxlength="60" /></div>
+				<div class="form-grid"><div><label for="therapistEmployment">勤務形態</label><select id="therapistEmployment" class="form-select"><option value="常勤">常勤</option><option value="非常勤">非常勤</option></select></div><div><label for="therapistPhone">電話番号</label><input id="therapistPhone" class="form-control" maxlength="20" /></div></div>
+				<div class="form-row"><label for="therapistEmail">メールアドレス</label><input id="therapistEmail" class="form-control" type="email" maxlength="80" /></div>
+				<div id="therapistValidation" class="modal-validation d-none"></div>
+			</div>
+			<div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">キャンセル</button><button id="saveTherapistButton" type="button" class="btn directory-primary-button">登録</button></div>
+		</div></div>
+	</div>
+</body>
+</html>

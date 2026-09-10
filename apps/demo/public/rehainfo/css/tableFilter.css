@@ -1,0 +1,172 @@
+/* フィルタボタン */
+.tfArea{
+    display    : inline-block;
+    position   : relative;
+}
+
+.tfImg{
+    display    : inline-block;
+    width      : 16px;
+    height     : 16px;
+    cursor     : pointer;
+}
+/* フィルタボタン（カーソルオーバー時）*/
+/* .tfImg:hover{
+    background : #FFD700;
+} */
+
+/* フィルタボタン内の画像色（SVG）*/
+.tfImg path{
+    fill       : #777;
+}
+
+/* フィルタリスト */
+.tfList{
+    display    : inline-block;
+    position   : absolute;
+    max-width  : 250px;
+    min-width  : 180px;
+    background : #fff;
+    border     : 1px solid #CED4DA;
+    top        : 15px;
+    left       : 0;
+    line-height: 1.1;
+    font-weight: normal;
+    z-index: 100;
+    padding: 10px;
+}
+
+/* フィルタリスト内のform */
+.tfList form{
+    max-height : 150px;           /* 縦幅 */
+    overflow   : scroll;
+    overflow   : overflow-y;
+    overflow   : auto;
+}
+/* フィルタリスト内のチェックボックス */
+.tfMeisai{
+    text-align : left;
+    padding    : 2px;
+}
+
+/* フィルタリスト内の文字調整 */
+.tfMeisai label{
+    padding    : 0 10px 0 3px;
+    font-size  : 20px;
+    color: var(--text-color);
+    font-weight: 400;
+}
+/* OK/CANCELボタン */
+.tfBtnArea{
+    text-align : center;
+    font-size  : 12pt;
+    padding    : 3px 5px;
+    margin-top: 10px;
+    padding-left: 0;
+    padding-right: 0;
+    justify-content: space-between;
+    align-items: center;
+}
+.tfBtnArea input{
+    display    : inline-block;
+    margin     : 0;
+}
+/* 含むボタンの入力エリア */
+.tfInStr{
+    padding    : 5px 3px;
+    border-top : 1px solid #999;
+    border-bottom: 1px solid #999;
+}
+.tfInStr input{
+    box-sizing : border-box;
+    width      : 100%;
+    padding    : 1px 3px;
+    font-weight: normal;
+    font-size  : 95%;
+    border     : 1px solid #ccc;
+}
+
+/* フィルタ非表示 */
+#patientListTable tr[cmanFilterNone]{
+    display    : none;
+}
+/* フィルタ非表示行と次行の間を二重線にする */
+#patientListTable tr[cmanFilterNone] + tr td{
+    border-top : 3px double #777;
+}
+
+.st0{
+    fill:#4B4B4B;
+}
+
+input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border: 1px solid #CED4DA;
+    border-radius: 4px;
+    background-color: #FFFFFF;
+    cursor: pointer;
+    position: relative;
+    display: inline-block;
+    outline: none;
+}
+
+input[type="checkbox"]:not(.radio-switch):checked {
+    background-color: #FFFFFF;
+}
+
+input[type="checkbox"]:not(.radio-switch):checked::after {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 6px;
+    width: 6px;
+    height: 100%;
+    border: solid #1B294E;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+input.radio-switch[type="checkbox"]:checked {
+    background-color: var(--main-color);
+}
+
+input.radio-switch[type="checkbox"]:not(:checked):focus {
+    background-color: #fff;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba%280, 0, 0, 0.25%29'/%3e%3c/svg%3e");
+}
+
+input.radio-switch[type="checkbox"]:checked:focus {
+    background-color: var(--main-color);
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23fff'/%3e%3c/svg%3e")
+}
+
+.accordion-item .accordion-button {
+    color: var(--main-color);
+    font-size: 20px;
+    line-height: 20px;
+    font-weight: 400;
+    height: 54px;
+    padding: 17px 19px;
+    background-color: #EDEDED;
+}
+
+.accordion-item .accordion-button:not(.collapsed)::after {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23212529'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
+}
+
+.btn-ok {
+    background-color: var(--main-color);
+    color: #FFFFFF;
+}
+
+.btn-ok:hover {
+    color: #FFFFFF;
+}
+
+.btn-cancel {
+    background-color: #E8E9ED;
+    color: var(--text-color);
+}

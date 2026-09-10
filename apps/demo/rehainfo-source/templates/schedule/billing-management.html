@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ja">
+<head th:replace="common :: meta_header"></head>
+<head>
+	<title>算定管理 | Smart Rehab</title>
+	<link href="/rehainfo/schedule/billing-management.css?v=1.1.0" rel="stylesheet" />
+	<script src="/rehainfo/schedule/billing-management.js?v=1.1.0" defer="defer"></script>
+</head>
+<body>
+	<main>
+		<div th:replace="common :: topHeader"></div>
+		<section class="billing-shell">
+			<header class="billing-toolbar">
+				<a href="/rehainfo/schedule">← スケジュール</a>
+				<div>
+					<h1>算定管理</h1>
+					<p>療法士ごとのORCA予定算定点数・確定算定点数・目標算定点数</p>
+				</div>
+				<label>対象日 <input id="billingDate" type="date" /></label>
+			</header>
+
+			<div id="billingMessage" class="billing-message" role="status" aria-live="polite"></div>
+			<section id="hospitalPerformance" class="hospital-performance" aria-label="病院目標と8月実績"></section>
+			<section class="period-summary" id="periodSummary" aria-label="期間別算定合計"></section>
+
+			<section class="billing-table-card">
+				<div class="table-heading">
+					<div><h2>療法士別 算定点数</h2><p id="periodLabel"></p></div>
+					<div class="legend"><span class="planned">予定</span><span class="confirmed">確定</span><span class="target">目標</span></div>
+				</div>
+				<div class="table-wrap">
+					<table>
+						<thead><tr><th>ID</th><th>職種・療法士</th><th>日</th><th>週</th><th>月</th><th>更新</th></tr></thead>
+						<tbody id="billingRows"><tr><td colspan="6">読み込み中です。</td></tr></tbody>
+					</table>
+				</div>
+			</section>
+			<p class="billing-note">予定はスケジュールに自動選択されたORCA診療行為の算定点数です。2026年8月の確定欄は院内実績の検証用データ、それ以外は状態が「算定確認済み」の点数です。目標は対象月ごとに保存されます。</p>
+		</section>
+	</main>
+</body>
+</html>

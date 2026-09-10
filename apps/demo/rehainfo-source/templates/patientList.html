@@ -1,0 +1,369 @@
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org" lang="ja">
+
+<head th:replace="common :: meta_header">
+</head>
+<head>
+	<title>担当患者一覧</title>
+	<style>
+		body {
+            background-color: #E8E9ED !important;
+            font-family: 'Noto Sans JP', sans-serif !important;
+        }
+
+		.bd-placeholder-img {
+			font-size: 1.125rem;
+			text-anchor: middle;
+			-webkit-user-select: none;
+			-moz-user-select: none;
+			user-select: none;
+		}
+
+		@media (min-width: 768px) {
+			.bd-placeholder-img-lg {
+				font-size: 3.5rem;
+			}
+		}
+
+		thead tr th {
+            background-color: #EDEDED !important;
+            border-bottom: 1px solid var(--back-btn-border-color) !important;
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--text-color);
+        }
+
+		th.sorting {
+			cursor: pointer;
+			position: relative;
+			background-repeat: no-repeat;
+			background-position: bottom 12px right;
+			padding-right: 16px;
+		}
+
+		th.sorting_asc {
+			background-image: url("/rehainfo/css/bootstrap-icons-1.9.1/sort-up-alt.svg") !important;
+		}
+
+		th.sorting_desc {
+			background-image: url("/rehainfo/css/bootstrap-icons-1.9.1/sort-down.svg") !important;
+		}
+
+		/* Frame 258 */
+        .title-list{
+            /* Auto layout */
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            padding: 0px;
+            gap: 5px;
+
+            width: 105px;
+            height: 24px;
+            margin-left: 20px;
+            margin-top: 40px;
+            color: #202B4C;
+            font-size: 24px;
+            font-weight: 400;
+        }
+
+        /* Rectangle 6 */
+        .title-list-rectangle {
+            width: 4px;
+            height: 24px;
+
+            background: #202B4C;
+
+            /* Inside auto layout */
+            flex: none;
+            order: 0;
+            flex-grow: 0;
+        }
+
+        .container-table {
+            margin-top: 20px;
+            padding-left: 20px !important;
+            padding-right: 20px !important;
+        }
+
+        tbody tr {
+            height: 80px;
+        }
+
+        td {
+            vertical-align: middle;
+            color: var(--text-color);
+            font-weight: 400;
+            border-bottom: 1px solid var(--back-btn-border-color) !important;
+        }
+
+		table.dataTable td.dataTables_empty {
+			text-align: center;
+		}
+
+		.btn-custom {
+			width: 80px;
+			height: 40px;
+			border: 1px solid var(--main-color);
+			font-weight: 500;
+			font-size: 15px;
+			align-content: center;
+		}
+		.btn-main {
+			color: var(--white-color);
+			background-color: var(--main-color);
+		}
+
+		.btn-main:hover {
+			color: var(--white-color);
+		}
+		.btn-outline-main {
+			color: var(--main-color);
+			background-color: var(--white-color);
+		}
+		.button-square {
+			width: 60px;
+			height: 60px;
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			align-items: center;
+			box-shadow: 0px 4px 3px 0px var(--box-shadow-color);
+			background-color: #ffffff;
+			font-size: 16px;
+			font-weight: normal;
+			border: none;
+			gap: 5px;
+		}
+		.button-square .role {
+			font-size: 20px;
+			font-weight: bold;
+			color: #1b294e;
+			height: fit-content;
+		}
+		.button-square:hover {
+			box-shadow: 0px 8px 6px 0px var(--box-shadow-color);
+			transform: scale(1.1);
+		}
+		.button-square:active {
+			transform: scale(0.9);
+			box-shadow: 0px 0px 0px 0px var(--box-shadow-color);
+		}
+
+		.button-square .btn-text {
+			font-size: 8px;
+			color: #1b294e;
+			font-weight: normal;
+		}
+
+		/* .table-hover > tbody > tr:active {
+			transform: scale(0.9);
+			color: var(--bs-table-active-color, inherit);
+		} */
+		.dataTables_length .form-select {
+			display: inline;
+			width: auto;
+		}
+
+		.dataTables_length{
+			display: flex;
+			justify-content: flex-end;
+		}
+
+		.dataTables_paginate {
+			float: right !important;
+			direction: ltr !important;
+		}
+		.dataTables_length select[name=patientListTable_length]{
+			margin-bottom: 5px;
+		}
+
+		
+	</style>
+
+	<link href="./css/tabulator.css" rel="stylesheet"></link>
+	<link href="./css/tableFilter.css" rel="stylesheet"></link>
+	<link href="./css/tooltip.css" rel="stylesheet"></link>
+	<link href="./css/PatientDischarge.css?v=1.0.0" rel="stylesheet"></link>
+	<!-- 患者情報テーブルフィルタ用 -->
+	<script src="./js/PatientListFilter.js"></script>
+
+	<script src="./js/tabulator.js"></script>
+	<script src="./js/jquery.dataTables.min.js"></script>
+	<script src="./js/dataTables.bootstrap5.min.js"></script>
+	<!-- 患者検索用 -->
+	<script src="./js/SearchPatientList.js"></script>
+	<!-- 患者情報テーブル表示用  -->
+	<script src="./js/PatientListTable.js?v=1.0.1"></script>
+	<script src="./js/PatientDischarge.js?v=1.0.0"></script>
+
+</head>
+
+<body>
+	
+	<div th:replace="common :: topHeader"></div>
+	<!--test-->
+	<div th:replace="common :: loading"></div>
+
+	<!-- 共通モーダル  -->
+
+	<div th:replace="common :: commonMessageModal">
+	</div>
+	<div id="patientDischargeNotice" class="alert alert-success" role="status" hidden="hidden"></div>
+	<div class="modal fade" id="patientDischargeModal" tabindex="-1"
+		aria-labelledby="patientDischargeModalLabel" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-centered">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title" id="patientDischargeModalLabel">退院日の設定</h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="閉じる"></button>
+				</div>
+				<div class="modal-body">
+					<div class="patient-discharge-summary mb-3">
+						<strong id="patientDischargePatientName"></strong>
+						<span id="patientDischargePatientId"></span>
+						<span>入院日：<span id="patientDischargeAdmissionDate" class="d-inline"></span></span>
+					</div>
+					<p>退院日を入力すると、患者情報の「退院日」へ自動的に保存されます。</p>
+					<label for="patientDischargeDate" class="form-label fw-bold">退院日</label>
+					<input type="date" id="patientDischargeDate" class="form-control" required="required" />
+					<div id="patientDischargeError" class="alert alert-danger mt-3 mb-0" role="alert" hidden="hidden"></div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">キャンセル</button>
+					<button type="button" class="btn btn-danger" id="patientDischargeSubmit">退院する</button>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="title-list">
+        <div class="title-list-rectangle">
+        </div>
+        患者一覧
+    </div>
+	<main>
+		<!-- Modal -->
+		<div class="modal fade" id="treatmentConfirmaition" tabindex="-1"
+			aria-labelledby="treatmentConfirmaitionLabel" aria-hidden="true">
+			<div class="modal-dialog custom-modal-dialog">
+				<div class="modal-content">
+					<div class="modal-body d-flex flex-column align-items-center gap-3">
+						<img class="mx-auto d-block" src="/rehainfo/images/warning_icon.svg"></img>
+						<h5>時間計測を実施しますか？</h5>
+					</div>
+					<div class="modal-footer" style="border-top: none; display: flex; gap: 8px;">
+						<button id="treatmentImplementModalButton" type="button" class="btn btn-custom btn-main" style="flex: 1;"
+							th:onclick="|handlePatientTreatmentImplement(selectionRecId, selectionRehabStartTime, true)|">はい</button>
+
+						<button type="button" class="btn btn-custom btn-outline-main" style="flex: 1;"
+							th:onclick="|handlePatientTreatmentImplement(selectionRecId, selectionRehabStartTime, false)|">いいえ</button>
+
+						<button type="button" class="btn btn-custom btn-outline-main" style="flex: 1;"
+							data-bs-dismiss="modal">キャンセル</button>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="container-fluid container-table">
+			<div class="row border-bottom py-3" id="filters">
+				<div class="accordion accordion-flush" id="searchAccordion">
+					<div class="accordion-item">
+						<h2 class="accordion-header" id="searchHeader">
+							<button class="accordion-button" type="button" style="width: 100%; font-size: 75%; font-weight:bold;" data-bs-toggle="collapse"
+								data-bs-target="#searchCollapse" aria-expanded="true" aria-controls="searchCollapse">
+								検索条件
+							</button>
+						</h2>
+						<form action="" method="GET" id="list-form">
+							<div id="searchCollapse" class="accordion-collapse collapse show" aria-labelledby="searchHeader">
+								<div class="accordion-body row">
+									<div class="col-lg-9">
+										<ul class="list-group list-group-flush" id="search_condition_list">
+											<li class="list-group-item border-0">
+												<div class="row">
+													<div class="col-2">患者氏名（カナ）</div>
+													<div class="col-6">
+														<input type="text" name="patientNameKana" class="form-control" id="condition_patientName" onchange="onChangeInput();" />
+													</div>
+												</div>
+											</li>
+											<li class="list-group-item border-0">
+												<div class="row">
+													<div class="col-2">患者ID</div>
+													<div class="col-6">
+														<input type="text" name="patientId" class="form-control" id="condition_patientId" onchange="onChangeInput();" />
+													</div>
+												</div>
+											</li>
+										</ul>
+									</div>
+									<div class="col-lg-3 px-3">
+										<div class="row" id="selecter">
+											<div>条件追加</div>
+											<script type="text/javascript" th:inline="javascript">
+												/*<![CDATA[*/
+													addSearcher("selecter", [[*{patientNameKana}]], [[*{patientId}]], [[*{additional}]], [[*{columnName}]]);
+												/*]]>*/
+											</script>
+										</div>
+									</div>
+								</div>
+							</div>
+						</form>
+					</div>
+				</div>
+			</div>
+			<div class="row pt-1">
+				<div id="patientList-area">
+					<form action="" method="POST" id="api-type-form">
+						<ul>
+							<div class="form-check form-switch form-check-inline">
+								<input class="form-check-input radio-switch" type="checkbox" id="radio_api" onchange="onChangeInput();"/>
+								<label class="form-check-label" for="radio_api">担当患者</label>
+							  </div>
+						</ul>
+						<script type="text/javascript" th:inline="javascript">
+							/*<![CDATA[*/
+								switchToggle([[*{apiType}]]);
+							/*]]>*/
+						</script>
+					</form>
+					<div id="table-div">
+						<script type="text/javascript" th:inline="javascript">
+						/*<![CDATA[*/
+							$(function(){
+								let elements = $("#table-div");
+								if (elements.length > 0) {
+									let parentNode = elements[0]; 
+									addPatientListTable(parentNode, [[ *{columnNameMap} ]], [[ *{patientDatas} ]], [[ *{hcRoleCd} ]]);
+								} 
+							})
+						/*]]>*/
+						</script>
+						<div th:if="${isExcessingLimit} eq true" style="text-align: end;">
+							<a href="#" onclick="onClickShowMorePatientList();">さらに表示</a>
+							<form id="show_more_patint_list_form" method="POST" action="/rehainfo/patients">
+								<input type="hidden" name="patientListTableNum" th:value="${patientListTableNum}"/>
+								<input type="hidden" id="patientListShowMoreMode" name="patientListShowMoreMode" value="patientListShowMoreMode"/>
+							</form>
+						</div>
+					</div>
+					<div>
+						<p th:text="${errorMessage}"></p>
+						<p th:text="${forUserMessage}"></p>
+					</div>
+					<form action="" method="GET" name="record-form">
+						<!-- レーダーチャート表示用変数. この時点では表示する2点は不明なので空のまま -->
+						<input type="hidden" name="date1" value=""/>
+						<input type="hidden" name="date2" value=""/>
+						<input id="patientFitbit" type="hidden" name="fitbit" value=""/>
+						<input id="patientDisplayDiv" type="hidden" name="displayDiv" value=""/>
+						<input id="patientGroupId" type="hidden" name="groupId" value=""/>
+					</form>
+				</div>
+			</div>
+		</div>
+	</main>
+</body>
+
+</html>
