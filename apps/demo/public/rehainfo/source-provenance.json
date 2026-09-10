@@ -3,8 +3,23 @@
   "copiedAt": "2026-09-10",
   "files": [
     {
-      "sourcePath": "src/main/resources/templates/patientList.html and 20260910_fictional_patient_personas.sql",
+      "sourcePath": "src/main/resources/templates/common.html and src/main/resources/templates/patientList.html",
       "deployedPath": "/rehainfo/index.html",
+      "sha256": "A07ED6A1551380A2DDB6613D9957EA37A489A1E6ED1AE17817CB21730A31AA12"
+    },
+    {
+      "sourcePath": "src/main/resources/templates/common.html and src/main/resources/templates/patientList.html styles",
+      "deployedPath": "/rehainfo/patient-list-source.css",
+      "sha256": "3560FAFA300B69B3648804CF0F7156BF2CE775A7FF8BA083F0F1BCD2C0D2BB56"
+    },
+    {
+      "sourcePath": "patient-list interaction adapter with fictional demo data",
+      "deployedPath": "/rehainfo/patient-list-source.js",
+      "sha256": "74D662E13DC965227107ABFDD509AD9AB5F5CEEA3DE8F1949CADD50BB6F0A994"
+    },
+    {
+      "sourcePath": "previous public integrated patient and schedule demo",
+      "deployedPath": "/rehainfo/schedule.html",
       "sha256": "AA33F69E3D0C49A3F1DC0FB951FC2FE27B3808B4E641E5E9F9C502B3A381C3AC"
     },
     {
@@ -33,7 +48,7 @@
       "sha256": "79D6486614D0FB9117FBBD4C1A33EDD4443DD130A11F3959A4A626158C7BF7D8"
     }
   ],
-  "features": ["patient-list", "patient-detail", "discharge", "ai-prescription", "rehab-schedule"],
+  "features": ["source-matched-patient-list", "patient-filtering", "patient-selection", "preserved-schedule-demo"],
   "patientCount": 10,
   "seedPrescriptionCount": 1,
   "persistence": "browser-local-storage",

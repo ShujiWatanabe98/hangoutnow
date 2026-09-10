@@ -1,218 +1,119 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-	<meta charset="UTF-8" />
-	<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-	<meta name="robots" content="noindex,nofollow,noarchive" />
-	<meta name="theme-color" content="#1b294e" />
-	<link rel="canonical" href="https://method-more.com/rehainfo/" />
-	<title>患者一覧 | Smart Rehab</title>
-	<link href="/rehainfo/css/bootstrap.min.css?v=source-20260910" rel="stylesheet" />
-	<link href="/rehainfo/css/bootstrap-icons-1.9.1/bootstrap-icons.css?v=source-20260910" rel="stylesheet" />
-	<link href="/rehainfo/css/variables.css?v=source-20260910" rel="stylesheet" />
-	<link href="/rehainfo/rehainfo-demo.css?v=20260910-1" rel="stylesheet" />
-	<link href="/rehainfo/patient-demo.css?v=20260910-2" rel="stylesheet" />
-	<link href="/rehainfo/schedule/schedule.css?v=source-1.3.0" rel="stylesheet" />
-	<script src="/rehainfo/js/bootstrap.bundle.min.js?v=source-20260910" defer="defer"></script>
-	<script src="/rehainfo/rehainfo-demo-adapter.js?v=20260910-1" defer="defer"></script>
-	<script src="/rehainfo/schedule/schedule.js?v=source-1.3.0" defer="defer"></script>
-	<script src="/rehainfo/patient-demo.js?v=20260910-2" defer="defer"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="robots" content="noindex,nofollow,noarchive" />
+  <meta name="theme-color" content="#202b4c" />
+  <link rel="canonical" href="https://method-more.com/rehainfo/" />
+  <title>担当患者一覧</title>
+  <link href="/rehainfo/css/bootstrap.min.css?v=source-20260910" rel="stylesheet" />
+  <link href="/rehainfo/css/bootstrap-icons-1.9.1/bootstrap-icons.css?v=source-20260910" rel="stylesheet" />
+  <link href="/rehainfo/css/variables.css?v=source-20260910" rel="stylesheet" />
+  <link href="/rehainfo/patient-list-source.css?v=20260910-1" rel="stylesheet" />
+  <script src="/rehainfo/js/bootstrap.bundle.min.js?v=source-20260910" defer></script>
+  <script src="/rehainfo/patient-list-source.js?v=20260910-1" defer></script>
 </head>
 <body>
-	<main id="rehab-schedule-page">
-		<header class="sticky-top" style="z-index:1050;">
-			<nav id="gksCommonNavBar" class="navbar navbar-light">
-				<div class="container-fluid">
-					<div class="d-flex align-items-center">
-						<a href="/rehainfo/" class="navbar-brand bg-white"><img src="/rehainfo/images/SmartRehab-R_Available_Transparent.png" class="logo-image" alt="Smart Rehab®" /></a>
-						<a href="#patients" id="patientViewNav" class="btn header-button gks-modify-header-btn ms-2 active">患者一覧</a>
-						<a href="#schedule" id="scheduleViewNav" class="btn header-button gks-modify-header-btn ms-2">スケジュール</a>
-						<button type="button" id="prescriptionViewNav" class="btn header-button gks-modify-header-btn ms-2">AI処方箋</button>
-						<a href="/smariha/" class="btn header-button gks-modify-header-btn ms-2">統合ポータル</a>
-					</div>
-					<div class="d-flex align-items-center gap-2"><span class="rehainfo-source-badge">REHAINFO実装・架空データ</span><a href="/rehainfo/logout" class="btn header-button gks-modify-header-btn">ログアウト</a></div>
-				</div>
-			</nav>
-		</header>
-		<div class="rehainfo-demo-notice" role="status"><strong>DEMO</strong><span>rehainfoの実際の画面テンプレート・CSS・JavaScriptを使用しています。表示内容はすべて架空です。</span></div>
-		<section id="patientPage" class="patient-page-shell">
-			<div id="patientDischargeNotice" class="alert alert-success" role="status" hidden></div>
-			<div class="patient-page-heading">
-				<div><p class="patient-eyebrow">SMART REHAB / PATIENTS</p><h1>患者一覧</h1><p>患者情報、退院、AI処方箋を一つの画面で管理します。</p></div>
-				<div class="patient-summary-cards" aria-label="患者集計"><span>入院中<strong id="activePatientCount">0</strong></span><span>退院済み<strong id="dischargedPatientCount">0</strong></span><span>AI処方箋<strong id="prescriptionCount">0</strong></span></div>
-			</div>
-			<div class="patient-search-panel">
-				<label for="patientSearch">患者ID・患者名</label>
-				<div class="patient-search-controls"><input id="patientSearch" class="form-control" type="search" placeholder="患者ID / 患者名 / カナで検索" /><label class="form-check"><input id="showDischargedPatients" class="form-check-input" type="checkbox" /><span>退院済みも表示</span></label></div>
-			</div>
-			<div class="patient-table-frame">
-				<table class="patient-table"><thead><tr><th>患者ID</th><th>患者氏名</th><th>性別</th><th>生年月日</th><th>リハビリ区分</th><th>起算日</th><th>入外区分</th><th>病棟名</th><th>操作</th></tr></thead><tbody id="patientRows"></tbody></table>
-				<div id="patientEmpty" class="patient-empty" hidden>条件に一致する患者はいません。</div>
-			</div>
-		</section>
-		<section id="schedulePage" class="schedule-shell d-none">
-			<div class="schedule-toolbar">
-				<div class="date-navigation">
-					<button id="previousDate" type="button" aria-label="前日"><i class="bi bi-chevron-left"></i></button>
-					<input id="scheduleDate" type="date" aria-label="表示日" />
-					<button id="todayButton" type="button">今日</button>
-					<button id="nextDate" type="button" aria-label="翌日"><i class="bi bi-chevron-right"></i></button>
-					<a href="#attendance" data-demo-link="出退勤管理" class="attendance-link-button">出退勤管理</a>
-					<a href="#ai-schedule" data-demo-link="AIスケジュール" class="attendance-link-button">AIスケジュール</a>
-					<a href="#billing-management" data-demo-link="算定管理" class="attendance-link-button">算定管理</a>
-				</div>
-				<div class="view-switch" role="group" aria-label="表示切替">
-					<select id="teamFilter" aria-label="チーム絞り込み"><option value="">全チーム</option></select>
-					<select id="wardFilter" aria-label="病棟絞り込み"><option value="">全病棟</option></select>
-					<button id="copySchedule" type="button">予定コピー</button>
-					<a href="#schedule-management" data-demo-link="運用管理・集計" class="operations-link">運用管理・集計</a>
-					<button id="therapistView" class="active" type="button"><i class="bi bi-person-badge"></i> 療法士別</button>
-					<button id="patientView" type="button"><i class="bi bi-people"></i> 患者別</button>
-				</div>
-			</div>
-			<div id="scheduleNotice" class="schedule-notice d-none" role="status" aria-live="polite"></div>
-			<div class="schedule-quick-panels">
-				<section class="information-panel"><div class="quick-panel-heading"><strong>情報</strong></div><div class="information-summary"><span><i class="legend-dot unassigned"></i>未配置予約 <strong id="unassignedCount">0件</strong></span><span><i class="legend-dot reserved"></i>予約</span><span><i class="legend-dot actual"></i>実績</span><span><i class="legend-dot hospital"></i>院内予定</span><span class="monthly-unit-summary"><span id="summaryMonth">月</span>の合計単位 <strong id="monthlyTotalUnits">0</strong></span><span class="monthly-unit-summary">予約単位 <strong id="monthlyReservedUnits">0</strong></span></div><div id="unassignedQueue" class="unassigned-queue"></div></section>
-				<section><div class="quick-panel-heading"><strong>本日の一括実績</strong><button id="bulkComplete" type="button">選択を実施済み</button></div><div id="bulkActualList" class="bulk-actual-list"></div></section>
-			</div>
+  <header class="sticky-top source-header">
+    <nav id="gksCommonNavBar" class="navbar navbar-expand-md navbar-light">
+      <div class="container-fluid">
+        <div class="d-flex align-items-center source-header-primary">
+          <a href="/rehainfo/" class="navbar-brand bg-white" aria-label="Smart Rehab 患者一覧">
+            <img src="/rehainfo/images/SmartRehab-R_Available_Transparent.png" class="logo-image" alt="Smart Rehab®" />
+          </a>
+          <a href="/rehainfo/schedule#schedule" class="btn header-button gks-modify-header-btn ms-2">スケジュール</a>
+          <a href="#therapists" class="btn header-button gks-modify-header-btn ms-2" data-demo-action="療法士一覧">療法士一覧</a>
+        </div>
+        <div class="source-header-actions">
+          <button type="button" class="btn header-button gks-modify-header-btn" data-demo-action="AI処方箋">AI処方箋</button>
+          <button type="button" class="btn header-button gks-modify-header-btn" data-demo-action="AIOCR">AIOCR</button>
+          <button type="button" class="btn gks-setting-btn" aria-label="設定" data-demo-action="設定"><i class="bi bi-gear-fill"></i></button>
+          <button type="button" class="btn header-button gks-modify-header-btn" data-demo-action="個人ノート">個人ノート</button>
+          <button type="button" class="btn header-button gks-modify-header-btn" data-demo-action="患者登録">患者登録</button>
+          <div class="dropdown">
+            <button class="btn dropdown-toggle gks-user-profile-btn" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false" aria-label="ユーザーメニュー"><i class="bi bi-person-fill"></i></button>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+              <li class="dropdown-header">公開デモ</li>
+              <li><a class="dropdown-item" href="/rehainfo/logout"><i class="bi bi-box-arrow-right me-2"></i>ログアウト</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </nav>
+  </header>
 
-			<div class="schedule-board-frame">
-				<div id="scheduleBoard" class="schedule-board" aria-label="リハビリ予約表"></div>
-			</div>
-		</section>
-	</main>
+  <div class="title-list"><span class="title-list-rectangle" aria-hidden="true"></span>患者一覧</div>
 
-	<div class="modal fade" id="scheduleModal" tabindex="-1" aria-labelledby="scheduleModalTitle" aria-hidden="true">
-		<div class="modal-dialog modal-dialog-centered schedule-modal-dialog">
-			<div class="modal-content schedule-modal-content">
-				<div class="modal-header">
-					<div><small>リハビリ予約</small><h2 id="scheduleModalTitle">予約を追加</h2></div>
-					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="閉じる"></button>
-				</div>
-				<div class="modal-body">
-					<input id="entryId" type="hidden" />
-					<div class="schedule-editor-columns">
-					<section class="reservation-fields">
-					<div class="form-row">
-						<label for="entryDate">日付</label>
-						<input id="entryDate" class="form-control" type="date" />
-					</div>
-					<div class="form-row">
-						<label for="entryPatient">患者</label>
-						<select id="entryPatient" class="form-select"></select>
-					</div>
-					<div class="form-row">
-						<label for="entryTherapist">担当療法士</label>
-						<select id="entryTherapist" class="form-select"></select>
-					</div>
-					<div class="form-row">
-						<label for="entryPreferredPeriod">希望時間帯</label>
-						<select id="entryPreferredPeriod" class="form-select"><option value="">時間指定</option><option>午前</option><option>午後</option><option>時間未定</option></select>
-					</div>
-					<div class="form-grid">
-						<div><label for="entryStart">開始</label><input id="entryStart" class="form-control" type="time" step="60" /></div>
-						<div><label for="entryUnits">単位数</label><select id="entryUnits" class="form-select"><option value="1">1単位（20分）</option><option value="2">2単位（40分）</option><option value="3">3単位（60分）</option></select></div>
-					</div>
-					<div id="scheduleTimePreview" class="schedule-time-preview editor-wide"><span>2分間隔を反映した予定</span><strong id="entryEndPreview">—</strong></div>
-					<div class="form-row editor-wide orca-billing-section">
-						<div class="orca-billing-heading"><label for="entryOrcaCode">ORCA診療行為・算定</label><small id="orcaMasterVersion">現行マスター</small></div>
-						<select id="entryOrcaCode" class="form-select"><option value="">診療行為コードを選択してください</option></select>
-						<div class="orca-billing-summary">
-							<span>コード <strong id="orcaSelectedCode">未選択</strong></span>
-							<span>1単位 <strong id="orcaUnitPoints">—</strong></span>
-							<span>予定算定 <strong id="orcaTotalPoints">—</strong></span>
-						</div>
-						<div class="orca-selection-basis"><strong id="orcaSelectionMode">自動候補を計算中</strong><span id="orcaSelectionReason"></span></div>
-						<small class="orca-billing-caution">予定単位から点数を計算します。患者要件・施設基準・加算・実施単位を確認し、ORCA送信前に確定してください。</small>
-					</div>
-					<div id="entryStatusRow" class="form-row">
-						<label for="entryStatus">区分</label>
-						<select id="entryStatus" class="form-select"><option value="予約">予約</option></select>
-					</div>
-					<div class="form-row editor-wide">
-						<label for="entryNote">内容・メモ</label>
-						<textarea id="entryNote" class="form-control" rows="2" maxlength="120"></textarea>
-					</div>
-					</section>
-					<div class="editor-side-panels">
-					<section class="billing-check-panel">
-						<div class="billing-check-heading"><span>算定チェック</span><small id="billingRuleVersion">検証用ルール</small></div>
-						<div id="billingCheckList">確認中...</div>
-						<small class="billing-check-caution">正式算定では病院マスタと確定済み告示・通知による再判定が必要です。</small>
-					</section>
-					<section id="actualWorkflowPanel" class="actual-workflow-panel d-none">
-						<div class="workflow-heading"><span>実績登録</span><strong id="workflowStatus">予約</strong></div>
-						<div id="workflowActions" class="workflow-actions"></div>
-						<div class="form-grid workflow-fields">
-							<div><label for="actualTherapist">実施療法士</label><select id="actualTherapist" class="form-select"></select></div>
-							<div><label for="actualLocation">実施場所</label><select id="actualLocation" class="form-select"><option>リハビリ室</option><option>病室</option><option>病棟デイルーム</option><option>屋外</option><option>ST室</option><option>ADL室</option></select></div>
-							<div><label for="actualStart">実施開始</label><input id="actualStart" class="form-control" type="time" step="60" /></div>
-							<div><label for="actualEnd">実施終了</label><input id="actualEnd" class="form-control" type="time" step="60" /></div>
-							<div><label for="actualUnits">実施単位</label><select id="actualUnits" class="form-select"><option value="1">1単位</option><option value="2">2単位</option><option value="3">3単位</option></select></div>
-							<div><label for="actualCancelReason">中止理由</label><select id="actualCancelReason" class="form-select"><option value="">選択してください</option><option>患者拒否</option><option>不在</option><option>体調不良</option><option>検査優先</option><option>療法士都合</option><option>医師指示</option><option>その他</option></select></div>
-						</div>
-						<div class="form-row"><label for="actualNote">実績・中止メモ</label><textarea id="actualNote" class="form-control" rows="2" maxlength="200"></textarea></div>
-					</section>
-					</div>
-					</div>
-					<div id="modalValidation" class="modal-validation d-none"></div>
-				</div>
-				<div class="modal-footer">
-					<button id="deleteEntryButton" type="button" class="btn schedule-delete-button d-none">削除</button>
-					<button type="button" class="btn btn-light" data-bs-dismiss="modal">キャンセル</button>
-					<button id="saveEntryButton" type="button" class="btn schedule-primary-button">保存</button>
-				</div>
-			</div>
-		</div>
-	</div>
+  <main>
+    <div class="container-fluid container-table">
+      <section class="search-frame" id="filters">
+        <div class="accordion accordion-flush" id="searchAccordion">
+          <div class="accordion-item">
+            <h2 class="accordion-header" id="searchHeader">
+              <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#searchCollapse" aria-expanded="true" aria-controls="searchCollapse">検索条件</button>
+            </h2>
+            <div id="searchCollapse" class="accordion-collapse collapse show" aria-labelledby="searchHeader">
+              <div class="accordion-body row">
+                <div class="col-lg-9">
+                  <ul class="list-group list-group-flush" id="search_condition_list">
+                    <li class="list-group-item border-0">
+                      <div class="row align-items-center"><label class="col-2" for="condition_patientName">患者氏名（カナ）</label><div class="col-6"><input type="text" class="form-control" id="condition_patientName" /></div></div>
+                    </li>
+                    <li class="list-group-item border-0">
+                      <div class="row align-items-center"><label class="col-2" for="condition_patientId">患者ID</label><div class="col-6"><input type="text" class="form-control" id="condition_patientId" /></div></div>
+                    </li>
+                    <li class="list-group-item border-0 additional-condition" id="additionalCondition" hidden>
+                      <div class="row align-items-center"><label class="col-2" id="additionalConditionLabel" for="additionalConditionValue"></label><div class="col-6"><input type="text" class="form-control" id="additionalConditionValue" /></div></div>
+                    </li>
+                  </ul>
+                </div>
+                <div class="col-lg-3 px-3 condition-selector">
+                  <label for="select_additional">条件追加</label>
+                  <select class="form-select" id="select_additional">
+                    <option value="">追加条件選択</option>
+                    <option value="institution">医療機関名</option>
+                    <option value="name">患者氏名（漢字）</option>
+                    <option value="gender">性別</option>
+                    <option value="birth">生年月日</option>
+                    <option value="age">年齢</option>
+                    <option value="rehabClass">リハビリテーション区分</option>
+                    <option value="startDate">起算日</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-	<div class="modal fade" id="patientDetailModal" tabindex="-1" aria-labelledby="patientDetailModalTitle" aria-hidden="true">
-		<div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content">
-			<div class="modal-header"><div><small class="patient-modal-eyebrow">患者情報</small><h2 id="patientDetailModalTitle" class="modal-title fs-5"></h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="閉じる"></button></div>
-			<div class="modal-body"><div id="patientDetailContent" class="patient-detail-grid"></div></div>
-			<div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">閉じる</button></div>
-		</div></div>
-	</div>
+      <section class="patient-list-area" aria-labelledby="patientListCaption">
+        <div class="patient-list-tools">
+          <div class="form-check form-switch form-check-inline">
+            <input class="form-check-input radio-switch" type="checkbox" id="radio_api" checked />
+            <label class="form-check-label" for="radio_api">担当患者</label>
+          </div>
+          <span class="demo-data-label">公開デモ・すべて架空の患者データ</span>
+        </div>
+        <div id="patientListNotice" class="patient-list-notice" role="status" aria-live="polite"></div>
+        <div class="table-responsive">
+          <table class="table table-hover dataTable" id="patientListTable">
+            <caption id="patientListCaption" class="visually-hidden">担当患者一覧</caption>
+            <thead class="table-light"><tr><th>患者ID</th><th>患者氏名</th><th>性別</th><th>生年月日</th><th>年齢</th><th>リハビリテーション区分</th><th>起算日</th><th>入外区分</th><th>病棟名</th><th></th></tr></thead>
+            <tbody id="patientListRows"></tbody>
+          </table>
+        </div>
+        <p id="patientListEmpty" class="patient-list-empty" hidden>患者が見つかりません。</p>
+      </section>
+    </div>
+  </main>
 
-	<div class="modal fade" id="patientDischargeModal" tabindex="-1" aria-labelledby="patientDischargeModalTitle" aria-hidden="true">
-		<div class="modal-dialog modal-dialog-centered"><div class="modal-content">
-			<div class="modal-header"><h2 id="patientDischargeModalTitle" class="modal-title fs-5">退院日の設定</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="閉じる"></button></div>
-			<div class="modal-body">
-				<div class="patient-discharge-summary mb-3"><strong id="patientDischargePatientName"></strong><span id="patientDischargePatientId"></span><span>入院日：<span id="patientDischargeAdmissionDate" class="d-inline"></span></span></div>
-				<p>退院日を入力すると、患者情報の「退院日」へ自動的に保存されます。</p>
-				<label for="patientDischargeDate" class="form-label fw-bold">退院日</label>
-				<input type="date" id="patientDischargeDate" class="form-control" required />
-				<div id="patientDischargeError" class="alert alert-danger mt-3 mb-0" role="alert" hidden></div>
-			</div>
-			<div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">キャンセル</button><button type="button" class="btn btn-danger" id="patientDischargeSubmit">退院する</button></div>
-		</div></div>
-	</div>
-
-	<div class="modal fade" id="prescriptionModal" tabindex="-1" aria-labelledby="prescriptionModalTitle" aria-hidden="true">
-		<div class="modal-dialog modal-dialog-centered modal-xl"><div class="modal-content prescription-modal-content">
-			<div class="modal-header"><div><small class="patient-modal-eyebrow">AI PRESCRIPTION</small><h2 id="prescriptionModalTitle" class="modal-title fs-5">AI処方箋</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="閉じる"></button></div>
-			<div class="modal-body">
-				<div class="prescription-layout">
-					<section class="prescription-input-panel">
-						<label for="prescriptionPatient" class="form-label fw-bold">患者</label><select id="prescriptionPatient" class="form-select"></select>
-						<label for="prescriptionDate" class="form-label fw-bold mt-3">日付</label><input id="prescriptionDate" class="form-control" type="date" />
-						<label for="prescriptionImages" class="prescription-dropzone mt-3"><i class="bi bi-images"></i><strong>処方箋画像を選択</strong><span>PNG・JPEG・WebP、最大4枚</span><input id="prescriptionImages" type="file" accept="image/png,image/jpeg,image/webp" multiple /></label>
-						<div id="prescriptionPreview" class="prescription-preview"></div>
-						<p class="prescription-privacy">公開検証環境です。実在する患者の処方箋や個人情報はアップロードしないでください。画像は解析のためAI APIへ送信され、このアプリには保存されません。</p>
-						<button type="button" id="analyzePrescription" class="btn prescription-primary w-100"><i class="bi bi-stars"></i> AIで読み取る</button>
-						<div id="prescriptionStatus" class="prescription-status" role="status" hidden></div>
-					</section>
-					<section class="prescription-result-panel">
-						<div class="prescription-result-heading"><div><span>読取結果</span><small>内容を確認してから保存してください</small></div><span id="prescriptionConfidence" class="confidence-chip" hidden></span></div>
-						<div class="prescription-result-grid"><label>処方日<input id="resultPrescriptionDate" class="form-control" type="text" /></label><label>医療機関<input id="resultInstitution" class="form-control" type="text" /></label><label>医師名<input id="resultDoctor" class="form-control" type="text" /></label></div>
-						<label class="form-label fw-bold mt-3" for="resultMedications">薬剤</label><textarea id="resultMedications" class="form-control" rows="6" placeholder="薬剤名、用量、用法、日数"></textarea>
-						<label class="form-label fw-bold mt-3" for="resultNotes">備考・注意事項</label><textarea id="resultNotes" class="form-control" rows="3"></textarea>
-						<button type="button" id="savePrescription" class="btn prescription-save mt-3" disabled><i class="bi bi-check2-circle"></i> 患者の処方箋一覧へ保存</button>
-						<div class="prescription-history"><h3>保存済みAI処方箋</h3><div id="prescriptionHistory"></div></div>
-					</section>
-				</div>
-			</div>
-		</div></div>
-	</div>
+  <div class="modal fade" id="patientDetailModal" tabindex="-1" aria-labelledby="patientDetailTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+      <div class="modal-header"><h2 class="modal-title fs-5" id="patientDetailTitle">患者情報</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="閉じる"></button></div>
+      <div class="modal-body" id="patientDetailBody"></div>
+      <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">閉じる</button></div>
+    </div></div>
+  </div>
 </body>
 </html>

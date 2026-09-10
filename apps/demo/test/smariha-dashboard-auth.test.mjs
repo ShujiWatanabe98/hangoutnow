@@ -180,6 +180,8 @@ test('rehainfo source UI is linked as a protected fictional-data demo', async ()
   assert.equal(protectedSource.status, 401);
   const protectedPatients = await fetch(`${origin}/rehainfo/patient-demo.js`, { redirect: 'manual' });
   assert.equal(protectedPatients.status, 401);
+  const protectedPatientList = await fetch(`${origin}/rehainfo/patient-list-source.js`, { redirect: 'manual' });
+  assert.equal(protectedPatientList.status, 401);
 
   const accepted = await fetch(`${origin}/rehainfo/login`, {
     method: 'POST',
@@ -199,14 +201,20 @@ test('rehainfo source UI is linked as a protected fictional-data demo', async ()
   const page = await fetch(`${origin}/rehainfo/`, { headers: { cookie } });
   const html = await page.text();
   assert.equal(page.status, 200);
-  assert.match(html, /rehab-schedule-page/);
-  assert.match(html, /患者一覧/);
+  assert.match(html, /<title>担当患者一覧<\/title>/);
+  assert.match(html, /id="searchAccordion"/);
+  assert.match(html, /患者氏名（カナ）/);
+  assert.match(html, /id="radio_api"[^>]*checked/);
+  assert.match(html, /公開デモ・すべて架空の患者データ/);
+  assert.match(html, /\/rehainfo\/patient-list-source\.js\?v=20260910-1/);
   assert.match(html, /AI処方箋/);
-  assert.match(html, /id="patientDischargeDate"/);
-  assert.match(html, /リハビリ予約表/);
-  assert.match(html, /rehainfoの実際の画面テンプレート・CSS・JavaScript/);
-  assert.match(html, /\/rehainfo\/schedule\/schedule\.js\?v=source-1\.3\.0/);
-  assert.doesNotMatch(html, /過去・本日・将来の日付を設定できます。|data-discharge-date-offset|>昨日<|>本日<|>明日</);
+  assert.match(html, /\/rehainfo\/schedule#schedule/);
+
+  const patientListSource = await fetch(`${origin}/rehainfo/patient-list-source.js`, { headers: { cookie } });
+  const patientListSourceCode = await patientListSource.text();
+  assert.equal(patientListSource.status, 200);
+  assert.equal((patientListSourceCode.match(/id:'DEMO2609\d{2}'/g) ?? []).length, 10);
+  assert.match(patientListSourceCode, /assignedOnly\.checked/);
 
   const patientSource = await fetch(`${origin}/rehainfo/patient-demo.js`, { headers: { cookie } });
   const patientSourceCode = await patientSource.text();
@@ -229,6 +237,12 @@ test('rehainfo source UI is linked as a protected fictional-data demo', async ()
   assert.equal(source.status, 200);
   assert.equal(createHash('sha256').update(sourceCode).digest('hex'), '76608c376e3a2f3dfef2404c212cdc5e0fa9c117a79b157ec0038a9bc131124a');
   assert.match(sourceCode, /const API = '\/rehainfo\/schedule\/api'/);
+
+  const schedulePage = await fetch(`${origin}/rehainfo/schedule`, { headers: { cookie } });
+  const scheduleHtml = await schedulePage.text();
+  assert.equal(schedulePage.status, 200);
+  assert.match(scheduleHtml, /rehab-schedule-page/);
+  assert.match(scheduleHtml, /\/rehainfo\/schedule\/schedule\.js\?v=source-1\.3\.0/);
 
   const logout = await fetch(`${origin}/rehainfo/logout`, { headers: { cookie }, redirect: 'manual' });
   assert.equal(logout.status, 303);

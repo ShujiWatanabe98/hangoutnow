@@ -727,8 +727,10 @@ createServer(async (request, response) => {
       ? '/smariha-scheduler/index.html'
     : requestedPath === '/smariha' || requestedPath === '/smariha/'
       ? '/smariha/index.html'
-    : requestedPath === '/rehainfo' || requestedPath === '/rehainfo/' || requestedPath === '/rehainfo/schedule'
+    : requestedPath === '/rehainfo' || requestedPath === '/rehainfo/'
       ? '/rehainfo/index.html'
+    : requestedPath === '/rehainfo/schedule' || requestedPath === '/rehainfo/schedule/'
+      ? '/rehainfo/schedule.html'
       : divertNaviDashboardPath && normalizedRequestedPath === divertNaviDashboardPath
         ? '/divertnavi-app/index.html'
       : requestedPath;
