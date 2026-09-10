@@ -158,3 +158,49 @@ test('Smariha scheduler reuses protected credentials with a scheduler-scoped ses
   assert.match(logout.headers.get('set-cookie'), /Path=\/smariha-scheduler/);
   assert.match(logout.headers.get('set-cookie'), /Max-Age=0/);
 });
+
+test('Smariha suite protects every integrated demo module', async () => {
+  const entry = await fetch(`${origin}/smariha/`, { redirect: 'manual' });
+  assert.equal(entry.status, 302);
+  assert.equal(entry.headers.get('location'), '/smariha/login.html');
+
+  const loginPage = await fetch(`${origin}/smariha/login.html`);
+  const loginHtml = await loginPage.text();
+  assert.equal(loginPage.status, 200);
+  assert.match(loginHtml, /スマリハ<br>統合ポータル/);
+  assert.match(loginHtml, /action="\/smariha\/login"/);
+  assert.doesNotMatch(loginHtml, /analytics\.js|cookie-consent/);
+
+  const protectedAsset = await fetch(`${origin}/smariha/app.js`, { redirect: 'manual' });
+  assert.equal(protectedAsset.status, 401);
+
+  const accepted = await fetch(`${origin}/smariha/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ username, password }),
+    redirect: 'manual',
+  });
+  assert.equal(accepted.status, 303);
+  assert.equal(accepted.headers.get('location'), '/smariha/');
+  const setCookie = accepted.headers.get('set-cookie');
+  assert.match(setCookie, /Path=\/smariha/);
+  assert.match(setCookie, /HttpOnly/);
+  assert.match(setCookie, /Secure/);
+  assert.match(setCookie, /SameSite=Strict/);
+  const cookie = setCookie.split(';')[0];
+
+  const portal = await fetch(`${origin}/smariha/`, { headers: { cookie } });
+  const portalHtml = await portal.text();
+  assert.equal(portal.status, 200);
+  for (const copy of ['患者管理', 'リハビリ記録', '評価・FIM', 'スケジュール', '出退勤管理', '請求・実績', 'AI OCR', '承認・通知', '監査ログ']) {
+    assert.ok(portalHtml.includes(copy), `スマリハ統合ポータルに機能がありません: ${copy}`);
+  }
+  assert.match(portalHtml, /提案用MVP・架空データ/);
+  assert.match(portalHtml, /実際の患者情報・電子カルテ・院内システムには接続していません/);
+  assert.doesNotMatch(portalHtml, /analytics\.js|cookie-consent/);
+
+  const logout = await fetch(`${origin}/smariha/logout`, { headers: { cookie }, redirect: 'manual' });
+  assert.equal(logout.status, 303);
+  assert.equal(logout.headers.get('location'), '/smariha/login.html');
+  assert.match(logout.headers.get('set-cookie'), /Max-Age=0/);
+});

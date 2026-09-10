@@ -149,7 +149,7 @@ test('homepage targets Shinjuku solo participants with measurable acquisition li
   assert.match(server, /location: '\/shinjuku-working-adult-friends\.html'/);
 });
 
-test('corporate homepage presents the eight methodmore products accurately', async () => {
+test('corporate homepage presents the nine methodmore products accurately', async () => {
   const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles, coachDemo, coachStyles, coachBootstrap, coachDemoScript, coachDriveModule, coachUnderpassModule, coachPoliceModule, coachNaturalSpeechModule, coachRoadSnappingModule, coachSmoothLocationModule, coachUserReportAggregationModule, coachVoiceApproachModule, coachMonitorPointsJson, coachUnderpassFeedJson, coachPrivacy, coachSupport, coachDataSources, careDemo, careStyles, careApp, carePersonas, careManifestJson, smarihaDemo, smarihaStyles, smarihaScript, smarihaLogin, smarihaLoginScript, smarihaTaisho, smarihaKeijinkai, schedulerDemo, schedulerStyles, schedulerScript, schedulerLogin, schedulerLoginScript, server] = await Promise.all([
     readFile(new URL('../public/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/hangout-now.html', import.meta.url), 'utf8'),
@@ -199,7 +199,7 @@ test('corporate homepage presents the eight methodmore products accurately', asy
 
   assert.match(corporate, /<title>methodmore｜日常の選択を、もっと前へ。<\/title>/);
   assert.match(corporate, /<link rel="canonical" href="https:\/\/method-more\.com\/">/);
-  assert.equal((corporate.match(/<article class="product-card/g) ?? []).length, 8);
+  assert.equal((corporate.match(/<article class="product-card/g) ?? []).length, 9);
   assert.match(corporate, /href="\/hangout-now\.html"/);
   assert.match(corporate, /href="\/divertnavi\.html"/);
   assert.match(corporate, /href="\/divertnavi-app\/">Webアプリを開く<\/a>/);
@@ -211,6 +211,7 @@ test('corporate homepage presents the eight methodmore products accurately', asy
   assert.match(corporate, /RoboCare <em>One<\/em>/);
   assert.match(corporate, /スマリハ<br><em>管理ダッシュボード<\/em>/);
   assert.match(corporate, /スマリハ<br><em>スケジューラー<\/em>/);
+  assert.match(corporate, /スマリハ<br><em>統合ポータル<\/em>/);
   assert.match(corporate, /公開中/);
   assert.match(corporate, /Android MVP 開発中/);
   assert.match(corporate, /Webアプリ 公開中/);

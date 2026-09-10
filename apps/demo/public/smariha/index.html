@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="theme-color" content="#10243a">
+  <link rel="canonical" href="https://method-more.com/smariha/">
+  <link rel="icon" href="/methodmore-favicon.svg" type="image/svg+xml">
+  <title>スマリハ統合ポータル｜methodmore</title>
+  <link rel="stylesheet" href="/smariha/styles.css?v=20260910-1">
+</head>
+<body>
+  <header class="mobile-header">
+    <button id="menuButton" class="menu-button" type="button" aria-label="メニューを開く" aria-expanded="false">☰</button>
+    <a class="mobile-brand" href="#home"><span>SR</span><strong>スマリハ</strong></a>
+    <a class="mobile-logout" href="/smariha/logout">ログアウト</a>
+  </header>
+
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="#home"><span class="brand-mark">SR</span><span><strong>スマリハ</strong><small>SMART REHA SUITE</small></span></a>
+    <p class="demo-label">提案用MVP・架空データ</p>
+    <nav class="side-nav" aria-label="スマリハ機能">
+      <button class="nav-item active" type="button" data-view="home"><span>01</span>ホーム</button>
+      <button class="nav-item" type="button" data-view="patients"><span>02</span>患者管理</button>
+      <button class="nav-item" type="button" data-view="records"><span>03</span>リハビリ記録</button>
+      <button class="nav-item" type="button" data-view="evaluation"><span>04</span>評価・FIM</button>
+      <button class="nav-item" type="button" data-view="schedule"><span>05</span>スケジュール</button>
+      <button class="nav-item" type="button" data-view="attendance"><span>06</span>出退勤管理</button>
+      <button class="nav-item" type="button" data-view="billing"><span>07</span>請求・実績</button>
+      <button class="nav-item" type="button" data-view="ocr"><span>08</span>AI OCR</button>
+      <button class="nav-item" type="button" data-view="approval"><span>09</span>承認・通知</button>
+      <button class="nav-item" type="button" data-view="audit"><span>10</span>監査ログ</button>
+    </nav>
+    <div class="side-links"><a href="/smariha-dashboard/">管理ダッシュボード ↗</a><a href="/smariha-scheduler/">詳細スケジューラー ↗</a></div>
+    <a class="logout" href="/smariha/logout">ログアウト</a>
+  </aside>
+
+  <main class="main">
+    <div class="notice"><strong>DEMO</strong><span>表示内容はすべて架空です。実際の患者情報・電子カルテ・院内システムには接続していません。</span></div>
+
+    <section class="view active" data-page="home" aria-labelledby="home-title">
+      <div class="page-head"><div><p class="eyebrow">SMART REHA OVERVIEW</p><h1 id="home-title">今日のスマリハ</h1><p>リハビリ業務の確認・記録・評価・調整をひとつの入口から。</p></div><span class="date-chip">2026.09.10 THU</span></div>
+      <div class="metrics">
+        <article><small>入院患者</small><strong>42</strong><span>名</span><em>回復期 31名</em></article>
+        <article><small>本日の予約</small><strong>27</strong><span>件</span><em class="good">重複 0件</em></article>
+        <article><small>実施単位</small><strong>38</strong><span>/ 54</span><em>進捗 70%</em></article>
+        <article><small>要対応</small><strong>5</strong><span>件</span><em class="warn">本日期限 3件</em></article>
+      </div>
+      <div class="home-grid">
+        <section class="panel"><div class="panel-head"><div><p class="eyebrow">QUICK ACCESS</p><h2>業務を始める</h2></div><span>10機能</span></div><div class="module-grid">
+          <button data-go="patients"><i>患</i><strong>患者管理</strong><small>42名・要確認2名</small></button>
+          <button data-go="records"><i>記</i><strong>リハビリ記録</strong><small>未入力3件</small></button>
+          <button data-go="evaluation"><i>評</i><strong>評価・FIM</strong><small>今週8件</small></button>
+          <button data-go="schedule"><i>予</i><strong>スケジュール</strong><small>未配置2件</small></button>
+          <button data-go="attendance"><i>勤</i><strong>出退勤管理</strong><small>出勤18名</small></button>
+          <button data-go="billing"><i>請</i><strong>請求・実績</strong><small>未確定4件</small></button>
+          <button data-go="ocr"><i>AI</i><strong>AI OCR</strong><small>帳票を読み取り</small></button>
+          <button data-go="approval"><i>承</i><strong>承認・通知</strong><small>承認待ち3件</small></button>
+        </div></section>
+        <aside class="panel tasks"><div class="panel-head"><div><p class="eyebrow">TODAY</p><h2>本日の確認</h2></div></div>
+          <button data-go="approval"><span class="task-dot red"></span><span><strong>変更申請の承認</strong><small>13:00まで・3件</small></span><b>→</b></button>
+          <button data-go="evaluation"><span class="task-dot amber"></span><span><strong>FIM評価の確認</strong><small>未確認・2件</small></span><b>→</b></button>
+          <button data-go="records"><span class="task-dot blue"></span><span><strong>記録の入力</strong><small>本日分・3件</small></span><b>→</b></button>
+        </aside>
+      </div>
+    </section>
+
+    <section class="view" data-page="patients" aria-labelledby="patients-title">
+      <div class="page-head"><div><p class="eyebrow">PATIENT MANAGEMENT</p><h1 id="patients-title">患者管理</h1><p>患者基本情報とリハビリ進捗を確認します。</p></div><button class="primary" id="addPatient" type="button">＋ 患者を登録</button></div>
+      <div class="toolbar"><label class="search">検索<input id="patientSearch" type="search" placeholder="患者ID・病棟・担当で検索"></label><label>病棟<select id="wardFilter"><option value="all">すべて</option><option>回復期A</option><option>回復期B</option><option>一般</option></select></label></div>
+      <section class="panel table-panel"><div class="table-scroll"><table><thead><tr><th>患者ID</th><th>病棟</th><th>主担当</th><th>入院日</th><th>最新FIM</th><th>次回予定</th><th>状態</th></tr></thead><tbody id="patientRows">
+        <tr data-ward="回復期A"><td><button class="text-button patient-detail">SR-24018</button></td><td>回復期A</td><td>佐藤 直樹 / PT</td><td>8/03</td><td>82</td><td>本日 09:00</td><td><span class="status green">順調</span></td></tr>
+        <tr data-ward="回復期B"><td><button class="text-button patient-detail">SR-24027</button></td><td>回復期B</td><td>中村 美咲 / OT</td><td>7/21</td><td>79</td><td>本日 09:00</td><td><span class="status green">順調</span></td></tr>
+        <tr data-ward="回復期A"><td><button class="text-button patient-detail">SR-24031</button></td><td>回復期A</td><td>佐藤 直樹 / PT</td><td>6/26</td><td>58</td><td>本日 10:00</td><td><span class="status amber">要確認</span></td></tr>
+        <tr data-ward="一般"><td><button class="text-button patient-detail">SR-24042</button></td><td>一般</td><td>小林 健 / ST</td><td>8/28</td><td>91</td><td>本日 10:00</td><td><span class="status blue">評価予定</span></td></tr>
+      </tbody></table></div><p class="empty" id="patientEmpty" hidden>該当する患者はいません。</p></section>
+    </section>
+
+    <section class="view" data-page="records" aria-labelledby="records-title">
+      <div class="page-head"><div><p class="eyebrow">REHABILITATION RECORD</p><h1 id="records-title">リハビリ記録</h1><p>SOAP記録と実施単位を登録します。</p></div><span class="status amber">未入力 3件</span></div>
+      <div class="split"><section class="panel list-panel"><div class="panel-head"><h2>本日の実施</h2><span>8件</span></div><button class="record-item active" data-record="SR-24018"><strong>09:00 SR-24018</strong><small>歩行訓練・2単位</small><span>入力中</span></button><button class="record-item" data-record="SR-24027"><strong>09:00 SR-24027</strong><small>上肢機能訓練・2単位</small><span>未入力</span></button><button class="record-item" data-record="SR-24031"><strong>10:00 SR-24031</strong><small>起立・移乗・2単位</small><span>未入力</span></button></section>
+        <form class="panel form-panel" id="soapForm"><div class="panel-head"><div><p class="eyebrow">SOAP</p><h2 id="recordPatient">SR-24018</h2></div><span>架空記録</span></div><div class="form-body"><label>実施内容<select><option>歩行訓練</option><option>起立・移乗</option><option>ADL訓練</option></select></label><label>S（主観）<textarea required>歩行時の痛みは前日より軽いとのこと。</textarea></label><label>O（客観）<textarea required>平行棒内歩行を見守りで20m実施。ふらつきなし。</textarea></label><label>A（評価）<textarea required>下肢支持性が改善。方向転換時は引き続き注意。</textarea></label><label>P（計画）<textarea required>次回は歩行器での病棟内歩行を評価する。</textarea></label><div class="inline-fields"><label>実施単位<select><option>1単位</option><option selected>2単位</option><option>3単位</option></select></label><label>記録者<input value="佐藤 直樹（PT）" readonly></label></div><button class="primary" type="submit">記録を保存</button></div></form>
+      </div>
+    </section>
+
+    <section class="view" data-page="evaluation" aria-labelledby="evaluation-title">
+      <div class="page-head"><div><p class="eyebrow">ASSESSMENT & FIM</p><h1 id="evaluation-title">評価・FIM</h1><p>運動・認知項目を入力し、前回との差を確認します。</p></div><span class="patient-chip">SR-24031・入院76日</span></div>
+      <div class="split eval-split"><section class="panel score-panel"><div class="panel-head"><h2>FIMスコア</h2><span>前回 56点</span></div><div class="score-total"><small>今回</small><strong id="fimTotal">58</strong><span>/ 126点</span></div><div class="score-bars"><p><span>運動項目</span><b><i id="motorBar"></i></b><strong id="motorScore">43</strong></p><p><span>認知項目</span><b><i id="cognitiveBar"></i></b><strong id="cognitiveScore">15</strong></p></div><p class="delta">前回比 <strong id="fimDelta">+2</strong></p></section>
+        <form class="panel form-panel" id="fimForm"><div class="panel-head"><h2>評価項目</h2><span>1–7点</span></div><div class="form-body fim-items">
+          <label>食事 <output>5</output><input class="fim-input motor" type="range" min="1" max="7" value="5"></label><label>移乗 <output>4</output><input class="fim-input motor" type="range" min="1" max="7" value="4"></label><label>歩行 <output>3</output><input class="fim-input motor" type="range" min="1" max="7" value="3"></label><label>更衣 <output>4</output><input class="fim-input motor" type="range" min="1" max="7" value="4"></label><label>理解 <output>5</output><input class="fim-input cognitive" type="range" min="1" max="7" value="5"></label><label>記憶 <output>4</output><input class="fim-input cognitive" type="range" min="1" max="7" value="4"></label><button class="primary" type="submit">評価を保存</button></div></form>
+      </div>
+    </section>
+
+    <section class="view" data-page="schedule" aria-labelledby="schedule-title">
+      <div class="page-head"><div><p class="eyebrow">SCHEDULE</p><h1 id="schedule-title">スケジュール</h1><p>当日の配置状況と未配置予約を確認します。</p></div><a class="primary link-button" href="/smariha-scheduler/">詳細スケジューラーを開く ↗</a></div>
+      <div class="metrics compact"><article><small>予約</small><strong>27</strong><span>件</span></article><article><small>予約単位</small><strong>42</strong><span>単位</span></article><article><small>未配置</small><strong>2</strong><span>件</span></article><article><small>重複</small><strong>0</strong><span>件</span></article></div>
+      <section class="panel timeline"><div class="panel-head"><h2>療法士別・本日の配置</h2><span>9月10日</span></div><div class="timeline-grid"><b>時刻</b><b>佐藤 / PT</b><b>中村 / OT</b><b>小林 / ST</b><span>09:00</span><button>SR-24018<br><small>歩行・2単位</small></button><button>SR-24027<br><small>上肢・2単位</small></button><i></i><span>10:00</span><button>SR-24031<br><small>移乗・2単位</small></button><i></i><button>SR-24042<br><small>嚥下・2単位</small></button><span>11:00</span><i></i><button>SR-24055<br><small>ADL・2単位</small></button><button class="meeting">院内研修<br><small>11:00–12:00</small></button><span>13:00</span><button>SR-24063<br><small>ROM・2単位</small></button><button>SR-24071<br><small>更衣・2単位</small></button><i></i></div></section>
+    </section>
+
+    <section class="view" data-page="attendance" aria-labelledby="attendance-title">
+      <div class="page-head"><div><p class="eyebrow">ATTENDANCE</p><h1 id="attendance-title">出退勤管理</h1><p>勤務状況と当日の配置可能時間を確認します。</p></div><button class="primary" id="clockButton" type="button">出勤を記録</button></div>
+      <div class="metrics compact"><article><small>出勤</small><strong id="presentCount">18</strong><span>名</span></article><article><small>休暇</small><strong>2</strong><span>名</span></article><article><small>研修</small><strong>1</strong><span>名</span></article><article><small>未確認</small><strong>1</strong><span>名</span></article></div>
+      <section class="panel table-panel"><div class="table-scroll"><table><thead><tr><th>職員</th><th>職種</th><th>予定勤務</th><th>打刻</th><th>本日の単位</th><th>状態</th></tr></thead><tbody><tr><td>佐藤 直樹</td><td>PT</td><td>08:30–17:30</td><td>08:27</td><td>6 / 18</td><td><span class="status green">勤務中</span></td></tr><tr><td>中村 美咲</td><td>OT</td><td>08:30–17:30</td><td>08:31</td><td>6 / 18</td><td><span class="status green">勤務中</span></td></tr><tr><td>小林 健</td><td>ST</td><td>09:00–18:00</td><td>08:55</td><td>4 / 18</td><td><span class="status blue">研修あり</span></td></tr><tr><td>山田 遥</td><td>PT</td><td>休暇</td><td>—</td><td>—</td><td><span class="status gray">休暇</span></td></tr></tbody></table></div></section>
+    </section>
+
+    <section class="view" data-page="billing" aria-labelledby="billing-title">
+      <div class="page-head"><div><p class="eyebrow">BILLING & PERFORMANCE</p><h1 id="billing-title">請求・実績</h1><p>実施記録と請求データの整合を確認します。</p></div><button class="primary" id="billingCheck" type="button">整合チェックを実行</button></div>
+      <div class="metrics compact"><article><small>本月実績</small><strong>1,284</strong><span>単位</span></article><article><small>確定済</small><strong>96</strong><span>%</span></article><article><small>未確定</small><strong id="billingPending">4</strong><span>件</span></article><article><small>不整合</small><strong id="billingMismatch">2</strong><span>件</span></article></div>
+      <section class="panel table-panel"><div class="panel-head"><h2>請求確認リスト</h2><span>2026年9月</span></div><div class="table-scroll"><table><thead><tr><th>患者ID</th><th>実施日</th><th>実施</th><th>請求</th><th>確認内容</th><th>状態</th></tr></thead><tbody id="billingRows"><tr><td>SR-24018</td><td>9/10</td><td>2単位</td><td>2単位</td><td>一致</td><td><span class="status green">確定可</span></td></tr><tr class="needs-check"><td>SR-24031</td><td>9/09</td><td>2単位</td><td>1単位</td><td>単位差</td><td><span class="status amber check-state">要確認</span></td></tr><tr class="needs-check"><td>SR-24042</td><td>9/09</td><td>2単位</td><td>—</td><td>請求未作成</td><td><span class="status amber check-state">要確認</span></td></tr></tbody></table></div></section>
+    </section>
+
+    <section class="view" data-page="ocr" aria-labelledby="ocr-title">
+      <div class="page-head"><div><p class="eyebrow">AI DOCUMENT OCR</p><h1 id="ocr-title">AI OCR</h1><p>評価帳票の画像から候補値を抽出し、人が確認して反映します。</p></div><span class="status blue">確認後に反映</span></div>
+      <div class="split ocr-split"><section class="panel upload-panel"><div class="upload-zone" id="uploadZone"><span>OCR</span><h2>帳票画像を選択</h2><p>FIM・BBS・検査帳票に対応する提案用デモ</p><button class="secondary" id="ocrButton" type="button">サンプル画像を読み取る</button></div><div class="ocr-progress" id="ocrProgress" hidden><i></i><strong id="ocrStatus">画像を解析しています…</strong></div></section>
+        <section class="panel result-panel"><div class="panel-head"><h2>抽出結果</h2><span id="ocrConfidence">未実行</span></div><div class="ocr-fields"><label>患者ID<input id="ocrPatient" value="" placeholder="—"></label><label>評価日<input id="ocrDate" value="" placeholder="—"></label><label>評価種別<input id="ocrType" value="" placeholder="—"></label><label>合計点<input id="ocrScore" value="" placeholder="—"></label></div><p class="ocr-note">AIの結果は原本と照合してください。自動確定はしません。</p><button class="primary" id="ocrApply" type="button" disabled>確認して反映</button></section>
+      </div>
+    </section>
+
+    <section class="view" data-page="approval" aria-labelledby="approval-title">
+      <div class="page-head"><div><p class="eyebrow">APPROVAL & NOTIFICATION</p><h1 id="approval-title">承認・通知</h1><p>変更候補を確認し、承認後にのみ反映します。</p></div><span class="status amber" id="approvalCount">承認待ち 3件</span></div>
+      <div class="approval-list" id="approvalList"><article class="panel approval-card"><div><span class="status blue">スケジュール</span><h2>未配置予約の割当</h2><p>SR-24102 → 佐藤 直樹 / 15:00 / 2単位</p><small>重複・勤務・休憩・単位上限を確認済み</small></div><div><button class="secondary reject" type="button">差し戻す</button><button class="primary approve" type="button">承認する</button></div></article><article class="panel approval-card"><div><span class="status blue">記録</span><h2>SOAP記録の修正</h2><p>SR-24031 / A・P欄の追記</p><small>申請者：佐藤 直樹（PT）</small></div><div><button class="secondary reject" type="button">差し戻す</button><button class="primary approve" type="button">承認する</button></div></article><article class="panel approval-card"><div><span class="status blue">請求</span><h2>実施単位の訂正</h2><p>SR-24042 / 1単位 → 2単位</p><small>実施記録との整合を確認してください</small></div><div><button class="secondary reject" type="button">差し戻す</button><button class="primary approve" type="button">承認する</button></div></article></div>
+    </section>
+
+    <section class="view" data-page="audit" aria-labelledby="audit-title">
+      <div class="page-head"><div><p class="eyebrow">AUDIT LOG</p><h1 id="audit-title">監査ログ</h1><p>操作日時・担当・対象・結果を追跡します。</p></div><button class="secondary" id="auditExport" type="button">CSV出力（デモ）</button></div>
+      <div class="toolbar"><label>操作種別<select id="auditFilter"><option value="all">すべて</option><option value="記録">記録</option><option value="評価">評価</option><option value="承認">承認</option><option value="ログイン">ログイン</option></select></label></div>
+      <section class="panel table-panel"><div class="table-scroll"><table><thead><tr><th>日時</th><th>担当</th><th>操作</th><th>対象</th><th>結果</th></tr></thead><tbody id="auditRows"><tr data-kind="ログイン"><td>9/10 08:27</td><td>佐藤 直樹</td><td>ログイン</td><td>スマリハ</td><td><span class="status green">成功</span></td></tr><tr data-kind="記録"><td>9/10 09:52</td><td>中村 美咲</td><td>記録</td><td>SR-24027 SOAP</td><td><span class="status green">保存</span></td></tr><tr data-kind="評価"><td>9/10 10:18</td><td>小林 健</td><td>評価</td><td>SR-24042 FIM</td><td><span class="status blue">更新</span></td></tr><tr data-kind="承認"><td>9/10 10:31</td><td>管理者A</td><td>承認</td><td>SR-24018 実施単位</td><td><span class="status green">承認</span></td></tr></tbody></table></div></section>
+    </section>
+  </main>
+
+  <dialog id="patientDialog" class="dialog"><form method="dialog"><button class="dialog-close" value="close" aria-label="閉じる">×</button><p class="eyebrow">PATIENT DETAIL</p><h2 id="dialogPatient">SR-24018</h2><dl><div><dt>病棟</dt><dd>回復期A</dd></div><div><dt>主担当</dt><dd>佐藤 直樹 / PT</dd></div><div><dt>最新FIM</dt><dd>82点（前回比 +4）</dd></div><div><dt>次回予定</dt><dd>9月10日 09:00</dd></div></dl><button class="primary" value="close">閉じる</button></form></dialog>
+  <dialog id="addPatientDialog" class="dialog"><form id="addPatientForm"><button class="dialog-close" type="button" data-close="addPatientDialog" aria-label="閉じる">×</button><p class="eyebrow">NEW PATIENT</p><h2>架空患者を登録</h2><label>患者ID<input name="id" value="SR-24120" pattern="SR-[0-9]{5}" required></label><label>病棟<select name="ward"><option>回復期A</option><option>回復期B</option><option>一般</option></select></label><label>主担当<select name="therapist"><option>佐藤 直樹 / PT</option><option>中村 美咲 / OT</option><option>小林 健 / ST</option></select></label><button class="primary" type="submit">登録する</button></form></dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <script src="/smariha/app.js?v=20260910-1" defer></script>
+</body>
+</html>
