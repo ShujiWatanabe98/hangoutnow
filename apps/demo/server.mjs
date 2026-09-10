@@ -422,7 +422,7 @@ createServer(async (request, response) => {
       return;
     }
 
-    const publicLoginAsset = request.method === 'GET' && [loginPath, `${activeSmarihaPath}/login.css`, `${activeSmarihaPath}/login.js`].includes(requestedPath);
+    const publicLoginAsset = request.method === 'GET' && [loginPath, `${activeSmarihaPath}/login.css`, `${activeSmarihaPath}/login.js`, `${activeSmarihaPath}/smartrehab-logo.png`].includes(requestedPath);
     if (publicLoginAsset) {
       if (sessionValid && requestedPath === loginPath) {
         response.writeHead(303, { ...securityHeaders, location: `${activeSmarihaPath}/`, 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });

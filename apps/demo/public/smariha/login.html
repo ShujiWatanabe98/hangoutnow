@@ -4,31 +4,26 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="robots" content="noindex,nofollow,noarchive">
-  <meta name="theme-color" content="#10243a">
-  <link rel="icon" href="/methodmore-favicon.svg" type="image/svg+xml">
+  <meta name="theme-color" content="#1b294e">
   <title>ログイン｜スマリハ統合ポータル</title>
-  <link rel="stylesheet" href="/corporate.css?v=20260910-2">
-  <link rel="stylesheet" href="/smariha/login.css?v=20260910-1">
+  <link rel="stylesheet" href="/smariha/login.css?v=20260910-2">
 </head>
 <body>
-  <header class="login-header">
-    <a class="wordmark" href="/" aria-label="methodmore ホーム"><span class="wordmark-mark" aria-hidden="true">m</span><span>methodmore</span></a>
-  </header>
+  <header class="login-header" aria-hidden="true"></header>
   <main class="login-main">
+    <a class="smartrehab-logo" href="/" aria-label="Smart Rehab ホーム"><img src="/smariha/smartrehab-logo.png" alt="Smart Rehab®"></a>
     <section class="login-card" aria-labelledby="login-title">
-      <div class="login-mark" aria-hidden="true">SR</div>
-      <p class="eyebrow">SMART REHA SUITE</p>
-      <h1 id="login-title">スマリハ<br>統合ポータル</h1>
-      <p class="login-lead">全機能デモの閲覧にはログインが必要です。</p>
+      <h1 id="login-title">スマリハ統合ポータル</h1>
+      <p class="login-lead">ユーザー名とパスワードを入力してください。</p>
       <p class="login-error" id="loginError" role="alert" hidden></p>
       <form method="post" action="/smariha/login">
         <label>ユーザー名<input name="username" type="text" autocomplete="username" required autofocus></label>
         <label>パスワード<input name="password" type="password" autocomplete="current-password" required></label>
         <button type="submit">ログイン</button>
       </form>
-      <p class="login-note">提案用MVP・すべて架空のデータです。<br>患者情報・電子カルテ・院内システムには接続していません。</p>
+      <p class="login-note"><strong>提案用MVP</strong>　すべて架空のデータです。実際の患者情報や院内システムには接続していません。</p>
     </section>
   </main>
-  <script src="/smariha/login.js?v=20260910-1" defer></script>
+  <script src="/smariha/login.js?v=20260910-2" defer></script>
 </body>
 </html>

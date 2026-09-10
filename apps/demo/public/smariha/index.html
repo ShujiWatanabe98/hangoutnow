@@ -4,22 +4,28 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="robots" content="noindex,nofollow,noarchive">
-  <meta name="theme-color" content="#10243a">
+  <meta name="theme-color" content="#1b294e">
   <link rel="canonical" href="https://method-more.com/smariha/">
-  <link rel="icon" href="/methodmore-favicon.svg" type="image/svg+xml">
-  <title>スマリハ統合ポータル｜methodmore</title>
-  <link rel="stylesheet" href="/smariha/styles.css?v=20260910-1">
+  <title>スマリハ統合ポータル｜Smart Rehab</title>
+  <link rel="stylesheet" href="/smariha/styles.css?v=20260910-2">
 </head>
 <body>
   <header class="mobile-header">
     <button id="menuButton" class="menu-button" type="button" aria-label="メニューを開く" aria-expanded="false">☰</button>
-    <a class="mobile-brand" href="#home"><span>SR</span><strong>スマリハ</strong></a>
+    <a class="mobile-brand" href="#home"><img src="/smariha/smartrehab-logo.png" alt="Smart Rehab®"></a>
     <a class="mobile-logout" href="/smariha/logout">ログアウト</a>
   </header>
 
+  <header class="smartrehab-topbar">
+    <a class="topbar-logo" href="#home"><img src="/smariha/smartrehab-logo.png" alt="Smart Rehab®"></a>
+    <nav aria-label="共通メニュー"><button type="button" data-go="schedule">スケジュール</button><button type="button" data-go="patients">患者一覧</button><button type="button" data-go="records">個人ノート</button></nav>
+    <span class="topbar-demo">提案用MVP</span>
+    <a class="topbar-user" href="/smariha/logout" aria-label="ログアウト">管理者A　⌄</a>
+  </header>
+
   <aside class="sidebar" id="sidebar">
-    <a class="brand" href="#home"><span class="brand-mark">SR</span><span><strong>スマリハ</strong><small>SMART REHA SUITE</small></span></a>
-    <p class="demo-label">提案用MVP・架空データ</p>
+    <div class="brand"><strong>機能メニュー</strong><small>SMART REHAB</small></div>
+    <p class="demo-label">架空データによる操作デモ</p>
     <nav class="side-nav" aria-label="スマリハ機能">
       <button class="nav-item active" type="button" data-view="home"><span>01</span>ホーム</button>
       <button class="nav-item" type="button" data-view="patients"><span>02</span>患者管理</button>
@@ -132,6 +138,6 @@
   <dialog id="patientDialog" class="dialog"><form method="dialog"><button class="dialog-close" value="close" aria-label="閉じる">×</button><p class="eyebrow">PATIENT DETAIL</p><h2 id="dialogPatient">SR-24018</h2><dl><div><dt>病棟</dt><dd>回復期A</dd></div><div><dt>主担当</dt><dd>佐藤 直樹 / PT</dd></div><div><dt>最新FIM</dt><dd>82点（前回比 +4）</dd></div><div><dt>次回予定</dt><dd>9月10日 09:00</dd></div></dl><button class="primary" value="close">閉じる</button></form></dialog>
   <dialog id="addPatientDialog" class="dialog"><form id="addPatientForm"><button class="dialog-close" type="button" data-close="addPatientDialog" aria-label="閉じる">×</button><p class="eyebrow">NEW PATIENT</p><h2>架空患者を登録</h2><label>患者ID<input name="id" value="SR-24120" pattern="SR-[0-9]{5}" required></label><label>病棟<select name="ward"><option>回復期A</option><option>回復期B</option><option>一般</option></select></label><label>主担当<select name="therapist"><option>佐藤 直樹 / PT</option><option>中村 美咲 / OT</option><option>小林 健 / ST</option></select></label><button class="primary" type="submit">登録する</button></form></dialog>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-  <script src="/smariha/app.js?v=20260910-1" defer></script>
+  <script src="/smariha/app.js?v=20260910-2" defer></script>
 </body>
 </html>

@@ -167,12 +167,16 @@ test('Smariha suite protects every integrated demo module', async () => {
   const loginPage = await fetch(`${origin}/smariha/login.html`);
   const loginHtml = await loginPage.text();
   assert.equal(loginPage.status, 200);
-  assert.match(loginHtml, /スマリハ<br>統合ポータル/);
+  assert.match(loginHtml, /スマリハ統合ポータル/);
+  assert.match(loginHtml, /src="\/smariha\/smartrehab-logo\.png"/);
   assert.match(loginHtml, /action="\/smariha\/login"/);
   assert.doesNotMatch(loginHtml, /analytics\.js|cookie-consent/);
 
   const protectedAsset = await fetch(`${origin}/smariha/app.js`, { redirect: 'manual' });
   assert.equal(protectedAsset.status, 401);
+  const publicLogo = await fetch(`${origin}/smariha/smartrehab-logo.png`, { redirect: 'manual' });
+  assert.equal(publicLogo.status, 200);
+  assert.equal(publicLogo.headers.get('content-type'), 'image/png');
 
   const accepted = await fetch(`${origin}/smariha/login`, {
     method: 'POST',
@@ -195,7 +199,8 @@ test('Smariha suite protects every integrated demo module', async () => {
   for (const copy of ['患者管理', 'リハビリ記録', '評価・FIM', 'スケジュール', '出退勤管理', '請求・実績', 'AI OCR', '承認・通知', '監査ログ']) {
     assert.ok(portalHtml.includes(copy), `スマリハ統合ポータルに機能がありません: ${copy}`);
   }
-  assert.match(portalHtml, /提案用MVP・架空データ/);
+  assert.match(portalHtml, /提案用MVP/);
+  assert.match(portalHtml, /架空データによる操作デモ/);
   assert.match(portalHtml, /実際の患者情報・電子カルテ・院内システムには接続していません/);
   assert.doesNotMatch(portalHtml, /analytics\.js|cookie-consent/);
 
