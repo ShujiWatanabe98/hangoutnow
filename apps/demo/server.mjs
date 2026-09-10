@@ -39,6 +39,8 @@ const smarihaDashboardPath = '/smariha-dashboard';
 const smarihaSchedulerPath = '/smariha-scheduler';
 const smarihaPortalPath = '/smariha';
 const rehainfoSourceUiPath = '/rehainfo';
+const rehainfoMainEntryPath = '/rehainfo-main';
+const rehainfoUiPaths = [rehainfoSourceUiPath, rehainfoMainEntryPath];
 const smarihaDashboardUsername = process.env.SMARIHA_DASHBOARD_USERNAME?.trim() || 'rehadash';
 const smarihaDashboardPasswordHash = process.env.SMARIHA_DASHBOARD_PASSWORD_SHA256?.trim().toLowerCase()
   || '62530a7bc852b7d6cb8472a50218f44dffa8128b5f45d48ef9de21fc4188005b';
@@ -415,7 +417,13 @@ createServer(async (request, response) => {
     await proxyRoboreha(request, response);
     return;
   }
-  const activeSmarihaPath = [rehainfoSourceUiPath, smarihaPortalPath, smarihaSchedulerPath, smarihaDashboardPath]
+  const activeRehainfoPath = rehainfoUiPaths
+    .find((path) => normalizedRequestedPath === path || requestedPath.startsWith(`${path}/`));
+  const rehainfoRequestPath = activeRehainfoPath === rehainfoMainEntryPath
+    ? `${rehainfoSourceUiPath}${requestedPath.slice(rehainfoMainEntryPath.length)}`
+    : requestedPath;
+  const normalizedRehainfoRequestPath = rehainfoRequestPath.replace(/\/+$/, '') || '/';
+  const activeSmarihaPath = [...rehainfoUiPaths, smarihaPortalPath, smarihaSchedulerPath, smarihaDashboardPath]
     .find((path) => normalizedRequestedPath === path || requestedPath.startsWith(`${path}/`)) ?? smarihaDashboardPath;
   const legacySmarihaPath = [smarihaPortalPath, smarihaSchedulerPath, smarihaDashboardPath]
     .find((path) => normalizedRequestedPath === path || requestedPath.startsWith(`${path}/`));
@@ -430,7 +438,7 @@ createServer(async (request, response) => {
     response.end();
     return;
   }
-  const isSmarihaProtectedPath = [rehainfoSourceUiPath, smarihaPortalPath, smarihaDashboardPath, smarihaSchedulerPath].some((path) =>
+  const isSmarihaProtectedPath = [...rehainfoUiPaths, smarihaPortalPath, smarihaDashboardPath, smarihaSchedulerPath].some((path) =>
     normalizedRequestedPath === path || requestedPath.startsWith(`${path}/`));
   if (isSmarihaProtectedPath) {
     const loginPath = `${activeSmarihaPath}/login.html`;
@@ -485,14 +493,14 @@ createServer(async (request, response) => {
       return;
     }
 
-    const rehainfoPublicLoginAssets = activeSmarihaPath === rehainfoSourceUiPath
+    const rehainfoPublicLoginAssets = rehainfoUiPaths.includes(activeSmarihaPath)
       ? [
-          `${rehainfoSourceUiPath}/css/bootstrap.min.css`,
-          `${rehainfoSourceUiPath}/css/variables.css`,
-          `${rehainfoSourceUiPath}/images/SmartRehab-R_Available_Transparent.png`,
-          `${rehainfoSourceUiPath}/images/intep360.ico`,
-          `${rehainfoSourceUiPath}/images/intep360.svg`,
-          `${rehainfoSourceUiPath}/js/Common.js`,
+          `${activeSmarihaPath}/css/bootstrap.min.css`,
+          `${activeSmarihaPath}/css/variables.css`,
+          `${activeSmarihaPath}/images/SmartRehab-R_Available_Transparent.png`,
+          `${activeSmarihaPath}/images/intep360.ico`,
+          `${activeSmarihaPath}/images/intep360.svg`,
+          `${activeSmarihaPath}/js/Common.js`,
         ]
       : [];
     const publicLoginAsset = request.method === 'GET' && [loginPath, `${activeSmarihaPath}/login.css`, `${activeSmarihaPath}/login.js`, `${activeSmarihaPath}/smartrehab-logo.png`, ...rehainfoPublicLoginAssets].includes(requestedPath);
@@ -513,7 +521,7 @@ createServer(async (request, response) => {
         ...(activeSmarihaPath === smarihaDashboardPath
           ? [`${smarihaDashboardPath}/taisho/index.html`, `${smarihaDashboardPath}/keijinkai/index.html`]
           : []),
-      ].includes(requestedPath) || (activeSmarihaPath === rehainfoSourceUiPath
+      ].includes(requestedPath) || (rehainfoUiPaths.includes(activeSmarihaPath)
         && request.method === 'GET'
         && (!extname(requestedPath) || extname(requestedPath) === '.html'));
       if (request.method === 'GET' && protectedDashboardPage) {
@@ -525,26 +533,26 @@ createServer(async (request, response) => {
       return;
     }
   }
-  if ((request.method === 'GET' || request.method === 'HEAD')
-      && (normalizedRequestedPath === `${rehainfoSourceUiPath}/prescriptions` || normalizedRequestedPath === `${rehainfoSourceUiPath}/patients`)) {
+  if (activeRehainfoPath && (request.method === 'GET' || request.method === 'HEAD')
+      && (normalizedRehainfoRequestPath === `${rehainfoSourceUiPath}/prescriptions` || normalizedRehainfoRequestPath === `${rehainfoSourceUiPath}/patients`)) {
     response.writeHead(302, {
       ...securityHeaders,
-      location: normalizedRequestedPath === `${rehainfoSourceUiPath}/patients` ? `${rehainfoSourceUiPath}/` : `${rehainfoSourceUiPath}/prescriptions/patients`,
+      location: normalizedRehainfoRequestPath === `${rehainfoSourceUiPath}/patients` ? `${activeRehainfoPath}/` : `${activeRehainfoPath}/prescriptions/patients`,
       'cache-control': 'no-store',
       'x-robots-tag': 'noindex, nofollow, noarchive',
     });
     response.end();
     return;
   }
-  if ((request.method === 'GET' || request.method === 'HEAD') && normalizedRequestedPath === `${rehainfoSourceUiPath}/ocr`) {
+  if (activeRehainfoPath && (request.method === 'GET' || request.method === 'HEAD') && normalizedRehainfoRequestPath === `${rehainfoSourceUiPath}/ocr`) {
     response.writeHead(302, {
-      ...securityHeaders, location: `${rehainfoSourceUiPath}/ocr/patients`, 'cache-control': 'no-store',
+      ...securityHeaders, location: `${activeRehainfoPath}/ocr/patients`, 'cache-control': 'no-store',
       'x-robots-tag': 'noindex, nofollow, noarchive',
     });
     response.end();
     return;
   }
-  if (request.method === 'POST' && requestedPath === `${rehainfoSourceUiPath}/api/ocr/analyze`) {
+  if (request.method === 'POST' && rehainfoRequestPath === `${rehainfoSourceUiPath}/api/ocr/analyze`) {
     const apiKey = process.env.OPENAI_API_KEY?.trim() ?? '';
     const model = process.env.OPENAI_MODEL?.trim() || 'gpt-5.6-sol';
     const origin = request.headers.origin;
@@ -616,7 +624,7 @@ createServer(async (request, response) => {
     }
     return;
   }
-  if (request.method === 'POST' && requestedPath === `${rehainfoSourceUiPath}/api/prescriptions/analyze`) {
+  if (request.method === 'POST' && rehainfoRequestPath === `${rehainfoSourceUiPath}/api/prescriptions/analyze`) {
     const apiKey = process.env.OPENAI_API_KEY?.trim() ?? '';
     const model = process.env.OPENAI_MODEL?.trim() || 'gpt-5.6-sol';
     const origin = request.headers.origin;
@@ -823,7 +831,7 @@ createServer(async (request, response) => {
   }
   const isHangoutNowAdminPath = normalizedRequestedPath === hangoutNowAdminPath || requestedPath.startsWith(`${hangoutNowAdminPath}/`);
   const staticRoot = isHangoutNowAdminPath ? hangoutNowAdminRoot : root;
-  const rehainfoPhysicalRequestPath = requestedPath;
+  const rehainfoPhysicalRequestPath = rehainfoRequestPath;
   const prescriptionReadPage = /^\/rehainfo\/prescriptions\/patient\/[^/]+\/read\/?$/.test(rehainfoPhysicalRequestPath);
   const prescriptionListPage = /^\/rehainfo\/prescriptions\/patient\/[^/]+\/list\/?$/.test(rehainfoPhysicalRequestPath);
   const patientTopPage = /^\/rehainfo\/patient\/[^/]+\/top\/?$/.test(rehainfoPhysicalRequestPath);
@@ -894,10 +902,13 @@ createServer(async (request, response) => {
   try {
     const fileBody = await readFile(file);
     const isKoiNoShioriPage = requestedPath === '/koi-no-shiori' || requestedPath.startsWith('/koi-no-shiori/');
-    const isApplicationPage = isHangoutNowAdminPath || requestedPath === '/demo.html' || requestedPath === '/app.html' || requestedPath.startsWith('/coachgo-demo') || requestedPath.startsWith('/coachgo-admin') || requestedPath.startsWith('/divertnavi-app') || requestedPath.startsWith('/minnade-kaigo') || requestedPath.startsWith('/smariha-dashboard') || requestedPath.startsWith('/smariha-scheduler') || requestedPath.startsWith('/smariha/') || requestedPath === '/smariha' || requestedPath.startsWith(`${rehainfoSourceUiPath}/`) || requestedPath === rehainfoSourceUiPath || isKoiNoShioriPage;
+    const isApplicationPage = isHangoutNowAdminPath || requestedPath === '/demo.html' || requestedPath === '/app.html' || requestedPath.startsWith('/coachgo-demo') || requestedPath.startsWith('/coachgo-admin') || requestedPath.startsWith('/divertnavi-app') || requestedPath.startsWith('/minnade-kaigo') || requestedPath.startsWith('/smariha-dashboard') || requestedPath.startsWith('/smariha-scheduler') || requestedPath.startsWith('/smariha/') || requestedPath === '/smariha' || rehainfoUiPaths.some((path) => requestedPath.startsWith(`${path}/`) || requestedPath === path) || isKoiNoShioriPage;
+    const applicationBody = activeRehainfoPath === rehainfoMainEntryPath && ['.html', '.css', '.js', '.svg'].includes(extname(file))
+      ? Buffer.from(fileBody.toString('utf8').replaceAll(rehainfoSourceUiPath, rehainfoMainEntryPath))
+      : fileBody;
     const body = extname(file) === '.html' && !isApplicationPage
       ? Buffer.from(fileBody.toString('utf8').replace('<head>', '<head><link rel="stylesheet" href="/cookie-consent.css?v=20260816-2"><link rel="stylesheet" href="/share.css?v=20260821-2"><script src="/analytics.js?v=20260820-2" defer></script><script src="/attribution.js?v=20260821-2" defer></script><script src="/share.js?v=20260821-3" defer></script>'))
-      : fileBody;
+      : applicationBody;
     const isMutableKoiNoShioriAsset = requestedPath === '/koi-no-shiori/sw.js' || requestedPath === '/koi-no-shiori/manifest.webmanifest';
     const isVersionedAsset = requestedPath.startsWith('/assets/') || ['.css', '.js', '.svg', '.png', '.jpg', '.jpeg', '.webp'].includes(extname(file));
     response.writeHead(200, {

@@ -193,6 +193,54 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
   assert.match(logout.headers.get('set-cookie'), /Max-Age=0/);
 });
 
+test('rehainfo-main keeps its protected URL while reusing the canonical source UI', async () => {
+  const entry = await fetch(`${origin}/rehainfo-main/`, { redirect: 'manual' });
+  assert.equal(entry.status, 302);
+  assert.equal(entry.headers.get('location'), '/rehainfo-main/login.html');
+
+  const loginPage = await fetch(`${origin}/rehainfo-main/login.html`);
+  const loginHtml = await loginPage.text();
+  assert.equal(loginPage.status, 200);
+  assert.match(loginHtml, /data-rehainfo-source-template="templates\/login\.html"/);
+  assert.match(loginHtml, /action="\/rehainfo-main\/login"/);
+  assert.match(loginHtml, /\/rehainfo-main\/css\/bootstrap\.min\.css/);
+
+  const accepted = await fetch(`${origin}/rehainfo-main/login`, {
+    method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ username, password }), redirect: 'manual',
+  });
+  assert.equal(accepted.status, 303);
+  assert.equal(accepted.headers.get('location'), '/rehainfo-main/');
+  const setCookie = accepted.headers.get('set-cookie');
+  assert.match(setCookie, /Path=\/rehainfo-main/);
+  const cookie = setCookie.split(';')[0];
+
+  const patientList = await fetch(`${origin}/rehainfo-main/`, { headers: { cookie } });
+  const patientListHtml = await patientList.text();
+  assert.equal(patientList.status, 200);
+  assert.match(patientListHtml, /data-rehainfo-source-template="templates\/patientList\.html"/);
+  assert.match(patientListHtml, /\/rehainfo-main\/source-demo-adapter\.js\?v=20260910-6/);
+
+  const patientTop = await fetch(`${origin}/rehainfo-main/patient/9001/top`, { headers: { cookie } });
+  const patientTopHtml = await patientTop.text();
+  assert.equal(patientTop.status, 200);
+  assert.match(patientTopHtml, /data-rehainfo-source-template="templates\/patientTop\.html"/);
+  assert.match(patientTopHtml, /\/rehainfo-main\/css\/patientTop\.css/);
+
+  const adapter = await (await fetch(`${origin}/rehainfo-main/source-demo-adapter.js`, { headers: { cookie } })).text();
+  assert.match(adapter, /const API = '\/rehainfo-main\/schedule\/api'/);
+  assert.match(adapter, /\^\\\/rehainfo-main\\\/patient/);
+
+  const ocrRedirect = await fetch(`${origin}/rehainfo-main/ocr`, { headers: { cookie }, redirect: 'manual' });
+  assert.equal(ocrRedirect.status, 302);
+  assert.equal(ocrRedirect.headers.get('location'), '/rehainfo-main/ocr/patients');
+
+  const logout = await fetch(`${origin}/rehainfo-main/logout`, { headers: { cookie }, redirect: 'manual' });
+  assert.equal(logout.status, 303);
+  assert.equal(logout.headers.get('location'), '/rehainfo-main/login.html');
+  assert.match(logout.headers.get('set-cookie'), /Path=\/rehainfo-main/);
+});
+
 test('committed public rehainfo pages cannot drift from copied upstream templates', () => {
   const result = spawnSync(process.execPath, ['scripts/sync-rehainfo-source-ui.mjs', '--check'], {
     cwd: new URL('..', import.meta.url), encoding: 'utf8',
