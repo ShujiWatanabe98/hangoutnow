@@ -7,6 +7,9 @@
   "routes": {
     "/rehainfo/": "templates/patientList.html",
     "/rehainfo/login.html": "templates/login.html",
+    "/rehainfo/prescriptions/patients": "templates/ocr/patientList.html",
+    "/rehainfo/prescriptions/patient/{recId}/read": "templates/prescription/read.html",
+    "/rehainfo/prescriptions/patient/{recId}/list": "templates/prescription/list.html",
     "/rehainfo/schedule": "templates/schedule/index.html",
     "/rehainfo/therapists": "templates/schedule/therapists.html",
     "/rehainfo/attendance": "templates/schedule/attendance.html",
@@ -20,6 +23,7 @@
     "/smariha-scheduler": "/rehainfo/schedule"
   },
   "sourceManifest": "apps/demo/rehainfo-source/source-manifest.json",
-  "dataMode": "fictional-browser-demo",
+  "dataMode": "fictional-browser-demo; extracted prescription text is stored only in browser localStorage",
+  "prescriptionImageProcessing": "OpenAI Responses API with store=false; images are discarded after the response",
   "externalClinicalSystemsConnected": false
 }

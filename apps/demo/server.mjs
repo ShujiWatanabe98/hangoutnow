@@ -48,6 +48,7 @@ const smarihaDashboardSessionSeconds = 8 * 60 * 60;
 const smarihaDashboardLoginAttempts = new Map();
 const smartRehabAiAttempts = new Map();
 const smarihaDashboardAuthDisabled = process.env.NODE_ENV !== 'production' && process.env.SMARIHA_DASHBOARD_AUTH_DISABLED === 'true';
+const smarihaPrescriptionStubEnabled = process.env.NODE_ENV !== 'production' && process.env.SMARIHA_PRESCRIPTION_STUB_ENABLED === 'true';
 const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.map': 'application/json; charset=utf-8', '.webmanifest': 'application/manifest+json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.xml': 'application/xml; charset=utf-8', '.txt': 'text/plain; charset=utf-8' };
 const securityHeaders = {
   'content-security-policy': "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://api.mapbox.com https://*.tiles.mapbox.com https://tilecache.rainviewer.com https://hangoutnow-demo.onrender.com https://play.google.com https://tools.applemediaservices.com; media-src 'self' blob:; frame-src https://maps.google.com; connect-src 'self' https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com https://api.rainviewer.com https://tilecache.rainviewer.com https://api.open-meteo.com https://www.google-analytics.com https://region1.google-analytics.com; font-src 'self'; worker-src 'self' blob:; upgrade-insecure-requests",
@@ -512,7 +513,9 @@ createServer(async (request, response) => {
         ...(activeSmarihaPath === smarihaDashboardPath
           ? [`${smarihaDashboardPath}/taisho/index.html`, `${smarihaDashboardPath}/keijinkai/index.html`]
           : []),
-      ].includes(requestedPath);
+      ].includes(requestedPath) || (activeSmarihaPath === rehainfoSourceUiPath
+        && request.method === 'GET'
+        && (!extname(requestedPath) || extname(requestedPath) === '.html'));
       if (request.method === 'GET' && protectedDashboardPage) {
         response.writeHead(302, { ...securityHeaders, location: loginPath, 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });
       } else {
@@ -521,6 +524,17 @@ createServer(async (request, response) => {
       response.end();
       return;
     }
+  }
+  if ((request.method === 'GET' || request.method === 'HEAD')
+      && (normalizedRequestedPath === '/rehainfo/prescriptions')) {
+    response.writeHead(302, {
+      ...securityHeaders,
+      location: '/rehainfo/prescriptions/patients',
+      'cache-control': 'no-store',
+      'x-robots-tag': 'noindex, nofollow, noarchive',
+    });
+    response.end();
+    return;
   }
   if (request.method === 'POST' && requestedPath === '/rehainfo/api/prescriptions/analyze') {
     const apiKey = process.env.OPENAI_API_KEY?.trim() ?? '';
@@ -535,7 +549,7 @@ createServer(async (request, response) => {
         return;
       }
     }
-    if (!apiKey) {
+    if (!apiKey && !smarihaPrescriptionStubEnabled) {
       response.writeHead(503, { ...securityHeaders, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
       response.end(JSON.stringify({ message: 'AI処方箋の解析環境が設定されていません。' }));
       return;
@@ -557,6 +571,22 @@ createServer(async (request, response) => {
           || images.some((image) => !imagePattern.test(String(image)))) {
         response.writeHead(400, { ...securityHeaders, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
         response.end(JSON.stringify({ message: '患者・日付・画像の入力内容を確認してください。' }));
+        return;
+      }
+      if (smarihaPrescriptionStubEnabled) {
+        response.writeHead(200, { ...securityHeaders, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });
+        response.end(JSON.stringify({
+          model: 'smariha-prescription-local-stub',
+          result: {
+            prescriptionDate: prescriptionDate.replaceAll('-', '/'),
+            medicalInstitution: '公開確認用医療機関',
+            doctorName: '確認用 医師',
+            medications: [{ name: '確認用薬剤', amount: '1', unit: '錠', usage: '1日1回', days: '3日分', notes: '架空データ' }],
+            notes: 'ローカル検証用の架空読取結果です。',
+            confidence: 1,
+            warnings: ['実患者データではありません']
+          }
+        }));
         return;
       }
       const prompt = [
@@ -721,6 +751,8 @@ createServer(async (request, response) => {
   }
   const isHangoutNowAdminPath = normalizedRequestedPath === hangoutNowAdminPath || requestedPath.startsWith(`${hangoutNowAdminPath}/`);
   const staticRoot = isHangoutNowAdminPath ? hangoutNowAdminRoot : root;
+  const prescriptionReadPage = /^\/rehainfo\/prescriptions\/patient\/[^/]+\/read\/?$/.test(requestedPath);
+  const prescriptionListPage = /^\/rehainfo\/prescriptions\/patient\/[^/]+\/list\/?$/.test(requestedPath);
   const pathname = isHangoutNowAdminPath
     ? normalizedRequestedPath === hangoutNowAdminPath
       ? '/index.html'
@@ -749,6 +781,12 @@ createServer(async (request, response) => {
       ? '/smariha/index.html'
     : requestedPath === '/rehainfo' || requestedPath === '/rehainfo/'
       ? '/rehainfo/index.html'
+    : requestedPath === '/rehainfo/prescriptions/patients' || requestedPath === '/rehainfo/prescriptions/patients/'
+      ? '/rehainfo/prescription-patients.html'
+    : prescriptionReadPage
+      ? '/rehainfo/prescription-read.html'
+    : prescriptionListPage
+      ? '/rehainfo/prescription-list.html'
     : requestedPath === '/rehainfo/schedule' || requestedPath === '/rehainfo/schedule/'
       ? '/rehainfo/schedule.html'
     : requestedPath === '/rehainfo/therapists' || requestedPath === '/rehainfo/therapists/'

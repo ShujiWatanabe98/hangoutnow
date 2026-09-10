@@ -7,8 +7,14 @@
   const BILLING_API = '/rehainfo/billing-management/api';
   const OPERATIONS_API = '/rehainfo/schedule-management/api';
   const AI_API = '/rehainfo/ai-schedule/api';
+  const OCR_PATIENT_API = '/rehainfo/api/ocr/patients';
+  const OCR_UPLOAD_API = '/rehainfo/api/ocr/evaluation/upload-image';
+  const PRESCRIPTION_REGISTER_API = '/rehainfo/api/prescriptions/register';
+  const PRESCRIPTION_ANALYZE_API = '/rehainfo/api/prescriptions/analyze';
   const STORAGE_KEY = 'rehainfo-source-ui-demo-v1';
+  const PRESCRIPTION_STORAGE_KEY = 'rehainfo-source-ui-prescriptions-v1';
   const originalFetch = window.fetch.bind(window);
+  const uploadedPrescriptionImages = new Map();
 
   const therapists = [
     { id: 'PT01', name: '開発 太郎', subLabel: 'PT', nameKana: 'カイハツ タロウ', employmentType: '常勤', phone: '', email: 'pt01@example.local', team: 'PTチーム1', ward: null, monthlyTargetUnits: null },
@@ -97,6 +103,111 @@
 
   function writeStore(store) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  }
+
+  function readPrescriptionStore() {
+    try {
+      const records = JSON.parse(localStorage.getItem(PRESCRIPTION_STORAGE_KEY) || '[]');
+      return Array.isArray(records) ? records : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function writePrescriptionStore(records) {
+    localStorage.setItem(PRESCRIPTION_STORAGE_KEY, JSON.stringify(records.slice(0, 100)));
+  }
+
+  function prescriptionPatient(recId) {
+    return patientListRows.find(function (item) { return item.recId === String(recId); });
+  }
+
+  function prescriptionRouteRecId() {
+    const match = /^\/rehainfo\/prescriptions\/patient\/([^/]+)\/(?:read|list)\/?$/.exec(location.pathname);
+    return match ? decodeURIComponent(match[1]) : '';
+  }
+
+  function fileAsDataUrl(file) {
+    return new Promise(function (resolve, reject) {
+      const reader = new FileReader();
+      reader.onload = function () { resolve(String(reader.result || '')); };
+      reader.onerror = function () { reject(new Error('画像を読み込めませんでした。')); };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function prescriptionSummary(result) {
+    const lines = [];
+    if (result.prescriptionDate) lines.push(`処方日：${result.prescriptionDate}`);
+    if (result.medicalInstitution) lines.push(`医療機関：${result.medicalInstitution}`);
+    if (result.doctorName) lines.push(`医師：${result.doctorName}`);
+    if (Array.isArray(result.medications)) {
+      result.medications.forEach(function (item, index) {
+        const values = [item.name, item.amount, item.unit, item.usage, item.days, item.notes].filter(Boolean);
+        if (values.length) lines.push(`薬剤${index + 1}：${values.join(' ')}`);
+      });
+    }
+    if (result.notes) lines.push(`備考：${result.notes}`);
+    if (Array.isArray(result.warnings) && result.warnings.filter(Boolean).length) lines.push(`要確認：${result.warnings.filter(Boolean).join('／')}`);
+    return lines.join('\n') || '処方箋の文字を読み取れませんでした';
+  }
+
+  async function prescriptionApi(url, options) {
+    const parsed = new URL(url, location.origin);
+    const method = String(options.method || 'GET').toUpperCase();
+    if (method === 'GET' && parsed.pathname === OCR_PATIENT_API) {
+      const responsibleOnly = parsed.searchParams.get('responsibleOnly') !== 'false';
+      const rows = patientListRows.filter(function (item) { return !responsibleOnly || item.assigned; }).map(function (item) {
+        return { recId: item.recId, patientId: item.patientId, patientName: item.patientName, gender: item.gender, age: parseInt(item.age, 10) };
+      });
+      return json({ success: true, patients: rows });
+    }
+    if (method === 'POST' && parsed.pathname === OCR_UPLOAD_API) {
+      const form = options.body;
+      const file = form instanceof FormData ? form.get('file') : null;
+      if (!(file instanceof File) || !file.type.startsWith('image/') || file.size > 10 * 1024 * 1024) {
+        return json({ message: 'PNG・JPEG・WebP画像を1枚10MB以内で選択してください。' }, 400);
+      }
+      const imageId = `PUBLIC-RX-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      uploadedPrescriptionImages.set(imageId, await fileAsDataUrl(file));
+      return json({ success: true, imageId: imageId });
+    }
+    if (method === 'POST' && parsed.pathname === PRESCRIPTION_REGISTER_API) {
+      let payload;
+      try { payload = JSON.parse(options.body || '{}'); } catch (_) { payload = {}; }
+      const targetPatient = prescriptionPatient(payload.recId);
+      const imageIds = Array.isArray(payload.imageIds) ? payload.imageIds : [];
+      const images = imageIds.map(function (id) { return uploadedPrescriptionImages.get(String(id)); }).filter(Boolean);
+      if (!targetPatient || images.length < 1 || images.length > 4) {
+        return json({ success: false, errorMessage: '患者と処方箋画像（最大4枚）を確認してください。' }, 400);
+      }
+      const normalizedDate = String(payload.evaluationDate || '').replaceAll('/', '-');
+      const analyzedResponse = await originalFetch(PRESCRIPTION_ANALYZE_API, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patientId: targetPatient.patientId, prescriptionDate: normalizedDate, images: images })
+      });
+      const analyzed = await analyzedResponse.json().catch(function () { return {}; });
+      if (!analyzedResponse.ok || !analyzed.result) {
+        return json({ success: false, errorMessage: analyzed.message || 'AI処方箋の読取に失敗しました。' }, analyzedResponse.status || 502);
+      }
+      const record = {
+        id: `PUBLIC-RX-${Date.now()}`,
+        recId: String(payload.recId),
+        patientId: targetPatient.patientId,
+        evaluationDate: analyzed.result.prescriptionDate || String(payload.evaluationDate || ''),
+        summary: prescriptionSummary(analyzed.result),
+        status: 'OCR_DONE',
+        createdAt: new Date().toISOString(),
+        model: analyzed.model || '',
+        fictionalDemoOnly: true
+      };
+      writePrescriptionStore([record].concat(readPrescriptionStore()));
+      imageIds.forEach(function (id) { uploadedPrescriptionImages.delete(String(id)); });
+      return json({ success: true, prescriptionId: record.id, status: record.status });
+    }
+    return null;
   }
 
   function therapist(id) {
@@ -319,6 +430,7 @@
   async function sourceApi(url, options) {
     const parsed = new URL(url, location.origin);
     const method = String(options.method || 'GET').toUpperCase();
+    if ([OCR_PATIENT_API, OCR_UPLOAD_API, PRESCRIPTION_REGISTER_API].includes(parsed.pathname)) return prescriptionApi(url, options);
     const payload = options.body ? JSON.parse(options.body) : {};
     if (parsed.pathname.startsWith(API)) return demoApi(url, options);
     if (parsed.pathname.startsWith(THERAPIST_API)) {
@@ -349,13 +461,62 @@
   window.fetch = function (input, options) {
     const url = typeof input === 'string' ? input : input.url;
     const path = new URL(url, location.origin).pathname;
-    if ([API, THERAPIST_API, ATTENDANCE_API, BILLING_API, OPERATIONS_API, AI_API].some(function (prefix) { return path.startsWith(prefix); })) {
+    if ([API, THERAPIST_API, ATTENDANCE_API, BILLING_API, OPERATIONS_API, AI_API].some(function (prefix) { return path.startsWith(prefix); })
+        || [OCR_PATIENT_API, OCR_UPLOAD_API, PRESCRIPTION_REGISTER_API].includes(path)) {
       return sourceApi(url, options || {});
     }
     return originalFetch(input, options);
   };
 
   document.addEventListener('DOMContentLoaded', function () {
+    const prescriptionPage = document.body.dataset.prescriptionPage || '';
+    const recId = prescriptionRouteRecId();
+    const targetPatient = prescriptionPatient(recId);
+    if (prescriptionPage === 'read' && targetPatient) {
+      const recIdInput = document.getElementById('patient-rec-id');
+      const dateInput = document.getElementById('evaluation-date');
+      const title = document.querySelector('[data-prescription-patient-title]');
+      const note = document.querySelector('.prescription-note');
+      if (recIdInput) recIdInput.value = recId;
+      if (dateInput && !dateInput.value) dateInput.value = new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
+      if (title) title.textContent = `${targetPatient.patientName}さんの処方箋読込`;
+      if (note) note.textContent = '公開版では架空の処方箋画像のみ使用してください。AI読取結果は保存後に表示し、必ず原本と照合してください。';
+    }
+    if (prescriptionPage === 'list' && targetPatient) {
+      const title = document.querySelector('[data-prescription-patient-title]');
+      const readLink = document.querySelector('[data-prescription-read-link]');
+      const table = document.getElementById('prescription-list-table');
+      const body = document.getElementById('prescription-list-body');
+      const empty = document.getElementById('prescription-list-empty');
+      const warning = document.querySelector('.warning');
+      const records = readPrescriptionStore().filter(function (item) { return item.recId === recId; }).slice(0, 10);
+      if (title) title.textContent = `${targetPatient.patientName}さんの保存済み処方箋`;
+      if (readLink) readLink.href = `/rehainfo/prescriptions/patient/${encodeURIComponent(recId)}/read`;
+      if (warning) warning.textContent = '公開版は架空データ専用です。AI読取結果は参考情報として、薬剤名・用量・用法・日数を必ず処方箋原本と照合してください。';
+      if (body) {
+        body.textContent = '';
+        records.forEach(function (item) {
+          const row = document.createElement('tr');
+          const dateCell = document.createElement('td');
+          const resultCell = document.createElement('td');
+          const statusCell = document.createElement('td');
+          const createdCell = document.createElement('td');
+          const badge = document.createElement('span');
+          dateCell.textContent = item.evaluationDate || '';
+          resultCell.className = 'result';
+          resultCell.textContent = item.summary || '';
+          badge.className = 'status status-done';
+          badge.textContent = '保存済み';
+          statusCell.appendChild(badge);
+          createdCell.textContent = new Date(item.createdAt).toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+          [dateCell, resultCell, statusCell, createdCell].forEach(function (cell) { row.appendChild(cell); });
+          body.appendChild(row);
+        });
+      }
+      if (table) table.hidden = records.length === 0;
+      if (empty) empty.hidden = records.length > 0;
+    }
+
     if (document.getElementById('patientListTable') || document.getElementById('table-div')) {
       const applyPatientFilters = function () {
         const kana = (document.getElementById('condition_patientName') || {}).value || '';

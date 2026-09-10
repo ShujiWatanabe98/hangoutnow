@@ -86,6 +86,9 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
   ]) assert.equal((await fetch(`${origin}${asset}`)).status, 200, asset);
   assert.equal((await fetch(`${origin}/rehainfo/source-demo-adapter.js`, { redirect: 'manual' })).status, 401);
   assert.equal((await fetch(`${origin}/rehainfo/schedule/schedule.js`, { redirect: 'manual' })).status, 401);
+  const protectedPrescription = await fetch(`${origin}/rehainfo/prescriptions/patients`, { redirect: 'manual' });
+  assert.equal(protectedPrescription.status, 302);
+  assert.equal(protectedPrescription.headers.get('location'), '/rehainfo/login.html');
 
   const rejected = await fetch(`${origin}/rehainfo/login`, {
     method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
@@ -110,6 +113,9 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
 
   const pages = [
     ['/', 'templates/patientList.html', '<title>担当患者一覧</title>', 'id="searchAccordion"'],
+    ['/prescriptions/patients', 'templates/ocr/patientList.html', '<title>患者一覧 - AI処方箋</title>', 'AI処方箋 患者一覧'],
+    ['/prescriptions/patient/9001/read', 'templates/prescription/read.html', '<title>処方箋読込 - AI処方箋</title>', 'id="ocr-submit-btn"'],
+    ['/prescriptions/patient/9001/list', 'templates/prescription/list.html', '<title>保存済み処方箋 - AI処方箋</title>', 'id="prescription-list-body"'],
     ['/schedule', 'templates/schedule/index.html', '<title>スケジュール | Smart Rehab</title>', 'id="rehab-schedule-page"'],
     ['/therapists', 'templates/schedule/therapists.html', '<title>療法士一覧 | Smart Rehab</title>', 'id="therapist-directory-page"'],
     ['/attendance', 'templates/schedule/attendance.html', '<title>出退勤管理 | Smart Rehab</title>', 'id="attendance-page"'],
@@ -124,13 +130,24 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
     assert.ok(html.includes(`data-rehainfo-source-template="${source}"`), source);
     assert.ok(html.includes(title), title);
     assert.ok(html.includes(marker), marker);
-    assert.match(html, /\/rehainfo\/source-demo-adapter\.js\?v=20260910-3/);
+    assert.match(html, /\/rehainfo\/source-demo-adapter\.js\?v=20260910-4/);
     assert.doesNotMatch(html, /patient-list-source|patient-demo|rehainfo-demo-notice/);
   }
 
   const adapter = await (await fetch(`${origin}/rehainfo/source-demo-adapter.js`, { headers: { cookie } })).text();
   assert.equal(new Set(adapter.match(/DEMO2609\d{2}/g) ?? []).size, 10);
-  for (const marker of ['REHAINFO_DEMO_PATIENT_COLUMNS', 'ATTENDANCE_API', 'BILLING_API', 'OPERATIONS_API', 'AI_API']) assert.match(adapter, new RegExp(marker));
+  for (const marker of ['REHAINFO_DEMO_PATIENT_COLUMNS', 'ATTENDANCE_API', 'BILLING_API', 'OPERATIONS_API', 'AI_API', 'PRESCRIPTION_REGISTER_API', 'prescriptionSummary']) assert.match(adapter, new RegExp(marker));
+
+  for (const asset of [
+    '/rehainfo/js/ocr/PatientList.js',
+    '/rehainfo/js/ocr/EvaluationSelect.js',
+    '/rehainfo/css/ocr/evaluationSelect.css',
+    '/rehainfo/images/icons/ocr/magic-start.svg',
+  ]) assert.equal((await fetch(`${origin}${asset}`, { headers: { cookie } })).status, 200, asset);
+
+  const prescriptionRedirect = await fetch(`${origin}/rehainfo/prescriptions`, { headers: { cookie }, redirect: 'manual' });
+  assert.equal(prescriptionRedirect.status, 302);
+  assert.equal(prescriptionRedirect.headers.get('location'), '/rehainfo/prescriptions/patients');
 
   const scheduleSource = await (await fetch(`${origin}/rehainfo/schedule/schedule.js`, { headers: { cookie } })).text();
   assert.equal(createHash('sha256').update(scheduleSource).digest('hex'), '76608c376e3a2f3dfef2404c212cdc5e0fa9c117a79b157ec0038a9bc131124a');

@@ -1,0 +1,271 @@
+<!DOCTYPE HTML>
+<html data-rehainfo-source-template="templates/prescription/list.html" data-rehainfo-source-sha256="57592B8F07595318A99554E5080D3E14674882CAF364FC33E1BB9F5E12869B7F" xmlns:th="http://www.thymeleaf.org" lang="ja">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width,initial-scale=1" />
+	<meta name="robots" content="noindex,nofollow,noarchive" />
+
+	<link rel="icon" href="/rehainfo/images/intep360.ico?v=1.0.0" type="image/x-icon" />
+	<link href="/rehainfo/css/bootstrap.min.css" rel="stylesheet" />
+	<link href="/rehainfo/css/bootstrap-icons-1.9.1/bootstrap-icons.css" rel="stylesheet" />
+	<link href="/rehainfo/css/sidebar.css?v=1.1.0" rel="stylesheet" />
+	<link href="/rehainfo/css/patient_header.css" rel="stylesheet" />
+	<link href="/rehainfo/css/common.css?v=1.0.1" rel="stylesheet" />
+	<link href="/rehainfo/css/custom.css" rel="stylesheet" />
+	<script src="/rehainfo/js/jquery-3.6.0.min.js"></script>
+	<script src="/rehainfo/js/bootstrap.bundle.min.js"></script>
+	
+	
+	<script src="/rehainfo/js/Common.js?v=1.0.2"></script>
+	<script src="/rehainfo/js/BackCancel.js"></script>
+	<script src="/rehainfo/js/sidebar.js?v=1.0.1"></script>
+	<!-- Google Tag Manager -->
+	
+	<!-- End Google Tag Manager -->
+	<style>
+		/* 注意事項 */
+		.login-button {
+			border: 1px solid #bec0c7;
+			box-shadow: rgb(170, 173, 180) 1px 1px 1px;
+		}
+
+		.mic-icon {
+		    color: rgb(74 88 124);
+		    border: 1px solid rgb(74 88 124);
+		}
+
+		.speech-icon {
+			margin-bottom: .5rem !important;
+		}
+		
+		.logo-image {
+			width: auto;
+			object-fit: contain;
+			max-width: 120px;
+			background-color: white;
+		}
+		
+		/* .loading-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(255, 255, 255, 0.9);
+			display: none;
+			justify-content: center;
+			align-items: center;
+			z-index: 9999;
+			flex-direction: column;
+		}
+
+		.loading-spinner {
+			width: 80px;
+			height: 80px;
+			animation: spin 1s linear infinite;
+		}
+
+		.loading-text {
+			margin-top: 20px;
+			font-size: 18px;
+			font-weight: 500;
+			color: #202B4C;
+		}
+
+		@keyframes spin {
+			0% { transform: rotate(0deg); }
+			100% { transform: rotate(360deg); }
+		} */
+		/* Overlay styles */
+		.loading-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(255, 255, 255, 0.9);
+			display: none;
+			justify-content: center;
+			align-items: center;
+			z-index: 9999;
+			flex-direction: column;
+		}
+
+		.loading-spinner {
+			width: 80px;
+			height: 80px;
+		}
+
+		/* Spinner ring wrapper */
+		.spinner-ring {
+			position: relative;
+			width: 100px;
+			height: 100px;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+		}
+
+		/* Circular border (the rotating outline) */
+		.spinner-ring::before {
+			content: "";
+			position: absolute;
+			width: 100px;
+			height: 100px;
+			border: 6px solid #ccc;         /* gray base */
+			border-top: 6px solid #202B4C;  /* top colored */
+			border-radius: 50%;
+			animation: spin 1s linear infinite;
+		}
+
+		/* The image stays still */
+		.loading-icon {
+			width: 60px;
+			height: 60px;
+			background-image: url("");
+			z-index: 1;
+		}
+
+		/* Text */
+		.loading-text {
+			margin-top: 20px;
+			font-size: 18px;
+			font-weight: 500;
+			color: #202B4C;
+		}
+
+		/* Rotation animation */
+		@keyframes spin {
+			0%   { transform: rotate(0deg); }
+			100% { transform: rotate(360deg); }
+		}
+
+		/* 治療実施／治療記録: JS/DOMの読み込み完了まで操作をブロックするため初期表示する。
+		   解除は Common.js が html.block-until-loaded を外し、hideLoadingSpinner がdisplay:noneを付与する。 */
+		html.block-until-loaded #loadingOverlay {
+			display: flex;
+		}
+
+	</style>
+
+	<style>
+		:root {
+			--body-bg-color: #E8E9ED !important;
+		}
+	</style>
+	<script src="/rehainfo/source-demo-adapter.js?v=20260910-4"></script>
+</head>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>保存済み処方箋 - AI処方箋</title>
+    <link href="/rehainfo/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="/rehainfo/css/bootstrap-icons-1.9.1/bootstrap-icons.css" rel="stylesheet" />
+    
+    <style>
+        body { background: #E8E9ED; font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif; }
+        main { padding: 24px; }
+        .content { max-width: 1200px; margin: 0 auto; }
+        .page-title { font-size: 24px; font-weight: 700; margin: 0; }
+        .back-icon { cursor: pointer; margin-right: 12px; }
+        .list-card { background: #fff; border-radius: 8px; overflow-x: auto; margin-top: 24px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #F5F5F5; font-size: 14px; text-align: left; padding: 12px 16px; white-space: nowrap; }
+        td { border-top: 1px solid #E0E0E0; padding: 16px; vertical-align: top; }
+        .result { white-space: pre-wrap; min-width: 360px; line-height: 1.65; }
+        .status { display: inline-block; border-radius: 999px; padding: 4px 10px; font-size: 13px; font-weight: 600; }
+        .status-done { background: #dcfce7; color: #166534; }
+        .status-error { background: #fee2e2; color: #991b1b; }
+        .status-reading { background: #dbeafe; color: #1e40af; }
+        .warning { color: #92400e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 10px 12px; margin-top: 16px; }
+        .actions { display: flex; justify-content: flex-end; margin-top: 16px; }
+        .btn-read { background: #1C2950; color: #fff; border: 0; border-radius: 4px; padding: 10px 18px; text-decoration: none; }
+        .empty { text-align: center; padding: 60px 20px; color: #6b7280; }
+        .pagination { justify-content: center; gap: 6px; margin-top: 20px; }
+        .page-link { color: #1C2950; }
+    </style>
+</head>
+<body data-prescription-page="list">
+    <header class="sticky-top" style="z-index:1050;">
+		<!-- Google Tag Manager (noscript) -->
+		
+		<!-- End Google Tag Manager (noscript) -->
+		<nav id="gksCommonNavBar" class="navbar navbar-expand-md navbar-light"
+			style="background-color: #1C2950; padding: 8px 24px;">
+			<div class="container-fluid d-flex justify-content-between align-items-center" style="padding: 0;">
+				<div>
+					<a href="#" style="text-decoration: none;">
+						<img src="/rehainfo/images/ocr/logo.png" class="logo-image" style="width: 53px; height: 30px; object-fit: contain;" />
+					</a>
+				</div>
+				<div>
+					<a href="#" onclick="window.location.href='/rehainfo/'; return false;" class="d-flex align-items-center" style="text-decoration: none; color: #FFFFFF; gap: 4px;">
+						<span style="font-family: 'Hiragino Kaku Gothic Pro', sans-serif; font-size: 14px; font-weight: 300; line-height: 22px; color: #FFFFFF;">スマートリハを表示</span>
+						<img src="/rehainfo/images/icons/ocr/box-arrow-up-right.svg" style="width: 20px; height: 20px; flex-shrink: 0;" alt="" />
+					</a>
+				</div>
+			</div>
+		</nav>
+	</header>
+    <div>
+		<div id="loadingOverlay" class="loading-overlay">
+			<div class="spinner-ring">
+				<img class="loading-spinner" src="/rehainfo/images/intep360.svg" alt="loading" />
+			</div>
+			<div class="loading-text">処理中......</div>
+		</div>
+	</div>
+    <main>
+        <div class="content">
+            <h1 class="page-title">
+                <i class="bi bi-arrow-left back-icon" onclick="showLoadingSpinner(); window.location.href='/rehainfo/prescriptions/patients';"></i>
+                <span data-prescription-patient-title>保存済み処方箋</span>
+            </h1>
+            <div class="warning"><i class="bi bi-exclamation-triangle me-2"></i>AI読取結果は参考情報です。薬剤名・用量・用法・日数を必ず処方箋原本と照合してください。</div>
+            <div class="actions">
+                <a class="btn-read" data-prescription-read-link href="/rehainfo/prescriptions/patients"><i class="bi bi-prescription2 me-2"></i>処方箋読込</a>
+            </div>
+
+            <div class="list-card">
+                <table id="prescription-list-table">
+                    <thead><tr><th>処方日</th><th>AI読取結果</th><th>状態</th><th>保存日時</th></tr></thead>
+                    <tbody id="prescription-list-body">
+                        <tr>
+                            <td>2026/09/10</td>
+                            <td class="result">
+                                <span>読取結果</span>
+                                <span>読取エラー</span>
+                                <span>AI読取中です</span>
+                            </td>
+                            <td>
+                                <span class="status status-done">保存済み</span>
+                                <span class="status status-error">読取エラー</span>
+                                <span class="status status-reading">読取中</span>
+                            </td>
+                            <td>2026/09/10 10:00</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="empty" id="prescription-list-empty">
+                    <i class="bi bi-prescription2 d-block mb-3" style="font-size: 42px;"></i>
+                    保存済みの処方箋はありません
+                </div>
+            </div>
+
+            <nav id="prescription-list-pagination" aria-label="ページ切替" hidden="hidden">
+                <ul class="pagination">
+                    <li class="page-item">
+                        <a class="page-link">前へ</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link">1</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link">次へ</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </main>
+</body>
+</html>

@@ -1,0 +1,90 @@
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org" lang="ja">
+<head th:replace="common :: meta_header"></head>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>保存済み処方箋 - AI処方箋</title>
+    <link href="/rehainfo/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="/rehainfo/css/bootstrap-icons-1.9.1/bootstrap-icons.css" rel="stylesheet" />
+    <script src="/rehainfo/js/Common.js?v=1.0.2"></script>
+    <style>
+        body { background: #E8E9ED; font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif; }
+        main { padding: 24px; }
+        .content { max-width: 1200px; margin: 0 auto; }
+        .page-title { font-size: 24px; font-weight: 700; margin: 0; }
+        .back-icon { cursor: pointer; margin-right: 12px; }
+        .list-card { background: #fff; border-radius: 8px; overflow-x: auto; margin-top: 24px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #F5F5F5; font-size: 14px; text-align: left; padding: 12px 16px; white-space: nowrap; }
+        td { border-top: 1px solid #E0E0E0; padding: 16px; vertical-align: top; }
+        .result { white-space: pre-wrap; min-width: 360px; line-height: 1.65; }
+        .status { display: inline-block; border-radius: 999px; padding: 4px 10px; font-size: 13px; font-weight: 600; }
+        .status-done { background: #dcfce7; color: #166534; }
+        .status-error { background: #fee2e2; color: #991b1b; }
+        .status-reading { background: #dbeafe; color: #1e40af; }
+        .warning { color: #92400e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 10px 12px; margin-top: 16px; }
+        .actions { display: flex; justify-content: flex-end; margin-top: 16px; }
+        .btn-read { background: #1C2950; color: #fff; border: 0; border-radius: 4px; padding: 10px 18px; text-decoration: none; }
+        .empty { text-align: center; padding: 60px 20px; color: #6b7280; }
+        .pagination { justify-content: center; gap: 6px; margin-top: 20px; }
+        .page-link { color: #1C2950; }
+    </style>
+</head>
+<body>
+    <div th:replace="common :: topHeaderOCR"></div>
+    <div th:replace="common :: loading"></div>
+    <main>
+        <div class="content">
+            <h1 class="page-title">
+                <i class="bi bi-arrow-left back-icon" onclick="showLoadingSpinner(); window.location.href='/rehainfo/prescriptions/patients';"></i>
+                <span th:text="|${patientInfo.name}さんの保存済み処方箋|">保存済み処方箋</span>
+            </h1>
+            <div class="warning"><i class="bi bi-exclamation-triangle me-2"></i>AI読取結果は参考情報です。薬剤名・用量・用法・日数を必ず処方箋原本と照合してください。</div>
+            <div class="actions">
+                <a class="btn-read" th:href="|/rehainfo/prescriptions/patient/${recId}/read|"><i class="bi bi-prescription2 me-2"></i>処方箋読込</a>
+            </div>
+
+            <div class="list-card">
+                <table th:if="${totalItems > 0}">
+                    <thead><tr><th>処方日</th><th>AI読取結果</th><th>状態</th><th>保存日時</th></tr></thead>
+                    <tbody>
+                        <tr th:each="item : ${prescriptions}">
+                            <td th:text="${#dates.format(item.evaluationDate, 'yyyy/MM/dd')}">2026/09/10</td>
+                            <td class="result">
+                                <span th:if="${item.summary != null and item.summary != ''}" th:text="${item.summary}">読取結果</span>
+                                <span th:if="${item.status == 'ERROR'}" th:text="|読取エラー（画像は保存済み）${item.errorMessage != null ? '：' + item.errorMessage : ''}|">読取エラー</span>
+                                <span th:if="${item.status == 'READING'}">AI読取中です</span>
+                            </td>
+                            <td>
+                                <span class="status status-done" th:if="${item.status == 'OCR_DONE'}">保存済み</span>
+                                <span class="status status-error" th:if="${item.status == 'ERROR'}">読取エラー</span>
+                                <span class="status status-reading" th:if="${item.status == 'READING'}">読取中</span>
+                            </td>
+                            <td th:text="${#dates.format(item.createdAt, 'yyyy/MM/dd HH:mm')}">2026/09/10 10:00</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="empty" th:if="${totalItems == 0}">
+                    <i class="bi bi-prescription2 d-block mb-3" style="font-size: 42px;"></i>
+                    保存済みの処方箋はありません
+                </div>
+            </div>
+
+            <nav th:if="${totalPages > 1}" aria-label="ページ切替">
+                <ul class="pagination">
+                    <li class="page-item" th:classappend="${currentPage == 1} ? 'disabled'">
+                        <a class="page-link" th:href="|?page=${currentPage - 1}|">前へ</a>
+                    </li>
+                    <li class="page-item" th:each="pageNo : ${pageNumbers}" th:classappend="${pageNo == currentPage} ? 'active'">
+                        <a class="page-link" th:href="|?page=${pageNo}|" th:text="${pageNo}">1</a>
+                    </li>
+                    <li class="page-item" th:classappend="${currentPage == totalPages} ? 'disabled'">
+                        <a class="page-link" th:href="|?page=${currentPage + 1}|">次へ</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </main>
+</body>
+</html>
