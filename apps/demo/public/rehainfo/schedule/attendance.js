@@ -1,6 +1,6 @@
 (function () {
 	'use strict';
-	const API = '/rehainfo/attendance/api';
+	const API = '/rehainfo-main/attendance/api';
 	let records = [], therapists = [], editModal, editingDate = '', selectedWorkType = '通常勤務';
 	let painting = false, paintedRecords = {}, draggedTherapistId = '';
 

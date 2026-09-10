@@ -1,27 +1,27 @@
 (function () {
   'use strict';
 
-  const API = '/rehainfo/schedule/api';
-  const THERAPIST_API = '/rehainfo/therapists/api';
-  const ATTENDANCE_API = '/rehainfo/attendance/api';
-  const BILLING_API = '/rehainfo/billing-management/api';
-  const OPERATIONS_API = '/rehainfo/schedule-management/api';
-  const AI_API = '/rehainfo/ai-schedule/api';
-  const OCR_PATIENT_API = '/rehainfo/api/ocr/patients';
-  const OCR_UPLOAD_API = '/rehainfo/api/ocr/evaluation/upload-image';
-  const OCR_REGISTER_API = '/rehainfo/api/ocr/evaluation/register';
-  const OCR_ANALYZE_API = '/rehainfo/api/ocr/analyze';
-  const PRESCRIPTION_REGISTER_API = '/rehainfo/api/prescriptions/register';
-  const PRESCRIPTION_ANALYZE_API = '/rehainfo/api/prescriptions/analyze';
+  const API = '/rehainfo-main/schedule/api';
+  const THERAPIST_API = '/rehainfo-main/therapists/api';
+  const ATTENDANCE_API = '/rehainfo-main/attendance/api';
+  const BILLING_API = '/rehainfo-main/billing-management/api';
+  const OPERATIONS_API = '/rehainfo-main/schedule-management/api';
+  const AI_API = '/rehainfo-main/ai-schedule/api';
+  const OCR_PATIENT_API = '/rehainfo-main/api/ocr/patients';
+  const OCR_UPLOAD_API = '/rehainfo-main/api/ocr/evaluation/upload-image';
+  const OCR_REGISTER_API = '/rehainfo-main/api/ocr/evaluation/register';
+  const OCR_ANALYZE_API = '/rehainfo-main/api/ocr/analyze';
+  const PRESCRIPTION_REGISTER_API = '/rehainfo-main/api/prescriptions/register';
+  const PRESCRIPTION_ANALYZE_API = '/rehainfo-main/api/prescriptions/analyze';
   const STORAGE_KEY = 'rehainfo-source-ui-demo-v1';
   const PRESCRIPTION_STORAGE_KEY = 'rehainfo-source-ui-prescriptions-v1';
   const OCR_STORAGE_KEY = 'rehainfo-source-ui-ocr-v1';
   const SOAP_STORAGE_KEY = 'rehainfo-source-ui-soap-v1';
   const originalFetch = window.fetch.bind(window);
   const uploadedPrescriptionImages = new Map();
-  const activePatientMatch = /^\/rehainfo\/patient\/([^/]+)\/(?:top|treatment-soap\/soap-list)\/?$/.exec(location.pathname);
+  const activePatientMatch = /^\/rehainfo-main\/patient\/([^/]+)\/(?:top|treatment-soap\/soap-list)\/?$/.exec(location.pathname);
   window.REHAINFO_ACTIVE_REC_ID = activePatientMatch ? decodeURIComponent(activePatientMatch[1]) : '';
-  window.navigateToPatientList = function () { window.location.href = '/rehainfo/ocr/patients'; };
+  window.navigateToPatientList = function () { window.location.href = '/rehainfo-main/ocr/patients'; };
   window.handleOnclickBack = function () { window.history.back(); };
   window.sortTable = window.sortTable || function () {};
 
@@ -132,12 +132,12 @@
   }
 
   function prescriptionRouteRecId() {
-    const match = /^\/rehainfo\/prescriptions\/patient\/([^/]+)\/(?:read|list)\/?$/.exec(location.pathname);
+    const match = /^\/rehainfo-main\/prescriptions\/patient\/([^/]+)\/(?:read|list)\/?$/.exec(location.pathname);
     return match ? decodeURIComponent(match[1]) : '';
   }
 
   function ocrRouteRecId() {
-    const match = /^\/rehainfo\/ocr\/patient\/([^/]+)\/(?:evaluation-select|list)\/?$/.exec(location.pathname);
+    const match = /^\/rehainfo-main\/ocr\/patient\/([^/]+)\/(?:evaluation-select|list)\/?$/.exec(location.pathname);
     return match ? decodeURIComponent(match[1]) : '';
   }
 
@@ -302,7 +302,7 @@
 
   async function soapApi(url, options) {
     const parsed = new URL(url, location.origin);
-    const match = /^\/rehainfo\/patient\/([^/]+)\/(?:treatment-soap\/([^/?]+)|delete-treatment-soap)$/.exec(parsed.pathname);
+    const match = /^\/rehainfo-main\/patient\/([^/]+)\/(?:treatment-soap\/([^/?]+)|delete-treatment-soap)$/.exec(parsed.pathname);
     if (!match) return null;
     const recId = decodeURIComponent(match[1]);
     const action = match[2] || 'delete';
@@ -563,7 +563,7 @@
     const method = String(options.method || 'GET').toUpperCase();
     if ([OCR_PATIENT_API, OCR_UPLOAD_API, PRESCRIPTION_REGISTER_API].includes(parsed.pathname)) return prescriptionApi(url, options);
     if (parsed.pathname === OCR_REGISTER_API) return ocrApi(url, options);
-    if (/^\/rehainfo\/patient\/[^/]+\/(?:treatment-soap\/|delete-treatment-soap)/.test(parsed.pathname)) return soapApi(url, options);
+    if (/^\/rehainfo-main\/patient\/[^/]+\/(?:treatment-soap\/|delete-treatment-soap)/.test(parsed.pathname)) return soapApi(url, options);
     let payload = {};
     if (options.body && typeof options.body === 'string') {
       try { payload = JSON.parse(options.body); } catch (_) { payload = {}; }
@@ -599,7 +599,7 @@
     const path = new URL(url, location.origin).pathname;
     if ([API, THERAPIST_API, ATTENDANCE_API, BILLING_API, OPERATIONS_API, AI_API].some(function (prefix) { return path.startsWith(prefix); })
         || [OCR_PATIENT_API, OCR_UPLOAD_API, OCR_REGISTER_API, PRESCRIPTION_REGISTER_API].includes(path)
-        || /^\/rehainfo\/patient\/[^/]+\/(?:treatment-soap\/|delete-treatment-soap)/.test(path)) {
+        || /^\/rehainfo-main\/patient\/[^/]+\/(?:treatment-soap\/|delete-treatment-soap)/.test(path)) {
       return sourceApi(url, options || {});
     }
     return originalFetch(input, options);
@@ -624,7 +624,7 @@
     }
     if (patientPage === 'top' && targetPatient) {
       const soap = document.querySelector('[data-patient-action="soap"]');
-      if (soap) soap.href = `/rehainfo/patient/${encodeURIComponent(recId)}/treatment-soap/soap-list`;
+      if (soap) soap.href = `/rehainfo-main/patient/${encodeURIComponent(recId)}/treatment-soap/soap-list`;
       const text = {
         hospitalizationDays: '在棟日数：24日', totalScore: '88', exerciseScore: '61', cognitiveScore: '27', calculationFim: '0.43',
         lastTotalScore: '前回：82', lastExerciseScore: '前回：56', lastCognitiveScore: '前回：26', fimGain: 'FIM利得：6'
@@ -706,7 +706,7 @@
       if (table) table.hidden = records.length === 0;
       if (empty) empty.hidden = records.length > 0;
       const scan = document.querySelector('[data-ocr-scan-button]');
-      if (scan) scan.addEventListener('click', function () { window.location.href = `/rehainfo/ocr/patient/${encodeURIComponent(recId)}/evaluation-select`; });
+      if (scan) scan.addEventListener('click', function () { window.location.href = `/rehainfo-main/ocr/patient/${encodeURIComponent(recId)}/evaluation-select`; });
     }
     if (prescriptionPage === 'read' && targetPatient) {
       const recIdInput = document.getElementById('patient-rec-id');
@@ -727,7 +727,7 @@
       const warning = document.querySelector('.warning');
       const records = readPrescriptionStore().filter(function (item) { return item.recId === recId; }).slice(0, 10);
       if (title) title.textContent = `${targetPatient.patientName}さんの保存済み処方箋`;
-      if (readLink) readLink.href = `/rehainfo/prescriptions/patient/${encodeURIComponent(recId)}/read`;
+      if (readLink) readLink.href = `/rehainfo-main/prescriptions/patient/${encodeURIComponent(recId)}/read`;
       if (warning) warning.textContent = '公開版は架空データ専用です。表示内容は外部AIを使わないデモ用の固定結果です。';
       if (body) {
         body.textContent = '';
@@ -773,12 +773,12 @@
       });
       const assigned = document.getElementById('radio_api');
       if (assigned) assigned.addEventListener('change', applyPatientFilters);
-      window.onPatientClick = function (_event, _groupId, selectedRecId) { window.location.href = `/rehainfo/patient/${encodeURIComponent(selectedRecId)}/top`; };
+      window.onPatientClick = function (_event, _groupId, selectedRecId) { window.location.href = `/rehainfo-main/patient/${encodeURIComponent(selectedRecId)}/top`; };
     }
 
     document.addEventListener('submit', function (event) {
       const form = event.target;
-      if (form instanceof HTMLFormElement && form.action && !form.action.endsWith('/rehainfo/login')) {
+      if (form instanceof HTMLFormElement && form.action && !form.action.endsWith('/rehainfo-main/login')) {
         event.preventDefault();
         window.alert('この公開版ではローカル実画面の表示確認のみ行えます。');
       }

@@ -5,20 +5,20 @@
 	<meta name="viewport" content="width=device-width,initial-scale=1" />
 	<meta name="robots" content="noindex,nofollow,noarchive" />
 
-	<link rel="icon" href="/rehainfo/images/intep360.ico?v=1.0.0" type="image/x-icon" />
-	<link href="/rehainfo/css/bootstrap.min.css" rel="stylesheet" />
-	<link href="/rehainfo/css/bootstrap-icons-1.9.1/bootstrap-icons.css" rel="stylesheet" />
-	<link href="/rehainfo/css/sidebar.css?v=1.1.0" rel="stylesheet" />
-	<link href="/rehainfo/css/patient_header.css" rel="stylesheet" />
-	<link href="/rehainfo/css/common.css?v=1.0.1" rel="stylesheet" />
-	<link href="/rehainfo/css/custom.css" rel="stylesheet" />
-	<script src="/rehainfo/js/jquery-3.6.0.min.js"></script>
-	<script src="/rehainfo/js/bootstrap.bundle.min.js"></script>
+	<link rel="icon" href="/rehainfo-main/images/intep360.ico?v=1.0.0" type="image/x-icon" />
+	<link href="/rehainfo-main/css/bootstrap.min.css" rel="stylesheet" />
+	<link href="/rehainfo-main/css/bootstrap-icons-1.9.1/bootstrap-icons.css" rel="stylesheet" />
+	<link href="/rehainfo-main/css/sidebar.css?v=1.1.0" rel="stylesheet" />
+	<link href="/rehainfo-main/css/patient_header.css" rel="stylesheet" />
+	<link href="/rehainfo-main/css/common.css?v=1.0.1" rel="stylesheet" />
+	<link href="/rehainfo-main/css/custom.css" rel="stylesheet" />
+	<script src="/rehainfo-main/js/jquery-3.6.0.min.js"></script>
+	<script src="/rehainfo-main/js/bootstrap.bundle.min.js"></script>
 	
 	
-	<script src="/rehainfo/js/Common.js?v=1.0.2"></script>
-	<script src="/rehainfo/js/BackCancel.js"></script>
-	<script src="/rehainfo/js/sidebar.js?v=1.0.1"></script>
+	<script src="/rehainfo-main/js/Common.js?v=1.0.2"></script>
+	<script src="/rehainfo-main/js/BackCancel.js"></script>
+	<script src="/rehainfo-main/js/sidebar.js?v=1.0.1"></script>
 	<!-- Google Tag Manager -->
 	
 	<!-- End Google Tag Manager -->
@@ -153,14 +153,14 @@
 			--body-bg-color: #E8E9ED !important;
 		}
 	</style>
-	<script src="/rehainfo/source-demo-adapter.js?v=20260910-5"></script>
+	<script src="/rehainfo-main/source-demo-adapter.js?v=20260910-5"></script>
 </head>
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>保存済み処方箋 - AI処方箋</title>
-    <link href="/rehainfo/css/bootstrap.min.css" rel="stylesheet" />
-    <link href="/rehainfo/css/bootstrap-icons-1.9.1/bootstrap-icons.css" rel="stylesheet" />
+    <link href="/rehainfo-main/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="/rehainfo-main/css/bootstrap-icons-1.9.1/bootstrap-icons.css" rel="stylesheet" />
     
     <style>
         body { background: #E8E9ED; font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif; }
@@ -195,13 +195,13 @@
 			<div class="container-fluid d-flex justify-content-between align-items-center" style="padding: 0;">
 				<div>
 					<a href="#" style="text-decoration: none;">
-						<img src="/rehainfo/images/ocr/logo.png" class="logo-image" style="width: 53px; height: 30px; object-fit: contain;" />
+						<img src="/rehainfo-main/images/ocr/logo.png" class="logo-image" style="width: 53px; height: 30px; object-fit: contain;" />
 					</a>
 				</div>
 				<div>
-					<a href="#" onclick="window.location.href='/rehainfo/'; return false;" class="d-flex align-items-center" style="text-decoration: none; color: #FFFFFF; gap: 4px;">
+					<a href="#" onclick="window.location.href='/rehainfo-main/'; return false;" class="d-flex align-items-center" style="text-decoration: none; color: #FFFFFF; gap: 4px;">
 						<span style="font-family: 'Hiragino Kaku Gothic Pro', sans-serif; font-size: 14px; font-weight: 300; line-height: 22px; color: #FFFFFF;">スマートリハを表示</span>
-						<img src="/rehainfo/images/icons/ocr/box-arrow-up-right.svg" style="width: 20px; height: 20px; flex-shrink: 0;" alt="" />
+						<img src="/rehainfo-main/images/icons/ocr/box-arrow-up-right.svg" style="width: 20px; height: 20px; flex-shrink: 0;" alt="" />
 					</a>
 				</div>
 			</div>
@@ -210,7 +210,7 @@
     <div>
 		<div id="loadingOverlay" class="loading-overlay">
 			<div class="spinner-ring">
-				<img class="loading-spinner" src="/rehainfo/images/intep360.svg" alt="loading" />
+				<img class="loading-spinner" src="/rehainfo-main/images/intep360.svg" alt="loading" />
 			</div>
 			<div class="loading-text">処理中......</div>
 		</div>
@@ -218,12 +218,12 @@
     <main>
         <div class="content">
             <h1 class="page-title">
-                <i class="bi bi-arrow-left back-icon" onclick="showLoadingSpinner(); window.location.href='/rehainfo/prescriptions/patients';"></i>
+                <i class="bi bi-arrow-left back-icon" onclick="showLoadingSpinner(); window.location.href='/rehainfo-main/prescriptions/patients';"></i>
                 <span data-prescription-patient-title>保存済み処方箋</span>
             </h1>
             <div class="warning"><i class="bi bi-exclamation-triangle me-2"></i>AI読取結果は参考情報です。薬剤名・用量・用法・日数を必ず処方箋原本と照合してください。</div>
             <div class="actions">
-                <a class="btn-read" data-prescription-read-link href="/rehainfo/prescriptions/patients"><i class="bi bi-prescription2 me-2"></i>処方箋読込</a>
+                <a class="btn-read" data-prescription-read-link href="/rehainfo-main/prescriptions/patients"><i class="bi bi-prescription2 me-2"></i>処方箋読込</a>
             </div>
 
             <div class="list-card">

@@ -287,19 +287,19 @@
 	var onClickSOAPButton = function(recId) {
 		console.log("onClickSoapButton")
 		showLoadingSpinner();
-		location.href = `/rehainfo/patient/${recId}/treatment-soap/soap-list?fromScreen=patientList`;
+		location.href = `/rehainfo-main/patient/${recId}/treatment-soap/soap-list?fromScreen=patientList`;
 	}
 
 	var onClickAICameraButton = function(recId) {
 		console.log("onClickAICameraButton")
 		showLoadingSpinner();
-		window.open(`/rehainfo/patient/${recId}/ai_camera`, 'AIカメラ', 'width=1400, height=850');
+		window.open(`/rehainfo-main/patient/${recId}/ai_camera`, 'AIカメラ', 'width=1400, height=850');
 	}
 
 	var onClickAISummaryButton = function(recId) {
 		console.log("onClickAISummaryButton")
 		showLoadingSpinner();
-		location.href = `/rehainfo/patient/${recId}/hospitalization/ai_summary`;
+		location.href = `/rehainfo-main/patient/${recId}/hospitalization/ai_summary`;
 	}
 
 	var defaultColumnValueRender = (data) => {

@@ -1,7 +1,7 @@
 (function () {
 	'use strict';
 
-	const API = '/rehainfo/schedule/api';
+	const API = '/rehainfo-main/schedule/api';
 	const START_MINUTES = 8 * 60;
 	const SLOT_MINUTES = 20;
 	const SLOT_COUNT = 30;

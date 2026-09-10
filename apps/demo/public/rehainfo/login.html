@@ -3,7 +3,7 @@
 <head>
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <meta name="robots" content="noindex,nofollow,noarchive" />
-<link rel="icon" href="/rehainfo/images/intep360.ico?v=1.0.0" type="image/x-icon" />
+<link rel="icon" href="/rehainfo-main/images/intep360.ico?v=1.0.0" type="image/x-icon" />
 <meta charset="UTF-8" />
 <title>ログイン</title>
 <!--[if lt IE 9]>
@@ -11,9 +11,9 @@
 <![endif]-->
 
     <!-- Bootstrap core CSS -->
-  <link href="/rehainfo/css/bootstrap.min.css" rel="stylesheet"></link>
-  <link href="/rehainfo/css/variables.css" rel="stylesheet"></link>
-	<script src="/rehainfo/js/Common.js?v=1.0.2"></script>
+  <link href="/rehainfo-main/css/bootstrap.min.css" rel="stylesheet"></link>
+  <link href="/rehainfo-main/css/variables.css" rel="stylesheet"></link>
+	<script src="/rehainfo-main/js/Common.js?v=1.0.2"></script>
   
     <style>
       body {
@@ -146,8 +146,8 @@
 </head>
 <body>
   <header class="d-flex header align-items-center justify-content-end px-4 gap-2" style="min-width: 330px;">
-    <button type="button" class="btn ocr-link-button" onclick="window.open('/rehainfo/prescriptions/patients', '_blank')">AI処方箋</button>
-    <button type="button" class="btn ocr-link-button" onclick="window.open('/rehainfo/ocr/login', '_blank')">AIOCR</button>
+    <button type="button" class="btn ocr-link-button" onclick="window.open('/rehainfo-main/prescriptions/patients', '_blank')">AI処方箋</button>
+    <button type="button" class="btn ocr-link-button" onclick="window.open('/rehainfo-main/ocr/login', '_blank')">AIOCR</button>
   </header>
 
   <main>
@@ -155,16 +155,16 @@
 		<div>
 		<div id="loadingOverlay" class="loading-overlay">
 			<div class="spinner-ring">
-				<img class="loading-spinner" src="/rehainfo/images/intep360.svg" alt="loading" />
+				<img class="loading-spinner" src="/rehainfo-main/images/intep360.svg" alt="loading" />
 			</div>
 			<div class="loading-text">処理中......</div>
 		</div>
 	</div>
 
-    <form action="/rehainfo/login" method="post">        
+    <form action="/rehainfo-main/login" method="post">
       <div class="d-flex justify-content-center align-items-center" style="min-height: 200px;">
           <a href="#" class="icon mb-2 mb-lg-0 text-dark text-decoration-none">
-              <img src="/rehainfo/images/SmartRehab-R_Available_Transparent.png" width="100%" height="auto" style="max-width: 300px; mix-blend-mode: multiply;"></img>
+              <img src="/rehainfo-main/images/SmartRehab-R_Available_Transparent.png" width="100%" height="auto" style="max-width: 300px; mix-blend-mode: multiply;"></img>
           </a>
       </div>
       <div class="d-flex justify-content-center">
@@ -192,6 +192,6 @@
       </div>
     </form>
   </main>
-  <script src="/rehainfo/login.js?v=20260910-2" defer="defer"></script>
+  <script src="/rehainfo-main/login.js?v=20260910-2" defer="defer"></script>
 </body>
 </html>

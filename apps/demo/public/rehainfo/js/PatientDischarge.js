@@ -92,7 +92,7 @@
         setSubmitting(true);
         setError("");
 
-        fetch("/rehainfo/patientInfoRest/" + encodeURIComponent(selectedPatient.recId)
+        fetch("/rehainfo-main/patientInfoRest/" + encodeURIComponent(selectedPatient.recId)
                 + "/discharge", {
             method: "POST",
             credentials: "same-origin",

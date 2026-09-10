@@ -67,7 +67,7 @@
 
     var saveSoapList = async function() {
         const body = Object.keys(edittingSoap).map(key => edittingSoap[key]);
-        const response = await fetch(`/rehainfo/patient/${recId}/treatment-soap/save-list`, {
+        const response = await fetch(`/rehainfo-main/patient/${recId}/treatment-soap/save-list`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -191,7 +191,7 @@
     // Load previous SOAP data for specific section
     function loadPreviousSoap(treatmentDate, treatmentTimes, field) {
         let url =
-            "/rehainfo/patient/" +
+            "/rehainfo-main/patient/" +
             recId +
             "/treatment-soap/previous-soap?treatmentDate=" +
             encodeURIComponent(treatmentDate) +
@@ -334,7 +334,7 @@
             showSoapLoading();
             
             const response = await fetch(
-                "/rehainfo/patient/" +
+                "/rehainfo-main/patient/" +
                     recId +
                     "/treatment-soap/list?treatmentDate=" +
                     treatmentDate +
@@ -952,7 +952,7 @@
         };
 
         let url =
-            "/rehainfo/patient/" +
+            "/rehainfo-main/patient/" +
             recId +
             "/treatment-soap/update-lastest-field";
 
@@ -1051,7 +1051,7 @@
 
     var getUpdateTreatmentSoapO = async function () {
         var url =
-            "/rehainfo/patient/" +
+            "/rehainfo-main/patient/" +
             recId +
             "/treatment-soap/get-update-treatment-soap-o?treatmentDate=" +
             treatmentDateSelected +
@@ -1218,7 +1218,7 @@
                 body: JSON.stringify(body),
             };
 
-            var url = "/rehainfo/patient/" + recId + "/treatment-soap/save";
+            var url = "/rehainfo-main/patient/" + recId + "/treatment-soap/save";
             await fetch(url, options);
             // save soap treatment date treatment times success
             showSuccessMessageModal(`${treatmentDate} ${treatmentTimes}回目 のSOAPを保存しました。`);
@@ -1501,7 +1501,7 @@
         }
 
         var url =
-            "/rehainfo/patient/" +
+            "/rehainfo-main/patient/" +
             recId +
             "/treatment-soap/add-new-soap?treatmentDate=" +
             requestDate;
@@ -1530,7 +1530,7 @@
     };
 
     var getLast5Soap = async function () {
-        var url = "/rehainfo/patient/" + recId + "/treatment-soap/get-last-5-soap";
+        var url = "/rehainfo-main/patient/" + recId + "/treatment-soap/get-last-5-soap";
         let response = await fetch(url);
         let data = await response.json();
         var copySoapSelect = document.getElementById("copySoapSelect");
@@ -1553,7 +1553,7 @@
                 showErrorMessageModal("複写先と同じ日時のSOAPは複写できません。");
                 return;
             }
-            var url = "/rehainfo/patient/" + recId + "/treatment-soap/copy-past-soap?fromTreatmentDate=" + treatmentDateSelected + "&fromTreatmentTimes=" + treatmentTimesSelected + "&toTreatmentDate=" + copySoapDate + "&toTreatmentTimes=" + copySoapTimes + "&copyField=" + copyFieldSelected;
+            var url = "/rehainfo-main/patient/" + recId + "/treatment-soap/copy-past-soap?fromTreatmentDate=" + treatmentDateSelected + "&fromTreatmentTimes=" + treatmentTimesSelected + "&toTreatmentDate=" + copySoapDate + "&toTreatmentTimes=" + copySoapTimes + "&copyField=" + copyFieldSelected;
             let response = await fetch(url, {
                 method: "POST",
             });
@@ -1730,11 +1730,11 @@
         const fromScreen = urlParams.get('fromScreen');
         let targetUrl;
         if (fromScreen === 'patientList') {
-            targetUrl = "/rehainfo/patients";
+            targetUrl = "/rehainfo-main/patients";
         } else if (fromScreen === 'treatmentrecord') {
-            targetUrl = "/rehainfo/patient/" + recId + "/treatment_record";
+            targetUrl = "/rehainfo-main/patient/" + recId + "/treatment_record";
         } else {
-            targetUrl = "/rehainfo/patient/" + recId + "/top";
+            targetUrl = "/rehainfo-main/patient/" + recId + "/top";
         }
 
         navigateWithAutoSave(targetUrl);
@@ -1894,7 +1894,7 @@
     }
 
     var deleteTreatmentSoap = function (treatmentDate, treatmentTimes) {
-        let url = "/rehainfo/patient/" + recId + "/delete-treatment-soap";
+        let url = "/rehainfo-main/patient/" + recId + "/delete-treatment-soap";
 
         fetch(url, {
             method: "POST",
