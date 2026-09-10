@@ -685,7 +685,7 @@
         });
       }
       const emptyText = document.querySelector('.empty-state-text');
-      if (emptyText) emptyText.innerHTML = '評価シートを選択し、架空の評価画像を選択またはカメラで撮影してください<br>外部AIへ送信せず、固定の架空結果を表示します';
+      if (emptyText) emptyText.innerHTML = '評価シートを選択し、架空の評価画像を選択またはカメラで撮影してください<br>画像は読取時のみ外部AIへ送信され、結果は必ず原本と照合してください';
     }
     if (ocrPage === 'list' && targetPatient) {
       const title = document.querySelector('[data-ocr-patient-title]');
@@ -716,7 +716,7 @@
       if (recIdInput) recIdInput.value = recId;
       if (dateInput && !dateInput.value) dateInput.value = new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
       if (title) title.textContent = `${targetPatient.patientName}さんの処方箋読込`;
-      if (note) note.textContent = '公開版では架空の処方箋画像のみ使用してください。画像は外部AIへ送信せず、固定の架空結果を表示します。';
+      if (note) note.textContent = '公開版では架空の処方箋画像のみ使用してください。画像は読取時のみ外部AIへ送信され、結果は必ず原本と照合してください。';
     }
     if (prescriptionPage === 'list' && targetPatient) {
       const title = document.querySelector('[data-prescription-patient-title]');
@@ -728,7 +728,7 @@
       const records = readPrescriptionStore().filter(function (item) { return item.recId === recId; }).slice(0, 10);
       if (title) title.textContent = `${targetPatient.patientName}さんの保存済み処方箋`;
       if (readLink) readLink.href = `/rehainfo/prescriptions/patient/${encodeURIComponent(recId)}/read`;
-      if (warning) warning.textContent = '公開版は架空データ専用です。表示内容は外部AIを使わないデモ用の固定結果です。';
+      if (warning) warning.textContent = '公開版は架空データ専用です。表示内容は外部AIの読取結果を保存したもので、必ず原本と照合してください。';
       if (body) {
         body.textContent = '';
         records.forEach(function (item) {

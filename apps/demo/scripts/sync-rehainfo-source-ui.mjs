@@ -61,7 +61,7 @@ function publicMeta(common) {
   meta = removeElement(meta, '<script th:if=');
   meta = removeElement(meta, '(function(w,d,s,l,i)');
   meta = meta.replace('<head>', '<head>\n\t<meta charset="UTF-8" />\n\t<meta name="viewport" content="width=device-width,initial-scale=1" />\n\t<meta name="robots" content="noindex,nofollow,noarchive" />');
-  meta = meta.replace('</head>', '\t<script src="/rehainfo/source-demo-adapter.js?v=20260910-5"></script>\n</head>');
+  meta = meta.replace('</head>', '\t<script src="/rehainfo/source-demo-adapter.js?v=20260910-6"></script>\n</head>');
   return stripThymeleafAttributes(meta);
 }
 
