@@ -36,6 +36,7 @@ const roborehaUpstreamRetryDelays = configuredRoborehaRetryDelays.length > 0
 const roborehaLoginAttempts = new Map();
 let roborehaReadinessPromise;
 const smarihaDashboardPath = '/smariha-dashboard';
+const smarihaSchedulerPath = '/smariha-scheduler';
 const smarihaDashboardUsername = process.env.SMARIHA_DASHBOARD_USERNAME?.trim() || 'rehadash';
 const smarihaDashboardPasswordHash = process.env.SMARIHA_DASHBOARD_PASSWORD_SHA256?.trim().toLowerCase()
   || '62530a7bc852b7d6cb8472a50218f44dffa8128b5f45d48ef9de21fc4188005b';
@@ -363,10 +364,15 @@ createServer(async (request, response) => {
     await proxyRoboreha(request, response);
     return;
   }
-  if (normalizedRequestedPath === smarihaDashboardPath || requestedPath.startsWith(`${smarihaDashboardPath}/`)) {
-    const loginPath = `${smarihaDashboardPath}/login.html`;
-    const loginActionPath = `${smarihaDashboardPath}/login`;
-    const logoutPath = `${smarihaDashboardPath}/logout`;
+  const activeSmarihaPath = normalizedRequestedPath === smarihaSchedulerPath || requestedPath.startsWith(`${smarihaSchedulerPath}/`)
+    ? smarihaSchedulerPath
+    : smarihaDashboardPath;
+  const isSmarihaProtectedPath = [smarihaDashboardPath, smarihaSchedulerPath].some((path) =>
+    normalizedRequestedPath === path || requestedPath.startsWith(`${path}/`));
+  if (isSmarihaProtectedPath) {
+    const loginPath = `${activeSmarihaPath}/login.html`;
+    const loginActionPath = `${activeSmarihaPath}/login`;
+    const logoutPath = `${activeSmarihaPath}/logout`;
     const sessionValid = hasValidSmarihaDashboardSession(request);
 
     if (request.method === 'POST' && requestedPath === loginActionPath) {
@@ -384,8 +390,8 @@ createServer(async (request, response) => {
           smarihaDashboardLoginAttempts.delete(key);
           response.writeHead(303, {
             ...securityHeaders,
-            location: `${smarihaDashboardPath}/`,
-            'set-cookie': `${smarihaDashboardCookieName}=${smarihaDashboardSessionToken()}; Path=${smarihaDashboardPath}; Max-Age=${smarihaDashboardSessionSeconds}; HttpOnly; Secure; SameSite=Strict`,
+            location: `${activeSmarihaPath}/`,
+            'set-cookie': `${smarihaDashboardCookieName}=${smarihaDashboardSessionToken()}; Path=${activeSmarihaPath}; Max-Age=${smarihaDashboardSessionSeconds}; HttpOnly; Secure; SameSite=Strict`,
             'cache-control': 'no-store',
             'x-robots-tag': 'noindex, nofollow, noarchive',
           });
@@ -408,7 +414,7 @@ createServer(async (request, response) => {
       response.writeHead(303, {
         ...securityHeaders,
         location: loginPath,
-        'set-cookie': `${smarihaDashboardCookieName}=; Path=${smarihaDashboardPath}; Max-Age=0; HttpOnly; Secure; SameSite=Strict`,
+        'set-cookie': `${smarihaDashboardCookieName}=; Path=${activeSmarihaPath}; Max-Age=0; HttpOnly; Secure; SameSite=Strict`,
         'cache-control': 'no-store',
         'x-robots-tag': 'noindex, nofollow, noarchive',
       });
@@ -416,22 +422,24 @@ createServer(async (request, response) => {
       return;
     }
 
-    const publicLoginAsset = request.method === 'GET' && [loginPath, `${smarihaDashboardPath}/login.css`, `${smarihaDashboardPath}/login.js`].includes(requestedPath);
+    const publicLoginAsset = request.method === 'GET' && [loginPath, `${activeSmarihaPath}/login.css`, `${activeSmarihaPath}/login.js`].includes(requestedPath);
     if (publicLoginAsset) {
       if (sessionValid && requestedPath === loginPath) {
-        response.writeHead(303, { ...securityHeaders, location: `${smarihaDashboardPath}/`, 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });
+        response.writeHead(303, { ...securityHeaders, location: `${activeSmarihaPath}/`, 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });
         response.end();
         return;
       }
     } else if (!sessionValid) {
       const protectedDashboardPage = [
-        smarihaDashboardPath,
-        `${smarihaDashboardPath}/taisho`,
-        `${smarihaDashboardPath}/keijinkai`,
+        activeSmarihaPath,
+        ...(activeSmarihaPath === smarihaDashboardPath
+          ? [`${smarihaDashboardPath}/taisho`, `${smarihaDashboardPath}/keijinkai`]
+          : []),
       ].includes(normalizedRequestedPath) || [
-        `${smarihaDashboardPath}/index.html`,
-        `${smarihaDashboardPath}/taisho/index.html`,
-        `${smarihaDashboardPath}/keijinkai/index.html`,
+        `${activeSmarihaPath}/index.html`,
+        ...(activeSmarihaPath === smarihaDashboardPath
+          ? [`${smarihaDashboardPath}/taisho/index.html`, `${smarihaDashboardPath}/keijinkai/index.html`]
+          : []),
       ].includes(requestedPath);
       if (request.method === 'GET' && protectedDashboardPage) {
         response.writeHead(302, { ...securityHeaders, location: loginPath, 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });
@@ -600,6 +608,8 @@ createServer(async (request, response) => {
       ? '/smariha-dashboard/taisho/index.html'
     : requestedPath === '/smariha-dashboard/keijinkai' || requestedPath === '/smariha-dashboard/keijinkai/'
       ? '/smariha-dashboard/keijinkai/index.html'
+    : requestedPath === '/smariha-scheduler' || requestedPath === '/smariha-scheduler/'
+      ? '/smariha-scheduler/index.html'
       : divertNaviDashboardPath && normalizedRequestedPath === divertNaviDashboardPath
         ? '/divertnavi-app/index.html'
       : requestedPath;
@@ -608,7 +618,7 @@ createServer(async (request, response) => {
   try {
     const fileBody = await readFile(file);
     const isKoiNoShioriPage = requestedPath === '/koi-no-shiori' || requestedPath.startsWith('/koi-no-shiori/');
-    const isApplicationPage = isHangoutNowAdminPath || requestedPath === '/demo.html' || requestedPath === '/app.html' || requestedPath.startsWith('/coachgo-demo') || requestedPath.startsWith('/coachgo-admin') || requestedPath.startsWith('/divertnavi-app') || requestedPath.startsWith('/minnade-kaigo') || requestedPath.startsWith('/smariha-dashboard') || isKoiNoShioriPage;
+    const isApplicationPage = isHangoutNowAdminPath || requestedPath === '/demo.html' || requestedPath === '/app.html' || requestedPath.startsWith('/coachgo-demo') || requestedPath.startsWith('/coachgo-admin') || requestedPath.startsWith('/divertnavi-app') || requestedPath.startsWith('/minnade-kaigo') || requestedPath.startsWith('/smariha-dashboard') || requestedPath.startsWith('/smariha-scheduler') || isKoiNoShioriPage;
     const body = extname(file) === '.html' && !isApplicationPage
       ? Buffer.from(fileBody.toString('utf8').replace('<head>', '<head><link rel="stylesheet" href="/cookie-consent.css?v=20260816-2"><link rel="stylesheet" href="/share.css?v=20260821-2"><script src="/analytics.js?v=20260820-2" defer></script><script src="/attribution.js?v=20260821-2" defer></script><script src="/share.js?v=20260821-3" defer></script>'))
       : fileBody;

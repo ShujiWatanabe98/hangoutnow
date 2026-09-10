@@ -112,3 +112,49 @@ test('Smariha dashboard requires login and grants a protected session', async ()
   assert.equal(logout.headers.get('location'), '/smariha-dashboard/login.html');
   assert.match(logout.headers.get('set-cookie'), /Max-Age=0/);
 });
+
+test('Smariha scheduler reuses protected credentials with a scheduler-scoped session', async () => {
+  const entry = await fetch(`${origin}/smariha-scheduler/`, { redirect: 'manual' });
+  assert.equal(entry.status, 302);
+  assert.equal(entry.headers.get('location'), '/smariha-scheduler/login.html');
+  assert.equal(entry.headers.get('x-robots-tag'), 'noindex, nofollow, noarchive');
+
+  const loginPage = await fetch(`${origin}/smariha-scheduler/login.html`);
+  const loginHtml = await loginPage.text();
+  assert.equal(loginPage.status, 200);
+  assert.match(loginHtml, /スマリハスケジューラー/);
+  assert.match(loginHtml, /action="\/smariha-scheduler\/login"/);
+  assert.doesNotMatch(loginHtml, /analytics\.js|cookie-consent/);
+
+  const protectedAsset = await fetch(`${origin}/smariha-scheduler/app.js`, { redirect: 'manual' });
+  assert.equal(protectedAsset.status, 401);
+
+  const accepted = await fetch(`${origin}/smariha-scheduler/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ username, password }),
+    redirect: 'manual',
+  });
+  assert.equal(accepted.status, 303);
+  assert.equal(accepted.headers.get('location'), '/smariha-scheduler/');
+  const setCookie = accepted.headers.get('set-cookie');
+  assert.match(setCookie, /Path=\/smariha-scheduler/);
+  assert.match(setCookie, /HttpOnly/);
+  assert.match(setCookie, /Secure/);
+  assert.match(setCookie, /SameSite=Strict/);
+  const cookie = setCookie.split(';')[0];
+
+  const scheduler = await fetch(`${origin}/smariha-scheduler/`, { headers: { cookie } });
+  const schedulerHtml = await scheduler.text();
+  assert.equal(scheduler.status, 200);
+  assert.match(schedulerHtml, /療法士別スケジュール/);
+  assert.match(schedulerHtml, /すべて架空/);
+  assert.match(schedulerHtml, /AIスケジュール/);
+  assert.doesNotMatch(schedulerHtml, /analytics\.js|cookie-consent/);
+
+  const logout = await fetch(`${origin}/smariha-scheduler/logout`, { headers: { cookie }, redirect: 'manual' });
+  assert.equal(logout.status, 303);
+  assert.equal(logout.headers.get('location'), '/smariha-scheduler/login.html');
+  assert.match(logout.headers.get('set-cookie'), /Path=\/smariha-scheduler/);
+  assert.match(logout.headers.get('set-cookie'), /Max-Age=0/);
+});

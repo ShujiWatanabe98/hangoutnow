@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="theme-color" content="#10243a">
+  <link rel="canonical" href="https://method-more.com/smariha-scheduler/">
+  <link rel="icon" href="/methodmore-favicon.svg" type="image/svg+xml">
+  <title>スマリハスケジューラー｜methodmore</title>
+  <link rel="stylesheet" href="/smariha-scheduler/styles.css?v=20260910-1">
+</head>
+<body>
+  <header class="app-header">
+    <a class="brand" href="/" aria-label="methodmore ホーム">
+      <span class="brand-mark" aria-hidden="true">SR</span>
+      <span><strong>スマリハ</strong><small>SCHEDULER</small></span>
+    </a>
+    <div class="header-actions">
+      <span class="demo-badge">提案用MVP・架空データ</span>
+      <a class="logout-link" href="/smariha-scheduler/logout">ログアウト</a>
+    </div>
+  </header>
+
+  <main class="app-shell">
+    <section class="page-heading" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow">DAILY COORDINATION</p>
+        <h1 id="page-title">リハビリスケジュール</h1>
+        <p>既存予約・院内予定・単位上限を確認しながら、安全な配置判断を支援します。</p>
+      </div>
+      <div class="primary-actions">
+        <button class="button secondary" id="newBookingButton" type="button">＋ 新規予約</button>
+        <button class="button primary" id="aiScheduleButton" type="button"><span aria-hidden="true">✦</span> AIスケジュール</button>
+      </div>
+    </section>
+
+    <section class="status-strip" aria-label="デモに関する注意">
+      <strong>DEMO</strong>
+      <span>表示される患者ID・療法士名・予定・実績はすべて架空です。AI候補は自動反映されず、療法士の承認後にのみ画面へ反映されます。</span>
+    </section>
+
+    <section class="controls-panel" aria-label="表示条件">
+      <div class="date-controls">
+        <button class="icon-button" id="previousDay" type="button" aria-label="前の日">←</button>
+        <div><small>表示日</small><strong id="activeDate">2026年9月10日（木）</strong></div>
+        <button class="icon-button" id="nextDay" type="button" aria-label="次の日">→</button>
+        <button class="today-button" id="todayButton" type="button">今日</button>
+      </div>
+      <div class="view-tabs" role="tablist" aria-label="表示切替">
+        <button class="view-tab active" type="button" role="tab" aria-selected="true" data-view="day">日別</button>
+        <button class="view-tab" type="button" role="tab" aria-selected="false" data-view="week">週間負荷</button>
+      </div>
+      <label>職種
+        <select id="roleFilter">
+          <option value="all">すべて</option>
+          <option value="PT">PT</option>
+          <option value="OT">OT</option>
+          <option value="ST">ST</option>
+        </select>
+      </label>
+      <label>病棟
+        <select id="wardFilter">
+          <option value="all">すべて</option>
+          <option value="回復期A">回復期A</option>
+          <option value="回復期B">回復期B</option>
+          <option value="一般">一般</option>
+        </select>
+      </label>
+    </section>
+
+    <section class="summary-grid" aria-label="当日の集計">
+      <article><span class="summary-icon mint">予</span><div><small>予約</small><strong id="bookingCount">8</strong><em>件</em></div></article>
+      <article><span class="summary-icon blue">単</span><div><small>予約単位</small><strong id="unitCount">16</strong><em>単位</em></div></article>
+      <article><span class="summary-icon amber">未</span><div><small>未配置</small><strong id="unassignedCount">2</strong><em>件</em></div></article>
+      <article><span class="summary-icon navy">率</span><div><small>稼働率</small><strong id="utilizationRate">74</strong><em>%</em></div></article>
+    </section>
+
+    <div class="workspace">
+      <section class="schedule-panel" id="dayView" aria-labelledby="schedule-title">
+        <div class="panel-head">
+          <div><p class="eyebrow">DAY VIEW</p><h2 id="schedule-title">療法士別スケジュール</h2></div>
+          <p class="legend"><span class="dot booked"></span>予約 <span class="dot training"></span>院内予定 <span class="dot proposed"></span>AI配置</p>
+        </div>
+        <div class="schedule-scroll">
+          <div class="schedule-grid" id="scheduleGrid">
+            <div class="grid-corner">時刻</div>
+            <div class="therapist-head" data-role="PT"><strong>佐藤 直樹</strong><span>PT・回復期A</span><small>予定 6単位</small></div>
+            <div class="therapist-head" data-role="OT"><strong>中村 美咲</strong><span>OT・回復期B</span><small>予定 6単位</small></div>
+            <div class="therapist-head" data-role="ST"><strong>小林 健</strong><span>ST・一般</span><small>予定 4単位</small></div>
+
+            <div class="time-cell">09:00</div>
+            <div class="slot" data-time="09:00" data-therapist="佐藤 直樹"><button class="appointment booked" data-role="PT" data-ward="回復期A" data-patient="SR-24018" data-therapist="佐藤 直樹" data-time="09:00–09:40" data-units="2"><strong>SR-24018</strong><span>歩行訓練</span><small>2単位・回復期A</small></button></div>
+            <div class="slot" data-time="09:00" data-therapist="中村 美咲"><button class="appointment booked" data-role="OT" data-ward="回復期B" data-patient="SR-24027" data-therapist="中村 美咲" data-time="09:00–09:40" data-units="2"><strong>SR-24027</strong><span>上肢機能訓練</span><small>2単位・回復期B</small></button></div>
+            <div class="slot" data-time="09:00" data-therapist="小林 健"></div>
+
+            <div class="time-cell">10:00</div>
+            <div class="slot" data-time="10:00" data-therapist="佐藤 直樹"><button class="appointment booked" data-role="PT" data-ward="回復期A" data-patient="SR-24031" data-therapist="佐藤 直樹" data-time="10:00–10:40" data-units="2"><strong>SR-24031</strong><span>起立・移乗</span><small>2単位・回復期A</small></button></div>
+            <div class="slot" data-time="10:00" data-therapist="中村 美咲"></div>
+            <div class="slot" data-time="10:00" data-therapist="小林 健"><button class="appointment booked" data-role="ST" data-ward="一般" data-patient="SR-24042" data-therapist="小林 健" data-time="10:00–10:40" data-units="2"><strong>SR-24042</strong><span>嚥下訓練</span><small>2単位・一般</small></button></div>
+
+            <div class="time-cell">11:00</div>
+            <div class="slot" data-time="11:00" data-therapist="佐藤 直樹"></div>
+            <div class="slot" data-time="11:00" data-therapist="中村 美咲"><button class="appointment booked" data-role="OT" data-ward="回復期A" data-patient="SR-24055" data-therapist="中村 美咲" data-time="11:00–11:40" data-units="2"><strong>SR-24055</strong><span>ADL訓練</span><small>2単位・回復期A</small></button></div>
+            <div class="slot" data-time="11:00" data-therapist="小林 健"><button class="appointment training" data-role="ST" data-ward="all" data-patient="院内研修" data-therapist="小林 健" data-time="11:00–12:00" data-units="0"><strong>院内研修</strong><span>嚥下カンファレンス</span><small>会議室B</small></button></div>
+
+            <div class="time-cell lunch">12:00</div>
+            <div class="slot lunch" data-time="12:00" data-therapist="佐藤 直樹"><span class="break-label">休憩</span></div>
+            <div class="slot lunch" data-time="12:00" data-therapist="中村 美咲"><span class="break-label">休憩</span></div>
+            <div class="slot lunch" data-time="12:00" data-therapist="小林 健"><span class="break-label">休憩</span></div>
+
+            <div class="time-cell">13:00</div>
+            <div class="slot" data-time="13:00" data-therapist="佐藤 直樹"><button class="appointment booked" data-role="PT" data-ward="一般" data-patient="SR-24063" data-therapist="佐藤 直樹" data-time="13:00–13:40" data-units="2"><strong>SR-24063</strong><span>関節可動域訓練</span><small>2単位・一般</small></button></div>
+            <div class="slot" data-time="13:00" data-therapist="中村 美咲"><button class="appointment booked" data-role="OT" data-ward="回復期B" data-patient="SR-24071" data-therapist="中村 美咲" data-time="13:00–13:40" data-units="2"><strong>SR-24071</strong><span>更衣動作訓練</span><small>2単位・回復期B</small></button></div>
+            <div class="slot" data-time="13:00" data-therapist="小林 健"></div>
+
+            <div class="time-cell">14:00</div>
+            <div class="slot" data-time="14:00" data-therapist="佐藤 直樹"><button class="appointment booked" data-role="PT" data-ward="回復期B" data-patient="SR-24084" data-therapist="佐藤 直樹" data-time="14:00–14:40" data-units="2"><strong>SR-24084</strong><span>階段昇降</span><small>2単位・回復期B</small></button></div>
+            <div class="slot" data-time="14:00" data-therapist="中村 美咲"></div>
+            <div class="slot" data-time="14:00" data-therapist="小林 健"><button class="appointment booked" data-role="ST" data-ward="回復期A" data-patient="SR-24096" data-therapist="小林 健" data-time="14:00–14:40" data-units="2"><strong>SR-24096</strong><span>言語訓練</span><small>2単位・回復期A</small></button></div>
+
+            <div class="time-cell">15:00</div>
+            <div class="slot" data-time="15:00" data-therapist="佐藤 直樹"></div>
+            <div class="slot" data-time="15:00" data-therapist="中村 美咲"></div>
+            <div class="slot" data-time="15:00" data-therapist="小林 健"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="schedule-panel week-panel" id="weekView" aria-labelledby="week-title" hidden>
+        <div class="panel-head"><div><p class="eyebrow">WEEK LOAD</p><h2 id="week-title">週間負荷</h2></div><p class="panel-note">単位上限と空き枠を俯瞰</p></div>
+        <div class="week-chart">
+          <article><div><strong>9/7 月</strong><span>52 / 54単位</span></div><div class="load-track"><i style="width:96%"></i></div><small class="risk">上限接近</small></article>
+          <article><div><strong>9/8 火</strong><span>47 / 54単位</span></div><div class="load-track"><i style="width:87%"></i></div><small>空き 7単位</small></article>
+          <article><div><strong>9/9 水</strong><span>45 / 54単位</span></div><div class="load-track"><i style="width:83%"></i></div><small>空き 9単位</small></article>
+          <article class="today-row"><div><strong>9/10 木</strong><span>42 / 54単位</span></div><div class="load-track"><i style="width:78%"></i></div><small>未配置 2件</small></article>
+          <article><div><strong>9/11 金</strong><span>38 / 54単位</span></div><div class="load-track"><i style="width:70%"></i></div><small>空き 16単位</small></article>
+        </div>
+      </section>
+
+      <aside class="info-panel" aria-labelledby="info-title">
+        <div class="panel-head compact"><div><p class="eyebrow">INFORMATION</p><h2 id="info-title">情報</h2></div><span class="notification-count">2</span></div>
+        <div class="info-summary"><span><small>実施予定</small><strong>42単位</strong></span><span><small>実績</small><strong>28単位</strong></span><span><small>院内予定</small><strong>1件</strong></span></div>
+        <div class="info-section">
+          <div class="section-title"><h3>未配置予約</h3><span>2件</span></div>
+          <article class="unassigned-item" data-patient="SR-24102" data-role="PT" data-ward="回復期A">
+            <div><strong>SR-24102</strong><span>PT・2単位</span></div><p>回復期A／午後希望</p><button type="button" class="assign-button">配置候補を見る</button>
+          </article>
+          <article class="unassigned-item" data-patient="SR-24108" data-role="ST" data-ward="一般">
+            <div><strong>SR-24108</strong><span>ST・2単位</span></div><p>一般／嚥下訓練</p><button type="button" class="assign-button">配置候補を見る</button>
+          </article>
+        </div>
+        <div class="info-section alert-section">
+          <div class="section-title"><h3>確認事項</h3><span>1件</span></div>
+          <article><strong>15:00の空き枠を確認</strong><p>PT・OTともに配置可能です。既存予約との重複はありません。</p></article>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <dialog id="detailDialog" class="modal">
+    <form method="dialog" class="modal-card">
+      <button class="modal-close" value="close" aria-label="閉じる">×</button>
+      <p class="eyebrow">APPOINTMENT DETAIL</p>
+      <h2 id="detailPatient">予約詳細</h2>
+      <dl class="detail-list">
+        <div><dt>日時</dt><dd id="detailTime"></dd></div>
+        <div><dt>担当</dt><dd id="detailTherapist"></dd></div>
+        <div><dt>職種・病棟</dt><dd id="detailContext"></dd></div>
+        <div><dt>単位</dt><dd id="detailUnits"></dd></div>
+      </dl>
+      <p class="modal-note">この画面は架空データによる操作デモです。</p>
+      <button class="button primary full" value="close">閉じる</button>
+    </form>
+  </dialog>
+
+  <dialog id="bookingDialog" class="modal">
+    <form id="bookingForm" class="modal-card">
+      <button class="modal-close" type="button" data-close-dialog="bookingDialog" aria-label="閉じる">×</button>
+      <p class="eyebrow">NEW APPOINTMENT</p>
+      <h2>新規予約</h2>
+      <label>患者ID<input id="bookingPatient" name="patient" value="SR-24115" pattern="SR-[0-9]{5}" required></label>
+      <label>療法士<select id="bookingTherapist" name="therapist" required><option>佐藤 直樹</option><option>中村 美咲</option><option>小林 健</option></select></label>
+      <label>開始時刻<select id="bookingTime" name="time" required><option>09:00</option><option>10:00</option><option>11:00</option><option>13:00</option><option>14:00</option><option selected>15:00</option></select></label>
+      <label>単位<select id="bookingUnits" name="units"><option value="1">1単位</option><option value="2" selected>2単位</option><option value="3">3単位</option></select></label>
+      <p class="form-error" id="bookingError" role="alert" hidden></p>
+      <button class="button primary full" type="submit">重複を確認して予約</button>
+    </form>
+  </dialog>
+
+  <dialog id="aiDialog" class="modal ai-modal">
+    <div class="modal-card">
+      <button class="modal-close" type="button" data-close-dialog="aiDialog" aria-label="閉じる">×</button>
+      <p class="eyebrow">AI SCHEDULE PROPOSAL</p>
+      <h2>安全条件を満たす配置候補</h2>
+      <p class="modal-lead">既存予定、患者・療法士の重複、勤務、休憩、院内予定、単位上限を確認済みです。</p>
+      <div class="proposal-list">
+        <article class="proposal" data-patient="SR-24102" data-therapist="佐藤 直樹" data-time="15:00" data-role="PT" data-ward="回復期A" data-units="2">
+          <div><span class="proposal-score">適合度 91</span><strong>SR-24102 → 佐藤 直樹</strong><small>15:00–15:40・PT・2単位</small></div>
+          <p>午後希望、必要職種、勤務時間、同一患者の実施歴を考慮。</p>
+          <button type="button" class="adopt-button">この配置を採用</button>
+        </article>
+        <article class="proposal" data-patient="SR-24108" data-therapist="小林 健" data-time="15:00" data-role="ST" data-ward="一般" data-units="2">
+          <div><span class="proposal-score">適合度 88</span><strong>SR-24108 → 小林 健</strong><small>15:00–15:40・ST・2単位</small></div>
+          <p>嚥下訓練の担当実績、院内研修終了後の空き枠を考慮。</p>
+          <button type="button" class="adopt-button">この配置を採用</button>
+        </article>
+      </div>
+      <p class="approval-note">候補は療法士の承認操作後にだけ反映されます。</p>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <script src="/smariha-scheduler/app.js?v=20260910-1" defer></script>
+</body>
+</html>

@@ -149,8 +149,8 @@ test('homepage targets Shinjuku solo participants with measurable acquisition li
   assert.match(server, /location: '\/shinjuku-working-adult-friends\.html'/);
 });
 
-test('corporate homepage presents the seven methodmore products accurately', async () => {
-  const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles, coachDemo, coachStyles, coachBootstrap, coachDemoScript, coachDriveModule, coachUnderpassModule, coachPoliceModule, coachNaturalSpeechModule, coachRoadSnappingModule, coachSmoothLocationModule, coachUserReportAggregationModule, coachVoiceApproachModule, coachMonitorPointsJson, coachUnderpassFeedJson, coachPrivacy, coachSupport, coachDataSources, careDemo, careStyles, careApp, carePersonas, careManifestJson, smarihaDemo, smarihaStyles, smarihaScript, smarihaLogin, smarihaLoginScript, smarihaTaisho, smarihaKeijinkai, server] = await Promise.all([
+test('corporate homepage presents the eight methodmore products accurately', async () => {
+  const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles, coachDemo, coachStyles, coachBootstrap, coachDemoScript, coachDriveModule, coachUnderpassModule, coachPoliceModule, coachNaturalSpeechModule, coachRoadSnappingModule, coachSmoothLocationModule, coachUserReportAggregationModule, coachVoiceApproachModule, coachMonitorPointsJson, coachUnderpassFeedJson, coachPrivacy, coachSupport, coachDataSources, careDemo, careStyles, careApp, carePersonas, careManifestJson, smarihaDemo, smarihaStyles, smarihaScript, smarihaLogin, smarihaLoginScript, smarihaTaisho, smarihaKeijinkai, schedulerDemo, schedulerStyles, schedulerScript, schedulerLogin, schedulerLoginScript, server] = await Promise.all([
     readFile(new URL('../public/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/hangout-now.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/divertnavi.html', import.meta.url), 'utf8'),
@@ -187,6 +187,11 @@ test('corporate homepage presents the seven methodmore products accurately', asy
     readFile(new URL('../public/smariha-dashboard/login.js', import.meta.url), 'utf8'),
     readFile(new URL('../public/smariha-dashboard/taisho/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/smariha-dashboard/keijinkai/index.html', import.meta.url), 'utf8'),
+    readFile(new URL('../public/smariha-scheduler/index.html', import.meta.url), 'utf8'),
+    readFile(new URL('../public/smariha-scheduler/styles.css', import.meta.url), 'utf8'),
+    readFile(new URL('../public/smariha-scheduler/app.js', import.meta.url), 'utf8'),
+    readFile(new URL('../public/smariha-scheduler/login.html', import.meta.url), 'utf8'),
+    readFile(new URL('../public/smariha-scheduler/login.js', import.meta.url), 'utf8'),
     readFile(new URL('../server.mjs', import.meta.url), 'utf8'),
   ]);
   const coachMonitorPoints = JSON.parse(coachMonitorPointsJson);
@@ -194,7 +199,7 @@ test('corporate homepage presents the seven methodmore products accurately', asy
 
   assert.match(corporate, /<title>methodmore｜日常の選択を、もっと前へ。<\/title>/);
   assert.match(corporate, /<link rel="canonical" href="https:\/\/method-more\.com\/">/);
-  assert.equal((corporate.match(/<article class="product-card/g) ?? []).length, 7);
+  assert.equal((corporate.match(/<article class="product-card/g) ?? []).length, 8);
   assert.match(corporate, /href="\/hangout-now\.html"/);
   assert.match(corporate, /href="\/divertnavi\.html"/);
   assert.match(corporate, /href="\/divertnavi-app\/">Webアプリを開く<\/a>/);
@@ -205,6 +210,7 @@ test('corporate homepage presents the seven methodmore products accurately', asy
   assert.match(corporate, /恋の<em>しおり<\/em>/);
   assert.match(corporate, /RoboCare <em>One<\/em>/);
   assert.match(corporate, /スマリハ<br><em>管理ダッシュボード<\/em>/);
+  assert.match(corporate, /スマリハ<br><em>スケジューラー<\/em>/);
   assert.match(corporate, /公開中/);
   assert.match(corporate, /Android MVP 開発中/);
   assert.match(corporate, /Webアプリ 公開中/);
@@ -259,6 +265,26 @@ test('corporate homepage presents the seven methodmore products accurately', asy
   assert.match(server, /const smarihaDashboardPath = '\/smariha-dashboard'/);
   assert.match(server, /requestedPath === '\/smariha-dashboard\/taisho\/'/);
   assert.match(server, /requestedPath === '\/smariha-dashboard\/keijinkai\/'/);
+  for (const copy of ['既存予定を守りながら、配置を最適化', '療法士・患者・単位・院内予定を横断し、空き枠配置とリスケ候補を支援するログイン制の提案用MVPです。', '重複・単位チェック', '未配置予約とリスケ提案', '療法士承認後に反映']) {
+    assert.ok(corporate.includes(copy), `スマリハスケジューラーの製品コピーがありません: ${copy}`);
+  }
+  assert.match(corporate, /href="\/smariha-scheduler\/"[^>]*>Webアプリを開く/);
+  assert.match(corporate, /<a href="\/#smariha-scheduler">スマリハスケジューラー<\/a>/);
+  assert.match(corporateStyles, /\.scheduler-preview/);
+  assert.match(schedulerDemo, /<title>スマリハスケジューラー｜methodmore<\/title>/);
+  assert.match(schedulerDemo, /<link rel="canonical" href="https:\/\/method-more\.com\/smariha-scheduler\/">/);
+  for (const copy of ['提案用MVP・架空データ', '既存予約・院内予定・単位上限', '療法士別スケジュール', '未配置予約', '安全条件を満たす配置候補', '療法士の承認操作後にだけ反映']) {
+    assert.ok(schedulerDemo.includes(copy), `スマリハスケジューラーの画面コピーがありません: ${copy}`);
+  }
+  assert.match(schedulerStyles, /\.schedule-grid/);
+  assert.match(schedulerScript, /createAppointment/);
+  assert.match(schedulerScript, /applyFilters/);
+  assert.match(schedulerLogin, /action="\/smariha-scheduler\/login"/);
+  assert.match(schedulerLogin, /すべて架空のデータ/);
+  assert.match(schedulerLoginScript, /ユーザー名またはパスワードが違います/);
+  assert.doesNotMatch(sitemap, /<loc>https:\/\/method-more\.com\/smariha-scheduler\/<\/loc>/);
+  assert.match(server, /const smarihaSchedulerPath = '\/smariha-scheduler'/);
+  assert.match(server, /requestedPath === '\/smariha-scheduler\/'/);
   assert.match(careDemo, /<title>みんなで介護<\/title>/);
   assert.match(careDemo, /<h1>みんなで介護<\/h1>/);
   assert.match(careDemo, /personas\.js\?v=20260826-3/);
