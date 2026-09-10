@@ -1,6 +1,6 @@
 (function(){
 	'use strict';
-	var API='/rehainfo/billing-management/api', state=null;
+	var API='/rehainfo-main/billing-management/api', state=null;
 	document.addEventListener('DOMContentLoaded',function(){
 		var now=new Date(), date=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
 		document.getElementById('billingDate').value=date;

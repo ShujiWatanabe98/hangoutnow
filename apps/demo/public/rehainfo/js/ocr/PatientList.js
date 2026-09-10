@@ -69,42 +69,42 @@ function handleInputBlur(inputId, event) {
 function navigateToPatient(recId) {
     if (recId) {
         showLoadingSpinner();
-        window.location.href = '/rehainfo/patient/' + recId + '/top';
+        window.location.href = '/rehainfo-main/patient/' + recId + '/top';
     }
 }
 
 function navigateToScan(recId) {
     if (recId) {
         showLoadingSpinner();
-        window.location.href = '/rehainfo/ocr/patient/' + recId + '/evaluation-select';
+        window.location.href = '/rehainfo-main/ocr/patient/' + recId + '/evaluation-select';
     }
 }
 
 function navigateToOcrList(recId) {
     if (recId) {
         showLoadingSpinner();
-        window.location.href = '/rehainfo/ocr/patient/' + recId + '/list';
+        window.location.href = '/rehainfo-main/ocr/patient/' + recId + '/list';
     }
 }
 
 function navigateToPrescriptionRead(recId) {
     if (recId) {
         showLoadingSpinner();
-        window.location.href = '/rehainfo/prescriptions/patient/' + recId + '/read';
+        window.location.href = '/rehainfo-main/prescriptions/patient/' + recId + '/read';
     }
 }
 
 function navigateToPrescriptionList(recId) {
     if (recId) {
         showLoadingSpinner();
-        window.location.href = '/rehainfo/prescriptions/patient/' + recId + '/list';
+        window.location.href = '/rehainfo-main/prescriptions/patient/' + recId + '/list';
     }
 }
 
 function loadAllPatients(responsibleOnly = true) {
     showLoadingSpinner();
     
-    const url = `/rehainfo/api/ocr/patients?responsibleOnly=${responsibleOnly}`;
+    const url = `/rehainfo-main/api/ocr/patients?responsibleOnly=${responsibleOnly}`;
     
     fetch(url, {
         method: 'GET',

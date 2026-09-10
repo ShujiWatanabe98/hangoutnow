@@ -269,7 +269,7 @@ test('corporate homepage presents the eight methodmore products accurately', asy
   for (const copy of ['既存予定を守りながら、配置を最適化', 'rehainfoで開発した患者管理、退院機能、AI処方箋、療法士・単位・院内予定を一つに統合したログイン制デモです。', '架空患者10件・退院管理', 'AI処方箋の読取・保存', '予定・単位・院内予定']) {
     assert.ok(corporate.includes(copy), `スマリハスケジューラーの製品コピーがありません: ${copy}`);
   }
-  assert.match(corporate, /href="\/rehainfo\/"[^>]*>実際のUIを開く/);
+  assert.match(corporate, /href="\/rehainfo-main\/"[^>]*>実際のUIを開く/);
   assert.match(corporate, /<a href="\/#smariha-scheduler">スマリハスケジューラー<\/a>/);
   assert.match(corporateStyles, /\.scheduler-preview/);
   assert.match(schedulerDemo, /<title>スマリハスケジューラー｜methodmore<\/title>/);
