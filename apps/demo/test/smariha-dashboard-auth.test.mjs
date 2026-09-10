@@ -139,7 +139,7 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
     assert.ok(html.includes(`data-rehainfo-source-template="${source}"`), source);
     assert.ok(html.includes(title), title);
     assert.ok(html.includes(marker), marker);
-    assert.match(html, /\/rehainfo-main\/source-demo-adapter\.js\?v=20260910-5/);
+    assert.match(html, /\/rehainfo-main\/source-demo-adapter\.js\?v=20260910-7/);
     assert.doesNotMatch(html, /patient-list-source|patient-demo|rehainfo-demo-notice/);
   }
 
