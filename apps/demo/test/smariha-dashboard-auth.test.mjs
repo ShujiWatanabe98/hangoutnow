@@ -159,6 +159,61 @@ test('Smariha scheduler reuses protected credentials with a scheduler-scoped ses
   assert.match(logout.headers.get('set-cookie'), /Max-Age=0/);
 });
 
+test('rehainfo source UI is linked as a protected fictional-data demo', async () => {
+  const entry = await fetch(`${origin}/rehainfo/`, { redirect: 'manual' });
+  assert.equal(entry.status, 302);
+  assert.equal(entry.headers.get('location'), '/rehainfo/login.html');
+  assert.equal(entry.headers.get('x-robots-tag'), 'noindex, nofollow, noarchive');
+
+  const loginPage = await fetch(`${origin}/rehainfo/login.html`);
+  const loginHtml = await loginPage.text();
+  assert.equal(loginPage.status, 200);
+  assert.match(loginHtml, /SmartRehab-R_Available_Transparent\.png/);
+  assert.match(loginHtml, /action="\/rehainfo\/login"/);
+  assert.match(loginHtml, /rehainfo実装を使用した限定公開デモ/);
+
+  const publicLogo = await fetch(`${origin}/rehainfo/images/SmartRehab-R_Available_Transparent.png`);
+  assert.equal(publicLogo.status, 200);
+  assert.equal(publicLogo.headers.get('content-type'), 'image/png');
+  const protectedSource = await fetch(`${origin}/rehainfo/schedule/schedule.js`, { redirect: 'manual' });
+  assert.equal(protectedSource.status, 401);
+
+  const accepted = await fetch(`${origin}/rehainfo/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ username, password }),
+    redirect: 'manual',
+  });
+  assert.equal(accepted.status, 303);
+  assert.equal(accepted.headers.get('location'), '/rehainfo/');
+  const setCookie = accepted.headers.get('set-cookie');
+  assert.match(setCookie, /Path=\/rehainfo/);
+  assert.match(setCookie, /HttpOnly/);
+  assert.match(setCookie, /Secure/);
+  assert.match(setCookie, /SameSite=Strict/);
+  const cookie = setCookie.split(';')[0];
+
+  const page = await fetch(`${origin}/rehainfo/`, { headers: { cookie } });
+  const html = await page.text();
+  assert.equal(page.status, 200);
+  assert.match(html, /rehab-schedule-page/);
+  assert.match(html, /リハビリ予約表/);
+  assert.match(html, /rehainfoの実際の画面テンプレート・CSS・JavaScript/);
+  assert.match(html, /\/rehainfo\/schedule\/schedule\.js\?v=source-1\.3\.0/);
+
+  const source = await fetch(`${origin}/rehainfo/schedule/schedule.js`, { headers: { cookie } });
+  const sourceCode = await source.text();
+  assert.equal(source.status, 200);
+  assert.equal(createHash('sha256').update(sourceCode).digest('hex'), '76608c376e3a2f3dfef2404c212cdc5e0fa9c117a79b157ec0038a9bc131124a');
+  assert.match(sourceCode, /const API = '\/rehainfo\/schedule\/api'/);
+
+  const logout = await fetch(`${origin}/rehainfo/logout`, { headers: { cookie }, redirect: 'manual' });
+  assert.equal(logout.status, 303);
+  assert.equal(logout.headers.get('location'), '/rehainfo/login.html');
+  assert.match(logout.headers.get('set-cookie'), /Path=\/rehainfo/);
+  assert.match(logout.headers.get('set-cookie'), /Max-Age=0/);
+});
+
 test('Smariha suite protects every integrated demo module', async () => {
   const entry = await fetch(`${origin}/smariha/`, { redirect: 'manual' });
   assert.equal(entry.status, 302);

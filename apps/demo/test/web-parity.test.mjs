@@ -266,10 +266,10 @@ test('corporate homepage presents the nine methodmore products accurately', asyn
   assert.match(server, /const smarihaDashboardPath = '\/smariha-dashboard'/);
   assert.match(server, /requestedPath === '\/smariha-dashboard\/taisho\/'/);
   assert.match(server, /requestedPath === '\/smariha-dashboard\/keijinkai\/'/);
-  for (const copy of ['既存予定を守りながら、配置を最適化', '療法士・患者・単位・院内予定を横断し、空き枠配置とリスケ候補を支援するログイン制の提案用MVPです。', '重複・単位チェック', '未配置予約とリスケ提案', '療法士承認後に反映']) {
+  for (const copy of ['既存予定を守りながら、配置を最適化', 'rehainfoの実際の画面テンプレート・CSS・JavaScriptを使い、療法士・患者・単位・院内予定を確認できるログイン制デモです。', '重複・単位チェック', '未配置予約とリスケ提案', '療法士承認後に反映']) {
     assert.ok(corporate.includes(copy), `スマリハスケジューラーの製品コピーがありません: ${copy}`);
   }
-  assert.match(corporate, /href="\/smariha-scheduler\/"[^>]*>Webアプリを開く/);
+  assert.match(corporate, /href="\/rehainfo\/"[^>]*>実際のUIを開く/);
   assert.match(corporate, /<a href="\/#smariha-scheduler">スマリハスケジューラー<\/a>/);
   assert.match(corporateStyles, /\.scheduler-preview/);
   assert.match(schedulerDemo, /<title>スマリハスケジューラー｜methodmore<\/title>/);

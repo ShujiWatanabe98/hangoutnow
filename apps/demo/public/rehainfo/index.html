@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+	<meta name="robots" content="noindex,nofollow,noarchive" />
+	<meta name="theme-color" content="#1b294e" />
+	<link rel="canonical" href="https://method-more.com/rehainfo/" />
+	<title>スケジュール | Smart Rehab</title>
+	<link href="/rehainfo/css/bootstrap.min.css?v=source-20260910" rel="stylesheet" />
+	<link href="/rehainfo/css/bootstrap-icons-1.9.1/bootstrap-icons.css?v=source-20260910" rel="stylesheet" />
+	<link href="/rehainfo/css/variables.css?v=source-20260910" rel="stylesheet" />
+	<link href="/rehainfo/rehainfo-demo.css?v=20260910-1" rel="stylesheet" />
+	<link href="/rehainfo/schedule/schedule.css?v=source-1.3.0" rel="stylesheet" />
+	<script src="/rehainfo/js/bootstrap.bundle.min.js?v=source-20260910" defer="defer"></script>
+	<script src="/rehainfo/rehainfo-demo-adapter.js?v=20260910-1" defer="defer"></script>
+	<script src="/rehainfo/schedule/schedule.js?v=source-1.3.0" defer="defer"></script>
+</head>
+<body>
+	<main id="rehab-schedule-page">
+		<header class="sticky-top" style="z-index:1050;">
+			<nav id="gksCommonNavBar" class="navbar navbar-light">
+				<div class="container-fluid">
+					<div class="d-flex align-items-center">
+						<a href="/rehainfo/" class="navbar-brand bg-white"><img src="/rehainfo/images/SmartRehab-R_Available_Transparent.png" class="logo-image" alt="Smart Rehab®" /></a>
+						<a href="/rehainfo/" class="btn header-button gks-modify-header-btn ms-2 active">スケジュール</a>
+						<a href="/smariha/" class="btn header-button gks-modify-header-btn ms-2">統合ポータル</a>
+					</div>
+					<div class="d-flex align-items-center gap-2"><span class="rehainfo-source-badge">REHAINFO実装・架空データ</span><a href="/rehainfo/logout" class="btn header-button gks-modify-header-btn">ログアウト</a></div>
+				</div>
+			</nav>
+		</header>
+		<div class="rehainfo-demo-notice" role="status"><strong>DEMO</strong><span>rehainfoの実際の画面テンプレート・CSS・JavaScriptを使用しています。表示内容はすべて架空です。</span></div>
+		<section class="schedule-shell">
+			<div class="schedule-toolbar">
+				<div class="date-navigation">
+					<button id="previousDate" type="button" aria-label="前日"><i class="bi bi-chevron-left"></i></button>
+					<input id="scheduleDate" type="date" aria-label="表示日" />
+					<button id="todayButton" type="button">今日</button>
+					<button id="nextDate" type="button" aria-label="翌日"><i class="bi bi-chevron-right"></i></button>
+					<a href="#attendance" data-demo-link="出退勤管理" class="attendance-link-button">出退勤管理</a>
+					<a href="#ai-schedule" data-demo-link="AIスケジュール" class="attendance-link-button">AIスケジュール</a>
+					<a href="#billing-management" data-demo-link="算定管理" class="attendance-link-button">算定管理</a>
+				</div>
+				<div class="view-switch" role="group" aria-label="表示切替">
+					<select id="teamFilter" aria-label="チーム絞り込み"><option value="">全チーム</option></select>
+					<select id="wardFilter" aria-label="病棟絞り込み"><option value="">全病棟</option></select>
+					<button id="copySchedule" type="button">予定コピー</button>
+					<a href="#schedule-management" data-demo-link="運用管理・集計" class="operations-link">運用管理・集計</a>
+					<button id="therapistView" class="active" type="button"><i class="bi bi-person-badge"></i> 療法士別</button>
+					<button id="patientView" type="button"><i class="bi bi-people"></i> 患者別</button>
+				</div>
+			</div>
+			<div id="scheduleNotice" class="schedule-notice d-none" role="status" aria-live="polite"></div>
+			<div class="schedule-quick-panels">
+				<section class="information-panel"><div class="quick-panel-heading"><strong>情報</strong></div><div class="information-summary"><span><i class="legend-dot unassigned"></i>未配置予約 <strong id="unassignedCount">0件</strong></span><span><i class="legend-dot reserved"></i>予約</span><span><i class="legend-dot actual"></i>実績</span><span><i class="legend-dot hospital"></i>院内予定</span><span class="monthly-unit-summary"><span id="summaryMonth">月</span>の合計単位 <strong id="monthlyTotalUnits">0</strong></span><span class="monthly-unit-summary">予約単位 <strong id="monthlyReservedUnits">0</strong></span></div><div id="unassignedQueue" class="unassigned-queue"></div></section>
+				<section><div class="quick-panel-heading"><strong>本日の一括実績</strong><button id="bulkComplete" type="button">選択を実施済み</button></div><div id="bulkActualList" class="bulk-actual-list"></div></section>
+			</div>
+
+			<div class="schedule-board-frame">
+				<div id="scheduleBoard" class="schedule-board" aria-label="リハビリ予約表"></div>
+			</div>
+		</section>
+	</main>
+
+	<div class="modal fade" id="scheduleModal" tabindex="-1" aria-labelledby="scheduleModalTitle" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-centered schedule-modal-dialog">
+			<div class="modal-content schedule-modal-content">
+				<div class="modal-header">
+					<div><small>リハビリ予約</small><h2 id="scheduleModalTitle">予約を追加</h2></div>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="閉じる"></button>
+				</div>
+				<div class="modal-body">
+					<input id="entryId" type="hidden" />
+					<div class="schedule-editor-columns">
+					<section class="reservation-fields">
+					<div class="form-row">
+						<label for="entryDate">日付</label>
+						<input id="entryDate" class="form-control" type="date" />
+					</div>
+					<div class="form-row">
+						<label for="entryPatient">患者</label>
+						<select id="entryPatient" class="form-select"></select>
+					</div>
+					<div class="form-row">
+						<label for="entryTherapist">担当療法士</label>
+						<select id="entryTherapist" class="form-select"></select>
+					</div>
+					<div class="form-row">
+						<label for="entryPreferredPeriod">希望時間帯</label>
+						<select id="entryPreferredPeriod" class="form-select"><option value="">時間指定</option><option>午前</option><option>午後</option><option>時間未定</option></select>
+					</div>
+					<div class="form-grid">
+						<div><label for="entryStart">開始</label><input id="entryStart" class="form-control" type="time" step="60" /></div>
+						<div><label for="entryUnits">単位数</label><select id="entryUnits" class="form-select"><option value="1">1単位（20分）</option><option value="2">2単位（40分）</option><option value="3">3単位（60分）</option></select></div>
+					</div>
+					<div id="scheduleTimePreview" class="schedule-time-preview editor-wide"><span>2分間隔を反映した予定</span><strong id="entryEndPreview">—</strong></div>
+					<div class="form-row editor-wide orca-billing-section">
+						<div class="orca-billing-heading"><label for="entryOrcaCode">ORCA診療行為・算定</label><small id="orcaMasterVersion">現行マスター</small></div>
+						<select id="entryOrcaCode" class="form-select"><option value="">診療行為コードを選択してください</option></select>
+						<div class="orca-billing-summary">
+							<span>コード <strong id="orcaSelectedCode">未選択</strong></span>
+							<span>1単位 <strong id="orcaUnitPoints">—</strong></span>
+							<span>予定算定 <strong id="orcaTotalPoints">—</strong></span>
+						</div>
+						<div class="orca-selection-basis"><strong id="orcaSelectionMode">自動候補を計算中</strong><span id="orcaSelectionReason"></span></div>
+						<small class="orca-billing-caution">予定単位から点数を計算します。患者要件・施設基準・加算・実施単位を確認し、ORCA送信前に確定してください。</small>
+					</div>
+					<div id="entryStatusRow" class="form-row">
+						<label for="entryStatus">区分</label>
+						<select id="entryStatus" class="form-select"><option value="予約">予約</option></select>
+					</div>
+					<div class="form-row editor-wide">
+						<label for="entryNote">内容・メモ</label>
+						<textarea id="entryNote" class="form-control" rows="2" maxlength="120"></textarea>
+					</div>
+					</section>
+					<div class="editor-side-panels">
+					<section class="billing-check-panel">
+						<div class="billing-check-heading"><span>算定チェック</span><small id="billingRuleVersion">検証用ルール</small></div>
+						<div id="billingCheckList">確認中...</div>
+						<small class="billing-check-caution">正式算定では病院マスタと確定済み告示・通知による再判定が必要です。</small>
+					</section>
+					<section id="actualWorkflowPanel" class="actual-workflow-panel d-none">
+						<div class="workflow-heading"><span>実績登録</span><strong id="workflowStatus">予約</strong></div>
+						<div id="workflowActions" class="workflow-actions"></div>
+						<div class="form-grid workflow-fields">
+							<div><label for="actualTherapist">実施療法士</label><select id="actualTherapist" class="form-select"></select></div>
+							<div><label for="actualLocation">実施場所</label><select id="actualLocation" class="form-select"><option>リハビリ室</option><option>病室</option><option>病棟デイルーム</option><option>屋外</option><option>ST室</option><option>ADL室</option></select></div>
+							<div><label for="actualStart">実施開始</label><input id="actualStart" class="form-control" type="time" step="60" /></div>
+							<div><label for="actualEnd">実施終了</label><input id="actualEnd" class="form-control" type="time" step="60" /></div>
+							<div><label for="actualUnits">実施単位</label><select id="actualUnits" class="form-select"><option value="1">1単位</option><option value="2">2単位</option><option value="3">3単位</option></select></div>
+							<div><label for="actualCancelReason">中止理由</label><select id="actualCancelReason" class="form-select"><option value="">選択してください</option><option>患者拒否</option><option>不在</option><option>体調不良</option><option>検査優先</option><option>療法士都合</option><option>医師指示</option><option>その他</option></select></div>
+						</div>
+						<div class="form-row"><label for="actualNote">実績・中止メモ</label><textarea id="actualNote" class="form-control" rows="2" maxlength="200"></textarea></div>
+					</section>
+					</div>
+					</div>
+					<div id="modalValidation" class="modal-validation d-none"></div>
+				</div>
+				<div class="modal-footer">
+					<button id="deleteEntryButton" type="button" class="btn schedule-delete-button d-none">削除</button>
+					<button type="button" class="btn btn-light" data-bs-dismiss="modal">キャンセル</button>
+					<button id="saveEntryButton" type="button" class="btn schedule-primary-button">保存</button>
+				</div>
+			</div>
+		</div>
+	</div>
+</body>
+</html>

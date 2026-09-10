@@ -1,0 +1,18 @@
+{
+  "source": "rehainfo-main",
+  "copiedAt": "2026-09-10",
+  "files": [
+    {
+      "sourcePath": "src/main/resources/static/schedule/schedule.js",
+      "deployedPath": "/rehainfo/schedule/schedule.js",
+      "sha256": "76608C376E3A2F3DFEF2404C212CDC5E0FA9C117A79B157EC0038A9BC131124A"
+    },
+    {
+      "sourcePath": "src/main/resources/static/schedule/schedule.css",
+      "deployedPath": "/rehainfo/schedule/schedule.css",
+      "sha256": "79D6486614D0FB9117FBBD4C1A33EDD4443DD130A11F3959A4A626158C7BF7D8"
+    }
+  ],
+  "dataMode": "fictional-browser-demo",
+  "externalClinicalSystemsConnected": false
+}
