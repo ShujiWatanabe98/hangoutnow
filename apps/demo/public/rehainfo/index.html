@@ -1,5 +1,5 @@
 <!DOCTYPE HTML>
-<html data-rehainfo-source-template="templates/patientList.html" data-rehainfo-source-sha256="BAC47FC64D841BA92F511BB9F594C3F53E598E79736398B5F14080FF23D6E673" xmlns:th="http://www.thymeleaf.org" lang="ja">
+<html data-rehainfo-source-template="templates/patientList.html" data-rehainfo-source-sha256="EB0E57D7D09710FA01377E3586C63086A35644D4CB5A00518F922C1ABCD69785" xmlns:th="http://www.thymeleaf.org" lang="ja">
 
 <head>
 	<meta charset="UTF-8" />
@@ -220,6 +220,17 @@
             font-weight: 400;
         }
 
+        .patient-import-actions {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .patient-import-actions .emr-patient-add-button {
+            margin-left: 0;
+        }
+
         .emr-patient-add-button {
             margin-left: auto;
             min-height: 40px;
@@ -405,9 +416,6 @@
 				<div class="collapse navbar-collapse" id="navbarsExample02" style="padding-right: 5px;">
 						<ul class="navbar-nav flex-row flex-wrap ms-md-auto">
 							
-							<button type="button" class="btn header-button gks-modify-header-btn" style="margin-right: 15px;" onclick="window.open('/rehainfo/prescriptions/patients', '_blank')">
-								AI処方箋
-							</button>
 							<button type="button" class="btn header-button gks-modify-header-btn ocr-link-header-button" style="margin-right: 15px;" onclick="window.open('/rehainfo/ocr/patients', '_blank')">
 								AIOCR
 							</button>
@@ -684,7 +692,10 @@
         <div class="title-list-rectangle">
         </div>
         患者一覧
-        <button type="button" id="emrPatientImportButton" class="emr-patient-add-button">電カルから患者追加</button>
+        <div class="patient-import-actions">
+            <button type="button" id="prescriptionPatientImportButton" class="emr-patient-add-button" onclick="window.open('/rehainfo/prescriptions/patients', '_blank')">処方箋から患者追加</button>
+            <button type="button" id="emrPatientImportButton" class="emr-patient-add-button">電カルから患者追加</button>
+        </div>
     </div>
 	<main>
 		<!-- Modal -->

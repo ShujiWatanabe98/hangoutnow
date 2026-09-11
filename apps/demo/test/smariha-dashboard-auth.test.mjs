@@ -168,6 +168,10 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
     assert.match(html, /id="emrPatientImportButton"[^>]*>電カルから患者追加<\/button>/, path);
   }
 
+  const patientListHtml = await (await fetch(`${origin}/rehainfo/`, { headers: { cookie } })).text();
+  assert.match(patientListHtml, /id="prescriptionPatientImportButton"[^>]*>処方箋から患者追加<\/button>[\s\S]*id="emrPatientImportButton"[^>]*>電カルから患者追加<\/button>/);
+  assert.doesNotMatch(patientListHtml, /class="btn header-button gks-modify-header-btn"[^>]*prescriptions\/patients[^>]*>[\s\S]*?AI処方箋\s*<\/button>/);
+
   const adapter = await (await fetch(`${origin}/rehainfo/source-demo-adapter.js`, { headers: { cookie } })).text();
   assert.equal(new Set(adapter.match(/DEMO2609\d{2}/g) ?? []).size, 10);
   assert.doesNotMatch(adapter, /\/rehainfo-main(?:\/|$)/);
