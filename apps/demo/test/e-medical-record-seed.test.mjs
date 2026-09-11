@@ -30,7 +30,10 @@ test('100名の架空患者に現場想定の基本診療データが揃う', ()
     assert.ok(patient.bmi > 10 && patient.bmi < 50);
     const condition = store.conditions.find((item) => item.patientId === patient.id);
     const rehabilitationPlan = store.rehabilitationPlans.find((item) => item.patientId === patient.id);
-    if (patient.smartRehabId) assert.equal(condition.display, rehabilitationPlan.primaryDiagnosis);
+    if (patient.smartRehabId) {
+      assert.equal(patient.smartRehabId, patient.id, `${patient.id} must use the EMR patient ID in Smart Rehab`);
+      assert.equal(condition.display, rehabilitationPlan.primaryDiagnosis);
+    }
     else assert.equal(condition.code, expectedConditionCodes[patient.department], `condition must match ${patient.department}`);
     const hospitalization = store.encounters.find((item) => item.patientId === patient.id && item.classCode === 'IMP');
     assert.ok(hospitalization?.startedAt, `${patient.id} must have a hospitalization start date`);

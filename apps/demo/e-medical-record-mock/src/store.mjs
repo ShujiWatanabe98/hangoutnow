@@ -45,7 +45,7 @@ const smartRehabPatients = [
   ['DEMO260909', '小林 久美子', 'コバヤシ クミコ', '1951-05-30', 'female', '回復期リハビリテーション科'],
   ['DEMO260910', '加藤 一郎', 'カトウ イチロウ', '1944-10-11', 'male', '整形外科']
 ].map(([smartRehabId, name, kana, birthDate, gender, department], index) => ({
-  id: `SR-${smartRehabId}`, smartRehabId, name, kana, birthDate, gender,
+  id: `SR-${smartRehabId}`, smartRehabId: `SR-${smartRehabId}`, name, kana, birthDate, gender,
   bloodType: '未確認', phone: `090-0000-26${String(index + 1).padStart(2, '0')}`,
   postalCode: '100-0001', address: `東京都架空区スマリハ${index + 1}番地`,
   insurance: { insurerNumber: '06139000', symbol: '架空', number: smartRehabId, branchNumber: '00', status: '有効', copayRate: 30, verifiedAt: now },
@@ -195,7 +195,7 @@ function clinicalProfileFor(patient, fallbackIndex) {
 }
 
 function rehabilitationPlanFor(patient, profile, index, encounterId, conditionId) {
-  const seeded = patient.smartRehabId ? smartRehabPlanSeeds[patient.smartRehabId] : null;
+  const seeded = patient.smartRehabId ? smartRehabPlanSeeds[patient.smartRehabId.replace(/^SR-/, '')] : null;
   const template = rehabilitationTemplates[profile.icd10];
   if (!seeded && !template) return null;
   const [rehabilitationClass, diagnosis, startDate, entryExit, wardName, impairments, risks, goal, professions] = seeded || [
@@ -358,7 +358,7 @@ function createComprehensiveSeed() {
       });
     }
     conditions.push({
-      id: conditionId, patientId: patient.id, code: smartRehabConditionCodes[patient.smartRehabId] || profile.icd10,
+      id: conditionId, patientId: patient.id, code: smartRehabConditionCodes[patient.smartRehabId?.replace(/^SR-/, '')] || profile.icd10,
       display: rehabilitationPlan?.primaryDiagnosis || profile.condition,
       clinicalStatus: 'active', verificationStatus: 'confirmed', recordedDate: occurredAt
     });

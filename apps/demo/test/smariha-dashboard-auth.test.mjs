@@ -147,7 +147,7 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
     assert.ok(html.includes(`data-rehainfo-source-template="${source}"`), source);
     assert.ok(html.includes(title), title);
     assert.ok(html.includes(marker), marker);
-    assert.match(html, /\/rehainfo\/source-demo-adapter\.js\?v=20260911-9/);
+    assert.match(html, /\/rehainfo\/source-demo-adapter\.js\?v=20260911-10/);
     assert.doesNotMatch(html, /patient-list-source|patient-demo|rehainfo-demo-notice/);
   }
 
@@ -272,14 +272,14 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
   const fakeImage = 'data:image/png;base64,iVBORw0KGgo=';
   const prescriptionAnalysis = await fetch(`${origin}/rehainfo/api/prescriptions/analyze`, {
     method: 'POST', headers: { cookie, 'content-type': 'application/json' },
-    body: JSON.stringify({ patientId: 'DEMO260901', prescriptionDate: '2026-09-10', images: [fakeImage] }),
+    body: JSON.stringify({ patientId: 'SR-DEMO260901', prescriptionDate: '2026-09-10', images: [fakeImage] }),
   });
   assert.equal(prescriptionAnalysis.status, 200);
   assert.equal((await prescriptionAnalysis.json()).model, 'smariha-prescription-local-stub');
 
   const ocrAnalysis = await fetch(`${origin}/rehainfo/api/ocr/analyze`, {
     method: 'POST', headers: { cookie, 'content-type': 'application/json' },
-    body: JSON.stringify({ patientId: 'DEMO260901', evaluationId: 'FIM', evaluationDate: '2026-09-10', images: [fakeImage] }),
+    body: JSON.stringify({ patientId: 'SR-DEMO260901', evaluationId: 'FIM', evaluationDate: '2026-09-10', images: [fakeImage] }),
   });
   assert.equal(ocrAnalysis.status, 200);
   assert.equal((await ocrAnalysis.json()).model, 'smariha-aiocr-local-stub');

@@ -595,7 +595,7 @@ createServer(async (request, response) => {
       const allowedEvaluations = new Set(['FIM', 'BBS', 'SLTA', 'WAIS-IV', 'WMS-R', 'BIT', 'CAT-R', 'STEF']);
       const imagePattern = /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
       const totalBytes = images.reduce((sum, image) => sum + Buffer.byteLength(String(image)), 0);
-      if (!/^DEMO\d{6}$/.test(patientId) || !allowedEvaluations.has(evaluationId)
+      if (!/^[A-Za-z0-9.-]{1,64}$/.test(patientId) || !allowedEvaluations.has(evaluationId)
           || !/^\d{4}-\d{2}-\d{2}$/.test(evaluationDate) || images.length < 1 || images.length > 20
           || totalBytes > 19 * 1024 * 1024 || images.some((image) => !imagePattern.test(String(image)))) {
         response.writeHead(400, { ...securityHeaders, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
@@ -665,7 +665,7 @@ createServer(async (request, response) => {
       const images = Array.isArray(body.images) ? body.images : [];
       const imagePattern = /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
       const totalBytes = images.reduce((sum, image) => sum + Buffer.byteLength(String(image)), 0);
-      if (!/^DEMO\d{6}$/.test(patientId) || !/^\d{4}-\d{2}-\d{2}$/.test(prescriptionDate)
+      if (!/^[A-Za-z0-9.-]{1,64}$/.test(patientId) || !/^\d{4}-\d{2}-\d{2}$/.test(prescriptionDate)
           || images.length < 1 || images.length > 4 || totalBytes > 19 * 1024 * 1024
           || images.some((image) => !imagePattern.test(String(image)))) {
         response.writeHead(400, { ...securityHeaders, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
