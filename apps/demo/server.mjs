@@ -39,8 +39,7 @@ const smarihaDashboardPath = '/smariha-dashboard';
 const smarihaSchedulerPath = '/smariha-scheduler';
 const smarihaPortalPath = '/smariha';
 const rehainfoSourceUiPath = '/rehainfo';
-const rehainfoMainEntryPath = '/rehainfo-main';
-const rehainfoUiPaths = [rehainfoSourceUiPath, rehainfoMainEntryPath];
+const rehainfoUiPaths = [rehainfoSourceUiPath];
 const smarihaDashboardUsername = process.env.SMARIHA_DASHBOARD_USERNAME?.trim() || 'rehadash';
 const smarihaDashboardPasswordHash = process.env.SMARIHA_DASHBOARD_PASSWORD_SHA256?.trim().toLowerCase()
   || '62530a7bc852b7d6cb8472a50218f44dffa8128b5f45d48ef9de21fc4188005b';
@@ -419,9 +418,7 @@ createServer(async (request, response) => {
   }
   const activeRehainfoPath = rehainfoUiPaths
     .find((path) => normalizedRequestedPath === path || requestedPath.startsWith(`${path}/`));
-  const rehainfoRequestPath = activeRehainfoPath === rehainfoMainEntryPath
-    ? `${rehainfoSourceUiPath}${requestedPath.slice(rehainfoMainEntryPath.length)}`
-    : requestedPath;
+  const rehainfoRequestPath = requestedPath;
   const normalizedRehainfoRequestPath = rehainfoRequestPath.replace(/\/+$/, '') || '/';
   const activeSmarihaPath = [...rehainfoUiPaths, smarihaPortalPath, smarihaSchedulerPath, smarihaDashboardPath]
     .find((path) => normalizedRequestedPath === path || requestedPath.startsWith(`${path}/`)) ?? smarihaDashboardPath;
@@ -903,12 +900,9 @@ createServer(async (request, response) => {
     const fileBody = await readFile(file);
     const isKoiNoShioriPage = requestedPath === '/koi-no-shiori' || requestedPath.startsWith('/koi-no-shiori/');
     const isApplicationPage = isHangoutNowAdminPath || requestedPath === '/demo.html' || requestedPath === '/app.html' || requestedPath.startsWith('/coachgo-demo') || requestedPath.startsWith('/coachgo-admin') || requestedPath.startsWith('/divertnavi-app') || requestedPath.startsWith('/minnade-kaigo') || requestedPath.startsWith('/smariha-dashboard') || requestedPath.startsWith('/smariha-scheduler') || requestedPath.startsWith('/smariha/') || requestedPath === '/smariha' || rehainfoUiPaths.some((path) => requestedPath.startsWith(`${path}/`) || requestedPath === path) || isKoiNoShioriPage;
-    const applicationBody = activeRehainfoPath === rehainfoMainEntryPath && ['.html', '.css', '.js', '.svg'].includes(extname(file))
-      ? Buffer.from(fileBody.toString('utf8').replaceAll(rehainfoSourceUiPath, rehainfoMainEntryPath))
-      : fileBody;
     const body = extname(file) === '.html' && !isApplicationPage
       ? Buffer.from(fileBody.toString('utf8').replace('<head>', '<head><link rel="stylesheet" href="/cookie-consent.css?v=20260816-2"><link rel="stylesheet" href="/share.css?v=20260821-2"><script src="/analytics.js?v=20260820-2" defer></script><script src="/attribution.js?v=20260821-2" defer></script><script src="/share.js?v=20260821-3" defer></script>'))
-      : applicationBody;
+      : fileBody;
     const isMutableKoiNoShioriAsset = requestedPath === '/koi-no-shiori/sw.js' || requestedPath === '/koi-no-shiori/manifest.webmanifest';
     const isVersionedAsset = requestedPath.startsWith('/assets/') || ['.css', '.js', '.svg', '.png', '.jpg', '.jpeg', '.webp'].includes(extname(file));
     response.writeHead(200, {

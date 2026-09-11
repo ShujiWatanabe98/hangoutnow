@@ -149,7 +149,7 @@ test('homepage targets Shinjuku solo participants with measurable acquisition li
   assert.match(server, /location: '\/shinjuku-working-adult-friends\.html'/);
 });
 
-test('corporate homepage presents the eight methodmore products accurately', async () => {
+test('corporate homepage presents the seven methodmore products accurately', async () => {
   const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles, coachDemo, coachStyles, coachBootstrap, coachDemoScript, coachDriveModule, coachUnderpassModule, coachPoliceModule, coachNaturalSpeechModule, coachRoadSnappingModule, coachSmoothLocationModule, coachUserReportAggregationModule, coachVoiceApproachModule, coachMonitorPointsJson, coachUnderpassFeedJson, coachPrivacy, coachSupport, coachDataSources, careDemo, careStyles, careApp, carePersonas, careManifestJson, smarihaDemo, smarihaStyles, smarihaScript, smarihaLogin, smarihaLoginScript, smarihaTaisho, smarihaKeijinkai, schedulerDemo, schedulerStyles, schedulerScript, schedulerLogin, schedulerLoginScript, server] = await Promise.all([
     readFile(new URL('../public/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/hangout-now.html', import.meta.url), 'utf8'),
@@ -199,7 +199,7 @@ test('corporate homepage presents the eight methodmore products accurately', asy
 
   assert.match(corporate, /<title>methodmore｜日常の選択を、もっと前へ。<\/title>/);
   assert.match(corporate, /<link rel="canonical" href="https:\/\/method-more\.com\/">/);
-  assert.equal((corporate.match(/<article class="product-card/g) ?? []).length, 8);
+  assert.equal((corporate.match(/<article class="product-card/g) ?? []).length, 7);
   assert.match(corporate, /href="\/hangout-now\.html"/);
   assert.match(corporate, /href="\/divertnavi\.html"/);
   assert.match(corporate, /href="\/divertnavi-app\/">Webアプリを開く<\/a>/);
@@ -210,7 +210,7 @@ test('corporate homepage presents the eight methodmore products accurately', asy
   assert.match(corporate, /恋の<em>しおり<\/em>/);
   assert.match(corporate, /RoboCare <em>One<\/em>/);
   assert.match(corporate, /スマリハ<br><em>管理ダッシュボード<\/em>/);
-  assert.match(corporate, /Smart Rehab<br><em>患者・退院・AI処方箋<\/em>/);
+  assert.doesNotMatch(corporate, /rehainfo-main|Smart Rehab<br><em>患者・退院・AI処方箋<\/em>|スマリハスケジューラー/);
   assert.doesNotMatch(corporate, /スマリハ統合ポータル|スマリハ<br><em>統合ポータル<\/em>|href="\/smariha\/"|id="smariha-suite"/);
   assert.match(corporate, /公開中/);
   assert.match(corporate, /Android MVP 開発中/);
@@ -266,11 +266,6 @@ test('corporate homepage presents the eight methodmore products accurately', asy
   assert.match(server, /const smarihaDashboardPath = '\/smariha-dashboard'/);
   assert.match(server, /requestedPath === '\/smariha-dashboard\/taisho\/'/);
   assert.match(server, /requestedPath === '\/smariha-dashboard\/keijinkai\/'/);
-  for (const copy of ['既存予定を守りながら、配置を最適化', 'rehainfoで開発した患者管理、退院機能、AI処方箋、療法士・単位・院内予定を一つに統合したログイン制デモです。', '架空患者10件・退院管理', 'AI処方箋の読取・保存', '予定・単位・院内予定']) {
-    assert.ok(corporate.includes(copy), `スマリハスケジューラーの製品コピーがありません: ${copy}`);
-  }
-  assert.match(corporate, /href="\/rehainfo-main\/"[^>]*>実際のUIを開く/);
-  assert.match(corporate, /<a href="\/#smariha-scheduler">スマリハスケジューラー<\/a>/);
   assert.match(corporateStyles, /\.scheduler-preview/);
   assert.match(schedulerDemo, /<title>スマリハスケジューラー｜methodmore<\/title>/);
   assert.match(schedulerDemo, /<link rel="canonical" href="https:\/\/method-more\.com\/smariha-scheduler\/">/);
