@@ -1,6 +1,6 @@
 {
   "source": "rehainfo-main/src/main/resources",
-  "capturedAt": "2026-09-10",
+  "capturedAt": "2026-09-11",
   "sourcePolicy": "Public Smart Rehab screens must be generated from copied upstream Thymeleaf templates. Independently authored replacement UI is forbidden.",
   "generationCommand": "npm run sync:rehainfo -w @hangout-now/demo",
   "verificationCommand": "npm run check:rehainfo-source -w @hangout-now/demo",
@@ -28,8 +28,9 @@
     "/smariha-scheduler": "/rehainfo/schedule"
   },
   "sourceManifest": "apps/demo/rehainfo-source/source-manifest.json",
-  "dataMode": "fictional-browser-demo; SOAP and extracted AI text are stored only in browser localStorage",
+  "dataMode": "fictional-browser-demo; SOAP, extracted AI text, and imported mock FHIR prescriptions are stored only in browser localStorage",
   "prescriptionImageProcessing": "OpenAI Responses API with store=false; images are discarded after the response",
   "aiOcrImageProcessing": "OpenAI Responses API with store=false; images are discarded after the response",
+  "emrMockIntegration": "authenticated same-origin FHIR R4 MedicationRequest mock; fictional data only",
   "externalClinicalSystemsConnected": false
 }

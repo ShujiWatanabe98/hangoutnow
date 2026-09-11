@@ -24,7 +24,7 @@
             window.initialPatientsData = [];
         }
     </script>
-    <script src="/rehainfo/js/ocr/PatientList.js?v=1.0.3"></script>
+    <script src="/rehainfo/js/ocr/PatientList.js?v=1.0.4"></script>
     <style>
         body {
             background-color: #E8E9ED;
@@ -361,6 +361,23 @@
 
         .btn-action:active {
             background-color: #141f3b;
+        }
+
+        .btn-emr-link {
+            background-color: #0F766E;
+        }
+
+        .btn-emr-link:hover {
+            background-color: #0D655E;
+        }
+
+        .btn-emr-link:active {
+            background-color: #0B554F;
+        }
+
+        .btn-action:disabled {
+            cursor: wait;
+            opacity: 0.75;
         }
 
         .pagination-section {

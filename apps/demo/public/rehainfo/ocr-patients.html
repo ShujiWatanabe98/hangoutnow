@@ -1,5 +1,5 @@
 <!DOCTYPE HTML>
-<html data-rehainfo-source-template="templates/ocr/patientList.html" data-rehainfo-source-sha256="B387248237C6D00C6EE31D497FC9359B2EE504A3333CC3814B589A1253A1539A" xmlns:th="http://www.thymeleaf.org" lang="ja">
+<html data-rehainfo-source-template="templates/ocr/patientList.html" data-rehainfo-source-sha256="612CFA828B275D04607964C4606B071F3E14D5B3CA180CB91D3F8545B20BFA40" xmlns:th="http://www.thymeleaf.org" lang="ja">
 <head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -153,7 +153,7 @@
 			--body-bg-color: #E8E9ED !important;
 		}
 	</style>
-	<script src="/rehainfo/source-demo-adapter.js?v=20260910-6"></script>
+	<script src="/rehainfo/source-demo-adapter.js?v=20260911-1"></script>
 </head>
 <head>
     <meta charset="UTF-8" />
@@ -178,7 +178,7 @@
             window.initialPatientsData = [];
         }
     </script>
-    <script src="/rehainfo/js/ocr/PatientList.js?v=1.0.3"></script>
+    <script src="/rehainfo/js/ocr/PatientList.js?v=1.0.4"></script>
     <style>
         body {
             background-color: #E8E9ED;
@@ -515,6 +515,23 @@
 
         .btn-action:active {
             background-color: #141f3b;
+        }
+
+        .btn-emr-link {
+            background-color: #0F766E;
+        }
+
+        .btn-emr-link:hover {
+            background-color: #0D655E;
+        }
+
+        .btn-emr-link:active {
+            background-color: #0B554F;
+        }
+
+        .btn-action:disabled {
+            cursor: wait;
+            opacity: 0.75;
         }
 
         .pagination-section {

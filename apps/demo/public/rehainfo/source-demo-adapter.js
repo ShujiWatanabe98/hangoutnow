@@ -13,12 +13,16 @@
   const OCR_ANALYZE_API = '/rehainfo/api/ocr/analyze';
   const PRESCRIPTION_REGISTER_API = '/rehainfo/api/prescriptions/register';
   const PRESCRIPTION_ANALYZE_API = '/rehainfo/api/prescriptions/analyze';
+  const EMR_PRESCRIPTION_IMPORT_API = '/rehainfo/api/prescriptions/emr/import';
+  const EMR_OAUTH_TOKEN_API = '/rehainfo/emr/oauth/token';
+  const EMR_FHIR_MEDICATION_REQUEST_API = '/rehainfo/emr/fhir/r4/MedicationRequest';
   const STORAGE_KEY = 'rehainfo-source-ui-demo-v1';
   const PRESCRIPTION_STORAGE_KEY = 'rehainfo-source-ui-prescriptions-v1';
   const OCR_STORAGE_KEY = 'rehainfo-source-ui-ocr-v1';
   const SOAP_STORAGE_KEY = 'rehainfo-source-ui-soap-v1';
   const originalFetch = window.fetch.bind(window);
   const uploadedPrescriptionImages = new Map();
+  let emrMockAccessToken = '';
   const activePatientMatch = /^\/rehainfo\/patient\/([^/]+)\/(?:top|treatment-soap\/soap-list)\/?$/.exec(location.pathname);
   window.REHAINFO_ACTIVE_REC_ID = activePatientMatch ? decodeURIComponent(activePatientMatch[1]) : '';
   window.navigateToPatientList = function () { window.location.href = '/rehainfo/ocr/patients'; };
@@ -177,6 +181,46 @@
     return lines.join('\n') || '処方箋の文字を読み取れませんでした';
   }
 
+  function emrPrescriptionSummary(resource) {
+    const medication = resource.medicationCodeableConcept?.text
+      || resource.medicationCodeableConcept?.coding?.[0]?.display
+      || '薬剤名未設定';
+    const dispense = resource.dispenseRequest || {};
+    const quantity = dispense.quantity || {};
+    const dosage = resource.dosageInstruction?.[0]?.text || '';
+    const requester = resource.requester?.display || '';
+    return [
+      resource.authoredOn ? `処方日：${String(resource.authoredOn).slice(0, 10).replaceAll('-', '/')}` : '',
+      '取得元：電カルモック（HL7 FHIR R4 / JP Core MedicationRequest）',
+      requester ? `医師：${requester}` : '',
+      '薬剤',
+      `・${medication}${quantity.value ? ` ${quantity.value}${quantity.unit || ''}` : ''}${dosage ? ` ${dosage}` : ''}`,
+      '備考：電カルモックの架空処方データです'
+    ].filter(Boolean).join('\n');
+  }
+
+  async function fetchEmrMedicationRequests(patientReference, retry) {
+    if (!emrMockAccessToken) {
+      const tokenResponse = await originalFetch(EMR_OAUTH_TOKEN_API, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ grant_type: 'client_credentials', client_id: 'smart-rehab-public-demo', scope: 'system/MedicationRequest.read' })
+      });
+      const token = await tokenResponse.json().catch(function () { return {}; });
+      if (!tokenResponse.ok || !token.access_token) throw new Error('電カルモックの認証に失敗しました。');
+      emrMockAccessToken = token.access_token;
+    }
+    const response = await originalFetch(`${EMR_FHIR_MEDICATION_REQUEST_API}?patient=${encodeURIComponent(patientReference)}`, {
+      method: 'GET', credentials: 'same-origin',
+      headers: { Accept: 'application/fhir+json', Authorization: `Bearer ${emrMockAccessToken}` }
+    });
+    if (response.status === 401 && retry !== false) {
+      emrMockAccessToken = '';
+      return fetchEmrMedicationRequests(patientReference, false);
+    }
+    return response;
+  }
+
   async function prescriptionApi(url, options) {
     const parsed = new URL(url, location.origin);
     const method = String(options.method || 'GET').toUpperCase();
@@ -196,6 +240,52 @@
       const imageId = `PUBLIC-RX-${Date.now()}-${Math.random().toString(16).slice(2)}`;
       uploadedPrescriptionImages.set(imageId, await fileAsDataUrl(file));
       return json({ success: true, imageId: imageId });
+    }
+    if (method === 'POST' && parsed.pathname === EMR_PRESCRIPTION_IMPORT_API) {
+      const targetPatient = prescriptionPatient(parsed.searchParams.get('recId'));
+      if (!targetPatient) return json({ success: false, errorMessage: '対象患者を確認してください。' }, 400);
+      const patientReference = `Patient/SR-${targetPatient.patientId}`;
+      let fhirResponse;
+      try {
+        fhirResponse = await fetchEmrMedicationRequests(patientReference);
+      } catch (_) {
+        return json({ success: false, errorMessage: '電カルモックの認証に失敗しました。' }, 502);
+      }
+      const bundle = await fhirResponse.json().catch(function () { return {}; });
+      if (!fhirResponse.ok || bundle.resourceType !== 'Bundle') {
+        return json({ success: false, errorMessage: '電カルモックから処方箋を取得できませんでした。' }, fhirResponse.status || 502);
+      }
+      const records = readPrescriptionStore();
+      let importedCount = 0;
+      let skippedCount = 0;
+      (bundle.entry || []).forEach(function (entry) {
+        const resource = entry.resource || {};
+        const externalId = String(resource.id || '');
+        if (resource.resourceType !== 'MedicationRequest' || resource.subject?.reference !== patientReference || !externalId) return;
+        if (records.some(function (record) { return record.source === 'emr-mock' && record.externalId === externalId; })) {
+          skippedCount += 1;
+          return;
+        }
+        records.unshift({
+          id: `EMR-${externalId}`,
+          externalId: externalId,
+          source: 'emr-mock',
+          recId: targetPatient.recId,
+          patientId: targetPatient.patientId,
+          evaluationDate: resource.authoredOn ? String(resource.authoredOn).slice(0, 10).replaceAll('-', '/') : '',
+          summary: emrPrescriptionSummary(resource),
+          status: 'OCR_DONE',
+          createdAt: new Date().toISOString(),
+          standard: 'HL7 FHIR R4 / JP Core MedicationRequest',
+          fictionalDemoOnly: true
+        });
+        importedCount += 1;
+      });
+      writePrescriptionStore(records);
+      const message = importedCount > 0
+        ? `電カルモックから処方箋${importedCount}件を取得しました。`
+        : '電カルモックの処方箋はすでに取得済みです。';
+      return json({ success: true, importedCount: importedCount, skippedCount: skippedCount, message: message });
     }
     if (method === 'POST' && parsed.pathname === PRESCRIPTION_REGISTER_API) {
       let payload;
@@ -561,7 +651,7 @@
   async function sourceApi(url, options) {
     const parsed = new URL(url, location.origin);
     const method = String(options.method || 'GET').toUpperCase();
-    if ([OCR_PATIENT_API, OCR_UPLOAD_API, PRESCRIPTION_REGISTER_API].includes(parsed.pathname)) return prescriptionApi(url, options);
+    if ([OCR_PATIENT_API, OCR_UPLOAD_API, PRESCRIPTION_REGISTER_API, EMR_PRESCRIPTION_IMPORT_API].includes(parsed.pathname)) return prescriptionApi(url, options);
     if (parsed.pathname === OCR_REGISTER_API) return ocrApi(url, options);
     if (/^\/rehainfo\/patient\/[^/]+\/(?:treatment-soap\/|delete-treatment-soap)/.test(parsed.pathname)) return soapApi(url, options);
     let payload = {};
@@ -598,7 +688,7 @@
     const url = typeof input === 'string' ? input : input.url;
     const path = new URL(url, location.origin).pathname;
     if ([API, THERAPIST_API, ATTENDANCE_API, BILLING_API, OPERATIONS_API, AI_API].some(function (prefix) { return path.startsWith(prefix); })
-        || [OCR_PATIENT_API, OCR_UPLOAD_API, OCR_REGISTER_API, PRESCRIPTION_REGISTER_API].includes(path)
+        || [OCR_PATIENT_API, OCR_UPLOAD_API, OCR_REGISTER_API, PRESCRIPTION_REGISTER_API, EMR_PRESCRIPTION_IMPORT_API].includes(path)
         || /^\/rehainfo\/patient\/[^/]+\/(?:treatment-soap\/|delete-treatment-soap)/.test(path)) {
       return sourceApi(url, options || {});
     }
@@ -728,7 +818,7 @@
       const records = readPrescriptionStore().filter(function (item) { return item.recId === recId; }).slice(0, 10);
       if (title) title.textContent = `${targetPatient.patientName}さんの保存済み処方箋`;
       if (readLink) readLink.href = `/rehainfo/prescriptions/patient/${encodeURIComponent(recId)}/read`;
-      if (warning) warning.textContent = '公開版は架空データ専用です。表示内容は外部AIの読取結果を保存したもので、必ず原本と照合してください。';
+      if (warning) warning.textContent = '公開版は架空データ専用です。電カル取得データとAI読取結果は参考情報のため、必ず原本と照合してください。';
       if (body) {
         body.textContent = '';
         records.forEach(function (item) {

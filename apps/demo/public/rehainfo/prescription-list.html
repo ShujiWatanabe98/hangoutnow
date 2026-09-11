@@ -1,5 +1,5 @@
 <!DOCTYPE HTML>
-<html data-rehainfo-source-template="templates/prescription/list.html" data-rehainfo-source-sha256="57592B8F07595318A99554E5080D3E14674882CAF364FC33E1BB9F5E12869B7F" xmlns:th="http://www.thymeleaf.org" lang="ja">
+<html data-rehainfo-source-template="templates/prescription/list.html" data-rehainfo-source-sha256="CEB3513845600A47B4D75EEEA1E27043030D0186A52AD935FC4F6C297A1542F0" xmlns:th="http://www.thymeleaf.org" lang="ja">
 <head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -153,7 +153,7 @@
 			--body-bg-color: #E8E9ED !important;
 		}
 	</style>
-	<script src="/rehainfo/source-demo-adapter.js?v=20260910-6"></script>
+	<script src="/rehainfo/source-demo-adapter.js?v=20260911-1"></script>
 </head>
 <head>
     <meta charset="UTF-8" />
@@ -221,14 +221,14 @@
                 <i class="bi bi-arrow-left back-icon" onclick="showLoadingSpinner(); window.location.href='/rehainfo/prescriptions/patients';"></i>
                 <span data-prescription-patient-title>保存済み処方箋</span>
             </h1>
-            <div class="warning"><i class="bi bi-exclamation-triangle me-2"></i>AI読取結果は参考情報です。薬剤名・用量・用法・日数を必ず処方箋原本と照合してください。</div>
+            <div class="warning"><i class="bi bi-exclamation-triangle me-2"></i>電カル取得データとAI読取結果は参考情報です。薬剤名・用量・用法・日数を必ず処方箋原本と照合してください。</div>
             <div class="actions">
                 <a class="btn-read" data-prescription-read-link href="/rehainfo/prescriptions/patients"><i class="bi bi-prescription2 me-2"></i>処方箋読込</a>
             </div>
 
             <div class="list-card">
                 <table id="prescription-list-table">
-                    <thead><tr><th>処方日</th><th>AI読取結果</th><th>状態</th><th>保存日時</th></tr></thead>
+                    <thead><tr><th>処方日</th><th>処方箋データ</th><th>状態</th><th>保存日時</th></tr></thead>
                     <tbody id="prescription-list-body">
                         <tr>
                             <td>2026/09/10</td>

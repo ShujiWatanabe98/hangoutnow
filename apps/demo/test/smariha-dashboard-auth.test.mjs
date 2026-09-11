@@ -90,9 +90,17 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
   ]) assert.equal((await fetch(`${origin}${asset}`)).status, 200, asset);
   assert.equal((await fetch(`${origin}/rehainfo/source-demo-adapter.js`, { redirect: 'manual' })).status, 401);
   assert.equal((await fetch(`${origin}/rehainfo/schedule/schedule.js`, { redirect: 'manual' })).status, 401);
+  const protectedEmr = await fetch(`${origin}/rehainfo/emr/fhir/r4/MedicationRequest?patient=Patient%2FSR-DEMO260901`, { redirect: 'manual' });
+  assert.equal(protectedEmr.status, 302);
+  assert.equal(protectedEmr.headers.get('location'), '/rehainfo/login.html');
   const protectedPrescription = await fetch(`${origin}/rehainfo/prescriptions/patients`, { redirect: 'manual' });
   assert.equal(protectedPrescription.status, 302);
   assert.equal(protectedPrescription.headers.get('location'), '/rehainfo/login.html');
+  const protectedEmrMock = await fetch(`${origin}/rehainfo/emr/`, { redirect: 'manual' });
+  assert.equal(protectedEmrMock.status, 302);
+  assert.equal(protectedEmrMock.headers.get('location'), '/rehainfo/login.html');
+  assert.equal((await fetch(`${origin}/rehainfo/emr/app.js`, { redirect: 'manual' })).status, 401);
+  assert.equal((await fetch(`${origin}/rehainfo/emr/oauth/token`, { method: 'POST', redirect: 'manual' })).status, 401);
 
   const rejected = await fetch(`${origin}/rehainfo/login`, {
     method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
@@ -139,7 +147,7 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
     assert.ok(html.includes(`data-rehainfo-source-template="${source}"`), source);
     assert.ok(html.includes(title), title);
     assert.ok(html.includes(marker), marker);
-    assert.match(html, /\/rehainfo\/source-demo-adapter\.js\?v=20260910-6/);
+    assert.match(html, /\/rehainfo\/source-demo-adapter\.js\?v=20260911-1/);
     assert.doesNotMatch(html, /patient-list-source|patient-demo|rehainfo-demo-notice/);
   }
 
@@ -148,7 +156,36 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
   assert.doesNotMatch(adapter, /\/rehainfo-main(?:\/|$)/);
   assert.doesNotMatch(adapter, /外部AIへ送信せず|外部AIを使わないデモ用の固定結果/);
   assert.match(adapter, /画像は読取時のみ外部AIへ送信され、結果は必ず原本と照合してください/);
-  for (const marker of ['REHAINFO_DEMO_PATIENT_COLUMNS', 'ATTENDANCE_API', 'BILLING_API', 'OPERATIONS_API', 'AI_API', 'PRESCRIPTION_REGISTER_API', 'OCR_REGISTER_API', 'SOAP_STORAGE_KEY', 'prescriptionSummary', 'ocrSummary']) assert.match(adapter, new RegExp(marker));
+  for (const marker of ['REHAINFO_DEMO_PATIENT_COLUMNS', 'ATTENDANCE_API', 'BILLING_API', 'OPERATIONS_API', 'AI_API', 'PRESCRIPTION_REGISTER_API', 'EMR_PRESCRIPTION_IMPORT_API', 'EMR_OAUTH_TOKEN_API', 'EMR_FHIR_MEDICATION_REQUEST_API', 'OCR_REGISTER_API', 'SOAP_STORAGE_KEY', 'prescriptionSummary', 'emrPrescriptionSummary', 'ocrSummary']) assert.match(adapter, new RegExp(marker));
+
+  const emrPageResponse = await fetch(`${origin}/rehainfo/emr/`, { headers: { cookie } });
+  const emrPage = await emrPageResponse.text();
+  assert.equal(emrPageResponse.status, 200);
+  assert.equal(emrPageResponse.headers.get('x-robots-tag'), 'noindex, nofollow, noarchive');
+  assert.match(emrPage, /MediLink Chart/);
+  assert.match(emrPage, /架空データ専用・外部送信なし/);
+  assert.match(emrPage, /href="\/rehainfo\/"/);
+  const emrScript = await fetch(`${origin}/rehainfo/emr/app.js?v=20260911-1`, { headers: { cookie } });
+  assert.equal(emrScript.status, 200);
+  assert.equal(emrScript.headers.get('x-robots-tag'), 'noindex, nofollow, noarchive');
+
+  const emrTokenResponse = await fetch(`${origin}/rehainfo/emr/oauth/token`, {
+    method: 'POST',
+    headers: { cookie, 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'client_credentials', client_id: 'public-demo-test', scope: 'system/*.read system/*.write' }),
+  });
+  assert.equal(emrTokenResponse.status, 200);
+  const emrToken = (await emrTokenResponse.json()).access_token;
+  assert.ok(emrToken);
+  const emrApiHeaders = { cookie, authorization: `Bearer ${emrToken}` };
+  const emrPatientsResponse = await fetch(`${origin}/rehainfo/emr/api/v1/patients`, { headers: emrApiHeaders });
+  assert.equal(emrPatientsResponse.status, 200);
+  const emrPatients = await emrPatientsResponse.json();
+  assert.ok(emrPatients.total >= 4);
+  assert.ok(emrPatients.items.every((patient) => patient.address.includes('架空')));
+  const emrBundleResponse = await fetch(`${origin}/rehainfo/emr/api/v1/dx/patients/P0001001/fhir-bundle`, { headers: emrApiHeaders });
+  assert.equal(emrBundleResponse.status, 200);
+  assert.equal((await emrBundleResponse.json()).resourceType, 'Bundle');
 
   for (const asset of [
     '/rehainfo/js/ocr/PatientList.js',
@@ -160,6 +197,33 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
     '/rehainfo/js/soapList.js',
     '/rehainfo/images/icons/ocr/magic-start.svg',
   ]) assert.equal((await fetch(`${origin}${asset}`, { headers: { cookie } })).status, 200, asset);
+
+  const patientListScript = await (await fetch(`${origin}/rehainfo/js/ocr/PatientList.js`, { headers: { cookie } })).text();
+  assert.match(patientListScript, /電カル連携[\s\S]*処方箋読込/);
+
+  const tokenResponse = await fetch(`${origin}/rehainfo/emr/oauth/token`, {
+    method: 'POST', headers: { cookie, 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'client_credentials', client_id: 'smart-rehab-test', scope: 'system/MedicationRequest.read' }),
+  });
+  assert.equal(tokenResponse.status, 200);
+  const accessToken = (await tokenResponse.json()).access_token;
+  assert.ok(accessToken);
+
+  const fhirResponse = await fetch(`${origin}/rehainfo/emr/fhir/r4/MedicationRequest?patient=Patient%2FSR-DEMO260904`, {
+    headers: { cookie, accept: 'application/fhir+json', authorization: `Bearer ${accessToken}` },
+  });
+  assert.equal(fhirResponse.status, 200);
+  assert.match(fhirResponse.headers.get('content-type'), /application\/fhir\+json/);
+  assert.ok(fhirResponse.headers.get('x-request-id'));
+  const fhirBundle = await fhirResponse.json();
+  assert.equal(fhirBundle.resourceType, 'Bundle');
+  assert.equal(fhirBundle.total, 1);
+  assert.equal(fhirBundle.entry[0].resource.subject.reference, 'Patient/SR-DEMO260904');
+  assert.ok(fhirBundle.entry[0].resource.meta.profile.includes('http://jpfhir.jp/fhir/core/StructureDefinition/JP_MedicationRequest'));
+
+  const emrHealth = await fetch(`${origin}/rehainfo/emr/healthz`, { headers: { cookie } });
+  assert.equal(emrHealth.status, 200);
+  assert.equal((await emrHealth.json()).service, 'eMedicalRecordMock');
 
   const prescriptionRedirect = await fetch(`${origin}/rehainfo/prescriptions`, { headers: { cookie }, redirect: 'manual' });
   assert.equal(prescriptionRedirect.status, 302);

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="電子カルテ標準仕様 2026 基本要件を参照した、架空データ専用の操作可能な電子カルテモック">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <title>MediLink Chart | 電子カルテモック</title>
+  <link rel="stylesheet" href="./styles.css?v=20260911-1">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="メインナビゲーション">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">M</div>
+        <div><strong>MediLink Chart</strong><span>Standard EMR Mock</span></div>
+      </div>
+      <nav id="main-nav">
+        <a href="#/dashboard" data-route="dashboard"><span>⌂</span>ホーム</a>
+        <a href="#/patients" data-route="patients"><span>♙</span>患者一覧</a>
+        <a href="#/records" data-route="records"><span>▤</span>カルテ一覧</a>
+        <a href="#/encounter" data-route="encounter"><span>✚</span>診療</a>
+        <a href="#/prescriptions" data-route="prescriptions"><span>℞</span>処方</a>
+        <a href="#/labs" data-route="labs"><span>⌁</span>検査オーダ</a>
+        <a href="#/erx" data-route="erx"><span>⇄</span>電子処方箋</a>
+        <a href="#/fhir" data-route="fhir"><span>{ }</span>FHIR文書</a>
+      </nav>
+      <div class="sidebar-foot">
+        <div class="connection"><i></i>医療DX接続：模擬正常</div>
+        <small>架空データ専用・外部送信なし</small>
+      </div>
+    </aside>
+
+    <div class="main-column">
+      <header class="topbar">
+        <button class="mobile-menu" id="mobile-menu" aria-label="メニューを開く">☰</button>
+        <div class="facility">
+          <strong>青葉メディカルセンター</strong>
+          <span>テナント：TENANT-DEMO</span>
+        </div>
+        <div class="top-actions">
+          <a class="back-link" href="/rehainfo/">Smart Rehabへ戻る</a>
+          <span class="env-badge">DEMO</span>
+          <button class="icon-button" id="help-button" aria-label="このモックについて">?</button>
+          <div class="user-chip"><span>佐</span><div><strong>佐藤 医師</strong><small>内科 / PRACT-001</small></div></div>
+        </div>
+      </header>
+
+      <section id="patient-strip" class="patient-strip hidden" aria-live="polite"></section>
+      <main id="app" tabindex="-1"><div class="loading">読み込み中…</div></main>
+    </div>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <dialog id="about-dialog">
+    <form method="dialog">
+      <button class="dialog-close" aria-label="閉じる">×</button>
+      <h2>このモックについて</h2>
+      <p>2026年3月31日公開の診療所・中小病院向け電子カルテ／レセコン標準仕様（基本要件）1.0版を参照した、設計検討用の操作モックです。</p>
+      <div class="notice-box"><strong>重要</strong><p>認証済み製品や実運用システムではありません。オンライン資格確認、電子処方箋、電子カルテ情報共有サービスとの通信はすべてローカル模擬です。</p></div>
+      <button class="primary" value="close">閉じる</button>
+    </form>
+  </dialog>
+  <script type="module" src="./app.js?v=20260911-1"></script>
+</body>
+</html>

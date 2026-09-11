@@ -101,6 +101,41 @@ function navigateToPrescriptionList(recId) {
     }
 }
 
+function importPrescriptionFromEmr(recId, button) {
+    if (!recId || !button || button.disabled) {
+        return;
+    }
+
+    const originalContent = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> 取得中';
+
+    fetch('/rehainfo/api/prescriptions/emr/import?recId=' + encodeURIComponent(recId), {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json().then(data => ({ ok: response.ok, data: data })))
+    .then(result => {
+        if (!result.ok || !result.data.success) {
+            throw new Error(result.data.errorMessage || '電カルから処方箋データを取得できませんでした');
+        }
+
+        button.innerHTML = '<i class="bi bi-check-circle"></i> 取得済み';
+        showNotice(result.data.message || '電カルから処方箋データを取得しました', 'success');
+        window.setTimeout(function() {
+            navigateToPrescriptionList(recId);
+        }, 700);
+    })
+    .catch(error => {
+        button.disabled = false;
+        button.innerHTML = originalContent;
+        showNotice(error.message, 'error');
+    });
+}
+
 function loadAllPatients(responsibleOnly = true) {
     showLoadingSpinner();
     
@@ -150,9 +185,17 @@ function loadAllPatients(responsibleOnly = true) {
 }
 
 function showError(message) {
+    showNotice(message, 'error');
+}
+
+function showNotice(message, type) {
     const errorDiv = document.createElement('div');
-    errorDiv.className = 'alert alert-danger';
-    errorDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; padding: 12px 20px; background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 4px; max-width: 400px;';
+    const success = type === 'success';
+    errorDiv.className = success ? 'alert alert-success' : 'alert alert-danger';
+    errorDiv.setAttribute('role', 'status');
+    errorDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; padding: 12px 20px; background-color: '
+        + (success ? '#dcfce7' : '#f8d7da') + '; color: ' + (success ? '#166534' : '#721c24')
+        + '; border: 1px solid ' + (success ? '#86efac' : '#f5c6cb') + '; border-radius: 4px; max-width: 440px;';
     errorDiv.textContent = message;
     document.body.appendChild(errorDiv);
     
@@ -238,6 +281,10 @@ function renderTable() {
         const recId = escapeHtml(patient.recId || '');
         const prescriptionMode = window.prescriptionMode === true || window.prescriptionMode === 'true';
         const actions = prescriptionMode ? `
+                    <button type="button" class="btn-action btn-emr-link" onclick="event.stopPropagation(); importPrescriptionFromEmr('${recId}', this)" aria-label="電カルから処方箋を取得">
+                        <i class="bi bi-cloud-arrow-down"></i>
+                        電カル連携
+                    </button>
                     <button type="button" class="btn-action" onclick="navigateToPrescriptionRead('${recId}')">
                         <i class="bi bi-prescription2"></i>
                         処方箋読込

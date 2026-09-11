@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
+import { createAppServer as createEmrMockServer } from './e-medical-record-mock/server.mjs';
 
 const port = Number(process.env.DEMO_PORT ?? 4173);
 const root = join(import.meta.dirname, 'public');
@@ -40,6 +41,8 @@ const smarihaSchedulerPath = '/smariha-scheduler';
 const smarihaPortalPath = '/smariha';
 const rehainfoSourceUiPath = '/rehainfo';
 const rehainfoUiPaths = [rehainfoSourceUiPath];
+const emrMockBasePath = `${rehainfoSourceUiPath}/emr`;
+const emrMockRequestHandler = createEmrMockServer().listeners('request')[0];
 const smarihaDashboardUsername = process.env.SMARIHA_DASHBOARD_USERNAME?.trim() || 'rehadash';
 const smarihaDashboardPasswordHash = process.env.SMARIHA_DASHBOARD_PASSWORD_SHA256?.trim().toLowerCase()
   || '62530a7bc852b7d6cb8472a50218f44dffa8128b5f45d48ef9de21fc4188005b';
@@ -529,6 +532,17 @@ createServer(async (request, response) => {
       response.end();
       return;
     }
+  }
+  if (normalizedRequestedPath === emrMockBasePath || requestedPath.startsWith(`${emrMockBasePath}/`)) {
+    const originalUrl = request.url;
+    const emrUrl = (request.url ?? '/').slice(emrMockBasePath.length);
+    request.url = emrUrl.startsWith('/') ? emrUrl : `/${emrUrl}`;
+    try {
+      await emrMockRequestHandler(request, response);
+    } finally {
+      request.url = originalUrl;
+    }
+    return;
   }
   if (activeRehainfoPath && (request.method === 'GET' || request.method === 'HEAD')
       && (normalizedRehainfoRequestPath === `${rehainfoSourceUiPath}/prescriptions` || normalizedRehainfoRequestPath === `${rehainfoSourceUiPath}/patients`)) {

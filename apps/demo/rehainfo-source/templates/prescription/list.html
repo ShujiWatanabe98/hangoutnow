@@ -40,14 +40,14 @@
                 <i class="bi bi-arrow-left back-icon" onclick="showLoadingSpinner(); window.location.href='/rehainfo/prescriptions/patients';"></i>
                 <span th:text="|${patientInfo.name}さんの保存済み処方箋|">保存済み処方箋</span>
             </h1>
-            <div class="warning"><i class="bi bi-exclamation-triangle me-2"></i>AI読取結果は参考情報です。薬剤名・用量・用法・日数を必ず処方箋原本と照合してください。</div>
+            <div class="warning"><i class="bi bi-exclamation-triangle me-2"></i>電カル取得データとAI読取結果は参考情報です。薬剤名・用量・用法・日数を必ず処方箋原本と照合してください。</div>
             <div class="actions">
                 <a class="btn-read" th:href="|/rehainfo/prescriptions/patient/${recId}/read|"><i class="bi bi-prescription2 me-2"></i>処方箋読込</a>
             </div>
 
             <div class="list-card">
                 <table th:if="${totalItems > 0}">
-                    <thead><tr><th>処方日</th><th>AI読取結果</th><th>状態</th><th>保存日時</th></tr></thead>
+                    <thead><tr><th>処方日</th><th>処方箋データ</th><th>状態</th><th>保存日時</th></tr></thead>
                     <tbody>
                         <tr th:each="item : ${prescriptions}">
                             <td th:text="${#dates.format(item.evaluationDate, 'yyyy/MM/dd')}">2026/09/10</td>
