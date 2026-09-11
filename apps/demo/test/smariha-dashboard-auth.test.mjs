@@ -99,6 +99,7 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
   const protectedEmrMock = await fetch(`${origin}/rehainfo/emr/`, { redirect: 'manual' });
   assert.equal(protectedEmrMock.status, 302);
   assert.equal(protectedEmrMock.headers.get('location'), '/rehainfo/login.html');
+  assert.match(protectedEmrMock.headers.get('set-cookie'), /__Secure-smariha_return=emr/);
   assert.equal((await fetch(`${origin}/rehainfo/emr/app.js`, { redirect: 'manual' })).status, 401);
   assert.equal((await fetch(`${origin}/rehainfo/emr/oauth/token`, { method: 'POST', redirect: 'manual' })).status, 401);
 
@@ -118,6 +119,17 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
   assert.equal(accepted.headers.get('location'), '/rehainfo/');
   const setCookie = accepted.headers.get('set-cookie');
   assert.match(setCookie, /Path=\/rehainfo/);
+
+  const emrReturnCookie = protectedEmrMock.headers.get('set-cookie').split(';')[0];
+  const acceptedForEmr = await fetch(`${origin}/rehainfo/login`, {
+    method: 'POST',
+    headers: { cookie: emrReturnCookie, 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ username, password }),
+    redirect: 'manual',
+  });
+  assert.equal(acceptedForEmr.status, 303);
+  assert.equal(acceptedForEmr.headers.get('location'), '/rehainfo/emr/');
+  assert.match(acceptedForEmr.headers.get('set-cookie'), /__Secure-smariha_return=;[^,]*Max-Age=0/);
   assert.match(setCookie, /HttpOnly/);
   assert.match(setCookie, /Secure/);
   assert.match(setCookie, /SameSite=Strict/);

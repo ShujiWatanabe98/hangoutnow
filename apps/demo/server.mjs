@@ -48,6 +48,7 @@ const smarihaDashboardPasswordHash = process.env.SMARIHA_DASHBOARD_PASSWORD_SHA2
   || '62530a7bc852b7d6cb8472a50218f44dffa8128b5f45d48ef9de21fc4188005b';
 const smarihaDashboardSessionSecret = process.env.SMARIHA_DASHBOARD_SESSION_SECRET?.trim() || randomBytes(32).toString('hex');
 const smarihaDashboardCookieName = '__Secure-smariha_dashboard';
+const smarihaReturnCookieName = '__Secure-smariha_return';
 const smarihaDashboardSessionSeconds = 8 * 60 * 60;
 const smarihaDashboardLoginAttempts = new Map();
 const smartRehabAiAttempts = new Map();
@@ -459,10 +460,15 @@ createServer(async (request, response) => {
         const form = await readSmallForm(request);
         if (validSmarihaDashboardCredentials(form.get('username') ?? '', form.get('password') ?? '')) {
           smarihaDashboardLoginAttempts.delete(key);
+          const returnToEmr = activeSmarihaPath === rehainfoSourceUiPath
+            && parseCookies(request)[smarihaReturnCookieName] === 'emr';
           response.writeHead(303, {
             ...securityHeaders,
-            location: `${activeSmarihaPath}/`,
-            'set-cookie': `${smarihaDashboardCookieName}=${smarihaDashboardSessionToken()}; Path=${activeSmarihaPath}; Max-Age=${smarihaDashboardSessionSeconds}; HttpOnly; Secure; SameSite=Strict`,
+            location: returnToEmr ? `${emrMockBasePath}/` : `${activeSmarihaPath}/`,
+            'set-cookie': [
+              `${smarihaDashboardCookieName}=${smarihaDashboardSessionToken()}; Path=${activeSmarihaPath}; Max-Age=${smarihaDashboardSessionSeconds}; HttpOnly; Secure; SameSite=Strict`,
+              `${smarihaReturnCookieName}=; Path=${rehainfoSourceUiPath}; Max-Age=0; HttpOnly; Secure; SameSite=Strict`,
+            ],
             'cache-control': 'no-store',
             'x-robots-tag': 'noindex, nofollow, noarchive',
           });
@@ -525,7 +531,15 @@ createServer(async (request, response) => {
         && request.method === 'GET'
         && (!extname(requestedPath) || extname(requestedPath) === '.html'));
       if (request.method === 'GET' && protectedDashboardPage) {
-        response.writeHead(302, { ...securityHeaders, location: loginPath, 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });
+        const isEmrEntry = activeSmarihaPath === rehainfoSourceUiPath
+          && (normalizedRequestedPath === emrMockBasePath || requestedPath.startsWith(`${emrMockBasePath}/`));
+        response.writeHead(302, {
+          ...securityHeaders,
+          location: loginPath,
+          ...(isEmrEntry ? { 'set-cookie': `${smarihaReturnCookieName}=emr; Path=${rehainfoSourceUiPath}; Max-Age=600; HttpOnly; Secure; SameSite=Strict` } : {}),
+          'cache-control': 'no-store',
+          'x-robots-tag': 'noindex, nofollow, noarchive',
+        });
       } else {
         response.writeHead(401, { ...securityHeaders, 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });
       }

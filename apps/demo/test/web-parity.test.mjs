@@ -239,6 +239,7 @@ test('corporate homepage presents the seven methodmore products accurately', asy
   }
   assert.doesNotMatch(corporate, /スマリハ管理ダッシュボード|病院別の管理業務を、見える化|実績指数・FIM管理と院内連携パス管理を、病院別の提案用MVPで確認/);
   assert.match(corporate, /href="\/rehainfo\/"[^>]*aria-label="スマリハ プロトタイピングを開く"[^>]*>プロトタイプを開く/);
+  assert.match(corporate, /href="\/rehainfo\/emr\/"[^>]*aria-label="電カルモックを開く"[^>]*>電カルモック/);
   assert.doesNotMatch(corporate, /method-more\.com\/ai-ocr|href="\/ai-ocr"/);
   assert.match(corporate, /<a href="\/#smariha-prototyping">スマリハ プロトタイピング<\/a>/);
   assert.match(corporateStyles, /\.smariha-dashboard-preview/);

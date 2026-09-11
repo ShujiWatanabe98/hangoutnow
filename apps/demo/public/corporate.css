@@ -140,6 +140,7 @@ a:focus-visible { outline: 3px solid #426bdd; outline-offset: 4px; }
 .product-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 22px; margin-top: 26px; }
 .card-link { min-height: 48px; padding: 0 19px; border-radius: 999px; background: var(--ink); color: var(--white); font-size: 13px; }
 .card-link:hover span { transform: translate(3px, -3px); }
+.card-link-secondary { border: 1px solid #176b68; background: #fff; color: #176b68; }
 .text-link { border-bottom: 1px solid currentColor; font-size: 13px; font-weight: 800; }
 .robocare-content > .robocare-kicker { width: fit-content; min-height: 0; margin: 0 0 20px; padding: 9px 13px; border-radius: 999px; background: #dff4ed; color: #08675f; font-size: 12px; font-weight: 900; }
 .robocare-content h4 { margin: 0; color: #17353d; font-size: clamp(28px, 3.6vw, 46px); line-height: 1.16; letter-spacing: -.055em; }
