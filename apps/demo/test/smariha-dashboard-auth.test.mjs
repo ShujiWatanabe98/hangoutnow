@@ -79,6 +79,7 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
   assert.match(loginHtml, /action="\/rehainfo\/login"/);
   assert.match(loginHtml, /name="username"/);
   assert.match(loginHtml, /name="password"/);
+  assert.doesNotMatch(loginHtml, />AI処方箋<\/button>/);
   assert.doesNotMatch(loginHtml, /analytics\.js|cookie-consent/);
 
   for (const asset of [
