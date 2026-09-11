@@ -547,6 +547,24 @@ createServer(async (request, response) => {
       return;
     }
   }
+  if (request.method === 'GET' && requestedPath === `${rehainfoSourceUiPath}/schedule-management/api/export.csv`) {
+    const type = new URL(request.url ?? '/', 'http://localhost').searchParams.get('type') || 'therapist';
+    const rows = type === 'hospital'
+      ? [['サービスID', 'グループID', '予約件数'], ['DEMO-HOSPITAL', 'DEMO-GROUP', '123']]
+      : type === 'patient'
+        ? [['患者ID', '患者氏名', '予約単位'], ['SR-DEMO260901', '佐藤 和子', '8'], ['SR-DEMO260902', '鈴木 正一', '9']]
+        : [['療法士ID', '療法士氏名', '職種'], ['PT01', '開発 太郎', 'PT'], ['OT01', '作業 一郎', 'OT'], ['ST01', '言語 美咲', 'ST']];
+    const csv = `\ufeff${rows.map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\r\n')}`;
+    response.writeHead(200, {
+      ...securityHeaders,
+      'content-type': 'text/csv; charset=utf-8',
+      'content-disposition': `attachment; filename="smariha-${type}.csv"`,
+      'cache-control': 'no-store',
+      'x-robots-tag': 'noindex, nofollow, noarchive',
+    });
+    response.end(csv);
+    return;
+  }
   if (normalizedRequestedPath === emrMockBasePath || requestedPath.startsWith(`${emrMockBasePath}/`)) {
     const originalUrl = request.url;
     const emrUrl = (request.url ?? '/').slice(emrMockBasePath.length);

@@ -29,6 +29,7 @@
   const SOAP_STORAGE_KEY = 'rehainfo-source-ui-soap-v1';
   const IMPORTED_PATIENT_STORAGE_KEY = 'rehainfo-source-ui-emr-patients-v2';
   const PATIENT_DISCHARGE_STORAGE_KEY = 'rehainfo-source-ui-patient-discharges-v1';
+  const WORKFLOW_STORAGE_KEY = 'rehainfo-source-ui-workflows-v1';
   const originalFetch = window.fetch.bind(window);
   const uploadedPrescriptionImages = new Map();
   let emrMockAccessToken = '';
@@ -46,6 +47,7 @@
     { id: 'ST01', name: '言語 美咲', subLabel: 'ST', nameKana: 'ゲンゴ ミサキ', employmentType: '常勤', phone: '', email: 'st01@example.local', team: 'STチーム1', ward: null, monthlyTargetUnits: null },
     { id: 'ST02', name: '山本 遥', subLabel: 'ST', nameKana: 'ヤマモト ハルカ', employmentType: '常勤', phone: '', email: 'st02@example.local', team: 'STチーム1', ward: null, monthlyTargetUnits: null }
   ];
+  hydrateTherapists();
 
   const patients = [
     ['SR-DEMO260901', '佐藤 和子', '女性・回復期', '回復期3階A'],
@@ -146,6 +148,44 @@
 
   function writeStore(store) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  }
+
+  function readWorkflowStore() {
+    try {
+      const value = JSON.parse(localStorage.getItem(WORKFLOW_STORAGE_KEY) || '{}');
+      return value && typeof value === 'object' ? value : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function writeWorkflowStore(value) {
+    localStorage.setItem(WORKFLOW_STORAGE_KEY, JSON.stringify(value));
+  }
+
+  function hydrateTherapists() {
+    const workflow = readWorkflowStore();
+    const additions = Array.isArray(workflow.therapists) ? workflow.therapists : [];
+    additions.forEach(function (saved) {
+      const existing = therapists.find(function (item) { return item.id === saved.id; });
+      if (existing) Object.assign(existing, saved);
+      else therapists.push(saved);
+    });
+    const order = Array.isArray(workflow.therapistOrder) ? workflow.therapistOrder : [];
+    if (order.length) {
+      therapists.sort(function (left, right) {
+        const leftIndex = order.indexOf(left.id);
+        const rightIndex = order.indexOf(right.id);
+        return (leftIndex < 0 ? 9999 : leftIndex) - (rightIndex < 0 ? 9999 : rightIndex);
+      });
+    }
+  }
+
+  function persistTherapists() {
+    const workflow = readWorkflowStore();
+    workflow.therapists = therapists;
+    workflow.therapistOrder = therapists.map(function (item) { return item.id; });
+    writeWorkflowStore(workflow);
   }
 
   function readPrescriptionStore() {
@@ -869,17 +909,27 @@
         });
       }
     });
+    const workflow = readWorkflowStore();
+    const savedRecords = workflow.attendance && Array.isArray(workflow.attendance[month]) ? workflow.attendance[month] : [];
+    const savedByKey = new Map(savedRecords.map(function (record) { return [`${record.therapistId}|${record.date}`, record]; }));
+    records.forEach(function (record, index) {
+      const saved = savedByKey.get(`${record.therapistId}|${record.date}`);
+      if (saved) records[index] = Object.assign({}, record, saved);
+    });
     return { therapists: therapists, records: records };
   }
 
   function billingData(date) {
     const month = date.slice(0, 7);
+    const workflow = readWorkflowStore();
+    const targets = workflow.billingTargets || {};
     const rows = therapists.map(function (item, index) {
+      const savedTarget = targets[`${month}|${item.id}`] || {};
       return {
         therapistId: item.id, therapistRole: item.subLabel, therapistName: item.name,
-        dailyScheduledPoints: 1480 + index * 120, dailyConfirmedPoints: 1110 + index * 90, dailyTargetPoints: 1800,
-        weeklyScheduledPoints: 8200 + index * 500, weeklyConfirmedPoints: 7400 + index * 420, weeklyTargetPoints: 9000,
-        monthlyScheduledPoints: 35000 + index * 1800, monthlyConfirmedPoints: 32600 + index * 1650, monthlyTargetPoints: 39000,
+        dailyScheduledPoints: 1480 + index * 120, dailyConfirmedPoints: 1110 + index * 90, dailyTargetPoints: savedTarget.dailyTargetPoints ?? 1800,
+        weeklyScheduledPoints: 8200 + index * 500, weeklyConfirmedPoints: 7400 + index * 420, weeklyTargetPoints: savedTarget.weeklyTargetPoints ?? 9000,
+        monthlyScheduledPoints: 35000 + index * 1800, monthlyConfirmedPoints: 32600 + index * 1650, monthlyTargetPoints: savedTarget.monthlyTargetPoints ?? 39000,
         monthlyResultImported: true, monthlyResultUnits: 170 + index * 8, monthlyWorkedDays: 20
       };
     });
@@ -902,7 +952,7 @@
       return { therapist_id: item.id, therapist_role: item.subLabel, therapist_name: item.name, reservation_count: 18 + index, reserved_units: 40 + index * 2, coded_count: 18 + index, uncoded_count: 0, scheduled_billing_points: 7400 + index * 360, confirmed_billing_points: 6900 + index * 320, utilization_rate: 86 + index };
     });
     return {
-      role: 'MANAGER', approved: false, canApprove: true,
+      role: 'MANAGER', approved: (readWorkflowStore().approvedMonths || []).includes(month), canApprove: true,
       totals: { reservation_count: 123, reserved_units: 270, coded_count: 123, uncoded_count: 0, scheduled_billing_points: 49800, confirmed_billing_points: 46100 },
       therapists: therapistRows,
       hospitals: [{ service_id: 'DEMO-HOSPITAL', group_id: 'DEMO-GROUP', reservation_count: 123, reserved_units: 270, coded_count: 123, uncoded_count: 0, scheduled_billing_points: 49800, confirmed_billing_points: 46100 }],
@@ -914,6 +964,137 @@
 
   function aiPatients() {
     return patientListRows.map(function (item, index) { return { id: item.patientId, name: item.patientName, patientType: index % 2 ? '継続患者' : '回復期患者', ward: item.wardName }; });
+  }
+
+  function readAiPlans() {
+    const plans = readWorkflowStore().aiPlans;
+    return Array.isArray(plans) ? plans : [];
+  }
+
+  function writeAiPlans(plans) {
+    const workflow = readWorkflowStore();
+    workflow.aiPlans = plans.slice(-20);
+    writeWorkflowStore(workflow);
+  }
+
+  function aiPlanSummary(record) {
+    return {
+      plan_id: record.plan.plan_id,
+      target_month: record.plan.target_month,
+      status: record.plan.status,
+      selected_patient_count: record.plan.selected_patient_count
+    };
+  }
+
+  function showPatientActionDialog(title, lines) {
+    let dialog = document.getElementById('patientActionDemoDialog');
+    if (!dialog) {
+      dialog = document.createElement('dialog');
+      dialog.id = 'patientActionDemoDialog';
+      dialog.style.cssText = 'max-width:620px;width:calc(100% - 32px);border:0;border-radius:14px;padding:24px;box-shadow:0 24px 70px #0005;';
+      dialog.innerHTML = '<h2 data-action-title style="font-size:20px;margin:0 0 16px"></h2><div data-action-body style="line-height:1.8;white-space:pre-line"></div><div style="text-align:right;margin-top:20px"><button type="button" data-action-close class="btn btn-primary">閉じる</button></div>';
+      dialog.querySelector('[data-action-close]').addEventListener('click', function () { dialog.close(); });
+      document.body.appendChild(dialog);
+    }
+    dialog.querySelector('[data-action-title]').textContent = title;
+    dialog.querySelector('[data-action-body]').textContent = lines.join('\n');
+    dialog.showModal();
+  }
+
+  function openPersonalNoteDialog() {
+    let dialog = document.getElementById('personalNoteDemoDialog');
+    if (!dialog) {
+      dialog = document.createElement('dialog');
+      dialog.id = 'personalNoteDemoDialog';
+      dialog.style.cssText = 'max-width:680px;width:calc(100% - 32px);border:0;border-radius:14px;padding:24px;box-shadow:0 24px 70px #0005;';
+      dialog.innerHTML = '<form method="dialog"><h2 style="font-size:20px">個人ノート</h2><p>公開版は架空データ専用です。内容はこのブラウザ内にのみ保存されます。</p><textarea data-personal-note rows="10" style="width:100%;padding:12px" aria-label="個人ノート本文"></textarea><div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px"><button type="button" data-note-cancel class="btn btn-secondary">キャンセル</button><button type="button" data-note-save class="btn btn-primary">保存</button></div></form>';
+      dialog.querySelector('[data-note-cancel]').addEventListener('click', function () { dialog.close(); });
+      dialog.querySelector('[data-note-save]').addEventListener('click', function () {
+        const workflow = readWorkflowStore();
+        workflow.personalNote = dialog.querySelector('[data-personal-note]').value;
+        writeWorkflowStore(workflow);
+        dialog.close();
+        showEmrPatientNotice('個人ノートをブラウザ内に保存しました。', 'success');
+      });
+      document.body.appendChild(dialog);
+    }
+    dialog.querySelector('[data-personal-note]').value = readWorkflowStore().personalNote || '';
+    dialog.showModal();
+  }
+
+  function openManualPatientDialog() {
+    let dialog = document.getElementById('manualPatientDemoDialog');
+    if (!dialog) {
+      dialog = document.createElement('dialog');
+      dialog.id = 'manualPatientDemoDialog';
+      dialog.style.cssText = 'max-width:720px;width:calc(100% - 32px);border:0;border-radius:14px;padding:24px;box-shadow:0 24px 70px #0005;';
+      dialog.innerHTML = '<form data-manual-patient><h2 style="font-size:20px">患者登録</h2><p>公開版には架空患者のみ登録してください。必須項目を入力すると患者一覧へ追加されます。</p><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px"><label>患者ID<input required name="patientId" class="form-control" value="DEMO-NEW-001"></label><label>患者氏名<input required name="patientName" class="form-control" value="検証 花子"></label><label>氏名カナ<input required name="patientNameKana" class="form-control" value="ケンショウ ハナコ"></label><label>性別<select name="gender" class="form-select"><option>女性</option><option>男性</option><option>その他</option></select></label><label>生年月日<input required name="birth" type="date" class="form-control" value="1960-01-01"></label><label>リハ区分<input required name="rehabilitationClass" class="form-control" value="脳血管疾患等"></label><label>リハ開始日<input required name="startDate" type="date" class="form-control" value="2026-09-01"></label><label>入外区分<select name="entryExit" class="form-select"><option>外来</option><option>入院</option></select></label></div><div data-manual-error class="text-danger mt-2"></div><div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px"><button type="button" data-manual-cancel class="btn btn-secondary">キャンセル</button><button type="submit" class="btn btn-primary">患者として登録</button></div></form>';
+      dialog.querySelector('[data-manual-cancel]').addEventListener('click', function () { dialog.close(); });
+      dialog.querySelector('[data-manual-patient]').addEventListener('submit', function (event) {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const data = Object.fromEntries(new FormData(form).entries());
+        const error = dialog.querySelector('[data-manual-error]');
+        if (patientListRows.some(function (item) { return item.patientId === data.patientId; })) {
+          error.textContent = '同じ患者IDが登録済みです。';
+          return;
+        }
+        const recId = `MANUAL-${Date.now()}`;
+        const patient = normalizePatientAdmissionFields({
+          patientId: data.patientId, patientName: data.patientName, patientNameKana: data.patientNameKana,
+          gender: data.gender, birth: data.birth.replaceAll('-', '/'), age: patientAge(data.birth),
+          rehabilitationClass: data.rehabilitationClass, startDate: data.startDate.replaceAll('-', '/'), entryExit: data.entryExit,
+          wardName: data.entryExit === '入院' ? '回復期病棟' : '', hospitalizationStartDate: data.entryExit === '入院' ? data.startDate.replaceAll('-', '/') : '',
+          serviceName: 'スマートリハビリテーション病院', recId: recId, groupId: 'DEMO-GROUP', patientActive: 'T',
+          treatmentTimes: 0, assigned: true, externalEmrId: data.patientId, fictionalDemoOnly: true,
+          primaryDiagnosis: '評価中', impairments: [], risks: [], goal: '目標設定中', professions: ['PT'], plannedUnitsPerDay: 1,
+          targetDischargeDate: '', fim: { total: 0, motor: 0, cognitive: 0, previousTotal: 0 }, attendingPhysician: '担当医未設定'
+        });
+        const saved = readImportedPatientStore();
+        saved.push(patient); writeImportedPatientStore(saved); patientListRows.push(patient); refreshSmartRehabPatientLists();
+        dialog.close();
+        showEmrPatientNotice(`${patient.patientName}さんを患者一覧へ追加しました。`, 'success');
+      });
+      document.body.appendChild(dialog);
+    }
+    dialog.querySelector('[data-manual-error]').textContent = '';
+    dialog.showModal();
+  }
+
+  function createAiPlan(month, patientIds) {
+    const selected = aiPatients().filter(function (item) { return patientIds.includes(item.id); });
+    const planId = Date.now();
+    const analyses = selected.map(function (item, index) {
+      const row = patientListRows.find(function (patient) { return patient.patientId === item.id; }) || {};
+      const role = (row.professions || ['PT'])[index % Math.max(1, (row.professions || ['PT']).length)] || 'PT';
+      return {
+        patient_id: item.id, patient_name: item.name, patient_type: item.patientType,
+        analysis: `${row.primaryDiagnosis || '疾患情報'}と現在の目標・予定を基に、負荷と休息の間隔を調整しました。`,
+        required_role: role, weekly_frequency: Math.max(2, Number(row.plannedUnitsPerDay || 2)), units_per_session: 2
+      };
+    });
+    const proposals = analyses.map(function (item, index) {
+      const roleCandidates = therapists.filter(function (candidate) { return candidate.subLabel === item.required_role; });
+      const assigned = roleCandidates[index % Math.max(1, roleCandidates.length)] || therapists[index % therapists.length];
+      const day = 3 + (index % 24);
+      const hour = 9 + (index % 7);
+      return {
+        proposal_id: planId + index + 1, proposal_type: '新規提案', schedule_date: `${month}-${String(day).padStart(2, '0')}`,
+        patient_id: item.patient_id, patient_name: item.patient_name, therapist_id: assigned.id,
+        therapist_name: assigned.name, therapist_role: assigned.subLabel, matching_score: 92 - index,
+        matching_reason: `${item.required_role}の担当範囲と月間勤務枠が適合`, start_time: `${String(hour).padStart(2, '0')}:00`,
+        end_time: `${String(hour).padStart(2, '0')}:40`, units: item.units_per_session, status: '承認待ち'
+      };
+    });
+    const selectedTherapists = Array.from(new Set(proposals.map(function (item) { return item.therapist_id; }))).map(therapist);
+    const approvals = selectedTherapists.map(function (item) {
+      const count = proposals.filter(function (proposal) { return proposal.therapist_id === item.id; }).length;
+      return { therapist_id: item.id, therapist_name: item.name, therapist_role: item.subLabel, proposal_count: count, matching_score: 90 + count, matching_reason: '職種・勤務枠・既存予約の空きを確認', status: '承認待ち' };
+    });
+    return {
+      plan: { plan_id: planId, target_month: month, status: '療法士承認待ち', selected_patient_count: selected.length },
+      patients: analyses, therapists: approvals, proposals: proposals
+    };
   }
 
   function bootstrap(date) {
@@ -1042,25 +1223,105 @@
     if (parsed.pathname.startsWith(API)) return demoApi(url, options);
     if (parsed.pathname.startsWith(THERAPIST_API)) {
       if (method === 'GET') return json({ therapists: therapists });
-      if (method === 'PUT' || method === 'POST') return json({ success: true });
+      if (method === 'POST' && parsed.pathname === THERAPIST_API) {
+        if (!payload.id || !payload.name) return json({ success: false, message: '療法士IDと氏名を入力してください。' }, 422);
+        if (therapists.some(function (item) { return item.id === payload.id; })) return json({ success: false, message: '同じ療法士IDが登録済みです。' }, 409);
+        therapists.push(Object.assign({ monthlyTargetUnits: 0, team: '', ward: null }, payload));
+        persistTherapists();
+        return json({ success: true });
+      }
+      if (method === 'PUT' && parsed.pathname.endsWith('/monthly-target')) {
+        const targetTherapist = therapist(payload.therapistId);
+        if (!targetTherapist) return json({ success: false, message: '対象療法士が見つかりません。' }, 404);
+        targetTherapist.monthlyTargetUnits = Number(payload.targetUnits || 0);
+        persistTherapists();
+        return json({ success: true });
+      }
     }
     if (parsed.pathname.startsWith(ATTENDANCE_API)) {
       if (method === 'GET') return json(attendanceMonth(parsed.searchParams.get('month') || new Date().toISOString().slice(0, 7)));
-      return json({ success: true });
+      if (method === 'PUT' && parsed.pathname.endsWith('/order') && Array.isArray(payload)) {
+        therapists.sort(function (left, right) { return payload.indexOf(left.id) - payload.indexOf(right.id); });
+        persistTherapists();
+        return json({ success: true });
+      }
+      if (method === 'PUT' && (parsed.pathname.endsWith('/record') || parsed.pathname.endsWith('/records'))) {
+        const updates = Array.isArray(payload) ? payload : [payload];
+        const workflow = readWorkflowStore();
+        workflow.attendance = workflow.attendance || {};
+        updates.forEach(function (update) {
+          if (!update.date || !update.therapistId) return;
+          const month = String(update.date).slice(0, 7);
+          const monthRecords = Array.isArray(workflow.attendance[month]) ? workflow.attendance[month] : [];
+          const index = monthRecords.findIndex(function (item) { return item.date === update.date && item.therapistId === update.therapistId; });
+          if (index >= 0) monthRecords[index] = Object.assign({}, monthRecords[index], update);
+          else monthRecords.push(update);
+          workflow.attendance[month] = monthRecords;
+        });
+        writeWorkflowStore(workflow);
+        return json({ success: true, updated: updates.length });
+      }
     }
     if (parsed.pathname.startsWith(BILLING_API)) {
       if (method === 'GET') return json(billingData(parsed.searchParams.get('date') || new Date().toISOString().slice(0, 10)));
-      return json({ success: true });
+      if (method === 'PUT' && parsed.pathname.endsWith('/targets')) {
+        const workflow = readWorkflowStore();
+        workflow.billingTargets = workflow.billingTargets || {};
+        workflow.billingTargets[`${payload.targetMonth}|${payload.therapistId}`] = payload;
+        writeWorkflowStore(workflow);
+        return json({ success: true });
+      }
     }
     if (parsed.pathname.startsWith(OPERATIONS_API)) {
       const month = parsed.searchParams.get('month') || new Date().toISOString().slice(0, 7);
       if (parsed.pathname.endsWith('/dashboard')) return json(operationsData(month));
       if (parsed.pathname.endsWith('/integration')) return json({ source: 'fictional-public-demo', month: month, externalClinicalSystemsConnected: false, generatedAt: new Date().toISOString() });
-      if (parsed.pathname.endsWith('/approve')) return json({ success: true });
+      if (parsed.pathname.endsWith('/approve')) {
+        const workflow = readWorkflowStore();
+        workflow.approvedMonths = Array.from(new Set((workflow.approvedMonths || []).concat(month)));
+        writeWorkflowStore(workflow);
+        return json({ success: true });
+      }
     }
     if (parsed.pathname.startsWith(AI_API)) {
-      if (parsed.pathname.endsWith('/patients')) return json({ patients: aiPatients(), plans: [] });
-      if (parsed.pathname.endsWith('/generate')) return json({ success: false, message: '公開版ではAI案を保存しません。' }, 409);
+      const plans = readAiPlans();
+      if (parsed.pathname.endsWith('/patients')) return json({ patients: aiPatients(), plans: plans.map(aiPlanSummary) });
+      if (method === 'POST' && parsed.pathname.endsWith('/generate')) {
+        const ids = Array.isArray(payload.patientIds) ? payload.patientIds : [];
+        if (!ids.length) return json({ success: false, message: '患者を選択してください。' }, 422);
+        const nextPlan = createAiPlan(payload.month || new Date().toISOString().slice(0, 7), ids);
+        plans.push(nextPlan);
+        writeAiPlans(plans);
+        return json({ success: true, proposalCount: nextPlan.proposals.length, planId: nextPlan.plan.plan_id });
+      }
+      const planMatch = /\/plans\/(\d+)(?:\/(approve|apply))?$/.exec(parsed.pathname);
+      if (planMatch) {
+        const selectedPlan = plans.find(function (item) { return String(item.plan.plan_id) === planMatch[1]; });
+        if (!selectedPlan) return json({ success: false, message: '計画が見つかりません。' }, 404);
+        if (!planMatch[2] && method === 'GET') return json(selectedPlan);
+        if (planMatch[2] === 'approve' && method === 'POST') {
+          const therapistId = parsed.searchParams.get('therapistId');
+          const approval = selectedPlan.therapists.find(function (item) { return item.therapist_id === therapistId; });
+          if (!approval) return json({ success: false, message: '承認対象の療法士が見つかりません。' }, 404);
+          approval.status = '承認済み';
+          selectedPlan.proposals.filter(function (item) { return item.therapist_id === therapistId; }).forEach(function (item) { item.status = '承認済み'; });
+          if (selectedPlan.therapists.every(function (item) { return item.status === '承認済み'; })) selectedPlan.plan.status = '全療法士承認済み';
+          writeAiPlans(plans);
+          return json({ success: true });
+        }
+        if (planMatch[2] === 'apply' && method === 'POST') {
+          if (selectedPlan.plan.status !== '全療法士承認済み') return json({ success: false, message: '全療法士の承認後に反映してください。' }, 409);
+          selectedPlan.proposals.forEach(function (proposal, index) {
+            const entries = entriesFor(proposal.schedule_date);
+            entries.push(enrich({ id: Date.now() + index, date: proposal.schedule_date, startTime: proposal.start_time, endTime: proposal.end_time, patientId: proposal.patient_id, therapistId: proposal.therapist_id, units: proposal.units, note: 'AI月間案から反映', orcaCode: proposal.therapist_role === 'OT' ? '180755810' : proposal.therapist_role === 'ST' ? '180755910' : '180755710', status: '予約' }));
+            saveEntries(proposal.schedule_date, entries);
+            proposal.status = '本予約反映済み';
+          });
+          selectedPlan.plan.status = '本予約反映済み';
+          writeAiPlans(plans);
+          return json({ success: true, applied: selectedPlan.proposals.length, skipped: 0 });
+        }
+      }
     }
     return null;
   }
@@ -1351,14 +1612,16 @@
     }
     record.emrPatient = result.patient || {};
     const draft = prescriptionPatientDraft({ patient: record.emrPatient, patientId: patientId });
-    applyPrescriptionPatientDraft(form, draft, true);
+    // A new patient ID replaces the previous draft completely so that fields
+    // absent from the EMR never retain another patient's values.
+    applyPrescriptionPatientDraft(form, draft, false);
     const missing = prescriptionPatientMissingFields(form);
     showPrescriptionPatientErrors(form, missing);
     status.className = Object.keys(missing).length ? 'patient-dialog-status' : 'patient-dialog-status success';
     status.textContent = lookup.alreadyAdded
-      ? 'この患者IDはすでにスマリハへ登録済みです。'
+      ? 'この患者は登録済みです。「患者として追加」を押すと処方箋を紐付けて患者一覧を表示します。'
       : `${lookup.message} ${Object.keys(missing).length ? '電カルでも取得できなかった必須項目を入力してください。' : '登録内容を確認して「患者として追加」を押してください。'}`;
-    return !lookup.alreadyAdded;
+    return true;
   }
 
   function validatePrescriptionPatient(form) {
@@ -1368,7 +1631,6 @@
     });
     const patientId = prescriptionPatientFormValue(form, 'patientId');
     if (patientId && !/^[A-Za-z0-9._-]{1,64}$/.test(patientId)) errors.patientId = '患者IDは半角英数字・ハイフン・アンダースコア・ピリオドで入力してください。';
-    if (patientId && patientListRows.some(function (patient) { return patient.patientId === patientId; })) errors.patientId = 'この患者IDは登録済みです。別の患者IDを入力してください。';
     if (prescriptionPatientFormValue(form, 'entryExit') === '入院') {
       if (!prescriptionPatientFormValue(form, 'hospitalizationStartDate')) errors.hospitalizationStartDate = '入院日を入力してください。';
       if (!prescriptionPatientFormValue(form, 'wardName')) errors.wardName = '病棟名を入力してください。';
@@ -1380,8 +1642,21 @@
     const patientId = prescriptionPatientFormValue(form, 'patientId');
     const birth = prescriptionPatientFormValue(form, 'birth');
     const entryExit = prescriptionPatientFormValue(form, 'entryExit');
-    const recId = `RX-${patientId}-${Date.now()}`;
     const emrPatient = record.emrPatient || {};
+    const matchingIds = [patientId, emrPatient.patientId, emrPatient.externalEmrId].filter(Boolean);
+    const existingPatient = patientListRows.find(function (candidate) {
+      return matchingIds.includes(candidate.patientId) || matchingIds.includes(candidate.externalEmrId);
+    });
+    if (existingPatient) {
+      const existingImport = { patientId: existingPatient.patientId, recId: existingPatient.recId, importedAt: new Date().toISOString() };
+      record.patientImport = existingImport;
+      const existingPrescriptions = readPrescriptionStore();
+      const existingTarget = existingPrescriptions.find(function (item) { return item.id === record.id; });
+      if (existingTarget) existingTarget.patientImport = existingImport;
+      writePrescriptionStore(existingPrescriptions);
+      return { patient: existingPatient, alreadyAdded: true };
+    }
+    const recId = `RX-${patientId}-${Date.now()}`;
     const patient = normalizePatientAdmissionFields({
       patientId: patientId,
       patientName: `${prescriptionPatientFormValue(form, 'familyName')} ${prescriptionPatientFormValue(form, 'firstName')}`,
@@ -1407,9 +1682,11 @@
     window.REHAINFO_DEMO_PATIENTS = patientListRows;
     const prescriptions = readPrescriptionStore();
     const target = prescriptions.find(function (item) { return item.id === record.id; });
-    if (target) target.patientImport = { patientId: patientId, recId: recId, importedAt: new Date().toISOString() };
+    const patientImport = { patientId: patientId, recId: recId, importedAt: new Date().toISOString() };
+    record.patientImport = patientImport;
+    if (target) target.patientImport = patientImport;
     writePrescriptionStore(prescriptions);
-    return patient;
+    return { patient: patient, alreadyAdded: false };
   }
 
   async function openPrescriptionPatientDialog(record) {
@@ -1446,11 +1723,19 @@
         showPrescriptionPatientErrors(form, errors);
         return;
       }
-      const patient = registerPrescriptionPatient(record, form);
-      status.className = 'patient-dialog-status success';
-      status.textContent = `${patient.patientName}さんを患者として追加しました。`;
       submit.disabled = true;
-      window.setTimeout(function () { window.location.href = `/rehainfo/?patientId=${encodeURIComponent(patient.patientId)}`; }, 250);
+      const registration = registerPrescriptionPatient(record, form);
+      const patient = registration.patient;
+      status.className = 'patient-dialog-status success';
+      status.textContent = registration.alreadyAdded
+        ? `${patient.patientName}さんの登録済み患者情報に処方箋を紐付けました。患者一覧を表示します。`
+        : `${patient.patientName}さんを患者として追加しました。`;
+      submit.textContent = registration.alreadyAdded ? '登録済み患者を表示' : '追加しました';
+      window.setTimeout(function () {
+        window.location.href = registration.alreadyAdded && patient.recId
+          ? `/rehainfo/patient/${encodeURIComponent(patient.recId)}/top`
+          : `/rehainfo/?patientId=${encodeURIComponent(patient.patientId)}`;
+      }, 250);
     };
     dialog.showModal();
     if (!record.patientImport && draft.patientId) {
@@ -1480,6 +1765,20 @@
   };
 
   document.addEventListener('DOMContentLoaded', function () {
+    const personalNoteButton = document.getElementById('speechMemoButton');
+    if (personalNoteButton) {
+      personalNoteButton.removeAttribute('onclick');
+      personalNoteButton.addEventListener('click', openPersonalNoteDialog);
+    }
+    const patientRegisterButton = document.getElementById('patientRegister');
+    if (patientRegisterButton) patientRegisterButton.addEventListener('click', function (event) { event.preventDefault(); openManualPatientDialog(); });
+    const patientListButton = document.getElementById('patientListButton');
+    if (patientListButton) patientListButton.addEventListener('click', function (event) { event.preventDefault(); window.location.href = '/rehainfo/'; });
+    const presetForm = document.querySelector('form[action="/rehainfo/adminEvaluationPreset"]');
+    if (presetForm) presetForm.addEventListener('submit', function (event) {
+      event.preventDefault();
+      showPatientActionDialog('評価項目設定', ['FIM・BBS・10m歩行・握力を使用中です。', '公開版では架空データ用の標準設定を表示しています。']);
+    });
     const emrPatientImportButton = document.getElementById('emrPatientImportButton');
     if (emrPatientImportButton) emrPatientImportButton.addEventListener('click', openEmrPatientImportDialog);
     const prescriptionPatientDialog = document.getElementById('prescriptionPatientDialog');
@@ -1543,9 +1842,34 @@
       }
       const planTable = document.getElementById('plan_table');
       if (planTable) planTable.innerHTML = '<table class="table table-bordered bg-white"><thead><tr><th>日付</th><th>9:00</th><th>10:00</th><th>13:40</th></tr></thead><tbody><tr><td>9/10</td><td>歩行練習</td><td>自主訓練</td><td>評価</td></tr><tr><td>9/11</td><td>筋力訓練</td><td>病棟ADL</td><td>歩行練習</td></tr></tbody></table>';
-      document.querySelectorAll('a.button-square[href="#"], button.button-square').forEach(function (element) {
-        if (element === soap) return;
-        element.addEventListener('click', function (event) { event.preventDefault(); window.alert('公開版では架空データの画面確認のみ利用できます。'); });
+      document.querySelectorAll('.button-square').forEach(function (element) {
+        if (element === soap || element.dataset.bsTarget === '#aiPromptVerifyModal') return;
+        element.removeAttribute('onclick');
+        element.addEventListener('click', function (event) {
+          event.preventDefault();
+          const label = (element.querySelector('.btn-text') || {}).textContent?.trim() || '患者機能';
+          if (element.id === 'treatmentImplementButton') {
+            window.location.href = `/rehainfo/patient/${encodeURIComponent(recId)}/treatment-soap/soap-list`;
+            return;
+          }
+          if (label === 'カメラ起動') {
+            const input = document.createElement('input');
+            input.type = 'file'; input.accept = 'image/*'; input.setAttribute('capture', 'environment');
+            input.addEventListener('change', function () { if (input.files?.length) showPatientActionDialog('カメラ画像', ['架空データ用の画像を1件選択しました。', '画像はまだ外部へ送信されていません。']); });
+            input.click();
+            return;
+          }
+          const details = {
+            '評価計画': ['FIM・BBS・10m歩行を今週評価', `次回評価日：${targetPatient.targetDischargeDate || '計画調整中'}`],
+            '問題点': targetPatient.impairments.concat(targetPatient.risks),
+            'ゴール・目標値': [targetPatient.goal, `1日計画：${targetPatient.plannedUnitsPerDay}単位`],
+            '治療計画': targetPatient.professions.map(function (role) { return `${role}：週次計画を設定済み`; }),
+            '治療記録': [`実施回数：${targetPatient.treatmentTimes}回`, `FIM合計：${targetPatient.fim.total}点`],
+            'イベント': ['主治医診察：14:00', '病棟カンファレンス：16:00'],
+            '代診表': ['本日の代診：なし', '担当療法士の勤務状況を確認済み']
+          };
+          showPatientActionDialog(label, details[label] || ['架空患者データで内容を表示しています。']);
+        });
       });
     }
     if (patientPage === 'soap') {
@@ -1645,9 +1969,16 @@
             const add = document.createElement('button');
             add.type = 'button';
             add.className = 'btn-patient-add';
-            add.textContent = item.patientImport ? '追加済み' : '患者として追加';
-            add.disabled = Boolean(item.patientImport);
-            add.addEventListener('click', function () { openPrescriptionPatientDialog(item); });
+            add.textContent = item.patientImport ? '登録済み患者を表示' : '患者として追加';
+            add.addEventListener('click', function () {
+              if (item.patientImport?.patientId) {
+                window.location.href = item.patientImport.recId
+                  ? `/rehainfo/patient/${encodeURIComponent(item.patientImport.recId)}/top`
+                  : `/rehainfo/?patientId=${encodeURIComponent(item.patientImport.patientId)}`;
+                return;
+              }
+              openPrescriptionPatientDialog(item);
+            });
             actionCell.appendChild(add);
             row.appendChild(actionCell);
           }
