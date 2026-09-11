@@ -79,17 +79,17 @@
     ['DEMO260903', '高橋 幸子', 'タカハシ サチコ', '女性', '1941/07/26', '85歳', '運動器', '2026/08/22', '入院', '整形外科4階', '2026/08/20'],
     ['DEMO260904', '田中 博', 'タナカ ヒロシ', '男性', '1958/01/19', '68歳', '脳血管疾患等', '2026/08/25', '入院', '神経内科5階', '2026/08/23'],
     ['DEMO260905', '伊藤 洋子', 'イトウ ヨウコ', '女性', '1949/09/07', '77歳', '廃用症候群', '2026/08/28', '入院', '回復期2階A', '2026/08/26'],
-    ['DEMO260906', '渡辺 清', 'ワタナベ キヨシ', '男性', '1955/06/15', '71歳', '心大血管疾患', '2026/09/01', '外来', '循環器6階', ''],
+    ['DEMO260906', '渡辺 清', 'ワタナベ キヨシ', '男性', '1955/06/15', '71歳', '心大血管疾患', '2026/09/01', '外来', '循環器6階', '2026/07/09', '2026/07/17'],
     ['DEMO260907', '山本 恵子', 'ヤマモト ケイコ', '女性', '1946/02/08', '80歳', '呼吸器', '2026/09/02', '入院', '呼吸器5階', '2026/08/31'],
     ['DEMO260908', '中村 隆', 'ナカムラ タカシ', '男性', '1960/12/21', '65歳', '脳血管疾患等', '2026/09/03', '入院', '回復期3階B', '2026/09/01'],
-    ['DEMO260909', '小林 久美子', 'コバヤシ クミコ', '女性', '1951/05/30', '75歳', '廃用症候群', '2026/09/04', '外来', '外科4階', ''],
+    ['DEMO260909', '小林 久美子', 'コバヤシ クミコ', '女性', '1951/05/30', '75歳', '廃用症候群', '2026/09/04', '外来', '外科4階', '2026/07/09', '2026/07/20'],
     ['DEMO260910', '加藤 一郎', 'カトウ イチロウ', '男性', '1944/10/11', '81歳', '運動器', '2026/09/05', '入院', '回復期2階B', '2026/09/03']
   ].map(function (item, index) {
     const detail = smartRehabDetails[index];
     return {
       patientId: item[0], patientName: item[1], patientNameKana: item[2], gender: item[3], birth: item[4], age: item[5],
       rehabilitationClass: item[6], startDate: item[7], entryExit: item[8], wardName: item[9], serviceName: 'スマートリハビリテーション病院',
-      hospitalizationStartDate: item[10], hospitalizationEndDate: '',
+      hospitalizationStartDate: item[10], hospitalizationEndDate: item[11] || '',
       recId: String(9001 + index), groupId: 'DEMO-GROUP', fitbitId: '', patientActive: 'T', treatmentTimes: index + 1,
       rehabStartTime: null, assigned: index < 8, externalEmrId: `SR-${item[0]}`,
       primaryDiagnosis: detail[0], impairments: detail[1], risks: detail[2], goal: detail[3], professions: detail[4],
@@ -176,7 +176,7 @@
   }
 
   function normalizePatientAdmissionFields(patient) {
-    if (patient.entryExit === '入院' && !patient.hospitalizationStartDate) {
+    if (!patient.hospitalizationStartDate) {
       patient.hospitalizationStartDate = patient.startDate || '';
     }
     if (!patient.hospitalizationEndDate) patient.hospitalizationEndDate = '';
@@ -340,6 +340,7 @@
     const context = clinical || {};
     const serviceRequest = context.serviceRequest || {};
     const encounter = context.encounter || {};
+    const hospitalizationEncounter = context.hospitalizationEncounter || (encounter.class?.code === 'IMP' ? encounter : {});
     const condition = context.condition || {};
     const externalEmrId = String(resource.id || '');
     const birthDate = String(resource.birthDate || '');
@@ -348,8 +349,8 @@
     const isInpatient = careSetting === 'inpatient' || encounter.class?.code === 'IMP';
     const rehabilitationClass = extensionValue(serviceRequest, 'rehabilitation-class') || serviceRequest.code?.coding?.[0]?.code || '未設定';
     const startDate = String(serviceRequest.occurrencePeriod?.start || serviceRequest.authoredOn || '').slice(0, 10);
-    const encounterStartDate = String(encounter.period?.start || '').slice(0, 10);
-    const encounterEndDate = String(encounter.period?.end || '').slice(0, 10);
+    const encounterStartDate = String(hospitalizationEncounter.period?.start || '').slice(0, 10);
+    const encounterEndDate = String(hospitalizationEncounter.period?.end || '').slice(0, 10);
     const professions = (serviceRequest.performerType || []).map(function (role) { return role.coding?.[0]?.code || role.text; }).filter(Boolean);
     return {
       patientId: externalEmrId,
@@ -361,8 +362,8 @@
       rehabilitationClass: rehabilitationClass,
       startDate: startDate.replaceAll('-', '/'),
       entryExit: isInpatient ? '入院' : '外来',
-      hospitalizationStartDate: isInpatient ? (encounterStartDate || startDate).replaceAll('-', '/') : '',
-      hospitalizationEndDate: isInpatient ? encounterEndDate.replaceAll('-', '/') : '',
+      hospitalizationStartDate: (encounterStartDate || startDate).replaceAll('-', '/'),
+      hospitalizationEndDate: encounterEndDate.replaceAll('-', '/'),
       wardName: extensionValue(serviceRequest, 'ward-name') || encounter.location?.[0]?.location?.display || '未配属',
       serviceName: 'スマートリハビリテーション病院',
       recId: `EMR-${externalEmrId}`,
@@ -426,9 +427,12 @@
       const candidates = patients.filter(function (resource) { return resource.id; })
         .map(function (resource) {
           const serviceRequest = serviceRequests.find(function (item) { return patientReferenceId(item) === resource.id && item.status === 'active'; });
+          const patientEncounters = encounters.filter(function (item) { return patientReferenceId(item) === resource.id; });
+          const currentEncounter = patientEncounters.find(function (item) { return item.status === 'in-progress'; }) || patientEncounters[0];
           const mapped = smartRehabPatientFromFhir(resource, {
             condition: conditions.find(function (item) { return patientReferenceId(item) === resource.id; }),
-            encounter: encounters.find(function (item) { return patientReferenceId(item) === resource.id; }),
+            encounter: currentEncounter,
+            hospitalizationEncounter: patientEncounters.find(function (item) { return item.class?.code === 'IMP'; }),
             serviceRequest: serviceRequest
           });
           return {
@@ -442,6 +446,8 @@
             rehabilitationClass: mapped.rehabilitationClass,
             entryExit: mapped.entryExit,
             wardName: mapped.wardName,
+            hospitalizationStartDate: mapped.hospitalizationStartDate,
+            hospitalizationEndDate: mapped.hospitalizationEndDate,
             eligible: Boolean(serviceRequest),
             alreadyAdded: existingIds.has(mapped.externalEmrId)
           };
@@ -476,9 +482,12 @@
       }
       const serviceRequest = bundleResources(payloads[3], 'ServiceRequest').find(function (item) { return item.status === 'active'; });
       if (!serviceRequest) return json({ success: false, errorMessage: 'この患者には有効なリハビリテーション依頼がありません。' }, 422);
+      const patientEncounters = bundleResources(payloads[2], 'Encounter');
+      const currentEncounter = patientEncounters.find(function (item) { return item.status === 'in-progress'; }) || patientEncounters[0];
       const importedPatient = smartRehabPatientFromFhir(resource, {
         condition: bundleResources(payloads[1], 'Condition')[0],
-        encounter: bundleResources(payloads[2], 'Encounter')[0],
+        encounter: currentEncounter,
+        hospitalizationEncounter: patientEncounters.find(function (item) { return item.class?.code === 'IMP'; }),
         serviceRequest: serviceRequest
       });
       normalizePatientAdmissionFields(importedPatient);
@@ -1047,7 +1056,7 @@
     table.className = 'emr-patient-dialog-table';
     const head = document.createElement('thead');
     const headRow = document.createElement('tr');
-    ['患者ID', '患者名', '主病名', 'リハ依頼', '生年月日', '性別', '操作'].forEach(function (label) {
+    ['患者ID', '患者名', '主病名', 'リハ依頼', '入院日', '生年月日', '性別', '操作'].forEach(function (label) {
       const cell = document.createElement('th');
       cell.scope = 'col';
       cell.textContent = label;
@@ -1085,6 +1094,8 @@
         ward.textContent = candidate.wardName;
         rehabCell.appendChild(ward);
       }
+      const admissionCell = document.createElement('td');
+      admissionCell.textContent = candidate.hospitalizationStartDate;
       const birthCell = document.createElement('td');
       birthCell.textContent = `${candidate.birth}${candidate.age ? `（${candidate.age}）` : ''}`;
       const genderCell = document.createElement('td');
@@ -1125,7 +1136,7 @@
         }
       });
       actionCell.appendChild(add);
-      [idCell, nameCell, diagnosisCell, rehabCell, birthCell, genderCell, actionCell].forEach(function (cell) { row.appendChild(cell); });
+      [idCell, nameCell, diagnosisCell, rehabCell, admissionCell, birthCell, genderCell, actionCell].forEach(function (cell) { row.appendChild(cell); });
       rows.appendChild(row);
     });
   }

@@ -32,6 +32,8 @@ test('100名の架空患者に現場想定の基本診療データが揃う', ()
     const rehabilitationPlan = store.rehabilitationPlans.find((item) => item.patientId === patient.id);
     if (patient.smartRehabId) assert.equal(condition.display, rehabilitationPlan.primaryDiagnosis);
     else assert.equal(condition.code, expectedConditionCodes[patient.department], `condition must match ${patient.department}`);
+    const hospitalization = store.encounters.find((item) => item.patientId === patient.id && item.classCode === 'IMP');
+    assert.ok(hospitalization?.startedAt, `${patient.id} must have a hospitalization start date`);
   }
 
   for (const collectionName of patientScopedCollections) {
@@ -99,6 +101,8 @@ test('各患者のFHIR Bundleに診療情報を、リハ対象患者には依頼
     assert.ok(resources.some((resource) => resource.resourceType === 'Observation' && resource.category?.[0]?.coding?.[0]?.code === 'laboratory'));
     assert.ok(resources.some((resource) => resource.resourceType === 'Observation' && resource.category?.[0]?.coding?.[0]?.code === 'vital-signs'));
     assert.ok(resourceTypes.has('Encounter'));
+    const hospitalization = resources.find((resource) => resource.resourceType === 'Encounter' && resource.class?.code === 'IMP');
+    assert.ok(hospitalization?.period?.start, `${patient.id} FHIR Bundle must include a hospitalization start date`);
     const rehabilitationPlan = store.rehabilitationPlans.find((item) => item.patientId === patient.id);
     assert.equal(resourceTypes.has('ServiceRequest'), Boolean(rehabilitationPlan));
     if (rehabilitationPlan) {

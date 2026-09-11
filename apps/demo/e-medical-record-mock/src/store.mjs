@@ -223,6 +223,26 @@ function daysBefore(value, days) {
   return new Date(Date.parse(value) - (days * 24 * 60 * 60 * 1000)).toISOString();
 }
 
+function shiftCalendarDate(value, days) {
+  const date = String(value).slice(0, 10);
+  const shifted = new Date(`${date}T00:00:00Z`);
+  shifted.setUTCDate(shifted.getUTCDate() + days);
+  return shifted.toISOString().slice(0, 10);
+}
+
+function hospitalizationPeriodFor(index, occurredAt, rehabilitationPlan) {
+  const referenceDate = rehabilitationPlan?.startDate || String(occurredAt).slice(0, 10);
+  if (rehabilitationPlan?.entryExit === '入院') {
+    return { startedAt: `${shiftCalendarDate(referenceDate, -2)}T08:30:00+09:00`, endedAt: null };
+  }
+  const startedDate = shiftCalendarDate(referenceDate, -(45 + (index % 15)));
+  const lengthOfStayDays = 7 + (index % 8);
+  return {
+    startedAt: `${startedDate}T08:30:00+09:00`,
+    endedAt: `${shiftCalendarDate(startedDate, lengthOfStayDays)}T10:00:00+09:00`
+  };
+}
+
 function createAdditionalPatients(count) {
   return Array.from({ length: count }, (_, index) => {
     const [family, familyKana] = familyNames[index % familyNames.length];
@@ -317,15 +337,26 @@ function createComprehensiveSeed() {
     const encounterId = `ENC-DEMO-${key}`;
     const conditionId = `COND-DEMO-${key}`;
     const rehabilitationPlan = rehabilitationPlanFor(patient, profile, index, encounterId, conditionId);
+    const hospitalizationPeriod = hospitalizationPeriodFor(index, occurredAt, rehabilitationPlan);
+    const isCurrentInpatient = rehabilitationPlan?.entryExit === '入院';
     encounters.push({
       id: encounterId, patientId: patient.id, department: patient.department,
-      status: rehabilitationPlan?.entryExit === '入院' ? 'in-progress' : 'finished',
-      classCode: rehabilitationPlan?.entryExit === '入院' ? 'IMP' : 'AMB',
+      status: isCurrentInpatient ? 'in-progress' : 'finished',
+      classCode: isCurrentInpatient ? 'IMP' : 'AMB',
       entryExit: rehabilitationPlan?.entryExit || '外来', wardName: rehabilitationPlan?.wardName || `${patient.department}外来`,
-      startedAt: rehabilitationPlan?.startDate ? `${rehabilitationPlan.startDate}T08:30:00+09:00` : occurredAt,
-      ...(rehabilitationPlan?.entryExit === '入院' ? {} : { endedAt: isoAt(index, 1) }),
+      startedAt: isCurrentInpatient ? hospitalizationPeriod.startedAt : (rehabilitationPlan?.startDate ? `${rehabilitationPlan.startDate}T08:30:00+09:00` : occurredAt),
+      ...(isCurrentInpatient ? {} : { endedAt: isoAt(index, 1) }),
       practitionerId: `PRACT-${String((index % 6) + 1).padStart(3, '0')}`
     });
+    if (!isCurrentInpatient) {
+      encounters.push({
+        id: `ENC-ADMISSION-${key}`, patientId: patient.id, department: patient.department,
+        status: 'finished', classCode: 'IMP', entryExit: '退院',
+        wardName: `一般病棟${(index % 4) + 2}階${index % 2 ? 'B' : 'A'}`,
+        startedAt: hospitalizationPeriod.startedAt, endedAt: hospitalizationPeriod.endedAt,
+        practitionerId: `PRACT-${String((index % 6) + 1).padStart(3, '0')}`
+      });
+    }
     conditions.push({
       id: conditionId, patientId: patient.id, code: smartRehabConditionCodes[patient.smartRehabId] || profile.icd10,
       display: rehabilitationPlan?.primaryDiagnosis || profile.condition,
