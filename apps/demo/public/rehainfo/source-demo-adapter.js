@@ -18,12 +18,15 @@
   const EMR_PATIENT_IMPORT_API = '/rehainfo/api/emr/patients/import';
   const EMR_OAUTH_TOKEN_API = '/rehainfo/emr/oauth/token';
   const EMR_FHIR_PATIENT_API = '/rehainfo/emr/fhir/r4/Patient';
+  const EMR_FHIR_CONDITION_API = '/rehainfo/emr/fhir/r4/Condition';
+  const EMR_FHIR_ENCOUNTER_API = '/rehainfo/emr/fhir/r4/Encounter';
+  const EMR_FHIR_SERVICE_REQUEST_API = '/rehainfo/emr/fhir/r4/ServiceRequest';
   const EMR_FHIR_MEDICATION_REQUEST_API = '/rehainfo/emr/fhir/r4/MedicationRequest';
   const STORAGE_KEY = 'rehainfo-source-ui-demo-v1';
   const PRESCRIPTION_STORAGE_KEY = 'rehainfo-source-ui-prescriptions-v1';
   const OCR_STORAGE_KEY = 'rehainfo-source-ui-ocr-v1';
   const SOAP_STORAGE_KEY = 'rehainfo-source-ui-soap-v1';
-  const IMPORTED_PATIENT_STORAGE_KEY = 'rehainfo-source-ui-emr-patients-v1';
+  const IMPORTED_PATIENT_STORAGE_KEY = 'rehainfo-source-ui-emr-patients-v2';
   const originalFetch = window.fetch.bind(window);
   const uploadedPrescriptionImages = new Map();
   let emrMockAccessToken = '';
@@ -57,8 +60,20 @@
     return { id: item[0], name: item[1], subLabel: item[2], nameKana: null, employmentType: null, phone: null, email: null, team: null, ward: item[3], monthlyTargetUnits: null };
   });
 
+  const smartRehabDetails = [
+    ['脳梗塞後遺症', ['右片麻痺', '歩行障害'], ['転倒リスク', '嚥下状態を確認'], '病棟内歩行を見守りで実施し自宅退院する', ['PT', 'OT', 'ST'], 3, '2026/11/15', 88, 61, 27, 82, '佐々木 医師'],
+    ['右大腿骨頸部骨折術後', ['右下肢筋力低下', '移乗動作低下'], ['転倒リスク', '右股関節荷重指示'], '歩行器で病棟内移動を自立する', ['PT', 'OT'], 3, '2026/11/20', 72, 49, 23, 66, '佐々木 医師'],
+    ['変形性膝関節症', ['右膝関節可動域制限', '疼痛'], ['疼痛増悪', '転倒リスク'], '階段昇降を手すり使用で獲得する', ['PT', 'OT'], 2, '2026/11/28', 78, 53, 25, 73, '松本 医師'],
+    ['脳梗塞後遺症', ['左片麻痺', '失語症'], ['転倒リスク', '再発予防'], '屋内歩行と日常会話能力を改善する', ['PT', 'OT', 'ST'], 3, '2026/12/05', 65, 42, 23, 58, '高木 医師'],
+    ['肺炎後廃用症候群', ['全身持久力低下', 'ADL低下'], ['起立性低血圧', '低栄養'], '身辺動作を見守りレベルまで改善する', ['PT', 'OT'], 2, '2026/11/30', 69, 45, 24, 63, '松本 医師'],
+    ['慢性心不全', ['運動耐容能低下'], ['心不全増悪', '血圧変動'], '安全な有酸素運動を自己管理できる', ['PT'], 2, '', 112, 81, 31, 106, '加納 医師'],
+    ['慢性呼吸不全', ['呼吸困難', '運動耐容能低下'], ['SpO2低下', '呼吸困難増悪'], '呼吸法を用いて病棟内移動を行う', ['PT', 'OT'], 2, '2026/12/10', 74, 49, 25, 68, '高木 医師'],
+    ['脳梗塞後遺症', ['左上肢機能低下', '構音障害'], ['転倒リスク', '誤嚥リスク'], '食事と更衣を一部介助まで改善する', ['PT', 'OT', 'ST'], 3, '2026/12/12', 62, 40, 22, 56, '佐々木 医師'],
+    ['術後廃用症候群', ['体幹筋力低下', '持久力低下'], ['創部負荷', '疲労'], '屋外歩行を休憩なしで10分継続する', ['PT'], 2, '', 110, 79, 31, 104, '松本 医師'],
+    ['腰椎圧迫骨折', ['体幹可動域制限', '腰痛'], ['再骨折', '転倒リスク'], '装具を使用して更衣と移動を自立する', ['PT', 'OT'], 2, '2026/12/15', 70, 47, 23, 64, '加納 医師']
+  ];
   const patientListRows = [
-    ['DEMO260901', '佐藤 和子', 'サトウ カズコ', '女性', '1948/04/12', '77歳', '脳血管疾患等', '2026/08/18', '入院', '回復期3階A'],
+    ['DEMO260901', '佐藤 和子', 'サトウ カズコ', '女性', '1948/04/12', '78歳', '脳血管疾患等', '2026/08/18', '入院', '回復期3階A'],
     ['DEMO260902', '鈴木 正一', 'スズキ ショウイチ', '男性', '1952/11/03', '73歳', '運動器', '2026/08/20', '入院', '回復期2階B'],
     ['DEMO260903', '高橋 幸子', 'タカハシ サチコ', '女性', '1941/07/26', '85歳', '運動器', '2026/08/22', '入院', '整形外科4階'],
     ['DEMO260904', '田中 博', 'タナカ ヒロシ', '男性', '1958/01/19', '68歳', '脳血管疾患等', '2026/08/25', '入院', '神経内科5階'],
@@ -69,11 +84,16 @@
     ['DEMO260909', '小林 久美子', 'コバヤシ クミコ', '女性', '1951/05/30', '75歳', '廃用症候群', '2026/09/04', '外来', '外科4階'],
     ['DEMO260910', '加藤 一郎', 'カトウ イチロウ', '男性', '1944/10/11', '81歳', '運動器', '2026/09/05', '入院', '回復期2階B']
   ].map(function (item, index) {
+    const detail = smartRehabDetails[index];
     return {
       patientId: item[0], patientName: item[1], patientNameKana: item[2], gender: item[3], birth: item[4], age: item[5],
       rehabilitationClass: item[6], startDate: item[7], entryExit: item[8], wardName: item[9], serviceName: 'スマートリハビリテーション病院',
       recId: String(9001 + index), groupId: 'DEMO-GROUP', fitbitId: '', patientActive: 'T', treatmentTimes: index + 1,
-      rehabStartTime: null, assigned: index < 8, externalEmrId: `SR-${item[0]}`
+      rehabStartTime: null, assigned: index < 8, externalEmrId: `SR-${item[0]}`,
+      primaryDiagnosis: detail[0], impairments: detail[1], risks: detail[2], goal: detail[3], professions: detail[4],
+      plannedUnitsPerDay: detail[5], targetDischargeDate: detail[6],
+      fim: { total: detail[7], motor: detail[8], cognitive: detail[9], previousTotal: detail[10] },
+      attendingPhysician: detail[11]
     };
   });
   patientListRows.push(...readImportedPatientStore());
@@ -259,10 +279,39 @@
     return `${Math.max(0, age)}歳`;
   }
 
-  function smartRehabPatientFromFhir(resource) {
+  function bundleResources(bundle, resourceType) {
+    return (bundle?.entry || []).map(function (entry) { return entry.resource || {}; })
+      .filter(function (resource) { return resource.resourceType === resourceType; });
+  }
+
+  function patientReferenceId(resource) {
+    return String(resource?.subject?.reference || '').replace(/^Patient\//, '');
+  }
+
+  function extensionValue(resource, name) {
+    const suffix = `/StructureDefinition/${name}`;
+    const extension = (resource?.extension || []).find(function (item) { return String(item.url || '').endsWith(suffix); });
+    if (!extension) return undefined;
+    const valueKey = Object.keys(extension).find(function (key) { return key.startsWith('value'); });
+    return valueKey ? extension[valueKey] : undefined;
+  }
+
+  function splitClinicalList(value) {
+    return String(value || '').split(/[、,]/).map(function (item) { return item.trim(); }).filter(Boolean);
+  }
+
+  function smartRehabPatientFromFhir(resource, clinical) {
+    const context = clinical || {};
+    const serviceRequest = context.serviceRequest || {};
+    const encounter = context.encounter || {};
+    const condition = context.condition || {};
     const externalEmrId = String(resource.id || '');
     const birthDate = String(resource.birthDate || '');
     const officialName = patientName(resource, 'official') || '氏名未設定';
+    const careSetting = extensionValue(serviceRequest, 'care-setting');
+    const rehabilitationClass = extensionValue(serviceRequest, 'rehabilitation-class') || serviceRequest.code?.coding?.[0]?.code || '未設定';
+    const startDate = String(serviceRequest.occurrencePeriod?.start || serviceRequest.authoredOn || '').slice(0, 10);
+    const professions = (serviceRequest.performerType || []).map(function (role) { return role.coding?.[0]?.code || role.text; }).filter(Boolean);
     return {
       patientId: externalEmrId,
       patientName: officialName,
@@ -270,10 +319,10 @@
       gender: resource.gender === 'female' ? '女性' : resource.gender === 'male' ? '男性' : 'その他',
       birth: birthDate.replaceAll('-', '/'),
       age: patientAge(birthDate),
-      rehabilitationClass: '電カル連携患者',
-      startDate: new Date().toISOString().slice(0, 10).replaceAll('-', '/'),
-      entryExit: '入院',
-      wardName: '未配属',
+      rehabilitationClass: rehabilitationClass,
+      startDate: startDate.replaceAll('-', '/'),
+      entryExit: careSetting === 'inpatient' || encounter.class?.code === 'IMP' ? '入院' : '外来',
+      wardName: extensionValue(serviceRequest, 'ward-name') || encounter.location?.[0]?.location?.display || '未配属',
       serviceName: 'スマートリハビリテーション病院',
       recId: `EMR-${externalEmrId}`,
       groupId: 'DEMO-GROUP',
@@ -284,7 +333,21 @@
       assigned: true,
       externalEmrId: externalEmrId,
       importedFrom: 'eMedicalRecordMock',
-      fictionalDemoOnly: true
+      fictionalDemoOnly: true,
+      primaryDiagnosis: serviceRequest.reasonReference?.[0]?.display || condition.code?.text || condition.code?.coding?.[0]?.display || '未設定',
+      impairments: splitClinicalList(extensionValue(serviceRequest, 'impairment')),
+      risks: splitClinicalList(extensionValue(serviceRequest, 'risk')),
+      goal: extensionValue(serviceRequest, 'rehabilitation-goal') || '目標未設定',
+      professions: professions,
+      plannedUnitsPerDay: Number(extensionValue(serviceRequest, 'planned-units-per-day') || 0),
+      targetDischargeDate: String(extensionValue(serviceRequest, 'target-discharge-date') || '').replaceAll('-', '/'),
+      fim: {
+        total: Number(extensionValue(serviceRequest, 'fim-total') || 0),
+        motor: Number(extensionValue(serviceRequest, 'fim-motor') || 0),
+        cognitive: Number(extensionValue(serviceRequest, 'fim-cognitive') || 0),
+        previousTotal: Number(extensionValue(serviceRequest, 'fim-previous-total') || 0)
+      },
+      attendingPhysician: serviceRequest.requester?.display || resource.generalPractitioner?.[0]?.display || '担当医未設定'
     };
   }
 
@@ -299,21 +362,34 @@
       return json({ success: true, patients: rows });
     }
     if (method === 'GET' && parsed.pathname === EMR_PATIENT_CANDIDATES_API) {
-      let response;
+      let responses;
       try {
-        response = await fetchEmrResource(EMR_FHIR_PATIENT_API);
+        responses = await Promise.all([
+          fetchEmrResource(EMR_FHIR_PATIENT_API),
+          fetchEmrResource(EMR_FHIR_CONDITION_API),
+          fetchEmrResource(EMR_FHIR_ENCOUNTER_API),
+          fetchEmrResource(`${EMR_FHIR_SERVICE_REQUEST_API}?category=rehabilitation`)
+        ]);
       } catch (_) {
         return json({ success: false, errorMessage: '電カルモックの認証に失敗しました。' }, 502);
       }
-      const bundle = await response.json().catch(function () { return {}; });
-      if (!response.ok || bundle.resourceType !== 'Bundle') {
-        return json({ success: false, errorMessage: '電カルモックから患者一覧を取得できませんでした。' }, response.status || 502);
+      const bundles = await Promise.all(responses.map(function (response) { return response.json().catch(function () { return {}; }); }));
+      if (responses.some(function (response) { return !response.ok; }) || bundles.some(function (bundle) { return bundle.resourceType !== 'Bundle'; })) {
+        return json({ success: false, errorMessage: '電カルモックから患者・傷病・受診・リハ依頼情報を取得できませんでした。' }, 502);
       }
+      const patients = bundleResources(bundles[0], 'Patient');
+      const conditions = bundleResources(bundles[1], 'Condition');
+      const encounters = bundleResources(bundles[2], 'Encounter');
+      const serviceRequests = bundleResources(bundles[3], 'ServiceRequest');
       const existingIds = new Set(patientListRows.map(function (patient) { return patient.externalEmrId; }).filter(Boolean));
-      const candidates = (bundle.entry || []).map(function (entry) { return entry.resource || {}; })
-        .filter(function (resource) { return resource.resourceType === 'Patient' && resource.id; })
+      const candidates = patients.filter(function (resource) { return resource.id; })
         .map(function (resource) {
-          const mapped = smartRehabPatientFromFhir(resource);
+          const serviceRequest = serviceRequests.find(function (item) { return patientReferenceId(item) === resource.id && item.status === 'active'; });
+          const mapped = smartRehabPatientFromFhir(resource, {
+            condition: conditions.find(function (item) { return patientReferenceId(item) === resource.id; }),
+            encounter: encounters.find(function (item) { return patientReferenceId(item) === resource.id; }),
+            serviceRequest: serviceRequest
+          });
           return {
             externalEmrId: mapped.externalEmrId,
             patientName: mapped.patientName,
@@ -321,10 +397,15 @@
             gender: mapped.gender,
             birth: mapped.birth,
             age: mapped.age,
+            primaryDiagnosis: mapped.primaryDiagnosis,
+            rehabilitationClass: mapped.rehabilitationClass,
+            entryExit: mapped.entryExit,
+            wardName: mapped.wardName,
+            eligible: Boolean(serviceRequest),
             alreadyAdded: existingIds.has(mapped.externalEmrId)
           };
         });
-      return json({ success: true, standard: 'HL7 FHIR R4 / JP Core Patient', patients: candidates });
+      return json({ success: true, standard: 'HL7 FHIR R4 / JP Core Patient・Condition・Encounter・ServiceRequest', patients: candidates });
     }
     if (method === 'POST' && parsed.pathname === EMR_PATIENT_IMPORT_API) {
       let payload;
@@ -335,17 +416,30 @@
       }
       const existing = patientListRows.find(function (patient) { return patient.externalEmrId === externalEmrId; });
       if (existing) return json({ success: true, alreadyAdded: true, patient: existing, message: 'この患者は追加済みです。' });
-      let response;
+      let responses;
       try {
-        response = await fetchEmrResource(`${EMR_FHIR_PATIENT_API}/${encodeURIComponent(externalEmrId)}`);
+        const patientReference = encodeURIComponent(`Patient/${externalEmrId}`);
+        responses = await Promise.all([
+          fetchEmrResource(`${EMR_FHIR_PATIENT_API}/${encodeURIComponent(externalEmrId)}`),
+          fetchEmrResource(`${EMR_FHIR_CONDITION_API}?patient=${patientReference}`),
+          fetchEmrResource(`${EMR_FHIR_ENCOUNTER_API}?patient=${patientReference}`),
+          fetchEmrResource(`${EMR_FHIR_SERVICE_REQUEST_API}?patient=${patientReference}&category=rehabilitation`)
+        ]);
       } catch (_) {
         return json({ success: false, errorMessage: '電カルモックの認証に失敗しました。' }, 502);
       }
-      const resource = await response.json().catch(function () { return {}; });
-      if (!response.ok || resource.resourceType !== 'Patient' || resource.id !== externalEmrId) {
-        return json({ success: false, errorMessage: '電カルモックから患者情報を取得できませんでした。' }, response.status || 502);
+      const payloads = await Promise.all(responses.map(function (response) { return response.json().catch(function () { return {}; }); }));
+      const resource = payloads[0];
+      if (responses.some(function (response) { return !response.ok; }) || resource.resourceType !== 'Patient' || resource.id !== externalEmrId) {
+        return json({ success: false, errorMessage: '電カルモックから患者・リハ情報を取得できませんでした。' }, 502);
       }
-      const importedPatient = smartRehabPatientFromFhir(resource);
+      const serviceRequest = bundleResources(payloads[3], 'ServiceRequest').find(function (item) { return item.status === 'active'; });
+      if (!serviceRequest) return json({ success: false, errorMessage: 'この患者には有効なリハビリテーション依頼がありません。' }, 422);
+      const importedPatient = smartRehabPatientFromFhir(resource, {
+        condition: bundleResources(payloads[1], 'Condition')[0],
+        encounter: bundleResources(payloads[2], 'Encounter')[0],
+        serviceRequest: serviceRequest
+      });
       const importedPatients = readImportedPatientStore();
       importedPatients.push(importedPatient);
       writeImportedPatientStore(importedPatients);
@@ -842,7 +936,7 @@
     if (dialog) return dialog;
     const style = document.createElement('style');
     style.textContent = `
-      #emrPatientImportDialog { width: min(920px, calc(100vw - 32px)); max-height: calc(100vh - 48px); padding: 0; border: 0; border-radius: 10px; box-shadow: 0 24px 80px rgba(0,0,0,.28); color: #202B4C; }
+      #emrPatientImportDialog { width: min(1180px, calc(100vw - 32px)); max-height: calc(100vh - 48px); padding: 0; border: 0; border-radius: 10px; box-shadow: 0 24px 80px rgba(0,0,0,.28); color: #202B4C; }
       #emrPatientImportDialog::backdrop { background: rgba(13, 22, 45, .55); }
       .emr-patient-dialog-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px 24px 16px; border-bottom: 1px solid #d9dee8; }
       .emr-patient-dialog-header h2 { margin: 0 0 4px; font-size: 22px; }
@@ -857,7 +951,7 @@
       .emr-patient-dialog-table small { display: block; color: #6b7587; margin-top: 2px; }
       .emr-patient-dialog-add { min-width: 76px; min-height: 38px; border: 1px solid #202B4C; border-radius: 5px; background: #202B4C; color: #fff; font-weight: 600; cursor: pointer; }
       .emr-patient-dialog-add:disabled { border-color: #b8c0ce; background: #e4e8ef; color: #667085; cursor: default; }
-      @media (max-width: 680px) { .emr-patient-dialog-table th:nth-child(3), .emr-patient-dialog-table td:nth-child(3) { display: none; } }
+      @media (max-width: 680px) { .emr-patient-dialog-table th:nth-child(3), .emr-patient-dialog-table td:nth-child(3), .emr-patient-dialog-table th:nth-child(5), .emr-patient-dialog-table td:nth-child(5), .emr-patient-dialog-table th:nth-child(6), .emr-patient-dialog-table td:nth-child(6) { display: none; } }
     `;
     document.head.appendChild(style);
     dialog = document.createElement('dialog');
@@ -888,7 +982,7 @@
     table.className = 'emr-patient-dialog-table';
     const head = document.createElement('thead');
     const headRow = document.createElement('tr');
-    ['患者ID', '患者名', '生年月日', '性別', '操作'].forEach(function (label) {
+    ['患者ID', '患者名', '主病名', 'リハ依頼', '生年月日', '性別', '操作'].forEach(function (label) {
       const cell = document.createElement('th');
       cell.scope = 'col';
       cell.textContent = label;
@@ -917,6 +1011,15 @@
       const kana = document.createElement('small');
       kana.textContent = candidate.patientNameKana;
       nameCell.append(name, kana);
+      const diagnosisCell = document.createElement('td');
+      diagnosisCell.textContent = candidate.primaryDiagnosis;
+      const rehabCell = document.createElement('td');
+      rehabCell.textContent = candidate.eligible ? `${candidate.rehabilitationClass} / ${candidate.entryExit}` : 'リハ依頼なし';
+      if (candidate.eligible) {
+        const ward = document.createElement('small');
+        ward.textContent = candidate.wardName;
+        rehabCell.appendChild(ward);
+      }
       const birthCell = document.createElement('td');
       birthCell.textContent = `${candidate.birth}${candidate.age ? `（${candidate.age}）` : ''}`;
       const genderCell = document.createElement('td');
@@ -925,8 +1028,8 @@
       const add = document.createElement('button');
       add.type = 'button';
       add.className = 'emr-patient-dialog-add';
-      add.textContent = candidate.alreadyAdded ? '追加済み' : '追加';
-      add.disabled = candidate.alreadyAdded;
+      add.textContent = candidate.alreadyAdded ? '追加済み' : candidate.eligible ? '追加' : '対象外';
+      add.disabled = candidate.alreadyAdded || !candidate.eligible;
       add.addEventListener('click', async function () {
         add.disabled = true;
         add.textContent = '追加中…';
@@ -957,7 +1060,7 @@
         }
       });
       actionCell.appendChild(add);
-      [idCell, nameCell, birthCell, genderCell, actionCell].forEach(function (cell) { row.appendChild(cell); });
+      [idCell, nameCell, diagnosisCell, rehabCell, birthCell, genderCell, actionCell].forEach(function (cell) { row.appendChild(cell); });
       rows.appendChild(row);
     });
   }
@@ -976,7 +1079,8 @@
         status.textContent = result.errorMessage || '電カルモックから患者一覧を取得できませんでした。';
         return;
       }
-      status.textContent = `${result.patients.length}名を取得しました。追加済みの患者は再追加できません。`;
+      const eligibleCount = result.patients.filter(function (patient) { return patient.eligible; }).length;
+      status.textContent = `${result.patients.length}名を取得しました。リハ依頼あり ${eligibleCount}名を追加できます。追加済みの患者は再追加できません。`;
       renderEmrPatientCandidates(dialog, result.patients);
     } catch (_) {
       status.textContent = '電カルモックから患者一覧を取得できませんでした。';
@@ -1005,8 +1109,9 @@
     if (targetPatient && patientPage) {
       const patientValues = {
         patientId: `患者ID：${targetPatient.patientId}`, name: targetPatient.patientName, nameKana: targetPatient.patientNameKana,
-        gender: targetPatient.gender, age: targetPatient.age, birth: `1948(昭和23)年04月12日`,
-        doctor: '主治医：公開デモ 医師', disease: `右上下肢：${targetPatient.rehabilitationClass}`,
+        gender: targetPatient.gender, age: targetPatient.age, birth: targetPatient.birth,
+        doctor: `主治医：${targetPatient.attendingPhysician || '担当医未設定'}`,
+        disease: `${targetPatient.primaryDiagnosis || targetPatient.rehabilitationClass}：${(targetPatient.impairments || []).join('、') || '機能障害評価中'}`,
         treatmentTimes: `${targetPatient.treatmentTimes}回目`
       };
       Object.keys(patientValues).forEach(function (field) {
@@ -1016,17 +1121,25 @@
     if (patientPage === 'top' && targetPatient) {
       const soap = document.querySelector('[data-patient-action="soap"]');
       if (soap) soap.href = `/rehainfo/patient/${encodeURIComponent(recId)}/treatment-soap/soap-list`;
+      const fim = targetPatient.fim || { total: 0, motor: 0, cognitive: 0, previousTotal: 0 };
+      const startDate = new Date(String(targetPatient.startDate || '').replaceAll('/', '-'));
+      const hospitalizationDays = targetPatient.entryExit === '入院' && !Number.isNaN(startDate.getTime())
+        ? Math.max(1, Math.floor((Date.now() - startDate.getTime()) / 86400000) + 1) : 0;
+      const fimGain = fim.total - fim.previousTotal;
       const text = {
-        hospitalizationDays: '在棟日数：24日', totalScore: '88', exerciseScore: '61', cognitiveScore: '27', calculationFim: '0.43',
-        lastTotalScore: '前回：82', lastExerciseScore: '前回：56', lastCognitiveScore: '前回：26', fimGain: 'FIM利得：6'
+        hospitalizationDays: targetPatient.entryExit === '入院' ? `在棟日数：${hospitalizationDays}日` : '外来リハビリ',
+        totalScore: String(fim.total), exerciseScore: String(fim.motor), cognitiveScore: String(fim.cognitive),
+        calculationFim: hospitalizationDays ? (fimGain / hospitalizationDays).toFixed(2) : '—',
+        lastTotalScore: `前回：${fim.previousTotal}`, lastExerciseScore: `前回：${Math.max(0, fim.motor - fimGain)}`,
+        lastCognitiveScore: `前回：${fim.cognitive}`, fimGain: `FIM利得：${fimGain}`
       };
       Object.keys(text).forEach(function (id) { const element = document.getElementById(id); if (element) element.textContent = text[id]; });
       const evaluationTable = document.getElementById('evaluationTable');
       if (evaluationTable) evaluationTable.insertAdjacentHTML('beforeend', '<tr><td>10m歩行</td><td>18.2秒</td></tr><tr><td>BBS</td><td>42点</td></tr><tr><td>握力（右）</td><td>18.5kg</td></tr>');
       const dashboardLists = {
-        problemsList: ['歩行時のふらつき', '右下肢支持性の低下'],
-        goalAndTargetList: ['病棟内歩行を見守りで実施', '退院時FIM 95点'],
-        treatmentList: ['歩行・バランス練習', '下肢筋力訓練']
+        problemsList: (targetPatient.impairments || []).concat(targetPatient.risks || []),
+        goalAndTargetList: [targetPatient.goal || '目標未設定'].concat(targetPatient.targetDischargeDate ? [`退院目標：${targetPatient.targetDischargeDate}`] : []),
+        treatmentList: (targetPatient.professions || []).map(function (role) { return `${role}：${targetPatient.plannedUnitsPerDay || 0}単位/日`; })
       };
       Object.keys(dashboardLists).forEach(function (id) {
         const element = document.getElementById(id);

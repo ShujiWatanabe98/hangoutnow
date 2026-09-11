@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { audit, createStore, makeId } from './src/store.mjs';
-import { capabilityStatement, clinicalDocumentBundle, conditionResource, medicationRequestResource, observationResource, operationOutcome, patientBundle, patientResource } from './src/fhir.mjs';
+import { capabilityStatement, clinicalDocumentBundle, conditionResource, encounterResource, medicationRequestResource, observationResource, operationOutcome, patientBundle, patientResource, rehabilitationServiceRequestResource, vitalSignResource } from './src/fhir.mjs';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 const publicDir = join(root, 'public');
@@ -135,12 +135,31 @@ export function createAppServer({ store = createStore() } = {}) {
       if (req.method === 'GET' && params) return sendJson(res, 200, { items: store.records.filter((r) => r.patientId === params.id).sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)) });
       params = match(pathname, '/api/v1/patients/:id/summary');
       if (req.method === 'GET' && params) return sendJson(res, 200, {
-        patient: store.patients.find((p) => p.id === params.id), records: store.records.filter((r) => r.patientId === params.id), medications: store.medicationRequests.filter((m) => m.patientId === params.id), labs: store.labOrders.filter((l) => l.patientId === params.id), documents: store.documents.filter((d) => d.patientId === params.id)
+        patient: store.patients.find((p) => p.id === params.id),
+        encounters: store.encounters.filter((item) => item.patientId === params.id),
+        conditions: store.conditions.filter((item) => item.patientId === params.id),
+        rehabilitationPlans: store.rehabilitationPlans.filter((item) => item.patientId === params.id),
+        records: store.records.filter((item) => item.patientId === params.id),
+        vitalSigns: store.vitalSigns.filter((item) => item.patientId === params.id),
+        medications: store.medicationRequests.filter((item) => item.patientId === params.id),
+        prescriptions: store.prescriptions.filter((item) => item.patientId === params.id),
+        dispenses: store.dispenses.filter((item) => item.patientId === params.id),
+        labs: store.labOrders.filter((item) => item.patientId === params.id),
+        injections: store.injectionOrders.filter((item) => item.patientId === params.id),
+        imaging: store.imagingOrders.filter((item) => item.patientId === params.id),
+        documents: store.documents.filter((item) => item.patientId === params.id),
+        summaries: store.summaries.filter((item) => item.patientId === params.id),
+        eligibilityChecks: store.eligibilityChecks.filter((item) => item.patientId === params.id),
+        appointments: store.appointments.filter((item) => item.patientId === params.id),
+        billingCharges: store.billingCharges.filter((item) => item.patientId === params.id),
+        receivedFhirDocuments: store.receivedBundles.filter((item) => item.patientId === params.id),
+        sentFhirDocuments: store.sentBundles.filter((item) => item.patientId === params.id)
       });
       if (req.method === 'POST' && pathname === '/api/v1/encounters') {
         const body = await readBody(req); const missing = requireFields(body, ['patientId', 'department']);
         if (missing.length) return sendProblem(res, 422, 'EMR-VAL-4220', 'Validation failed', '必須項目が不足しています。', requestId, missing);
         const encounter = { id: makeId('ENC'), patientId: body.patientId, department: body.department, status: 'in-progress', startedAt: new Date().toISOString(), practitionerId: principal.practitioner_id };
+        store.encounters.push(encounter);
         audit(store, { action: 'create', resourceType: 'Encounter', resourceId: encounter.id, practitionerId: principal.practitioner_id, requestId });
         return sendJson(res, 201, encounter, { Location: `/api/v1/encounters/${encounter.id}` });
       }
@@ -283,8 +302,34 @@ export function createAppServer({ store = createStore() } = {}) {
           }))
         }, { 'Content-Type': 'application/fhir+json; charset=utf-8' });
       }
-      if (req.method === 'GET' && pathname === '/fhir/r4/Observation') return sendJson(res, 200, { resourceType: 'Bundle', type: 'searchset', total: store.labOrders.length, entry: store.labOrders.map((o) => ({ resource: observationResource(o) })) });
-      if (req.method === 'GET' && pathname === '/fhir/r4/Condition') return sendJson(res, 200, { resourceType: 'Bundle', type: 'searchset', total: store.patients.length, entry: store.patients.map((p) => ({ resource: conditionResource(p.id) })) });
+      if (req.method === 'GET' && pathname === '/fhir/r4/Observation') {
+        const patientId = (url.searchParams.get('patient') || '').replace(/^Patient\//, '');
+        const labs = store.labOrders.filter((item) => !patientId || item.patientId === patientId).map(observationResource);
+        const vitals = store.vitalSigns.filter((item) => !patientId || item.patientId === patientId).map(vitalSignResource);
+        return sendJson(res, 200, { resourceType: 'Bundle', type: 'searchset', total: labs.length + vitals.length, entry: labs.concat(vitals).map((resource) => ({ resource })) });
+      }
+      if (req.method === 'GET' && pathname === '/fhir/r4/Condition') {
+        const patientId = (url.searchParams.get('patient') || '').replace(/^Patient\//, '');
+        const conditions = store.conditions.filter((item) => !patientId || item.patientId === patientId);
+        return sendJson(res, 200, { resourceType: 'Bundle', type: 'searchset', total: conditions.length, entry: conditions.map((item) => ({ resource: conditionResource(item) })) });
+      }
+      if (req.method === 'GET' && pathname === '/fhir/r4/Encounter') {
+        const patientId = (url.searchParams.get('patient') || '').replace(/^Patient\//, '');
+        const encounters = store.encounters.filter((item) => !patientId || item.patientId === patientId);
+        return sendJson(res, 200, {
+          resourceType: 'Bundle', type: 'searchset', total: encounters.length,
+          entry: encounters.map((item) => ({ resource: encounterResource(item) }))
+        }, { 'Content-Type': 'application/fhir+json; charset=utf-8' });
+      }
+      if (req.method === 'GET' && pathname === '/fhir/r4/ServiceRequest') {
+        const patientId = (url.searchParams.get('patient') || '').replace(/^Patient\//, '');
+        const category = url.searchParams.get('category') || '';
+        const plans = store.rehabilitationPlans.filter((item) => (!patientId || item.patientId === patientId) && (!category || category === 'rehabilitation'));
+        return sendJson(res, 200, {
+          resourceType: 'Bundle', type: 'searchset', total: plans.length,
+          entry: plans.map((item) => ({ resource: rehabilitationServiceRequestResource(item) }))
+        }, { 'Content-Type': 'application/fhir+json; charset=utf-8' });
+      }
 
       if (isApi) return pathname.startsWith('/fhir/r4') ? sendJson(res, 404, operationOutcome('not-found', 'Endpoint not found')) : sendProblem(res, 404, 'EMR-API-4040', 'Endpoint not found', '指定されたAPIはありません。', requestId);
       if (await serveStatic(pathname, res)) return;

@@ -28,9 +28,9 @@
     "/smariha-scheduler": "/rehainfo/schedule"
   },
   "sourceManifest": "apps/demo/rehainfo-source/source-manifest.json",
-  "dataMode": "fictional-browser-demo; SOAP, extracted AI text, imported mock FHIR prescriptions, and imported mock patients are stored only in browser localStorage",
+  "dataMode": "fictional-browser-demo; EMR data models demographics, encounters, conditions, records, orders, results, insurance and audit history; Smart Rehab data models active rehabilitation orders, care setting, ward, diagnosis, impairments, risks, goals, assigned professions, units and FIM; browser-added patients remain in localStorage",
   "prescriptionImageProcessing": "OpenAI Responses API with store=false; images are discarded after the response",
   "aiOcrImageProcessing": "OpenAI Responses API with store=false; images are discarded after the response",
-  "emrMockIntegration": "authenticated same-origin FHIR R4 Patient and MedicationRequest mock; fictional data only",
+  "emrMockIntegration": "authenticated same-origin FHIR R4 / JP Core Patient, Condition, Encounter, ServiceRequest, MedicationRequest and Observation mock; only patients with an active rehabilitation ServiceRequest can be added to Smart Rehab; fictional data only",
   "externalClinicalSystemsConnected": false
 }

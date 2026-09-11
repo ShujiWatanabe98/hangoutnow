@@ -147,7 +147,7 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
     assert.ok(html.includes(`data-rehainfo-source-template="${source}"`), source);
     assert.ok(html.includes(title), title);
     assert.ok(html.includes(marker), marker);
-    assert.match(html, /\/rehainfo\/source-demo-adapter\.js\?v=20260911-5/);
+    assert.match(html, /\/rehainfo\/source-demo-adapter\.js\?v=20260911-6/);
     assert.doesNotMatch(html, /patient-list-source|patient-demo|rehainfo-demo-notice/);
   }
 
@@ -161,7 +161,7 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
   assert.doesNotMatch(adapter, /\/rehainfo-main(?:\/|$)/);
   assert.doesNotMatch(adapter, /外部AIへ送信せず|外部AIを使わないデモ用の固定結果/);
   assert.match(adapter, /画像は読取時のみ外部AIへ送信され、結果は必ず原本と照合してください/);
-  for (const marker of ['REHAINFO_DEMO_PATIENT_COLUMNS', 'ATTENDANCE_API', 'BILLING_API', 'OPERATIONS_API', 'AI_API', 'PRESCRIPTION_REGISTER_API', 'EMR_PRESCRIPTION_IMPORT_API', 'EMR_PATIENT_CANDIDATES_API', 'EMR_PATIENT_IMPORT_API', 'EMR_OAUTH_TOKEN_API', 'EMR_FHIR_PATIENT_API', 'EMR_FHIR_MEDICATION_REQUEST_API', 'IMPORTED_PATIENT_STORAGE_KEY', 'OCR_REGISTER_API', 'SOAP_STORAGE_KEY', 'prescriptionSummary', 'emrPrescriptionSummary', 'smartRehabPatientFromFhir', 'openEmrPatientImportDialog', 'ocrSummary']) assert.match(adapter, new RegExp(marker));
+  for (const marker of ['REHAINFO_DEMO_PATIENT_COLUMNS', 'ATTENDANCE_API', 'BILLING_API', 'OPERATIONS_API', 'AI_API', 'PRESCRIPTION_REGISTER_API', 'EMR_PRESCRIPTION_IMPORT_API', 'EMR_PATIENT_CANDIDATES_API', 'EMR_PATIENT_IMPORT_API', 'EMR_OAUTH_TOKEN_API', 'EMR_FHIR_PATIENT_API', 'EMR_FHIR_CONDITION_API', 'EMR_FHIR_ENCOUNTER_API', 'EMR_FHIR_SERVICE_REQUEST_API', 'EMR_FHIR_MEDICATION_REQUEST_API', 'IMPORTED_PATIENT_STORAGE_KEY', 'OCR_REGISTER_API', 'SOAP_STORAGE_KEY', 'prescriptionSummary', 'emrPrescriptionSummary', 'smartRehabPatientFromFhir', 'openEmrPatientImportDialog', 'ocrSummary']) assert.match(adapter, new RegExp(marker));
 
   const emrPageResponse = await fetch(`${origin}/rehainfo/emr/`, { headers: { cookie } });
   const emrPage = await emrPageResponse.text();
@@ -202,6 +202,26 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
   assert.ok(emrFhirPatients.total >= 14);
   assert.ok(emrFhirPatients.entry.some((entry) => entry.resource.id === 'P0001001'));
   assert.ok(emrFhirPatients.entry.every((entry) => entry.resource.meta.profile.includes('http://jpfhir.jp/fhir/core/StructureDefinition/JP_Patient')));
+
+  const rehabReference = encodeURIComponent('Patient/SR-DEMO260902');
+  const [emrConditionsResponse, emrEncountersResponse, emrRehabRequestsResponse] = await Promise.all([
+    fetch(`${origin}/rehainfo/emr/fhir/r4/Condition?patient=${rehabReference}`, { headers: { ...emrApiHeaders, accept: 'application/fhir+json' } }),
+    fetch(`${origin}/rehainfo/emr/fhir/r4/Encounter?patient=${rehabReference}`, { headers: { ...emrApiHeaders, accept: 'application/fhir+json' } }),
+    fetch(`${origin}/rehainfo/emr/fhir/r4/ServiceRequest?patient=${rehabReference}&category=rehabilitation`, { headers: { ...emrApiHeaders, accept: 'application/fhir+json' } }),
+  ]);
+  assert.equal(emrConditionsResponse.status, 200);
+  assert.equal(emrEncountersResponse.status, 200);
+  assert.equal(emrRehabRequestsResponse.status, 200);
+  const emrConditions = await emrConditionsResponse.json();
+  const emrEncounters = await emrEncountersResponse.json();
+  const emrRehabRequests = await emrRehabRequestsResponse.json();
+  assert.equal(emrConditions.entry[0].resource.code.text, '右大腿骨頸部骨折術後');
+  assert.equal(emrEncounters.entry[0].resource.class.code, 'IMP');
+  assert.equal(emrEncounters.entry[0].resource.location[0].location.display, '回復期2階B');
+  assert.equal(emrRehabRequests.total, 1);
+  assert.equal(emrRehabRequests.entry[0].resource.code.coding[0].code, '運動器');
+  assert.equal(emrRehabRequests.entry[0].resource.reasonReference[0].display, '右大腿骨頸部骨折術後');
+  assert.ok(emrRehabRequests.entry[0].resource.extension.some((item) => item.url.endsWith('/fim-total')));
 
   for (const asset of [
     '/rehainfo/js/ocr/PatientList.js',
