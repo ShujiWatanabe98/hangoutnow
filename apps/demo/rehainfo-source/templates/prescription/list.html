@@ -9,7 +9,7 @@
     <link href="/rehainfo/css/bootstrap-icons-1.9.1/bootstrap-icons.css" rel="stylesheet" />
     <script src="/rehainfo/js/Common.js?v=1.0.2"></script>
     <script th:inline="javascript">window.prescriptionPatientAddFlow = /*[[${patientAddFlow}]]*/ false;</script>
-    <script src="/rehainfo/js/PrescriptionPatientImport.js?v=1.0.0" defer="defer"></script>
+    <script src="/rehainfo/js/PrescriptionPatientImport.js?v=1.1.0" defer="defer"></script>
     <style>
         body { background: #E8E9ED; font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif; }
         main { padding: 24px; }
@@ -48,6 +48,10 @@
         .patient-form-field label { font-size: 13px; font-weight: 700; color: #303b50; }
         .patient-form-field input, .patient-form-field select { min-height: 42px; border: 1px solid #b8c0cf; border-radius: 6px; padding: 8px 10px; }
         .patient-form-field input.invalid, .patient-form-field select.invalid { border-color: #dc2626; background: #fff7f7; }
+        .patient-id-lookup-row { display: flex; gap: 8px; align-items: stretch; }
+        .patient-id-lookup-row input { flex: 1; min-width: 0; }
+        .patient-id-lookup-button { border: 1px solid #1C2950; border-radius: 6px; background: #fff; color: #1C2950; padding: 6px 12px; font-weight: 700; white-space: nowrap; }
+        .patient-id-lookup-button:disabled { opacity: .55; cursor: wait; }
         .field-error { min-height: 17px; color: #b42318; font-size: 12px; }
         .required-label { color: #b42318; font-size: 11px; margin-left: 5px; }
         .patient-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
@@ -126,7 +130,7 @@
         <form id="prescriptionPatientForm" class="patient-dialog-body" novalidate="novalidate">
             <div id="prescriptionPatientStatus" class="patient-dialog-status" role="status"></div>
             <div class="patient-form-grid">
-                <div class="patient-form-field"><label for="rxPatientId">患者ID<span class="required-label">必須</span></label><input id="rxPatientId" name="patientId" maxlength="64" /><div class="field-error" data-error-for="patientId"></div></div>
+                <div class="patient-form-field"><label for="rxPatientId">患者ID<span class="required-label">必須</span></label><div class="patient-id-lookup-row"><input id="rxPatientId" name="patientId" maxlength="64" /><button type="button" id="prescriptionPatientLookup" class="patient-id-lookup-button">患者IDから取得</button></div><div class="field-error" data-error-for="patientId"></div></div>
                 <div class="patient-form-field"><label for="rxBirth">生年月日<span class="required-label">必須</span></label><input id="rxBirth" name="birth" type="date" /><div class="field-error" data-error-for="birth"></div></div>
                 <div class="patient-form-field"><label for="rxFamilyName">姓<span class="required-label">必須</span></label><input id="rxFamilyName" name="familyName" /><div class="field-error" data-error-for="familyName"></div></div>
                 <div class="patient-form-field"><label for="rxFirstName">名<span class="required-label">必須</span></label><input id="rxFirstName" name="firstName" /><div class="field-error" data-error-for="firstName"></div></div>

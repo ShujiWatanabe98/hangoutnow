@@ -1,5 +1,5 @@
 <!DOCTYPE HTML>
-<html data-rehainfo-source-template="templates/prescription/list.html" data-rehainfo-source-sha256="2AEE8C9D37F596A41B43A33116FC4DE86A89DD8C115A02E01B676EC07FEED551" xmlns:th="http://www.thymeleaf.org" lang="ja">
+<html data-rehainfo-source-template="templates/prescription/list.html" data-rehainfo-source-sha256="BB8AE039252B9709F99409B6744AD73317AB71202BF7C4E5A712231EE584628B" xmlns:th="http://www.thymeleaf.org" lang="ja">
 <head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -153,7 +153,7 @@
 			--body-bg-color: #E8E9ED !important;
 		}
 	</style>
-	<script src="/rehainfo/source-demo-adapter.js?v=20260911-12"></script>
+	<script src="/rehainfo/source-demo-adapter.js?v=20260911-13"></script>
 </head>
 <head>
     <meta charset="UTF-8" />
@@ -202,6 +202,10 @@
         .patient-form-field label { font-size: 13px; font-weight: 700; color: #303b50; }
         .patient-form-field input, .patient-form-field select { min-height: 42px; border: 1px solid #b8c0cf; border-radius: 6px; padding: 8px 10px; }
         .patient-form-field input.invalid, .patient-form-field select.invalid { border-color: #dc2626; background: #fff7f7; }
+        .patient-id-lookup-row { display: flex; gap: 8px; align-items: stretch; }
+        .patient-id-lookup-row input { flex: 1; min-width: 0; }
+        .patient-id-lookup-button { border: 1px solid #1C2950; border-radius: 6px; background: #fff; color: #1C2950; padding: 6px 12px; font-weight: 700; white-space: nowrap; }
+        .patient-id-lookup-button:disabled { opacity: .55; cursor: wait; }
         .field-error { min-height: 17px; color: #b42318; font-size: 12px; }
         .required-label { color: #b42318; font-size: 11px; margin-left: 5px; }
         .patient-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
@@ -306,7 +310,7 @@
         <form id="prescriptionPatientForm" class="patient-dialog-body" novalidate="novalidate">
             <div id="prescriptionPatientStatus" class="patient-dialog-status" role="status"></div>
             <div class="patient-form-grid">
-                <div class="patient-form-field"><label for="rxPatientId">患者ID<span class="required-label">必須</span></label><input id="rxPatientId" name="patientId" maxlength="64" /><div class="field-error" data-error-for="patientId"></div></div>
+                <div class="patient-form-field"><label for="rxPatientId">患者ID<span class="required-label">必須</span></label><div class="patient-id-lookup-row"><input id="rxPatientId" name="patientId" maxlength="64" /><button type="button" id="prescriptionPatientLookup" class="patient-id-lookup-button">患者IDから取得</button></div><div class="field-error" data-error-for="patientId"></div></div>
                 <div class="patient-form-field"><label for="rxBirth">生年月日<span class="required-label">必須</span></label><input id="rxBirth" name="birth" type="date" /><div class="field-error" data-error-for="birth"></div></div>
                 <div class="patient-form-field"><label for="rxFamilyName">姓<span class="required-label">必須</span></label><input id="rxFamilyName" name="familyName" /><div class="field-error" data-error-for="familyName"></div></div>
                 <div class="patient-form-field"><label for="rxFirstName">名<span class="required-label">必須</span></label><input id="rxFirstName" name="firstName" /><div class="field-error" data-error-for="firstName"></div></div>

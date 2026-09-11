@@ -15,6 +15,7 @@
   const PRESCRIPTION_ANALYZE_API = '/rehainfo/api/prescriptions/analyze';
   const EMR_PRESCRIPTION_IMPORT_API = '/rehainfo/api/prescriptions/emr/import';
   const EMR_PATIENT_CANDIDATES_API = '/rehainfo/api/emr/patients';
+  const EMR_PATIENT_LOOKUP_API = '/rehainfo/api/prescriptions/patient-lookup';
   const EMR_PATIENT_IMPORT_API = '/rehainfo/api/emr/patients/import';
   const EMR_OAUTH_TOKEN_API = '/rehainfo/emr/oauth/token';
   const EMR_FHIR_PATIENT_API = '/rehainfo/emr/fhir/r4/Patient';
@@ -359,7 +360,9 @@
     const birthDate = String(resource.birthDate || '');
     const officialName = patientName(resource, 'official') || '氏名未設定';
     const careSetting = extensionValue(serviceRequest, 'care-setting');
-    const isInpatient = careSetting === 'inpatient' || encounter.class?.code === 'IMP';
+    const encounterClass = encounter.class?.code || '';
+    const isInpatient = careSetting === 'inpatient' || encounterClass === 'IMP';
+    const entryExit = isInpatient ? '入院' : careSetting === 'outpatient' || encounterClass === 'AMB' ? '外来' : '';
     const rehabilitationClass = extensionValue(serviceRequest, 'rehabilitation-class') || serviceRequest.code?.coding?.[0]?.code || '未設定';
     const startDate = String(serviceRequest.occurrencePeriod?.start || serviceRequest.authoredOn || '').slice(0, 10);
     const encounterStartDate = String(hospitalizationEncounter.period?.start || '').slice(0, 10);
@@ -369,12 +372,12 @@
       patientId: externalEmrId,
       patientName: officialName,
       patientNameKana: patientName(resource, 'usual') || '',
-      gender: resource.gender === 'female' ? '女性' : resource.gender === 'male' ? '男性' : 'その他',
+      gender: resource.gender === 'female' ? '女性' : resource.gender === 'male' ? '男性' : resource.gender ? 'その他' : '',
       birth: birthDate.replaceAll('-', '/'),
       age: patientAge(birthDate),
       rehabilitationClass: rehabilitationClass,
       startDate: startDate.replaceAll('-', '/'),
-      entryExit: isInpatient ? '入院' : '外来',
+      entryExit: entryExit,
       hospitalizationStartDate: (encounterStartDate || startDate).replaceAll('-', '/'),
       hospitalizationEndDate: encounterEndDate.replaceAll('-', '/'),
       wardName: extensionValue(serviceRequest, 'ward-name') || encounter.location?.[0]?.location?.display || '未配属',
@@ -403,6 +406,55 @@
         previousTotal: Number(extensionValue(serviceRequest, 'fim-previous-total') || 0)
       },
       attendingPhysician: serviceRequest.requester?.display || resource.generalPractitioner?.[0]?.display || '担当医未設定'
+    };
+  }
+
+  async function lookupSmartRehabPatientFromEmr(externalEmrId) {
+    let resolvedEmrId = externalEmrId;
+    let patientReference = encodeURIComponent(`Patient/${resolvedEmrId}`);
+    let responses;
+    try {
+      responses = await Promise.all([
+        fetchEmrResource(`${EMR_FHIR_PATIENT_API}/${encodeURIComponent(resolvedEmrId)}`),
+        fetchEmrResource(`${EMR_FHIR_CONDITION_API}?patient=${patientReference}`),
+        fetchEmrResource(`${EMR_FHIR_ENCOUNTER_API}?patient=${patientReference}`),
+        fetchEmrResource(`${EMR_FHIR_SERVICE_REQUEST_API}?patient=${patientReference}&category=rehabilitation`)
+      ]);
+    } catch (_) {
+      throw new Error('電カルモックの認証に失敗しました。');
+    }
+    let payloads = await Promise.all(responses.map(function (response) { return response.json().catch(function () { return {}; }); }));
+    let resource = payloads[0];
+    if ((!responses[0].ok || resource.resourceType !== 'Patient') && !externalEmrId.startsWith('SR-')) {
+      resolvedEmrId = `SR-${externalEmrId}`;
+      patientReference = encodeURIComponent(`Patient/${resolvedEmrId}`);
+      responses = await Promise.all([
+        fetchEmrResource(`${EMR_FHIR_PATIENT_API}/${encodeURIComponent(resolvedEmrId)}`),
+        fetchEmrResource(`${EMR_FHIR_CONDITION_API}?patient=${patientReference}`),
+        fetchEmrResource(`${EMR_FHIR_ENCOUNTER_API}?patient=${patientReference}`),
+        fetchEmrResource(`${EMR_FHIR_SERVICE_REQUEST_API}?patient=${patientReference}&category=rehabilitation`)
+      ]);
+      payloads = await Promise.all(responses.map(function (response) { return response.json().catch(function () { return {}; }); }));
+      resource = payloads[0];
+    }
+    if (!responses[0].ok || resource.resourceType !== 'Patient' || resource.id !== resolvedEmrId) {
+      throw new Error(`患者ID「${externalEmrId}」に一致する患者が電カルに見つかりません。`);
+    }
+    if (responses.slice(1).some(function (response) { return !response.ok; })) {
+      throw new Error('電カルモックから患者の診療・リハ情報を取得できませんでした。');
+    }
+    const serviceRequest = bundleResources(payloads[3], 'ServiceRequest').find(function (item) { return item.status === 'active'; });
+    const patientEncounters = bundleResources(payloads[2], 'Encounter');
+    const currentEncounter = patientEncounters.find(function (item) { return item.status === 'in-progress'; }) || patientEncounters[0];
+    return {
+      patient: smartRehabPatientFromFhir(resource, {
+        condition: bundleResources(payloads[1], 'Condition')[0],
+        encounter: currentEncounter,
+        hospitalizationEncounter: patientEncounters.find(function (item) { return item.class?.code === 'IMP'; }),
+        serviceRequest: serviceRequest
+      }),
+      eligible: Boolean(serviceRequest),
+      resolvedEmrId: resolvedEmrId
     };
   }
 
@@ -466,6 +518,32 @@
           };
         });
       return json({ success: true, standard: 'HL7 FHIR R4 / JP Core Patient・Condition・Encounter・ServiceRequest', patients: candidates });
+    }
+    if (method === 'GET' && parsed.pathname === EMR_PATIENT_LOOKUP_API) {
+      const patientId = String(parsed.searchParams.get('patientId') || '').trim();
+      if (!/^[A-Za-z0-9.-]{1,64}$/.test(patientId)) {
+        return json({ success: false, errorMessage: '患者IDは64文字以内の半角英数字・ハイフン・ピリオドで入力してください。' }, 400);
+      }
+      try {
+        const lookup = await lookupSmartRehabPatientFromEmr(patientId);
+        const alreadyAdded = patientListRows.some(function (patient) {
+          return [patientId, lookup.resolvedEmrId].includes(patient.externalEmrId)
+            || [patientId, lookup.resolvedEmrId].includes(patient.patientId);
+        });
+        return json({
+          success: true,
+          patient: lookup.patient,
+          emrLookup: {
+            status: 'matched',
+            message: `患者ID「${patientId}」から電カル情報を取得しました。`,
+            standard: 'HL7 FHIR R4 / JP Core Patient・Condition・Encounter・ServiceRequest',
+            eligible: lookup.eligible,
+            alreadyAdded: alreadyAdded
+          }
+        });
+      } catch (error) {
+        return json({ success: true, patient: { patientId: patientId }, emrLookup: { status: 'not-found', message: error.message || '電カル情報を取得できませんでした。', alreadyAdded: false } });
+      }
     }
     if (method === 'POST' && parsed.pathname === EMR_PATIENT_IMPORT_API) {
       let payload;
@@ -932,7 +1010,7 @@
   async function sourceApi(url, options) {
     const parsed = new URL(url, location.origin);
     const method = String(options.method || 'GET').toUpperCase();
-    if ([OCR_PATIENT_API, OCR_UPLOAD_API, PRESCRIPTION_REGISTER_API, EMR_PRESCRIPTION_IMPORT_API, EMR_PATIENT_CANDIDATES_API, EMR_PATIENT_IMPORT_API].includes(parsed.pathname)) return prescriptionApi(url, options);
+    if ([OCR_PATIENT_API, OCR_UPLOAD_API, PRESCRIPTION_REGISTER_API, EMR_PRESCRIPTION_IMPORT_API, EMR_PATIENT_CANDIDATES_API, EMR_PATIENT_LOOKUP_API, EMR_PATIENT_IMPORT_API].includes(parsed.pathname)) return prescriptionApi(url, options);
     if (parsed.pathname === OCR_REGISTER_API) return ocrApi(url, options);
     if (/^\/rehainfo\/patient\/[^/]+\/(?:treatment-soap\/|delete-treatment-soap)/.test(parsed.pathname)) return soapApi(url, options);
     const dischargeMatch = /^\/rehainfo\/patientInfoRest\/([^/]+)\/discharge$/.exec(parsed.pathname);
@@ -1229,6 +1307,60 @@
     };
   }
 
+  function applyPrescriptionPatientDraft(form, draft, preserveWhenMissing) {
+    Object.keys(draft).forEach(function (name) {
+      const field = form.elements.namedItem(name);
+      const value = String(draft[name] || '');
+      if (field && (!preserveWhenMissing || value)) field.value = value;
+    });
+  }
+
+  function prescriptionPatientMissingFields(form) {
+    const missing = {};
+    Object.keys(prescriptionPatientRequiredFields).forEach(function (name) {
+      if (!prescriptionPatientFormValue(form, name)) missing[name] = prescriptionPatientRequiredFields[name];
+    });
+    if (prescriptionPatientFormValue(form, 'entryExit') === '入院') {
+      if (!prescriptionPatientFormValue(form, 'hospitalizationStartDate')) missing.hospitalizationStartDate = '入院日を入力してください。';
+      if (!prescriptionPatientFormValue(form, 'wardName')) missing.wardName = '病棟名を入力してください。';
+    }
+    return missing;
+  }
+
+  async function resolvePrescriptionPatientFromEmr(record, form, status) {
+    const patientId = prescriptionPatientFormValue(form, 'patientId');
+    if (!patientId) {
+      showPrescriptionPatientErrors(form, { patientId: '患者IDを入力してください。' });
+      status.className = 'patient-dialog-status error';
+      status.textContent = '患者IDを入力してから取得してください。';
+      return false;
+    }
+    status.className = 'patient-dialog-status';
+    status.textContent = '患者IDから電カル情報を取得しています。';
+    const response = await fetch(`${EMR_PATIENT_LOOKUP_API}?patientId=${encodeURIComponent(patientId)}`, {
+      credentials: 'same-origin', headers: { Accept: 'application/json' }
+    });
+    const result = await response.json().catch(function () { return {}; });
+    const lookup = result.emrLookup || {};
+    if (!response.ok || !result.success || lookup.status !== 'matched') {
+      const message = lookup.message || result.errorMessage || '患者IDに一致する患者が電カルに見つかりません。';
+      showPrescriptionPatientErrors(form, { patientId: message });
+      status.className = 'patient-dialog-status error';
+      status.textContent = message;
+      return true;
+    }
+    record.emrPatient = result.patient || {};
+    const draft = prescriptionPatientDraft({ patient: record.emrPatient, patientId: patientId });
+    applyPrescriptionPatientDraft(form, draft, true);
+    const missing = prescriptionPatientMissingFields(form);
+    showPrescriptionPatientErrors(form, missing);
+    status.className = Object.keys(missing).length ? 'patient-dialog-status' : 'patient-dialog-status success';
+    status.textContent = lookup.alreadyAdded
+      ? 'この患者IDはすでにスマリハへ登録済みです。'
+      : `${lookup.message} ${Object.keys(missing).length ? '電カルでも取得できなかった必須項目を入力してください。' : '登録内容を確認して「患者として追加」を押してください。'}`;
+    return !lookup.alreadyAdded;
+  }
+
   function validatePrescriptionPatient(form) {
     const errors = {};
     Object.keys(prescriptionPatientRequiredFields).forEach(function (name) {
@@ -1249,6 +1381,7 @@
     const birth = prescriptionPatientFormValue(form, 'birth');
     const entryExit = prescriptionPatientFormValue(form, 'entryExit');
     const recId = `RX-${patientId}-${Date.now()}`;
+    const emrPatient = record.emrPatient || {};
     const patient = normalizePatientAdmissionFields({
       patientId: patientId,
       patientName: `${prescriptionPatientFormValue(form, 'familyName')} ${prescriptionPatientFormValue(form, 'firstName')}`,
@@ -1257,13 +1390,15 @@
       rehabilitationClass: prescriptionPatientFormValue(form, 'rehabilitationClass'),
       startDate: prescriptionPatientFormValue(form, 'rehabilitationStartDate').replaceAll('-', '/'), entryExit: entryExit,
       hospitalizationStartDate: prescriptionPatientFormValue(form, 'hospitalizationStartDate').replaceAll('-', '/'),
-      hospitalizationEndDate: '', wardName: entryExit === '入院' ? prescriptionPatientFormValue(form, 'wardName') : '',
+      hospitalizationEndDate: emrPatient.hospitalizationEndDate || '', wardName: entryExit === '入院' ? prescriptionPatientFormValue(form, 'wardName') : '',
       serviceName: 'スマートリハビリテーション病院', recId: recId, groupId: 'DEMO-GROUP', fitbitId: '', patientActive: 'T',
-      treatmentTimes: 0, rehabStartTime: null, assigned: true, externalEmrId: patientId,
-      importedFrom: 'prescription-ocr', fictionalDemoOnly: true,
-      primaryDiagnosis: prescriptionPatientFormValue(form, 'primaryDiagnosis') || '未設定', impairments: [], risks: [], goal: '目標未設定',
-      professions: ['PT'], plannedUnitsPerDay: 0, targetDischargeDate: '', fim: { total: 0, motor: 0, cognitive: 0, previousTotal: 0 },
-      attendingPhysician: '担当医未設定', sourcePrescriptionId: record.id
+      treatmentTimes: 0, rehabStartTime: null, assigned: true, externalEmrId: emrPatient.externalEmrId || patientId,
+      importedFrom: record.emrPatient ? 'prescription-ocr+emr-id' : 'prescription-ocr', fictionalDemoOnly: true,
+      primaryDiagnosis: prescriptionPatientFormValue(form, 'primaryDiagnosis') || emrPatient.primaryDiagnosis || '未設定',
+      impairments: emrPatient.impairments || [], risks: emrPatient.risks || [], goal: emrPatient.goal || '目標未設定',
+      professions: emrPatient.professions || ['PT'], plannedUnitsPerDay: Number(emrPatient.plannedUnitsPerDay || 0),
+      targetDischargeDate: emrPatient.targetDischargeDate || '', fim: emrPatient.fim || { total: 0, motor: 0, cognitive: 0, previousTotal: 0 },
+      attendingPhysician: emrPatient.attendingPhysician || '担当医未設定', sourcePrescriptionId: record.id
     });
     const importedPatients = readImportedPatientStore();
     importedPatients.push(patient);
@@ -1277,7 +1412,7 @@
     return patient;
   }
 
-  function openPrescriptionPatientDialog(record) {
+  async function openPrescriptionPatientDialog(record) {
     const dialog = document.getElementById('prescriptionPatientDialog');
     const form = document.getElementById('prescriptionPatientForm');
     const status = document.getElementById('prescriptionPatientStatus');
@@ -1285,18 +1420,23 @@
     if (!dialog || !form || !status || !submit) return;
     clearPrescriptionPatientErrors(form);
     const draft = prescriptionPatientDraft(record);
-    Object.keys(draft).forEach(function (name) { const field = form.elements.namedItem(name); if (field) field.value = draft[name]; });
-    const missing = {};
-    Object.keys(prescriptionPatientRequiredFields).forEach(function (name) { if (!draft[name]) missing[name] = prescriptionPatientRequiredFields[name]; });
-    if (draft.entryExit === '入院') {
-      if (!draft.hospitalizationStartDate) missing.hospitalizationStartDate = '入院日を入力してください。';
-      if (!draft.wardName) missing.wardName = '病棟名を入力してください。';
-    }
+    applyPrescriptionPatientDraft(form, draft, false);
+    let missing = prescriptionPatientMissingFields(form);
     status.className = 'patient-dialog-status';
     status.textContent = record.patientImport ? 'この処方箋から患者を追加済みです。'
-      : Object.keys(missing).length ? '読取できなかった必須項目を入力してください。' : '読取結果を確認して「患者として追加」を押してください。';
+      : draft.patientId ? '患者IDから電カル情報を取得しています。'
+        : Object.keys(missing).length ? '患者IDと不足している必須項目を入力してください。' : '読取結果を確認して「患者として追加」を押してください。';
     submit.disabled = Boolean(record.patientImport);
     if (!record.patientImport) showPrescriptionPatientErrors(form, missing);
+    const lookupButton = document.getElementById('prescriptionPatientLookup');
+    if (lookupButton) lookupButton.onclick = async function () {
+      lookupButton.disabled = true;
+      try {
+        submit.disabled = !(await resolvePrescriptionPatientFromEmr(record, form, status));
+      } finally {
+        lookupButton.disabled = false;
+      }
+    };
     form.onsubmit = function (event) {
       event.preventDefault();
       const errors = validatePrescriptionPatient(form);
@@ -1313,15 +1453,25 @@
       window.setTimeout(function () { window.location.href = `/rehainfo/?patientId=${encodeURIComponent(patient.patientId)}`; }, 250);
     };
     dialog.showModal();
+    if (!record.patientImport && draft.patientId) {
+      try {
+        submit.disabled = !(await resolvePrescriptionPatientFromEmr(record, form, status));
+      } catch (error) {
+        status.className = 'patient-dialog-status error';
+        status.textContent = error.message || '電カル情報を取得できませんでした。';
+        submit.disabled = false;
+      }
+    }
+    missing = prescriptionPatientMissingFields(form);
     const first = form.querySelector('.invalid');
-    if (first) first.focus();
+    if (first && Object.keys(missing).length) first.focus();
   }
 
   window.fetch = function (input, options) {
     const url = typeof input === 'string' ? input : input.url;
     const path = new URL(url, location.origin).pathname;
     if ([API, THERAPIST_API, ATTENDANCE_API, BILLING_API, OPERATIONS_API, AI_API].some(function (prefix) { return path.startsWith(prefix); })
-        || [OCR_PATIENT_API, OCR_UPLOAD_API, OCR_REGISTER_API, PRESCRIPTION_REGISTER_API, EMR_PRESCRIPTION_IMPORT_API, EMR_PATIENT_CANDIDATES_API, EMR_PATIENT_IMPORT_API].includes(path)
+        || [OCR_PATIENT_API, OCR_UPLOAD_API, OCR_REGISTER_API, PRESCRIPTION_REGISTER_API, EMR_PRESCRIPTION_IMPORT_API, EMR_PATIENT_CANDIDATES_API, EMR_PATIENT_LOOKUP_API, EMR_PATIENT_IMPORT_API].includes(path)
         || /^\/rehainfo\/patient\/[^/]+\/(?:treatment-soap\/|delete-treatment-soap)/.test(path)
         || /^\/rehainfo\/patientInfoRest\/[^/]+\/discharge$/.test(path)) {
       return sourceApi(url, options || {});
