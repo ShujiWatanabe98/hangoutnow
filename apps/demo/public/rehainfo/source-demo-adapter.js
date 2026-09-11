@@ -27,6 +27,7 @@
   const OCR_STORAGE_KEY = 'rehainfo-source-ui-ocr-v1';
   const SOAP_STORAGE_KEY = 'rehainfo-source-ui-soap-v1';
   const IMPORTED_PATIENT_STORAGE_KEY = 'rehainfo-source-ui-emr-patients-v2';
+  const PATIENT_DISCHARGE_STORAGE_KEY = 'rehainfo-source-ui-patient-discharges-v1';
   const originalFetch = window.fetch.bind(window);
   const uploadedPrescriptionImages = new Map();
   let emrMockAccessToken = '';
@@ -73,21 +74,22 @@
     ['腰椎圧迫骨折', ['体幹可動域制限', '腰痛'], ['再骨折', '転倒リスク'], '装具を使用して更衣と移動を自立する', ['PT', 'OT'], 2, '2026/12/15', 70, 47, 23, 64, '加納 医師']
   ];
   const patientListRows = [
-    ['DEMO260901', '佐藤 和子', 'サトウ カズコ', '女性', '1948/04/12', '78歳', '脳血管疾患等', '2026/08/18', '入院', '回復期3階A'],
-    ['DEMO260902', '鈴木 正一', 'スズキ ショウイチ', '男性', '1952/11/03', '73歳', '運動器', '2026/08/20', '入院', '回復期2階B'],
-    ['DEMO260903', '高橋 幸子', 'タカハシ サチコ', '女性', '1941/07/26', '85歳', '運動器', '2026/08/22', '入院', '整形外科4階'],
-    ['DEMO260904', '田中 博', 'タナカ ヒロシ', '男性', '1958/01/19', '68歳', '脳血管疾患等', '2026/08/25', '入院', '神経内科5階'],
-    ['DEMO260905', '伊藤 洋子', 'イトウ ヨウコ', '女性', '1949/09/07', '77歳', '廃用症候群', '2026/08/28', '入院', '回復期2階A'],
-    ['DEMO260906', '渡辺 清', 'ワタナベ キヨシ', '男性', '1955/06/15', '71歳', '心大血管疾患', '2026/09/01', '外来', '循環器6階'],
-    ['DEMO260907', '山本 恵子', 'ヤマモト ケイコ', '女性', '1946/02/08', '80歳', '呼吸器', '2026/09/02', '入院', '呼吸器5階'],
-    ['DEMO260908', '中村 隆', 'ナカムラ タカシ', '男性', '1960/12/21', '65歳', '脳血管疾患等', '2026/09/03', '入院', '回復期3階B'],
-    ['DEMO260909', '小林 久美子', 'コバヤシ クミコ', '女性', '1951/05/30', '75歳', '廃用症候群', '2026/09/04', '外来', '外科4階'],
-    ['DEMO260910', '加藤 一郎', 'カトウ イチロウ', '男性', '1944/10/11', '81歳', '運動器', '2026/09/05', '入院', '回復期2階B']
+    ['DEMO260901', '佐藤 和子', 'サトウ カズコ', '女性', '1948/04/12', '78歳', '脳血管疾患等', '2026/08/18', '入院', '回復期3階A', '2026/08/16'],
+    ['DEMO260902', '鈴木 正一', 'スズキ ショウイチ', '男性', '1952/11/03', '73歳', '運動器', '2026/08/20', '入院', '回復期2階B', '2026/08/18'],
+    ['DEMO260903', '高橋 幸子', 'タカハシ サチコ', '女性', '1941/07/26', '85歳', '運動器', '2026/08/22', '入院', '整形外科4階', '2026/08/20'],
+    ['DEMO260904', '田中 博', 'タナカ ヒロシ', '男性', '1958/01/19', '68歳', '脳血管疾患等', '2026/08/25', '入院', '神経内科5階', '2026/08/23'],
+    ['DEMO260905', '伊藤 洋子', 'イトウ ヨウコ', '女性', '1949/09/07', '77歳', '廃用症候群', '2026/08/28', '入院', '回復期2階A', '2026/08/26'],
+    ['DEMO260906', '渡辺 清', 'ワタナベ キヨシ', '男性', '1955/06/15', '71歳', '心大血管疾患', '2026/09/01', '外来', '循環器6階', ''],
+    ['DEMO260907', '山本 恵子', 'ヤマモト ケイコ', '女性', '1946/02/08', '80歳', '呼吸器', '2026/09/02', '入院', '呼吸器5階', '2026/08/31'],
+    ['DEMO260908', '中村 隆', 'ナカムラ タカシ', '男性', '1960/12/21', '65歳', '脳血管疾患等', '2026/09/03', '入院', '回復期3階B', '2026/09/01'],
+    ['DEMO260909', '小林 久美子', 'コバヤシ クミコ', '女性', '1951/05/30', '75歳', '廃用症候群', '2026/09/04', '外来', '外科4階', ''],
+    ['DEMO260910', '加藤 一郎', 'カトウ イチロウ', '男性', '1944/10/11', '81歳', '運動器', '2026/09/05', '入院', '回復期2階B', '2026/09/03']
   ].map(function (item, index) {
     const detail = smartRehabDetails[index];
     return {
       patientId: item[0], patientName: item[1], patientNameKana: item[2], gender: item[3], birth: item[4], age: item[5],
       rehabilitationClass: item[6], startDate: item[7], entryExit: item[8], wardName: item[9], serviceName: 'スマートリハビリテーション病院',
+      hospitalizationStartDate: item[10], hospitalizationEndDate: '',
       recId: String(9001 + index), groupId: 'DEMO-GROUP', fitbitId: '', patientActive: 'T', treatmentTimes: index + 1,
       rehabStartTime: null, assigned: index < 8, externalEmrId: `SR-${item[0]}`,
       primaryDiagnosis: detail[0], impairments: detail[1], risks: detail[2], goal: detail[3], professions: detail[4],
@@ -97,6 +99,8 @@
     };
   });
   patientListRows.push(...readImportedPatientStore());
+  patientListRows.forEach(normalizePatientAdmissionFields);
+  applyPatientDischargeState(patientListRows);
 
   window.REHAINFO_DEMO_PATIENT_COLUMNS = {
     '患者ID': 'patientId', '患者氏名': 'patientName', '患者氏名（カナ）': 'patientNameKana', '性別': 'gender',
@@ -169,6 +173,38 @@
 
   function writeImportedPatientStore(records) {
     localStorage.setItem(IMPORTED_PATIENT_STORAGE_KEY, JSON.stringify(records.slice(0, 50)));
+  }
+
+  function normalizePatientAdmissionFields(patient) {
+    if (patient.entryExit === '入院' && !patient.hospitalizationStartDate) {
+      patient.hospitalizationStartDate = patient.startDate || '';
+    }
+    if (!patient.hospitalizationEndDate) patient.hospitalizationEndDate = '';
+    return patient;
+  }
+
+  function readPatientDischargeStore() {
+    try {
+      const records = JSON.parse(localStorage.getItem(PATIENT_DISCHARGE_STORAGE_KEY) || '{}');
+      return records && typeof records === 'object' && !Array.isArray(records) ? records : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function writePatientDischargeStore(records) {
+    localStorage.setItem(PATIENT_DISCHARGE_STORAGE_KEY, JSON.stringify(records));
+  }
+
+  function applyPatientDischargeState(rows) {
+    const records = readPatientDischargeStore();
+    rows.forEach(function (patient) {
+      const dischargeDate = records[patient.recId];
+      if (!dischargeDate) return;
+      patient.hospitalizationEndDate = String(dischargeDate).replaceAll('-', '/');
+      patient.entryExit = '退院';
+      patient.patientActive = 'F';
+    });
   }
 
   function prescriptionPatient(recId) {
@@ -309,8 +345,11 @@
     const birthDate = String(resource.birthDate || '');
     const officialName = patientName(resource, 'official') || '氏名未設定';
     const careSetting = extensionValue(serviceRequest, 'care-setting');
+    const isInpatient = careSetting === 'inpatient' || encounter.class?.code === 'IMP';
     const rehabilitationClass = extensionValue(serviceRequest, 'rehabilitation-class') || serviceRequest.code?.coding?.[0]?.code || '未設定';
     const startDate = String(serviceRequest.occurrencePeriod?.start || serviceRequest.authoredOn || '').slice(0, 10);
+    const encounterStartDate = String(encounter.period?.start || '').slice(0, 10);
+    const encounterEndDate = String(encounter.period?.end || '').slice(0, 10);
     const professions = (serviceRequest.performerType || []).map(function (role) { return role.coding?.[0]?.code || role.text; }).filter(Boolean);
     return {
       patientId: externalEmrId,
@@ -321,7 +360,9 @@
       age: patientAge(birthDate),
       rehabilitationClass: rehabilitationClass,
       startDate: startDate.replaceAll('-', '/'),
-      entryExit: careSetting === 'inpatient' || encounter.class?.code === 'IMP' ? '入院' : '外来',
+      entryExit: isInpatient ? '入院' : '外来',
+      hospitalizationStartDate: isInpatient ? (encounterStartDate || startDate).replaceAll('-', '/') : '',
+      hospitalizationEndDate: isInpatient ? encounterEndDate.replaceAll('-', '/') : '',
       wardName: extensionValue(serviceRequest, 'ward-name') || encounter.location?.[0]?.location?.display || '未配属',
       serviceName: 'スマートリハビリテーション病院',
       recId: `EMR-${externalEmrId}`,
@@ -440,6 +481,7 @@
         encounter: bundleResources(payloads[2], 'Encounter')[0],
         serviceRequest: serviceRequest
       });
+      normalizePatientAdmissionFields(importedPatient);
       const importedPatients = readImportedPatientStore();
       importedPatients.push(importedPatient);
       writeImportedPatientStore(importedPatients);
@@ -870,6 +912,28 @@
     if ([OCR_PATIENT_API, OCR_UPLOAD_API, PRESCRIPTION_REGISTER_API, EMR_PRESCRIPTION_IMPORT_API, EMR_PATIENT_CANDIDATES_API, EMR_PATIENT_IMPORT_API].includes(parsed.pathname)) return prescriptionApi(url, options);
     if (parsed.pathname === OCR_REGISTER_API) return ocrApi(url, options);
     if (/^\/rehainfo\/patient\/[^/]+\/(?:treatment-soap\/|delete-treatment-soap)/.test(parsed.pathname)) return soapApi(url, options);
+    const dischargeMatch = /^\/rehainfo\/patientInfoRest\/([^/]+)\/discharge$/.exec(parsed.pathname);
+    if (dischargeMatch) {
+      if (method !== 'POST') return json({ success: false, message: '対応していない操作です。' }, 405);
+      let dischargePayload = {};
+      try { dischargePayload = JSON.parse(options.body || '{}'); } catch (_) { dischargePayload = {}; }
+      const patient = patientListRows.find(function (item) { return item.recId === decodeURIComponent(dischargeMatch[1]); });
+      const dischargeDate = String(dischargePayload.dischargeDate || '').slice(0, 10);
+      const hospitalizationStartDate = String(patient?.hospitalizationStartDate || '').replaceAll('/', '-').slice(0, 10);
+      if (!patient) return json({ success: false, message: '対象患者を確認してください。' }, 404);
+      if (patient.entryExit !== '入院') return json({ success: false, message: '入院中の患者ではありません。' }, 409);
+      if (!hospitalizationStartDate) return json({ success: false, message: '入院日が入力されていないため退院できません。' }, 422);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dischargeDate) || dischargeDate < hospitalizationStartDate) {
+        return json({ success: false, message: '退院日は入院日以降の日付を入力してください。' }, 422);
+      }
+      const dischargeRecords = readPatientDischargeStore();
+      dischargeRecords[patient.recId] = dischargeDate;
+      writePatientDischargeStore(dischargeRecords);
+      patient.hospitalizationEndDate = dischargeDate.replaceAll('-', '/');
+      patient.entryExit = '退院';
+      patient.patientActive = 'F';
+      return json({ success: true, patient: patient });
+    }
     let payload = {};
     if (options.body && typeof options.body === 'string') {
       try { payload = JSON.parse(options.body); } catch (_) { payload = {}; }
@@ -902,6 +966,7 @@
 
   function refreshSmartRehabPatientLists() {
     window.REHAINFO_DEMO_PATIENTS = patientListRows;
+    window.patientListAllRows = patientListRows.slice();
     const responsibleOnly = Boolean((document.getElementById('responsibleOnlyToggle') || {}).checked);
     try {
       if (typeof window.loadAllPatients === 'function') {
@@ -1092,7 +1157,8 @@
     const path = new URL(url, location.origin).pathname;
     if ([API, THERAPIST_API, ATTENDANCE_API, BILLING_API, OPERATIONS_API, AI_API].some(function (prefix) { return path.startsWith(prefix); })
         || [OCR_PATIENT_API, OCR_UPLOAD_API, OCR_REGISTER_API, PRESCRIPTION_REGISTER_API, EMR_PRESCRIPTION_IMPORT_API, EMR_PATIENT_CANDIDATES_API, EMR_PATIENT_IMPORT_API].includes(path)
-        || /^\/rehainfo\/patient\/[^/]+\/(?:treatment-soap\/|delete-treatment-soap)/.test(path)) {
+        || /^\/rehainfo\/patient\/[^/]+\/(?:treatment-soap\/|delete-treatment-soap)/.test(path)
+        || /^\/rehainfo\/patientInfoRest\/[^/]+\/discharge$/.test(path)) {
       return sourceApi(url, options || {});
     }
     return originalFetch(input, options);

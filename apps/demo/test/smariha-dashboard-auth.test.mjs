@@ -147,7 +147,7 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
     assert.ok(html.includes(`data-rehainfo-source-template="${source}"`), source);
     assert.ok(html.includes(title), title);
     assert.ok(html.includes(marker), marker);
-    assert.match(html, /\/rehainfo\/source-demo-adapter\.js\?v=20260911-6/);
+    assert.match(html, /\/rehainfo\/source-demo-adapter\.js\?v=20260911-8/);
     assert.doesNotMatch(html, /patient-list-source|patient-demo|rehainfo-demo-notice/);
   }
 
@@ -161,7 +161,7 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
   assert.doesNotMatch(adapter, /\/rehainfo-main(?:\/|$)/);
   assert.doesNotMatch(adapter, /外部AIへ送信せず|外部AIを使わないデモ用の固定結果/);
   assert.match(adapter, /画像は読取時のみ外部AIへ送信され、結果は必ず原本と照合してください/);
-  for (const marker of ['REHAINFO_DEMO_PATIENT_COLUMNS', 'ATTENDANCE_API', 'BILLING_API', 'OPERATIONS_API', 'AI_API', 'PRESCRIPTION_REGISTER_API', 'EMR_PRESCRIPTION_IMPORT_API', 'EMR_PATIENT_CANDIDATES_API', 'EMR_PATIENT_IMPORT_API', 'EMR_OAUTH_TOKEN_API', 'EMR_FHIR_PATIENT_API', 'EMR_FHIR_CONDITION_API', 'EMR_FHIR_ENCOUNTER_API', 'EMR_FHIR_SERVICE_REQUEST_API', 'EMR_FHIR_MEDICATION_REQUEST_API', 'IMPORTED_PATIENT_STORAGE_KEY', 'OCR_REGISTER_API', 'SOAP_STORAGE_KEY', 'prescriptionSummary', 'emrPrescriptionSummary', 'smartRehabPatientFromFhir', 'openEmrPatientImportDialog', 'ocrSummary']) assert.match(adapter, new RegExp(marker));
+  for (const marker of ['REHAINFO_DEMO_PATIENT_COLUMNS', 'ATTENDANCE_API', 'BILLING_API', 'OPERATIONS_API', 'AI_API', 'PRESCRIPTION_REGISTER_API', 'EMR_PRESCRIPTION_IMPORT_API', 'EMR_PATIENT_CANDIDATES_API', 'EMR_PATIENT_IMPORT_API', 'EMR_OAUTH_TOKEN_API', 'EMR_FHIR_PATIENT_API', 'EMR_FHIR_CONDITION_API', 'EMR_FHIR_ENCOUNTER_API', 'EMR_FHIR_SERVICE_REQUEST_API', 'EMR_FHIR_MEDICATION_REQUEST_API', 'IMPORTED_PATIENT_STORAGE_KEY', 'PATIENT_DISCHARGE_STORAGE_KEY', 'OCR_REGISTER_API', 'SOAP_STORAGE_KEY', 'hospitalizationStartDate', 'hospitalizationEndDate', 'applyPatientDischargeState', 'patientInfoRest', 'prescriptionSummary', 'emrPrescriptionSummary', 'smartRehabPatientFromFhir', 'openEmrPatientImportDialog', 'ocrSummary']) assert.match(adapter, new RegExp(marker));
 
   const emrPageResponse = await fetch(`${origin}/rehainfo/emr/`, { headers: { cookie } });
   const emrPage = await emrPageResponse.text();
