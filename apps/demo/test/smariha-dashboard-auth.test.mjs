@@ -66,6 +66,21 @@ test('legacy independently-authored Smariha pages redirect to the canonical sour
 });
 
 test('canonical rehainfo source UI is login-protected and serves every audited source template', async () => {
+  const emrReleaseResponse = await fetch(`${origin}/rehainfo/emr/_release`);
+  assert.equal(emrReleaseResponse.status, 200);
+  assert.equal(emrReleaseResponse.headers.get('cache-control'), 'no-store');
+  assert.equal(emrReleaseResponse.headers.get('x-robots-tag'), 'noindex, nofollow, noarchive');
+  const emrRelease = await emrReleaseResponse.json();
+  assert.deepEqual(emrRelease, {
+    service: 'MediLink Chart',
+    version: '0.5.0',
+    release: '2026-09-12-protected-fictional-demo',
+    candidateDigest: 'ba51c6a8d7c8996abf4b3e90249475a2da405cd4980ca2b2cd27c8305a7aaf7f',
+    dataClassification: 'FICTIONAL_DEMO',
+    productionReady: false,
+    access: 'authentication-required',
+  });
+
   const entry = await fetch(`${origin}/rehainfo/`, { redirect: 'manual' });
   assert.equal(entry.status, 302);
   assert.equal(entry.headers.get('location'), '/rehainfo/login.html');

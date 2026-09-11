@@ -454,6 +454,24 @@ createServer(async (request, response) => {
   }
   const isSmarihaProtectedPath = [...rehainfoUiPaths, smarihaPortalPath, smarihaDashboardPath, smarihaSchedulerPath].some((path) =>
     normalizedRequestedPath === path || requestedPath.startsWith(`${path}/`));
+  if (request.method === 'GET' && requestedPath === `${emrMockBasePath}/_release`) {
+    response.writeHead(200, {
+      ...securityHeaders,
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store',
+      'x-robots-tag': 'noindex, nofollow, noarchive',
+    });
+    response.end(JSON.stringify({
+      service: 'MediLink Chart',
+      version: '0.5.0',
+      release: '2026-09-12-protected-fictional-demo',
+      candidateDigest: 'ba51c6a8d7c8996abf4b3e90249475a2da405cd4980ca2b2cd27c8305a7aaf7f',
+      dataClassification: 'FICTIONAL_DEMO',
+      productionReady: false,
+      access: 'authentication-required',
+    }));
+    return;
+  }
   if (isSmarihaProtectedPath) {
     const loginPath = `${activeSmarihaPath}/login.html`;
     const loginActionPath = `${activeSmarihaPath}/login`;
