@@ -147,8 +147,13 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
     assert.ok(html.includes(`data-rehainfo-source-template="${source}"`), source);
     assert.ok(html.includes(title), title);
     assert.ok(html.includes(marker), marker);
-    assert.match(html, /\/rehainfo\/source-demo-adapter\.js\?v=20260911-1/);
+    assert.match(html, /\/rehainfo\/source-demo-adapter\.js\?v=20260911-5/);
     assert.doesNotMatch(html, /patient-list-source|patient-demo|rehainfo-demo-notice/);
+  }
+
+  for (const path of ['/', '/ocr/patients', '/prescriptions/patients']) {
+    const html = await (await fetch(`${origin}/rehainfo${path}`, { headers: { cookie } })).text();
+    assert.match(html, /id="emrPatientImportButton"[^>]*>電カルから患者追加<\/button>/, path);
   }
 
   const adapter = await (await fetch(`${origin}/rehainfo/source-demo-adapter.js`, { headers: { cookie } })).text();
@@ -156,7 +161,7 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
   assert.doesNotMatch(adapter, /\/rehainfo-main(?:\/|$)/);
   assert.doesNotMatch(adapter, /外部AIへ送信せず|外部AIを使わないデモ用の固定結果/);
   assert.match(adapter, /画像は読取時のみ外部AIへ送信され、結果は必ず原本と照合してください/);
-  for (const marker of ['REHAINFO_DEMO_PATIENT_COLUMNS', 'ATTENDANCE_API', 'BILLING_API', 'OPERATIONS_API', 'AI_API', 'PRESCRIPTION_REGISTER_API', 'EMR_PRESCRIPTION_IMPORT_API', 'EMR_OAUTH_TOKEN_API', 'EMR_FHIR_MEDICATION_REQUEST_API', 'OCR_REGISTER_API', 'SOAP_STORAGE_KEY', 'prescriptionSummary', 'emrPrescriptionSummary', 'ocrSummary']) assert.match(adapter, new RegExp(marker));
+  for (const marker of ['REHAINFO_DEMO_PATIENT_COLUMNS', 'ATTENDANCE_API', 'BILLING_API', 'OPERATIONS_API', 'AI_API', 'PRESCRIPTION_REGISTER_API', 'EMR_PRESCRIPTION_IMPORT_API', 'EMR_PATIENT_CANDIDATES_API', 'EMR_PATIENT_IMPORT_API', 'EMR_OAUTH_TOKEN_API', 'EMR_FHIR_PATIENT_API', 'EMR_FHIR_MEDICATION_REQUEST_API', 'IMPORTED_PATIENT_STORAGE_KEY', 'OCR_REGISTER_API', 'SOAP_STORAGE_KEY', 'prescriptionSummary', 'emrPrescriptionSummary', 'smartRehabPatientFromFhir', 'openEmrPatientImportDialog', 'ocrSummary']) assert.match(adapter, new RegExp(marker));
 
   const emrPageResponse = await fetch(`${origin}/rehainfo/emr/`, { headers: { cookie } });
   const emrPage = await emrPageResponse.text();
@@ -186,6 +191,17 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
   const emrBundleResponse = await fetch(`${origin}/rehainfo/emr/api/v1/dx/patients/P0001001/fhir-bundle`, { headers: emrApiHeaders });
   assert.equal(emrBundleResponse.status, 200);
   assert.equal((await emrBundleResponse.json()).resourceType, 'Bundle');
+  const emrFhirPatientsResponse = await fetch(`${origin}/rehainfo/emr/fhir/r4/Patient`, {
+    headers: { ...emrApiHeaders, accept: 'application/fhir+json' },
+  });
+  assert.equal(emrFhirPatientsResponse.status, 200);
+  assert.match(emrFhirPatientsResponse.headers.get('content-type'), /application\/fhir\+json/);
+  const emrFhirPatients = await emrFhirPatientsResponse.json();
+  assert.equal(emrFhirPatients.resourceType, 'Bundle');
+  assert.equal(emrFhirPatients.total, emrPatients.total);
+  assert.ok(emrFhirPatients.total >= 14);
+  assert.ok(emrFhirPatients.entry.some((entry) => entry.resource.id === 'P0001001'));
+  assert.ok(emrFhirPatients.entry.every((entry) => entry.resource.meta.profile.includes('http://jpfhir.jp/fhir/core/StructureDefinition/JP_Patient')));
 
   for (const asset of [
     '/rehainfo/js/ocr/PatientList.js',

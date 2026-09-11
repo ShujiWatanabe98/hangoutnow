@@ -63,6 +63,23 @@
             margin: 0;
         }
 
+        .emr-patient-add-button {
+            min-height: 44px;
+            padding: 10px 18px;
+            border: 1px solid #202B4C;
+            border-radius: 6px;
+            background: #202B4C;
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .emr-patient-add-button:hover,
+        .emr-patient-add-button:focus {
+            background: #31416d;
+        }
+
         .search-filter-section {
             display: flex;
             align-items: center;
@@ -482,6 +499,7 @@
         <div class="patient-list-container">
             <div class="page-header">
                 <h1 class="page-title" th:text="${prescriptionMode} ? 'AI処方箋 患者一覧' : '患者一覧'">患者一覧</h1>
+                <button type="button" id="emrPatientImportButton" class="emr-patient-add-button">電カルから患者追加</button>
             </div>
 
             <div>

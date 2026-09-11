@@ -14,12 +14,16 @@
   const PRESCRIPTION_REGISTER_API = '/rehainfo/api/prescriptions/register';
   const PRESCRIPTION_ANALYZE_API = '/rehainfo/api/prescriptions/analyze';
   const EMR_PRESCRIPTION_IMPORT_API = '/rehainfo/api/prescriptions/emr/import';
+  const EMR_PATIENT_CANDIDATES_API = '/rehainfo/api/emr/patients';
+  const EMR_PATIENT_IMPORT_API = '/rehainfo/api/emr/patients/import';
   const EMR_OAUTH_TOKEN_API = '/rehainfo/emr/oauth/token';
+  const EMR_FHIR_PATIENT_API = '/rehainfo/emr/fhir/r4/Patient';
   const EMR_FHIR_MEDICATION_REQUEST_API = '/rehainfo/emr/fhir/r4/MedicationRequest';
   const STORAGE_KEY = 'rehainfo-source-ui-demo-v1';
   const PRESCRIPTION_STORAGE_KEY = 'rehainfo-source-ui-prescriptions-v1';
   const OCR_STORAGE_KEY = 'rehainfo-source-ui-ocr-v1';
   const SOAP_STORAGE_KEY = 'rehainfo-source-ui-soap-v1';
+  const IMPORTED_PATIENT_STORAGE_KEY = 'rehainfo-source-ui-emr-patients-v1';
   const originalFetch = window.fetch.bind(window);
   const uploadedPrescriptionImages = new Map();
   let emrMockAccessToken = '';
@@ -69,9 +73,10 @@
       patientId: item[0], patientName: item[1], patientNameKana: item[2], gender: item[3], birth: item[4], age: item[5],
       rehabilitationClass: item[6], startDate: item[7], entryExit: item[8], wardName: item[9], serviceName: 'スマートリハビリテーション病院',
       recId: String(9001 + index), groupId: 'DEMO-GROUP', fitbitId: '', patientActive: 'T', treatmentTimes: index + 1,
-      rehabStartTime: null, assigned: index < 8
+      rehabStartTime: null, assigned: index < 8, externalEmrId: `SR-${item[0]}`
     };
   });
+  patientListRows.push(...readImportedPatientStore());
 
   window.REHAINFO_DEMO_PATIENT_COLUMNS = {
     '患者ID': 'patientId', '患者氏名': 'patientName', '患者氏名（カナ）': 'patientNameKana', '性別': 'gender',
@@ -129,6 +134,21 @@
 
   function writePrescriptionStore(records) {
     localStorage.setItem(PRESCRIPTION_STORAGE_KEY, JSON.stringify(records.slice(0, 100)));
+  }
+
+  function readImportedPatientStore() {
+    try {
+      const records = JSON.parse(localStorage.getItem(IMPORTED_PATIENT_STORAGE_KEY) || '[]');
+      return Array.isArray(records) ? records.filter(function (record) {
+        return record && record.patientId && record.patientName && record.recId && record.externalEmrId;
+      }) : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function writeImportedPatientStore(records) {
+    localStorage.setItem(IMPORTED_PATIENT_STORAGE_KEY, JSON.stringify(records.slice(0, 50)));
   }
 
   function prescriptionPatient(recId) {
@@ -199,26 +219,73 @@
     ].filter(Boolean).join('\n');
   }
 
-  async function fetchEmrMedicationRequests(patientReference, retry) {
+  async function fetchEmrResource(url, retry) {
     if (!emrMockAccessToken) {
       const tokenResponse = await originalFetch(EMR_OAUTH_TOKEN_API, {
         method: 'POST', credentials: 'same-origin',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ grant_type: 'client_credentials', client_id: 'smart-rehab-public-demo', scope: 'system/MedicationRequest.read' })
+        body: new URLSearchParams({ grant_type: 'client_credentials', client_id: 'smart-rehab-public-demo', scope: 'system/*.read' })
       });
       const token = await tokenResponse.json().catch(function () { return {}; });
       if (!tokenResponse.ok || !token.access_token) throw new Error('電カルモックの認証に失敗しました。');
       emrMockAccessToken = token.access_token;
     }
-    const response = await originalFetch(`${EMR_FHIR_MEDICATION_REQUEST_API}?patient=${encodeURIComponent(patientReference)}`, {
+    const response = await originalFetch(url, {
       method: 'GET', credentials: 'same-origin',
       headers: { Accept: 'application/fhir+json', Authorization: `Bearer ${emrMockAccessToken}` }
     });
     if (response.status === 401 && retry !== false) {
       emrMockAccessToken = '';
-      return fetchEmrMedicationRequests(patientReference, false);
+      return fetchEmrResource(url, false);
     }
     return response;
+  }
+
+  function fetchEmrMedicationRequests(patientReference) {
+    return fetchEmrResource(`${EMR_FHIR_MEDICATION_REQUEST_API}?patient=${encodeURIComponent(patientReference)}`);
+  }
+
+  function patientName(resource, use) {
+    const name = (resource.name || []).find(function (item) { return item.use === use; }) || {};
+    return name.text || [name.family].concat(name.given || []).filter(Boolean).join(' ');
+  }
+
+  function patientAge(birthDate) {
+    const birth = new Date(`${birthDate}T00:00:00`);
+    if (Number.isNaN(birth.getTime())) return '';
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    if (today.getMonth() < birth.getMonth() || (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())) age -= 1;
+    return `${Math.max(0, age)}歳`;
+  }
+
+  function smartRehabPatientFromFhir(resource) {
+    const externalEmrId = String(resource.id || '');
+    const birthDate = String(resource.birthDate || '');
+    const officialName = patientName(resource, 'official') || '氏名未設定';
+    return {
+      patientId: externalEmrId,
+      patientName: officialName,
+      patientNameKana: patientName(resource, 'usual') || '',
+      gender: resource.gender === 'female' ? '女性' : resource.gender === 'male' ? '男性' : 'その他',
+      birth: birthDate.replaceAll('-', '/'),
+      age: patientAge(birthDate),
+      rehabilitationClass: '電カル連携患者',
+      startDate: new Date().toISOString().slice(0, 10).replaceAll('-', '/'),
+      entryExit: '入院',
+      wardName: '未配属',
+      serviceName: 'スマートリハビリテーション病院',
+      recId: `EMR-${externalEmrId}`,
+      groupId: 'DEMO-GROUP',
+      fitbitId: '',
+      patientActive: 'T',
+      treatmentTimes: 0,
+      rehabStartTime: null,
+      assigned: true,
+      externalEmrId: externalEmrId,
+      importedFrom: 'eMedicalRecordMock',
+      fictionalDemoOnly: true
+    };
   }
 
   async function prescriptionApi(url, options) {
@@ -230,6 +297,61 @@
         return { recId: item.recId, patientId: item.patientId, patientName: item.patientName, gender: item.gender, age: parseInt(item.age, 10) };
       });
       return json({ success: true, patients: rows });
+    }
+    if (method === 'GET' && parsed.pathname === EMR_PATIENT_CANDIDATES_API) {
+      let response;
+      try {
+        response = await fetchEmrResource(EMR_FHIR_PATIENT_API);
+      } catch (_) {
+        return json({ success: false, errorMessage: '電カルモックの認証に失敗しました。' }, 502);
+      }
+      const bundle = await response.json().catch(function () { return {}; });
+      if (!response.ok || bundle.resourceType !== 'Bundle') {
+        return json({ success: false, errorMessage: '電カルモックから患者一覧を取得できませんでした。' }, response.status || 502);
+      }
+      const existingIds = new Set(patientListRows.map(function (patient) { return patient.externalEmrId; }).filter(Boolean));
+      const candidates = (bundle.entry || []).map(function (entry) { return entry.resource || {}; })
+        .filter(function (resource) { return resource.resourceType === 'Patient' && resource.id; })
+        .map(function (resource) {
+          const mapped = smartRehabPatientFromFhir(resource);
+          return {
+            externalEmrId: mapped.externalEmrId,
+            patientName: mapped.patientName,
+            patientNameKana: mapped.patientNameKana,
+            gender: mapped.gender,
+            birth: mapped.birth,
+            age: mapped.age,
+            alreadyAdded: existingIds.has(mapped.externalEmrId)
+          };
+        });
+      return json({ success: true, standard: 'HL7 FHIR R4 / JP Core Patient', patients: candidates });
+    }
+    if (method === 'POST' && parsed.pathname === EMR_PATIENT_IMPORT_API) {
+      let payload;
+      try { payload = JSON.parse(options.body || '{}'); } catch (_) { payload = {}; }
+      const externalEmrId = String(payload.externalEmrId || '');
+      if (!/^[A-Za-z0-9.-]{1,64}$/.test(externalEmrId)) {
+        return json({ success: false, errorMessage: '追加する患者を確認してください。' }, 400);
+      }
+      const existing = patientListRows.find(function (patient) { return patient.externalEmrId === externalEmrId; });
+      if (existing) return json({ success: true, alreadyAdded: true, patient: existing, message: 'この患者は追加済みです。' });
+      let response;
+      try {
+        response = await fetchEmrResource(`${EMR_FHIR_PATIENT_API}/${encodeURIComponent(externalEmrId)}`);
+      } catch (_) {
+        return json({ success: false, errorMessage: '電カルモックの認証に失敗しました。' }, 502);
+      }
+      const resource = await response.json().catch(function () { return {}; });
+      if (!response.ok || resource.resourceType !== 'Patient' || resource.id !== externalEmrId) {
+        return json({ success: false, errorMessage: '電カルモックから患者情報を取得できませんでした。' }, response.status || 502);
+      }
+      const importedPatient = smartRehabPatientFromFhir(resource);
+      const importedPatients = readImportedPatientStore();
+      importedPatients.push(importedPatient);
+      writeImportedPatientStore(importedPatients);
+      patientListRows.push(importedPatient);
+      window.REHAINFO_DEMO_PATIENTS = patientListRows;
+      return json({ success: true, alreadyAdded: false, patient: importedPatient, message: `${importedPatient.patientName}さんをスマリハに追加しました。` });
     }
     if (method === 'POST' && parsed.pathname === OCR_UPLOAD_API) {
       const form = options.body;
@@ -244,7 +366,7 @@
     if (method === 'POST' && parsed.pathname === EMR_PRESCRIPTION_IMPORT_API) {
       const targetPatient = prescriptionPatient(parsed.searchParams.get('recId'));
       if (!targetPatient) return json({ success: false, errorMessage: '対象患者を確認してください。' }, 400);
-      const patientReference = `Patient/SR-${targetPatient.patientId}`;
+      const patientReference = `Patient/${targetPatient.externalEmrId || `SR-${targetPatient.patientId}`}`;
       let fhirResponse;
       try {
         fhirResponse = await fetchEmrMedicationRequests(patientReference);
@@ -651,7 +773,7 @@
   async function sourceApi(url, options) {
     const parsed = new URL(url, location.origin);
     const method = String(options.method || 'GET').toUpperCase();
-    if ([OCR_PATIENT_API, OCR_UPLOAD_API, PRESCRIPTION_REGISTER_API, EMR_PRESCRIPTION_IMPORT_API].includes(parsed.pathname)) return prescriptionApi(url, options);
+    if ([OCR_PATIENT_API, OCR_UPLOAD_API, PRESCRIPTION_REGISTER_API, EMR_PRESCRIPTION_IMPORT_API, EMR_PATIENT_CANDIDATES_API, EMR_PATIENT_IMPORT_API].includes(parsed.pathname)) return prescriptionApi(url, options);
     if (parsed.pathname === OCR_REGISTER_API) return ocrApi(url, options);
     if (/^\/rehainfo\/patient\/[^/]+\/(?:treatment-soap\/|delete-treatment-soap)/.test(parsed.pathname)) return soapApi(url, options);
     let payload = {};
@@ -684,11 +806,188 @@
     return null;
   }
 
+  function refreshSmartRehabPatientLists() {
+    window.REHAINFO_DEMO_PATIENTS = patientListRows;
+    const responsibleOnly = Boolean((document.getElementById('responsibleOnlyToggle') || {}).checked);
+    try {
+      if (typeof window.loadAllPatients === 'function') {
+        window.loadAllPatients(responsibleOnly);
+      } else if (typeof window.onChangeInput === 'function') {
+        window.onChangeInput();
+      } else if (typeof window.patientListApplyFilteredRows === 'function') {
+        window.patientListApplyFilteredRows(patientListRows);
+      }
+    } catch (error) {
+      console.error('患者一覧の再描画に失敗しました:', error);
+    }
+  }
+
+  function showEmrPatientNotice(message, type) {
+    if (typeof window.showNotice === 'function') {
+      window.showNotice(message, type);
+      return;
+    }
+    const notice = document.createElement('div');
+    const success = type === 'success';
+    notice.className = success ? 'alert alert-success' : 'alert alert-danger';
+    notice.setAttribute('role', 'status');
+    notice.style.cssText = `position:fixed;top:20px;right:20px;z-index:10001;padding:12px 20px;border-radius:5px;max-width:440px;background:${success ? '#dcfce7' : '#f8d7da'};color:${success ? '#166534' : '#721c24'};border:1px solid ${success ? '#86efac' : '#f5c6cb'};`;
+    notice.textContent = message;
+    document.body.appendChild(notice);
+    window.setTimeout(function () { notice.remove(); }, 5000);
+  }
+
+  function ensureEmrPatientDialog() {
+    let dialog = document.getElementById('emrPatientImportDialog');
+    if (dialog) return dialog;
+    const style = document.createElement('style');
+    style.textContent = `
+      #emrPatientImportDialog { width: min(920px, calc(100vw - 32px)); max-height: calc(100vh - 48px); padding: 0; border: 0; border-radius: 10px; box-shadow: 0 24px 80px rgba(0,0,0,.28); color: #202B4C; }
+      #emrPatientImportDialog::backdrop { background: rgba(13, 22, 45, .55); }
+      .emr-patient-dialog-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px 24px 16px; border-bottom: 1px solid #d9dee8; }
+      .emr-patient-dialog-header h2 { margin: 0 0 4px; font-size: 22px; }
+      .emr-patient-dialog-header p { margin: 0; color: #59657b; font-size: 13px; }
+      .emr-patient-dialog-close { border: 0; background: transparent; color: #202B4C; font-size: 28px; line-height: 1; cursor: pointer; }
+      .emr-patient-dialog-body { padding: 18px 24px 24px; overflow: auto; }
+      .emr-patient-dialog-status { min-height: 24px; margin: 0 0 12px; color: #4d5b73; }
+      .emr-patient-dialog-table { width: 100%; border-collapse: collapse; background: #fff; }
+      .emr-patient-dialog-table th, .emr-patient-dialog-table td { padding: 11px 10px; border-bottom: 1px solid #e4e8ef; text-align: left; vertical-align: middle; }
+      .emr-patient-dialog-table th { background: #f4f6f9; font-size: 13px; white-space: nowrap; }
+      .emr-patient-dialog-table td { font-size: 14px; }
+      .emr-patient-dialog-table small { display: block; color: #6b7587; margin-top: 2px; }
+      .emr-patient-dialog-add { min-width: 76px; min-height: 38px; border: 1px solid #202B4C; border-radius: 5px; background: #202B4C; color: #fff; font-weight: 600; cursor: pointer; }
+      .emr-patient-dialog-add:disabled { border-color: #b8c0ce; background: #e4e8ef; color: #667085; cursor: default; }
+      @media (max-width: 680px) { .emr-patient-dialog-table th:nth-child(3), .emr-patient-dialog-table td:nth-child(3) { display: none; } }
+    `;
+    document.head.appendChild(style);
+    dialog = document.createElement('dialog');
+    dialog.id = 'emrPatientImportDialog';
+    dialog.setAttribute('aria-labelledby', 'emrPatientImportDialogTitle');
+    const header = document.createElement('div');
+    header.className = 'emr-patient-dialog-header';
+    const heading = document.createElement('div');
+    const title = document.createElement('h2');
+    title.id = 'emrPatientImportDialogTitle';
+    title.textContent = '電カルから患者追加';
+    const description = document.createElement('p');
+    description.textContent = '電カルモックの架空患者をFHIR R4 / JP Core Patient形式で取得しています。';
+    heading.append(title, description);
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'emr-patient-dialog-close';
+    close.setAttribute('aria-label', '閉じる');
+    close.textContent = '×';
+    close.addEventListener('click', function () { dialog.close(); });
+    header.append(heading, close);
+    const body = document.createElement('div');
+    body.className = 'emr-patient-dialog-body';
+    const status = document.createElement('p');
+    status.className = 'emr-patient-dialog-status';
+    status.setAttribute('role', 'status');
+    const table = document.createElement('table');
+    table.className = 'emr-patient-dialog-table';
+    const head = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    ['患者ID', '患者名', '生年月日', '性別', '操作'].forEach(function (label) {
+      const cell = document.createElement('th');
+      cell.scope = 'col';
+      cell.textContent = label;
+      headRow.appendChild(cell);
+    });
+    head.appendChild(headRow);
+    const rows = document.createElement('tbody');
+    rows.id = 'emrPatientImportCandidates';
+    table.append(head, rows);
+    body.append(status, table);
+    dialog.append(header, body);
+    document.body.appendChild(dialog);
+    return dialog;
+  }
+
+  function renderEmrPatientCandidates(dialog, candidates) {
+    const rows = dialog.querySelector('#emrPatientImportCandidates');
+    rows.replaceChildren();
+    candidates.forEach(function (candidate) {
+      const row = document.createElement('tr');
+      const idCell = document.createElement('td');
+      idCell.textContent = candidate.externalEmrId;
+      const nameCell = document.createElement('td');
+      const name = document.createElement('strong');
+      name.textContent = candidate.patientName;
+      const kana = document.createElement('small');
+      kana.textContent = candidate.patientNameKana;
+      nameCell.append(name, kana);
+      const birthCell = document.createElement('td');
+      birthCell.textContent = `${candidate.birth}${candidate.age ? `（${candidate.age}）` : ''}`;
+      const genderCell = document.createElement('td');
+      genderCell.textContent = candidate.gender;
+      const actionCell = document.createElement('td');
+      const add = document.createElement('button');
+      add.type = 'button';
+      add.className = 'emr-patient-dialog-add';
+      add.textContent = candidate.alreadyAdded ? '追加済み' : '追加';
+      add.disabled = candidate.alreadyAdded;
+      add.addEventListener('click', async function () {
+        add.disabled = true;
+        add.textContent = '追加中…';
+        try {
+          const response = await fetch(EMR_PATIENT_IMPORT_API, {
+            method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({ externalEmrId: candidate.externalEmrId })
+          });
+          const result = await response.json().catch(function () { return {}; });
+          if (!response.ok || !result.success) {
+            add.disabled = false;
+            add.textContent = '追加';
+            const message = result.errorMessage || '患者をスマリハに追加できませんでした。';
+            dialog.querySelector('.emr-patient-dialog-status').textContent = message;
+            showEmrPatientNotice(message, 'error');
+            return;
+          }
+          candidate.alreadyAdded = true;
+          add.textContent = '追加済み';
+          refreshSmartRehabPatientLists();
+          showEmrPatientNotice(result.message || '患者をスマリハに追加しました。', 'success');
+        } catch (error) {
+          add.disabled = false;
+          add.textContent = '追加';
+          const message = error?.message || '患者をスマリハに追加できませんでした。';
+          dialog.querySelector('.emr-patient-dialog-status').textContent = message;
+          showEmrPatientNotice(message, 'error');
+        }
+      });
+      actionCell.appendChild(add);
+      [idCell, nameCell, birthCell, genderCell, actionCell].forEach(function (cell) { row.appendChild(cell); });
+      rows.appendChild(row);
+    });
+  }
+
+  async function openEmrPatientImportDialog() {
+    const dialog = ensureEmrPatientDialog();
+    const status = dialog.querySelector('.emr-patient-dialog-status');
+    const rows = dialog.querySelector('#emrPatientImportCandidates');
+    status.textContent = '電カルモックから患者一覧を取得中です…';
+    rows.replaceChildren();
+    dialog.showModal();
+    try {
+      const response = await fetch(EMR_PATIENT_CANDIDATES_API, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+      const result = await response.json().catch(function () { return {}; });
+      if (!response.ok || !result.success) {
+        status.textContent = result.errorMessage || '電カルモックから患者一覧を取得できませんでした。';
+        return;
+      }
+      status.textContent = `${result.patients.length}名を取得しました。追加済みの患者は再追加できません。`;
+      renderEmrPatientCandidates(dialog, result.patients);
+    } catch (_) {
+      status.textContent = '電カルモックから患者一覧を取得できませんでした。';
+    }
+  }
+
   window.fetch = function (input, options) {
     const url = typeof input === 'string' ? input : input.url;
     const path = new URL(url, location.origin).pathname;
     if ([API, THERAPIST_API, ATTENDANCE_API, BILLING_API, OPERATIONS_API, AI_API].some(function (prefix) { return path.startsWith(prefix); })
-        || [OCR_PATIENT_API, OCR_UPLOAD_API, OCR_REGISTER_API, PRESCRIPTION_REGISTER_API, EMR_PRESCRIPTION_IMPORT_API].includes(path)
+        || [OCR_PATIENT_API, OCR_UPLOAD_API, OCR_REGISTER_API, PRESCRIPTION_REGISTER_API, EMR_PRESCRIPTION_IMPORT_API, EMR_PATIENT_CANDIDATES_API, EMR_PATIENT_IMPORT_API].includes(path)
         || /^\/rehainfo\/patient\/[^/]+\/(?:treatment-soap\/|delete-treatment-soap)/.test(path)) {
       return sourceApi(url, options || {});
     }
@@ -696,6 +995,8 @@
   };
 
   document.addEventListener('DOMContentLoaded', function () {
+    const emrPatientImportButton = document.getElementById('emrPatientImportButton');
+    if (emrPatientImportButton) emrPatientImportButton.addEventListener('click', openEmrPatientImportDialog);
     const prescriptionPage = document.body.dataset.prescriptionPage || '';
     const patientPage = document.body.dataset.patientPage || '';
     const ocrPage = document.body.dataset.ocrPage || '';

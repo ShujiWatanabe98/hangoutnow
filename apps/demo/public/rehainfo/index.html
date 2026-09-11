@@ -1,5 +1,5 @@
 <!DOCTYPE HTML>
-<html data-rehainfo-source-template="templates/patientList.html" data-rehainfo-source-sha256="6F6BF87A95B6966B3DFB9CC326A1C5BF2022A23CA25AB27D6BDDB91B9341A91B" xmlns:th="http://www.thymeleaf.org" lang="ja">
+<html data-rehainfo-source-template="templates/patientList.html" data-rehainfo-source-sha256="BAC47FC64D841BA92F511BB9F594C3F53E598E79736398B5F14080FF23D6E673" xmlns:th="http://www.thymeleaf.org" lang="ja">
 
 <head>
 	<meta charset="UTF-8" />
@@ -154,7 +154,7 @@
 			--body-bg-color: #E8E9ED !important;
 		}
 	</style>
-	<script src="/rehainfo/source-demo-adapter.js?v=20260911-1"></script>
+	<script src="/rehainfo/source-demo-adapter.js?v=20260911-5"></script>
 </head>
 <head>
 	<title>担当患者一覧</title>
@@ -211,13 +211,31 @@
             padding: 0px;
             gap: 5px;
 
-            width: 105px;
+            width: calc(100% - 40px);
             height: 24px;
             margin-left: 20px;
             margin-top: 40px;
             color: #202B4C;
             font-size: 24px;
             font-weight: 400;
+        }
+
+        .emr-patient-add-button {
+            margin-left: auto;
+            min-height: 40px;
+            padding: 8px 16px;
+            border: 1px solid #202B4C;
+            border-radius: 6px;
+            background: #202B4C;
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .emr-patient-add-button:hover,
+        .emr-patient-add-button:focus {
+            background: #31416d;
+            color: #ffffff;
         }
 
         /* Rectangle 6 */
@@ -666,6 +684,7 @@
         <div class="title-list-rectangle">
         </div>
         患者一覧
+        <button type="button" id="emrPatientImportButton" class="emr-patient-add-button">電カルから患者追加</button>
     </div>
 	<main>
 		<!-- Modal -->

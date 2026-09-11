@@ -255,6 +255,18 @@ export function createAppServer({ store = createStore() } = {}) {
       }
 
       if (req.method === 'GET' && pathname === '/fhir/r4/metadata') return sendJson(res, 200, capabilityStatement());
+      if (req.method === 'GET' && pathname === '/fhir/r4/Patient') {
+        const name = (url.searchParams.get('name') || '').toLowerCase();
+        const patients = store.patients.filter((patient) => !name
+          || [patient.id, patient.name, patient.kana].some((value) => String(value).toLowerCase().includes(name)));
+        return sendJson(res, 200, {
+          resourceType: 'Bundle', type: 'searchset', total: patients.length,
+          entry: patients.map((patient) => ({
+            fullUrl: `https://method-more.com/rehainfo/emr/fhir/r4/Patient/${patient.id}`,
+            resource: patientResource(patient)
+          }))
+        }, { 'Content-Type': 'application/fhir+json; charset=utf-8' });
+      }
       params = match(pathname, '/fhir/r4/Patient/:id');
       if (req.method === 'GET' && params) { const p = store.patients.find((x) => x.id === params.id); return p ? sendJson(res, 200, patientResource(p)) : sendJson(res, 404, operationOutcome('not-found', 'Patient not found')); }
       params = match(pathname, '/fhir/r4/MedicationRequest/:id');

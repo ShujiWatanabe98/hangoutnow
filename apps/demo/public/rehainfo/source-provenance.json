@@ -28,9 +28,9 @@
     "/smariha-scheduler": "/rehainfo/schedule"
   },
   "sourceManifest": "apps/demo/rehainfo-source/source-manifest.json",
-  "dataMode": "fictional-browser-demo; SOAP, extracted AI text, and imported mock FHIR prescriptions are stored only in browser localStorage",
+  "dataMode": "fictional-browser-demo; SOAP, extracted AI text, imported mock FHIR prescriptions, and imported mock patients are stored only in browser localStorage",
   "prescriptionImageProcessing": "OpenAI Responses API with store=false; images are discarded after the response",
   "aiOcrImageProcessing": "OpenAI Responses API with store=false; images are discarded after the response",
-  "emrMockIntegration": "authenticated same-origin FHIR R4 MedicationRequest mock; fictional data only",
+  "emrMockIntegration": "authenticated same-origin FHIR R4 Patient and MedicationRequest mock; fictional data only",
   "externalClinicalSystemsConnected": false
 }

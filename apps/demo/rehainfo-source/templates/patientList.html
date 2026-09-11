@@ -58,13 +58,31 @@
             padding: 0px;
             gap: 5px;
 
-            width: 105px;
+            width: calc(100% - 40px);
             height: 24px;
             margin-left: 20px;
             margin-top: 40px;
             color: #202B4C;
             font-size: 24px;
             font-weight: 400;
+        }
+
+        .emr-patient-add-button {
+            margin-left: auto;
+            min-height: 40px;
+            padding: 8px 16px;
+            border: 1px solid #202B4C;
+            border-radius: 6px;
+            background: #202B4C;
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .emr-patient-add-button:hover,
+        .emr-patient-add-button:focus {
+            background: #31416d;
+            color: #ffffff;
         }
 
         /* Rectangle 6 */
@@ -240,6 +258,7 @@
         <div class="title-list-rectangle">
         </div>
         患者一覧
+        <button type="button" id="emrPatientImportButton" class="emr-patient-add-button">電カルから患者追加</button>
     </div>
 	<main>
 		<!-- Modal -->
