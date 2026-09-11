@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="電子カルテ標準仕様 2026 基本要件を参照した、架空データ専用の操作可能な電子カルテモック">
   <meta name="robots" content="noindex,nofollow,noarchive">
-  <title>MediLink Chart | 電子カルテモック</title>
-  <link rel="stylesheet" href="./styles.css?v=20260911-1">
+  <title>慶応技術大学病院 | 電子カルテモック</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css?v=20260912-1">
 </head>
 <body>
   <div class="app-shell">
@@ -22,6 +23,11 @@
         <a href="#/encounter" data-route="encounter"><span>✚</span>診療</a>
         <a href="#/prescriptions" data-route="prescriptions"><span>℞</span>処方</a>
         <a href="#/labs" data-route="labs"><span>⌁</span>検査オーダ</a>
+        <a href="#/hospital" data-route="hospital"><span>＋</span>病院業務</a>
+        <a href="#/wards" data-route="wards"><span>▦</span>入院・病床</a>
+        <a href="#/nursing" data-route="nursing"><span>♧</span>看護・チーム</a>
+        <a href="#/advanced" data-route="advanced"><span>◆</span>高度診療・請求</a>
+        <a href="#/admin" data-route="admin"><span>⚙</span>管理・安全</a>
         <a href="#/erx" data-route="erx"><span>⇄</span>電子処方箋</a>
         <a href="#/fhir" data-route="fhir"><span>{ }</span>FHIR文書</a>
       </nav>
@@ -35,14 +41,14 @@
       <header class="topbar">
         <button class="mobile-menu" id="mobile-menu" aria-label="メニューを開く">☰</button>
         <div class="facility">
-          <strong>青葉メディカルセンター</strong>
-          <span>テナント：TENANT-DEMO</span>
+          <strong id="facility-name">慶応技術大学病院</strong>
+          <span id="facility-environment">架空病院 / TENANT-KTUMH-DEMO</span>
         </div>
         <div class="top-actions">
           <a class="back-link" href="/rehainfo/">Smart Rehabへ戻る</a>
-          <span class="env-badge">DEMO</span>
+          <span class="env-badge" id="environment-badge">DEMO</span>
           <button class="icon-button" id="help-button" aria-label="このモックについて">?</button>
-          <div class="user-chip"><span>佐</span><div><strong>佐藤 医師</strong><small>内科 / PRACT-001</small></div></div>
+          <div class="user-chip"><span id="user-initial">佐</span><div><strong id="user-name">佐藤 医師</strong><small id="role-label">内科 / 医師</small></div></div>
         </div>
       </header>
 
@@ -60,6 +66,6 @@
       <button class="primary" value="close">閉じる</button>
     </form>
   </dialog>
-  <script type="module" src="./app.js?v=20260911-1"></script>
+  <script type="module" src="./app.js?v=20260912-1"></script>
 </body>
 </html>

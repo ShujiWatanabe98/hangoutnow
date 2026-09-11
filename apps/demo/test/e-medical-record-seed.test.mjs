@@ -5,7 +5,8 @@ import { patientBundle } from '../e-medical-record-mock/src/fhir.mjs';
 
 const patientScopedCollections = [
   'encounters', 'conditions', 'records', 'vitalSigns', 'medicationRequests',
-  'prescriptions', 'labOrders', 'eligibilityChecks', 'appointments', 'billingCharges'
+  'prescriptions', 'labOrders', 'eligibilityChecks', 'appointments', 'billingCharges',
+  'patientContexts', 'careTeams', 'patientConsents', 'activities', 'documents'
 ];
 
 test('100名の架空患者に現場想定の基本診療データが揃う', () => {
@@ -28,15 +29,24 @@ test('100名の架空患者に現場想定の基本診療データが揃う', ()
     assert.ok(patient.emergencyContact?.phone);
     assert.ok(patient.primaryPhysician);
     assert.ok(patient.bmi > 10 && patient.bmi < 50);
+    assert.ok(patient.functionalStatus);
+    assert.ok(patient.communicationNeeds);
+    assert.ok(patient.infectionPrecautions);
+    assert.ok(patient.careContext?.careSetting);
+    assert.ok(patient.careContext?.location);
+    assert.ok(patient.careContext?.nextAction);
+    assert.ok(patient.careContext?.clinicalRisks);
     const condition = store.conditions.find((item) => item.patientId === patient.id);
-    const rehabilitationPlan = store.rehabilitationPlans.find((item) => item.patientId === patient.id);
-    if (patient.smartRehabId) {
-      assert.equal(patient.smartRehabId, patient.id, `${patient.id} must use the EMR patient ID in Smart Rehab`);
-      assert.equal(condition.display, rehabilitationPlan.primaryDiagnosis);
+    assert.ok(condition?.code, `condition is required for ${patient.id}`);
+    if (!patient.smartRehabId) {
+      assert.equal(condition.code, expectedConditionCodes[patient.department], `condition must match ${patient.department}`);
     }
-    else assert.equal(condition.code, expectedConditionCodes[patient.department], `condition must match ${patient.department}`);
-    const hospitalization = store.encounters.find((item) => item.patientId === patient.id && item.classCode === 'IMP');
-    assert.ok(hospitalization?.startedAt, `${patient.id} must have a hospitalization start date`);
+    const rehabilitationPlan = store.rehabilitationPlans.find((item) => item.patientId === patient.id);
+    if (rehabilitationPlan) {
+      assert.ok(rehabilitationPlan.primaryDiagnosis);
+      assert.ok(rehabilitationPlan.rehabilitationClass);
+      assert.ok(rehabilitationPlan.startDate);
+    }
   }
 
   for (const collectionName of patientScopedCollections) {
@@ -77,21 +87,69 @@ test('部門データと外部連携データは臨床的な有無のばらつ�
   assert.ok(store.medicationRequests.length > 110);
   assert.ok(store.injectionOrders.length >= 25 && store.injectionOrders.length < 100);
   assert.ok(store.imagingOrders.length >= 30 && store.imagingOrders.length < 100);
-  assert.ok(store.documents.length >= 45 && store.documents.length < 100);
+  assert.equal(store.documents.length, 100);
   assert.ok(store.summaries.length >= 30 && store.summaries.length < 100);
   assert.ok(store.receivedBundles.length >= 15 && store.receivedBundles.length < 100);
   assert.ok(store.sentBundles.length >= 15 && store.sentBundles.length < 100);
   assert.ok(store.rehabilitationPlans.length >= 50 && store.rehabilitationPlans.length < 100);
-  assert.ok(store.rehabilitationPlans.every((item) => item.rehabilitationClass && item.primaryDiagnosis && item.impairments.length && item.risks.length && item.goal));
-  assert.ok(store.rehabilitationPlans.some((item) => item.entryExit === '入院'));
-  assert.ok(store.rehabilitationPlans.some((item) => item.entryExit === '外来'));
   assert.ok(store.labOrders.some((item) => item.status === 'requested'));
   assert.ok(store.labOrders.some((item) => item.status === 'completed'));
   assert.ok(store.prescriptions.some((item) => item.status === 'submitted'));
   assert.ok(store.prescriptions.some((item) => item.status === 'dispensed'));
+  assert.ok(store.activities.length >= 250);
+  assert.equal(new Set(store.activities.map((item) => item.moduleId)).size, 19);
+  assert.equal(store.patientContexts.length, 100);
+  assert.equal(store.careTeams.length, 100);
+  assert.equal(store.patientConsents.length, 400);
+  assert.ok(store.nursingRecords.length >= 45);
 });
 
-test('各患者のFHIR Bundleに診療情報を、リハ対象患者には依頼と受診情報を含む', () => {
+test('100名全員が最新病院モックの患者コンテキストと業務データを持つ', () => {
+  const store = createStore();
+  for (const patient of store.patients) {
+    const context = store.patientContexts.find((item) => item.patientId === patient.id);
+    const team = store.careTeams.find((item) => item.patientId === patient.id);
+    const consents = store.patientConsents.filter((item) => item.patientId === patient.id);
+    const activities = store.activities.filter((item) => item.patientId === patient.id);
+    assert.equal(patient.careContext.id, context.id);
+    assert.ok(team.members.length >= 3, `care team is required for ${patient.id}`);
+    assert.equal(consents.length, 4, `four consent purposes are required for ${patient.id}`);
+    assert.ok(activities.length >= 2, `hospital activities are required for ${patient.id}`);
+    if (context.careSetting === '入院') {
+      assert.ok(store.admissions.some((item) => item.patientId === patient.id && item.status === 'admitted'));
+      assert.ok(store.nursingRecords.some((item) => item.patientId === patient.id));
+    }
+    if (context.careSetting === '救急外来') assert.ok(context.triage?.level);
+  }
+});
+
+test('架空大学病院の職員・勤務・受け持ち・申し送り・指示が入院患者へ整合している', () => {
+  const store = createStore();
+  const staffIds = new Set(store.staffMembers.map((item) => item.id));
+  assert.equal(store.hospitalProfile.name, '慶応技術大学病院');
+  assert.equal(store.hospitalProfile.dataClassification, 'FICTIONAL_DEMO');
+  assert.equal(store.organizationUnits.length, 32);
+  assert.equal(store.staffMembers.length, 61);
+  assert.equal(store.staffMembers.filter((item) => item.role === 'physician').length, 14);
+  assert.equal(store.staffMembers.filter((item) => item.role === 'nurse').length, 33);
+  assert.equal(store.shiftAssignments.length, 27);
+  assert.ok(store.staffMembers.every((item) => item.dataClassification === 'FICTIONAL_DEMO'));
+  assert.ok(store.staffMembers.every((item) => item.professionalLicenseId.startsWith('DEMO-')));
+  assert.ok(store.shiftAssignments.every((item) => staffIds.has(item.staffId)));
+
+  for (const admission of store.admissions.filter((item) => item.status === 'admitted')) {
+    const assignments = store.patientAssignments.filter((item) => item.admissionId === admission.id);
+    const nurseShifts = new Set(assignments.filter((item) => item.profession === 'nurse').map((item) => item.shiftCode));
+    assert.equal(assignments.length, 4, `four accountable staff assignments are required for ${admission.id}`);
+    assert.deepEqual(nurseShifts, new Set(['day', 'evening', 'night']));
+    assert.ok(assignments.every((item) => staffIds.has(item.staffId)));
+    assert.equal(store.handoffs.filter((item) => item.admissionId === admission.id).length, 2);
+    assert.equal(store.clinicalInstructions.filter((item) => item.admissionId === admission.id).length, 2);
+    assert.equal(store.teamConferences.filter((item) => item.admissionId === admission.id).length, 1);
+  }
+});
+
+test('各患者のFHIR Bundleに患者・傷病・処方・検査・バイタルを含む', () => {
   const store = createStore();
 
   for (const patient of store.patients) {
@@ -101,34 +159,67 @@ test('各患者のFHIR Bundleに診療情報を、リハ対象患者には依頼
     assert.ok(resourceTypes.has('Patient'));
     assert.ok(resourceTypes.has('Condition'));
     assert.ok(resourceTypes.has('MedicationRequest'));
+    assert.ok(resourceTypes.has('Organization'));
+    assert.ok(resourceTypes.has('Practitioner'));
+    assert.ok(resourceTypes.has('CareTeam'));
+    assert.ok(resourceTypes.has('Consent'));
     assert.ok(resources.some((resource) => resource.resourceType === 'Observation' && resource.category?.[0]?.coding?.[0]?.code === 'laboratory'));
     assert.ok(resources.some((resource) => resource.resourceType === 'Observation' && resource.category?.[0]?.coding?.[0]?.code === 'vital-signs'));
-    assert.ok(resourceTypes.has('Encounter'));
-    const hospitalization = resources.find((resource) => resource.resourceType === 'Encounter' && resource.class?.code === 'IMP');
-    assert.ok(hospitalization?.period?.start, `${patient.id} FHIR Bundle must include a hospitalization start date`);
-    const rehabilitationPlan = store.rehabilitationPlans.find((item) => item.patientId === patient.id);
-    assert.equal(resourceTypes.has('ServiceRequest'), Boolean(rehabilitationPlan));
-    if (rehabilitationPlan) {
-      const request = resources.find((resource) => resource.resourceType === 'ServiceRequest');
-      assert.equal(request.subject.reference, `Patient/${patient.id}`);
-      assert.equal(request.category[0].coding[0].code, 'rehabilitation');
-      assert.ok(request.extension.some((item) => item.url.endsWith('/rehabilitation-class')));
-      assert.ok(request.extension.some((item) => item.url.endsWith('/fim-total')));
-    }
   }
 });
 
-test('スマリハ連携済み10名は電カルと同一の患者基本情報・リハ計画を持つ', () => {
-  const store = createStore();
-  const patient = store.patients.find((item) => item.id === 'SR-DEMO260902');
-  const plan = store.rehabilitationPlans.find((item) => item.patientId === patient.id);
+test('入院患者のFHIR Bundleに画像・薬剤実施・手術の専用リソースを含む', () => {
+  const store = createStore(); const bundle = patientBundle(store, 'P0001001');
+  const resources = bundle.entry.map((entry) => entry.resource); const types = new Set(resources.map((resource) => resource.resourceType));
+  assert.ok(types.has('DiagnosticReport')); assert.ok(types.has('MedicationAdministration')); assert.ok(types.has('Procedure'));
+  const report = resources.find((resource) => resource.resourceType === 'DiagnosticReport'); assert.equal(report.category[0].coding[0].code, 'RAD'); assert.ok(report.conclusion);
+  const administration = resources.find((resource) => resource.resourceType === 'MedicationAdministration'); assert.equal(administration.subject.reference, 'Patient/P0001001'); assert.ok(administration.performer[0].actor.reference.startsWith('Practitioner/'));
+  const procedure = resources.find((resource) => resource.resourceType === 'Procedure'); assert.equal(procedure.subject.reference, 'Patient/P0001001'); assert.ok(['preparation', 'in-progress', 'completed'].includes(procedure.status));
+});
 
+test('高度診療データと職員参照が架空病院データへ整合している', () => {
+  const store = createStore();
+  const patientIds = new Set(store.patients.map((item) => item.id));
+  const staffIds = new Set(store.staffMembers.map((item) => item.id));
+  const advancedCollections = ['imagingReports', 'pharmacyReviews', 'medicationAdministrations', 'surgicalCases', 'anesthesiaRecords', 'transfusionOrders', 'pathologySpecimens', 'microbiologyResults', 'dialysisSessions', 'chemotherapyRegimens', 'icuFlowsheets', 'infectionControlCases', 'dpcEpisodes', 'claimSubmissions', 'dischargePlans'];
+  const expectedCounts = [51, 131, 26, 5, 5, 4, 12, 10, 6, 6, 3, 10, 15, 100, 15];
+  advancedCollections.forEach((name, index) => {
+    assert.equal(store[name].length, expectedCounts[index], `${name} count`);
+    assert.ok(store[name].every((item) => patientIds.has(item.patientId)), `${name} patient reference`);
+    assert.ok(store[name].every((item) => item.dataClassification === 'FICTIONAL_DEMO'), `${name} classification`);
+  });
+  assert.equal(store.masters.length, 38);
+  assert.equal(store.inventory.length, 20);
+  assert.equal(store.labOrders.filter((item) => item.resultDetail).length, 89);
+  assert.ok(store.labOrders.filter((item) => item.status === 'completed').every((item) => Number.isFinite(item.resultDetail.value) && item.resultDetail.unit && item.resultDetail.referenceRange.text && ['H', 'L', 'N'].includes(item.resultDetail.interpretation)));
+  assert.ok(store.activities.every((item) => staffIds.has(item.assignedStaffId)));
+  assert.ok(store.nursingRecords.every((item) => staffIds.has(item.authorStaffId)));
+  assert.ok(store.records.every((item) => staffIds.has(item.authorStaffId)));
+  assert.ok(store.medicationRequests.every((item) => staffIds.has(item.requesterStaffId)));
+  for (const admission of store.admissions) {
+    assert.ok(store.dpcEpisodes.some((item) => item.admissionId === admission.id));
+    assert.ok(store.dischargePlans.some((item) => item.admissionId === admission.id));
+    assert.ok(store.medicationAdministrations.filter((item) => item.admissionId === admission.id)
+      .every((item) => item.patientId === admission.patientId));
+  }
+});
+
+test('スマリハ連携済み10名は最新版電カルの架空患者・リハ計画へ一致する', () => {
+  const store = createStore();
+  const linkedPatients = store.patients.filter((item) => item.smartRehabId);
+  assert.equal(linkedPatients.length, 10);
+  assert.ok(linkedPatients.every((item) => item.smartRehabId === item.id));
+
+  const patient = linkedPatients.find((item) => item.id === 'SR-DEMO260902');
+  const plan = store.rehabilitationPlans.find((item) => item.patientId === patient.id);
   assert.deepEqual({ name: patient.name, birthDate: patient.birthDate, department: patient.department }, {
     name: '鈴木 正一', birthDate: '1952-11-03', department: '整形外科'
   });
+  assert.equal(patient.dataClassification, 'FICTIONAL_DEMO');
+  assert.equal(patient.careContext.careSetting, '外来');
   assert.equal(plan.rehabilitationClass, '運動器');
   assert.equal(plan.primaryDiagnosis, '右大腿骨頸部骨折術後');
-  assert.equal(plan.entryExit, '入院');
-  assert.equal(plan.wardName, '回復期2階B');
+  assert.equal(plan.entryExit, '外来');
+  assert.equal(plan.wardName, '整形外科外来');
   assert.deepEqual(plan.professions, ['PT', 'OT']);
 });

@@ -199,11 +199,16 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
   assert.equal(emrPageResponse.status, 200);
   assert.equal(emrPageResponse.headers.get('x-robots-tag'), 'noindex, nofollow, noarchive');
   assert.match(emrPage, /MediLink Chart/);
+  assert.match(emrPage, /慶応技術大学病院/);
   assert.match(emrPage, /架空データ専用・外部送信なし/);
+  assert.match(emrPage, /病院業務/);
+  assert.match(emrPage, /看護・チーム/);
+  assert.match(emrPage, /高度診療・請求/);
   assert.match(emrPage, /href="\/rehainfo\/"/);
-  const emrScript = await fetch(`${origin}/rehainfo/emr/app.js?v=20260911-1`, { headers: { cookie } });
+  const emrScript = await fetch(`${origin}/rehainfo/emr/app.js?v=20260912-1`, { headers: { cookie } });
   assert.equal(emrScript.status, 200);
   assert.equal(emrScript.headers.get('x-robots-tag'), 'noindex, nofollow, noarchive');
+  assert.match(await emrScript.text(), /new URL\('\.', import\.meta\.url\)\.pathname/);
 
   const emrTokenResponse = await fetch(`${origin}/rehainfo/emr/oauth/token`, {
     method: 'POST',
@@ -217,8 +222,14 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
   const emrPatientsResponse = await fetch(`${origin}/rehainfo/emr/api/v1/patients`, { headers: emrApiHeaders });
   assert.equal(emrPatientsResponse.status, 200);
   const emrPatients = await emrPatientsResponse.json();
-  assert.ok(emrPatients.total >= 4);
+  assert.equal(emrPatients.total, 100);
+  assert.ok(emrPatients.items.every((patient) => patient.dataClassification === 'FICTIONAL_DEMO'));
   assert.ok(emrPatients.items.every((patient) => patient.address.includes('架空')));
+  const emrHospitalOverviewResponse = await fetch(`${origin}/rehainfo/emr/api/v1/hospital/overview`, { headers: emrApiHeaders });
+  assert.equal(emrHospitalOverviewResponse.status, 200);
+  const emrHospitalOverview = await emrHospitalOverviewResponse.json();
+  assert.equal(emrHospitalOverview.totals.staffMembers, 61);
+  assert.equal(emrHospitalOverview.totals.occupiedBeds, 15);
   const emrBundleResponse = await fetch(`${origin}/rehainfo/emr/api/v1/dx/patients/P0001001/fhir-bundle`, { headers: emrApiHeaders });
   assert.equal(emrBundleResponse.status, 200);
   assert.equal((await emrBundleResponse.json()).resourceType, 'Bundle');
@@ -247,12 +258,13 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
   const emrEncounters = await emrEncountersResponse.json();
   const emrRehabRequests = await emrRehabRequestsResponse.json();
   assert.equal(emrConditions.entry[0].resource.code.text, '右大腿骨頸部骨折術後');
-  assert.equal(emrEncounters.entry[0].resource.class.code, 'IMP');
-  assert.equal(emrEncounters.entry[0].resource.location[0].location.display, '回復期2階B');
+  assert.ok(emrEncounters.entry.some((entry) => entry.resource.class.code === 'AMB'));
+  assert.ok(emrEncounters.entry.some((entry) => entry.resource.class.code === 'IMP'
+    && entry.resource.location[0].location.display === '回復期2階B'));
   assert.equal(emrRehabRequests.total, 1);
   assert.equal(emrRehabRequests.entry[0].resource.code.coding[0].code, '運動器');
   assert.equal(emrRehabRequests.entry[0].resource.reasonReference[0].display, '右大腿骨頸部骨折術後');
-  assert.ok(emrRehabRequests.entry[0].resource.extension.some((item) => item.url.endsWith('/fim-total')));
+  assert.match(emrRehabRequests.entry[0].resource.note[0].text, /FIM：合計63/);
 
   for (const asset of [
     '/rehainfo/js/ocr/PatientList.js',

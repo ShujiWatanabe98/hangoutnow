@@ -1,4 +1,6 @@
-import { randomUUID } from 'node:crypto';
+import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
+import { createHospitalSeed } from './hospital.mjs';
+import { createAdvancedHospitalSeed } from './advanced-hospital.mjs';
 
 const now = '2026-09-11T09:00:00+09:00';
 
@@ -88,10 +90,10 @@ const smartRehabMedicationRequests = [
   ['DEMO260901', '106020001', 'アセトアミノフェン錠200mg（架空処方）', '1回1錠 疼痛時', 10, '錠', '2026-09-01T09:15:00+09:00', '佐々木 医師'],
   ['DEMO260902', '112400101', 'アムロジピン錠5mg（架空処方）', '1回1錠 1日1回 朝食後', 14, '錠', '2026-09-02T10:10:00+09:00', '佐々木 医師'],
   ['DEMO260903', '114100201', 'ロキソプロフェン錠60mg（架空処方）', '1回1錠 1日3回 毎食後', 21, '錠', '2026-09-03T11:20:00+09:00', '松本 医師'],
-  ['DEMO260904', '103831601', 'カルボシステイン錠250mg（架空処方）', '1回2錠 1日3回 毎食後', 42, '錠', '2026-09-04T13:30:00+09:00', '高木 医師'],
+  ['DEMO260904', '103831601', 'カルボシステイン錠250mg（架空処方）', '1回2錠 1日3回 毎食後', 42, '錠', '2026-09-04T13:30:00+09:00', '加納 医師'],
   ['DEMO260905', '122900301', 'エソメプラゾールカプセル20mg（架空処方）', '1回1カプセル 1日1回 朝食後', 14, 'カプセル', '2026-09-05T14:05:00+09:00', '松本 医師'],
   ['DEMO260906', '333200101', 'アスピリン錠100mg（架空処方）', '1回1錠 1日1回 朝食後', 14, '錠', '2026-09-06T09:40:00+09:00', '加納 医師'],
-  ['DEMO260907', '225100101', '吸入薬A（架空処方）', '1回1吸入 1日2回', 14, '回分', '2026-09-07T10:25:00+09:00', '高木 医師'],
+  ['DEMO260907', '225100101', '吸入薬A（架空処方）', '1回1吸入 1日2回', 14, '回分', '2026-09-07T10:25:00+09:00', '森 医師'],
   ['DEMO260908', '117902501', 'プレガバリンカプセル25mg（架空処方）', '1回1カプセル 1日2回 朝夕食後', 28, 'カプセル', '2026-09-08T15:10:00+09:00', '佐々木 医師'],
   ['DEMO260909', '114903001', 'セレコキシブ錠100mg（架空処方）', '1回1錠 1日2回 朝夕食後', 28, '錠', '2026-09-09T11:45:00+09:00', '松本 医師'],
   ['DEMO260910', '399902501', 'ビタミンD錠（架空処方）', '1回1錠 1日1回 朝食後', 14, '錠', '2026-09-10T16:00:00+09:00', '加納 医師']
@@ -292,7 +294,11 @@ function createComprehensiveSeed() {
         relationship: ['配偶者', '子', '兄弟姉妹'][index % 3],
         phone: `090-9000-${String(index + 1).padStart(4, '0')}`
       },
-      primaryPhysician: ['佐藤 医師', '松本 医師', '高木 医師', '加納 医師'][index % 4],
+      primaryPhysician: ({
+        '内科': '佐藤 医師', '整形外科': '松本 医師', '循環器内科': '加納 医師', '呼吸器内科': '森 医師',
+        '糖尿病内科': '石井 医師', '脳神経内科': '藤田 医師', '神経内科': '小林 医師',
+        '消化器内科': '中村 医師', '回復期リハビリテーション科': '橋本 医師'
+      })[patient.department] || '佐藤 医師',
       heightCm,
       weightKg,
       bmi: Number((weightKg / ((heightCm / 100) ** 2)).toFixed(1)),
@@ -305,6 +311,19 @@ function createComprehensiveSeed() {
     };
   });
   if (patients.length !== 100) throw new Error(`fictional patient seed must contain 100 patients, got ${patients.length}`);
+  const departmentAlerts = {
+    '内科': '服薬アドヒアランス確認', '整形外科': '転倒リスク', '循環器内科': '体液量・血圧変動',
+    '呼吸器内科': 'SpO2低下時対応', '糖尿病内科': '低血糖リスク', '脳神経内科': '嚥下・転倒リスク',
+    '神経内科': '嚥下・転倒リスク', '消化器内科': '食事・腹部症状確認', '回復期リハビリテーション科': '移乗・転倒リスク'
+  };
+  patients.forEach((patient, index) => {
+    patient.alerts = patient.alerts.map((alert) => alert.includes('デモ患者') ? (departmentAlerts[patient.department] || '患者安全情報を確認') : alert);
+    patient.functionalStatus = ['自立', '杖歩行', '見守り', '一部介助', '車椅子'][index % 5];
+    patient.communicationNeeds = index % 12 === 0 ? '難聴あり・正面からゆっくり説明' : index % 15 === 0 ? '家族同席で説明' : '通常';
+    patient.infectionPrecautions = index % 23 === 0 ? '接触予防策（架空設定）' : '標準予防策';
+    patient.preferredContact = index % 3 === 0 ? '本人携帯' : index % 3 === 1 ? '家族連絡先' : '書面';
+    patient.version = 1;
+  });
 
   const records = structuredClone(seedRecords);
   const medicationRequests = structuredClone(seedMedicationRequests.concat(smartRehabMedicationRequests));
@@ -339,16 +358,23 @@ function createComprehensiveSeed() {
     const rehabilitationPlan = rehabilitationPlanFor(patient, profile, index, encounterId, conditionId);
     const hospitalizationPeriod = hospitalizationPeriodFor(index, occurredAt, rehabilitationPlan);
     const isCurrentInpatient = rehabilitationPlan?.entryExit === '入院';
+    const encounterStartedAt = occurredAt;
     encounters.push({
       id: encounterId, patientId: patient.id, department: patient.department,
-      status: isCurrentInpatient ? 'in-progress' : 'finished',
-      classCode: isCurrentInpatient ? 'IMP' : 'AMB',
-      entryExit: rehabilitationPlan?.entryExit || '外来', wardName: rehabilitationPlan?.wardName || `${patient.department}外来`,
-      startedAt: isCurrentInpatient ? hospitalizationPeriod.startedAt : (rehabilitationPlan?.startDate ? `${rehabilitationPlan.startDate}T08:30:00+09:00` : occurredAt),
-      ...(isCurrentInpatient ? {} : { endedAt: isoAt(index, 1) }),
+      status: 'finished', classCode: 'AMB', entryExit: '外来', wardName: `${patient.department}外来`,
+      startedAt: encounterStartedAt,
+      endedAt: new Date(Date.parse(encounterStartedAt) + (45 * 60 * 1000)).toISOString(),
       practitionerId: `PRACT-${String((index % 6) + 1).padStart(3, '0')}`
     });
-    if (!isCurrentInpatient) {
+    if (rehabilitationPlan) rehabilitationPlan.encounterId = `ENC-ADMISSION-${key}`;
+    if (isCurrentInpatient) {
+      encounters.push({
+        id: `ENC-ADMISSION-${key}`, patientId: patient.id, department: patient.department,
+        status: 'in-progress', classCode: 'IMP', entryExit: '入院', wardName: rehabilitationPlan.wardName,
+        startedAt: hospitalizationPeriod.startedAt,
+        practitionerId: `PRACT-${String((index % 6) + 1).padStart(3, '0')}`
+      });
+    } else {
       encounters.push({
         id: `ENC-ADMISSION-${key}`, patientId: patient.id, department: patient.department,
         status: 'finished', classCode: 'IMP', entryExit: '退院',
@@ -378,7 +404,7 @@ function createComprehensiveSeed() {
     if (!record) {
       record = {
         id: `REC-DEMO-${key}`, patientId: patient.id, encounterId, occurredAt,
-        department: patient.department, author: ['佐藤 医師', '松本 医師', '高木 医師', '加納 医師'][index % 4],
+        department: patient.department, author: patient.primaryPhysician,
         status: index % 10 === 0 ? 'draft' : 'signed', version: index % 10 === 0 ? 1 : 2,
         soap: { subjective: profile.subjective, objective: profile.objective, assessment: profile.assessment, plan: profile.plan },
         ...(index % 10 === 0 ? {} : { signedAt: isoAt(index, 1) })
@@ -392,7 +418,7 @@ function createComprehensiveSeed() {
       const historicalEncounterId = `ENC-HIST-${key}-${visit + 1}`;
       encounters.push({
         id: historicalEncounterId, patientId: patient.id, department: patient.department,
-        status: 'finished', startedAt: historicalAt,
+        status: 'finished', classCode: 'AMB', entryExit: '外来', wardName: `${patient.department}外来`, startedAt: historicalAt,
         endedAt: new Date(Date.parse(historicalAt) + (45 * 60 * 1000)).toISOString(),
         practitionerId: `PRACT-${String((index % 6) + 1).padStart(3, '0')}`
       });
@@ -518,13 +544,20 @@ function createComprehensiveSeed() {
         department: patient.department, status: 'booked'
       });
     }
+    const chargeItems = [
+      { code: 'DEMO-RECEIPT-001', display: '初再診料（架空）', points: 288 },
+      { code: 'DEMO-RX-001', display: '処方料（架空）', points: 42 },
+      { code: 'DEMO-LAB-001', display: '検体検査料（架空）', points: 125 },
+      ...(injectionOrders.some((item) => item.patientId === patient.id)
+        ? [{ code: 'DEMO-INJ-001', display: '注射実施料（架空）', points: 97 }] : []),
+      ...(imagingOrders.some((item) => item.patientId === patient.id)
+        ? [{ code: 'DEMO-IMG-001', display: '画像診断料（架空）', points: 210 }] : [])
+    ];
     billingCharges.push({
       id: `CHG-DEMO-${key}`, patientId: patient.id, encounterId,
-      items: [
-        { code: 'DEMO-RECEIPT-001', display: '初再診料（架空）', points: 288 },
-        { code: 'DEMO-RX-001', display: '処方料（架空）', points: 42 }
-      ],
-      totalPoints: 330, status: index % 7 === 0 ? 'queued' : 'accepted', queuedAt: isoAt(index, 3)
+      items: chargeItems,
+      totalPoints: chargeItems.reduce((total, item) => total + item.points, 0),
+      status: index % 7 === 0 ? 'queued' : 'accepted', queuedAt: isoAt(index, 3)
     });
     if (index % 5 === 0) receivedBundles.push({
       id: `FHIR-RECV-DEMO-${key}`, patientId: patient.id, receivedAt: occurredAt,
@@ -543,7 +576,8 @@ function createComprehensiveSeed() {
       }
     });
     auditEvents.push({
-      id: `AUD-DEMO-${key}`, recordedAt: isoAt(index, 3), action: 'seed',
+      id: `AUD-DEMO-${key}`,
+      recordedAt: new Date(Date.parse('2026-09-10T09:00:00+09:00') + (index * 60 * 1000)).toISOString(), action: 'seed',
       resourceType: 'PatientClinicalDataset', resourceId: patient.id,
       practitionerId: record.author, requestId: `REQ-SEED-${key}`, outcome: 'success'
     });
@@ -553,31 +587,263 @@ function createComprehensiveSeed() {
     if (!encounters.some((encounter) => encounter.id === record.encounterId)) {
       encounters.push({
         id: record.encounterId, patientId: record.patientId, department: record.department,
-        status: 'finished', startedAt: record.occurredAt,
+        status: 'finished', classCode: 'AMB', entryExit: '外来', wardName: `${record.department}外来`, startedAt: record.occurredAt,
         endedAt: new Date(Date.parse(record.occurredAt) + (45 * 60 * 1000)).toISOString(),
         practitionerId: 'PRACT-001'
       });
     }
   });
 
+  const hospital = createHospitalSeed(patients);
+  const hospitalPhysicians = hospital.staffMembers.filter((staff) => staff.role === 'physician');
+  patients.forEach((patient) => {
+    const primaryPhysician = hospitalPhysicians.find((staff) => staff.department === patient.department) || hospitalPhysicians[0];
+    patient.primaryPhysician = primaryPhysician.name;
+    patient.primaryPhysicianId = primaryPhysician.id;
+  });
+
+  hospital.admissions.forEach((admission) => {
+    const patientIndex = patients.findIndex((patient) => patient.id === admission.patientId);
+    const encounter = encounters.find((item) => item.id === `ENC-ADMISSION-${String(patientIndex + 1).padStart(3, '0')}`);
+    const bed = hospital.beds.find((item) => item.id === admission.bedId);
+    admission.encounterId = encounter.id;
+    encounter.status = 'in-progress';
+    encounter.classCode = 'IMP';
+    encounter.entryExit = '入院';
+    encounter.wardName = admission.ward;
+    encounter.startedAt = bed.admittedAt;
+    delete encounter.endedAt;
+    encounter.practitionerId = admission.attendingPhysicianId;
+    encounter.practitionerName = admission.attendingPhysician;
+  });
+  const admittedPatientIds = new Set(hospital.admissions.map((admission) => admission.patientId));
+  encounters.filter((encounter) => encounter.id.startsWith('ENC-ADMISSION-') && !admittedPatientIds.has(encounter.patientId)).forEach((encounter) => {
+    encounter.status = 'finished';
+    encounter.classCode = 'IMP';
+    encounter.entryExit = '退院';
+    const latestAllowedEnd = Date.parse('2026-09-10T08:00:00+09:00');
+    const proposedEnd = Date.parse(encounter.startedAt) + (7 * 24 * 60 * 60 * 1000);
+    encounter.endedAt = new Date(Math.max(Date.parse(encounter.startedAt) + (45 * 60 * 1000), Math.min(proposedEnd, latestAllowedEnd))).toISOString();
+  });
+  rehabilitationPlans.forEach((plan) => {
+    const admission = hospital.admissions.find((item) => item.patientId === plan.patientId);
+    const patient = patients.find((item) => item.id === plan.patientId);
+    const patientIndex = patients.findIndex((item) => item.id === plan.patientId);
+    if (admission) {
+      plan.encounterId = admission.encounterId;
+      plan.entryExit = '入院';
+      plan.wardName = admission.ward;
+      plan.targetDischargeDate = admission.plannedDischargeAt.slice(0, 10);
+    } else {
+      plan.encounterId = `ENC-DEMO-${String(patientIndex + 1).padStart(3, '0')}`;
+      plan.entryExit = '外来';
+      plan.wardName = `${patient.department}外来`;
+      plan.targetDischargeDate = null;
+    }
+  });
+  records.forEach((record) => {
+    const patient = patients.find((item) => item.id === record.patientId);
+    const author = hospital.staffMembers.find((staff) => staff.name === record.author)
+      || hospitalPhysicians.find((staff) => staff.department === patient?.department)
+      || hospitalPhysicians[0];
+    record.author = author.name;
+    record.authorStaffId = author.id;
+    record.departmentUnitId = patient.departmentUnitId;
+    if (record.status === 'signed') {
+      record.signedBy = author.name;
+      record.signedByStaffId = author.id;
+      record.signedBySubject = `fictional-staff:${author.id}`;
+      record.signedAt = record.signedAt && Date.parse(record.signedAt) >= Date.parse(record.occurredAt)
+        ? record.signedAt : new Date(Date.parse(record.occurredAt) + (35 * 60 * 1000)).toISOString();
+    }
+  });
+  medicationRequests.forEach((order) => {
+    const record = records.find((item) => item.id === order.recordId);
+    order.requester = record?.author || hospitalPhysicians[0].name;
+    order.requesterStaffId = record?.authorStaffId || hospitalPhysicians[0].id;
+  });
+  encounters.forEach((encounter) => {
+    const patient = patients.find((item) => item.id === encounter.patientId);
+    const practitioner = hospitalPhysicians.find((staff) => staff.department === patient?.department) || hospitalPhysicians[0];
+    encounter.departmentUnitId = patient.departmentUnitId;
+    encounter.practitionerId = practitioner.id;
+    encounter.practitionerName = practitioner.name;
+  });
+  vitalSigns.forEach((vital) => {
+    const patient = patients.find((item) => item.id === vital.patientId);
+    vital.performer = patient.primaryPhysician;
+    vital.performerStaffId = patient.primaryPhysicianId;
+  });
+  rehabilitationPlans.forEach((plan) => {
+    const patient = patients.find((item) => item.id === plan.patientId);
+    plan.requester = patient.primaryPhysician;
+    plan.requesterStaffId = patient.primaryPhysicianId;
+  });
+  auditEvents.forEach((event) => {
+    const record = records.find((item) => item.patientId === event.resourceId);
+    event.practitionerId = record?.authorStaffId || hospitalPhysicians[0].id;
+  });
+  patients.forEach((patient) => {
+    const context = hospital.patientContexts.find((item) => item.patientId === patient.id);
+    patient.careContext = context;
+    if (context?.careSetting === '入院') { patient.status = '入院中'; patient.room = context.location; }
+    if (context?.careSetting === '救急外来') { patient.status = '救急受付'; patient.room = context.location; }
+    if (context?.careSetting === '在宅・訪問') { patient.status = '訪問予定'; patient.room = '在宅'; }
+    if (context?.careSetting === '健診') { patient.status = '健診予約'; patient.room = '健診センター'; }
+    if (!documents.some((item) => item.patientId === patient.id)) documents.push({
+      id: `DOC-PATIENT-${patient.id}`, patientId: patient.id, type: '患者サマリー',
+      title: '患者基本情報・同意確認票（架空）', authoredAt: context.lastUpdatedAt,
+      author: patient.primaryPhysician, status: 'final', source: '院内作成'
+    });
+  });
+
+  patients.forEach((patient) => {
+    const appointment = appointments.find((item) => item.patientId === patient.id && item.status === 'booked');
+    if (appointment) patient.nextAppointment = appointment.startsAt.slice(0, 16).replace('T', ' ');
+    const latestRecord = records.filter((item) => item.patientId === patient.id)
+      .sort((left, right) => Date.parse(right.occurredAt) - Date.parse(left.occurredAt))[0];
+    if (latestRecord) patient.lastVisit = latestRecord.occurredAt.slice(0, 10);
+  });
+
+  const medicationAsOf = Date.parse('2026-09-11T09:00:00+09:00');
+  medicationRequests.forEach((order) => {
+    const perDose = order.dosageText.match(/1回(\d+)(?:錠|カプセル|吸入)/);
+    const perDay = order.dosageText.match(/1日(\d+)回/);
+    if (perDose && perDay) order.quantity = Number(perDose[1]) * Number(perDay[1]) * order.days;
+    if (order.status === 'active' && Date.parse(order.authoredOn) + (order.days * 24 * 60 * 60 * 1000) < medicationAsOf) {
+      order.status = 'completed';
+    }
+  });
+  prescriptions.forEach((prescription) => {
+    const orders = medicationRequests.filter((order) => prescription.medicationRequestIds.includes(order.id));
+    const latestAuthoredAt = Math.max(...orders.map((order) => Date.parse(order.authoredOn)));
+    prescription.sentAt = new Date(latestAuthoredAt + (10 * 60 * 1000)).toISOString();
+    const dispense = dispenses.find((item) => item.prescriptionId === prescription.id);
+    if (dispense) dispense.dispensedAt = new Date(Date.parse(prescription.sentAt) + (60 * 60 * 1000)).toISOString();
+  });
+
+  hospital.nursingRecords.forEach((record) => {
+    if (record.status !== 'signed') return;
+    record.signedBy = record.author;
+    record.signedByStaffId = record.authorStaffId;
+    record.signedBySubject = `fictional-staff:${record.authorStaffId}`;
+    record.signedAt = new Date(Date.parse(record.recordedAt) + (5 * 60 * 1000)).toISOString();
+  });
+  documents.forEach((document) => {
+    if (document.status !== 'final') return;
+    const patient = patients.find((item) => item.id === document.patientId);
+    const signer = hospital.staffMembers.find((staff) => staff.name === document.author)
+      || hospital.staffMembers.find((staff) => staff.id === patient?.primaryPhysicianId)
+      || hospitalPhysicians[0];
+    document.authorStaffId = signer.id;
+    document.signedBy = signer.name;
+    document.signedByStaffId = signer.id;
+    document.signedBySubject = `fictional-staff:${signer.id}`;
+    document.signedAt = new Date(Date.parse(document.authoredAt) + (10 * 60 * 1000)).toISOString();
+  });
+  summaries.forEach((summary) => {
+    const patient = patients.find((item) => item.id === summary.patientId);
+    const signer = hospital.staffMembers.find((staff) => staff.id === patient?.primaryPhysicianId) || hospitalPhysicians[0];
+    summary.author = signer.name;
+    summary.authorStaffId = signer.id;
+    summary.signedBy = signer.name;
+    summary.signedByStaffId = signer.id;
+    summary.signedBySubject = `fictional-staff:${signer.id}`;
+    summary.signedAt = new Date(Date.parse(summary.authoredAt) + (10 * 60 * 1000)).toISOString();
+  });
+
+  const mutableStatusCollections = [
+    encounters, rehabilitationPlans, medicationRequests, labOrders, injectionOrders, imagingOrders, documents, summaries,
+    dispenses, billingCharges, prescriptions, eligibilityChecks, receivedBundles, sentBundles, appointments
+  ];
+  mutableStatusCollections.forEach((collection) => collection.forEach((item) => { item.version ??= 1; }));
+
+  const { clinicalMasters, inventoryLots, ...advancedHospital } = createAdvancedHospitalSeed({
+    patients, hospital, labOrders, imagingOrders, medicationRequests, billingCharges
+  });
+  hospital.masters.push(...clinicalMasters);
+  hospital.inventory.push(...inventoryLots);
+
+  const breakGlassGrants = [
+    {
+      id: 'BRK-DEMO-001', tenantId: hospital.hospitalProfile.tenantId, patientId: 'P0001008',
+      requestedBySub: 'demo-emergency-physician', practitionerId: 'STF-PHY-004', role: 'physician',
+      reasonCode: 'emergency-care', justification: '救急搬送時に担当診療科が確定する前の初期診療（架空）',
+      activatedAt: '2026-09-10T22:14:00+09:00', expiresAt: '2026-09-10T22:29:00+09:00',
+      revokedAt: '2026-09-10T22:24:00+09:00', revocationReason: '救急担当チームへ引継ぎ完了',
+      status: 'revoked', dataClassification: 'FICTIONAL_DEMO', version: 2
+    },
+    {
+      id: 'BRK-DEMO-002', tenantId: hospital.hospitalProfile.tenantId, patientId: 'P0001027',
+      requestedBySub: 'demo-night-nurse', practitionerId: 'STF-NUR-006', role: 'nurse',
+      reasonCode: 'patient-safety', justification: '夜間急変時に受け持ち登録更新前の安全確認を実施（架空）',
+      activatedAt: '2026-09-10T23:40:00+09:00', expiresAt: '2026-09-10T23:55:00+09:00',
+      status: 'expired', dataClassification: 'FICTIONAL_DEMO', version: 1
+    }
+  ];
+  auditEvents.push(
+    { id: 'AUD-BRK-DEMO-001-A', recordedAt: breakGlassGrants[0].activatedAt, action: 'break-glass:activate', resourceType: 'Patient', resourceId: breakGlassGrants[0].patientId, practitionerId: breakGlassGrants[0].practitionerId, requestId: 'REQ-BRK-DEMO-001-A', outcome: 'success', details: { grantId: breakGlassGrants[0].id, reasonCode: breakGlassGrants[0].reasonCode } },
+    { id: 'AUD-BRK-DEMO-001-R', recordedAt: breakGlassGrants[0].revokedAt, action: 'break-glass:revoke', resourceType: 'Patient', resourceId: breakGlassGrants[0].patientId, practitionerId: breakGlassGrants[0].practitionerId, requestId: 'REQ-BRK-DEMO-001-R', outcome: 'success', details: { grantId: breakGlassGrants[0].id } },
+    { id: 'AUD-BRK-DEMO-002-A', recordedAt: breakGlassGrants[1].activatedAt, action: 'break-glass:activate', resourceType: 'Patient', resourceId: breakGlassGrants[1].patientId, practitionerId: breakGlassGrants[1].practitionerId, requestId: 'REQ-BRK-DEMO-002-A', outcome: 'success', details: { grantId: breakGlassGrants[1].id, reasonCode: breakGlassGrants[1].reasonCode } },
+    { id: 'AUD-BRK-DEMO-002-E', recordedAt: breakGlassGrants[1].expiresAt, action: 'break-glass:expire', resourceType: 'Patient', resourceId: breakGlassGrants[1].patientId, practitionerId: 'SYSTEM', requestId: 'REQ-BRK-DEMO-002-E', outcome: 'success', details: { grantId: breakGlassGrants[1].id } }
+  );
+
   return {
     patients, encounters, conditions, rehabilitationPlans, records, medicationRequests, labOrders,
     injectionOrders, imagingOrders, documents, summaries, dispenses, billingCharges,
-    prescriptions, eligibilityChecks, receivedBundles, sentBundles, auditEvents, appointments,
-    vitalSigns
+    prescriptions, eligibilityChecks, receivedBundles, sentBundles, auditEvents, breakGlassGrants, idempotencyRecords: [], appointments,
+    vitalSigns, ...hospital, ...advancedHospital
   };
 }
 
 export function createStore() {
-  return structuredClone(createComprehensiveSeed());
+  const store = structuredClone(createComprehensiveSeed());
+  sealAuditChain(store);
+  return store;
 }
 
 export function makeId(prefix) {
   return `${prefix}-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${randomUUID().slice(0, 8).toUpperCase()}`;
 }
 
-export function audit(store, { action, resourceType, resourceId, practitionerId, requestId, outcome = 'success' }) {
-  const event = { id: makeId('AUD'), recordedAt: new Date().toISOString(), action, resourceType, resourceId, practitionerId, requestId, outcome };
+export function audit(store, { action, resourceType, resourceId, practitionerId, requestId, outcome = 'success', details }) {
+  const event = { id: makeId('AUD'), recordedAt: new Date().toISOString(), action, resourceType, resourceId, practitionerId, requestId, outcome, ...(details ? { details } : {}) };
+  sealAuditEvent(store, event);
   store.auditEvents.push(event);
   return event;
+}
+
+function auditSecret() { return process.env.EMR_AUDIT_HMAC_SECRET || 'FICTIONAL-DEMO-AUDIT-SECRET-NOT-FOR-PRODUCTION'; }
+function stableJson(value) {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+  if (value && typeof value === 'object') return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`).join(',')}}`;
+  return JSON.stringify(value);
+}
+function auditPayload(event) {
+  const { previousHash, integrityHash, ...content } = event;
+  return stableJson({ previousHash: previousHash || null, ...content });
+}
+function calculateAuditHash(event) { return createHmac('sha256', auditSecret()).update(auditPayload(event)).digest('hex'); }
+function sealAuditEvent(store, event) {
+  event.previousHash = store.auditEvents.at(-1)?.integrityHash || null;
+  event.integrityHash = calculateAuditHash(event);
+  return event;
+}
+function sealAuditChain(store) {
+  let previousHash = null;
+  store.auditEvents.forEach((event) => {
+    event.previousHash = previousHash;
+    event.integrityHash = calculateAuditHash(event);
+    previousHash = event.integrityHash;
+  });
+}
+export function verifyAuditChain(store) {
+  let previousHash = null;
+  for (const event of store.auditEvents) {
+    if (event.previousHash !== previousHash) return { valid: false, eventId: event.id, reason: 'previous-hash-mismatch' };
+    const expected = Buffer.from(calculateAuditHash(event), 'hex'); const actual = Buffer.from(String(event.integrityHash || ''), 'hex');
+    if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) return { valid: false, eventId: event.id, reason: 'integrity-hash-mismatch' };
+    previousHash = event.integrityHash;
+  }
+  return { valid: true, count: store.auditEvents.length, headHash: previousHash };
 }

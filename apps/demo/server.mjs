@@ -3,6 +3,7 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypt
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { createAppServer as createEmrMockServer } from './e-medical-record-mock/server.mjs';
+import { loadRuntimeConfig as loadEmrRuntimeConfig } from './e-medical-record-mock/src/runtime-config.mjs';
 
 const port = Number(process.env.DEMO_PORT ?? 4173);
 const root = join(import.meta.dirname, 'public');
@@ -42,7 +43,19 @@ const smarihaPortalPath = '/smariha';
 const rehainfoSourceUiPath = '/rehainfo';
 const rehainfoUiPaths = [rehainfoSourceUiPath];
 const emrMockBasePath = `${rehainfoSourceUiPath}/emr`;
-const emrMockRequestHandler = createEmrMockServer().listeners('request')[0];
+const emrMockOrigins = [...new Set([
+  'https://method-more.com',
+  'https://www.method-more.com',
+  'https://hangoutnow-demo.onrender.com',
+  ...String(process.env.CORS_ORIGINS || '').split(',').map((value) => value.trim()).filter(Boolean),
+])];
+const emrMockRuntimeConfig = loadEmrRuntimeConfig({
+  ...process.env,
+  EMR_RUNTIME_MODE: 'demo',
+  EMR_PUBLIC_BASE_URL: `${process.env.PUBLIC_SITE_URL || 'https://method-more.com'}${emrMockBasePath}/`,
+  EMR_CORS_ORIGINS: emrMockOrigins.join(','),
+});
+const emrMockRequestHandler = createEmrMockServer({ runtimeConfig: emrMockRuntimeConfig }).listeners('request')[0];
 const smarihaDashboardUsername = process.env.SMARIHA_DASHBOARD_USERNAME?.trim() || 'rehadash';
 const smarihaDashboardPasswordHash = process.env.SMARIHA_DASHBOARD_PASSWORD_SHA256?.trim().toLowerCase()
   || '62530a7bc852b7d6cb8472a50218f44dffa8128b5f45d48ef9de21fc4188005b';

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="MediLink Chart">
+  <rect width="64" height="64" rx="14" fill="#17324d"/>
+  <path d="M18 16h9l5 12 5-12h9v32h-8V30l-6 13-6-13v18h-8z" fill="#fff"/>
+  <path d="M48 27h-5v-5h-6v5h-5v6h5v5h6v-5h5z" fill="#39a989"/>
+</svg>
