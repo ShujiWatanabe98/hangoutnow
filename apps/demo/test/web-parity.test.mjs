@@ -209,7 +209,7 @@ test('corporate homepage presents the seven methodmore products accurately', asy
   assert.match(corporate, /みんなで介護/);
   assert.match(corporate, /恋の<em>しおり<\/em>/);
   assert.match(corporate, /RoboCare <em>One<\/em>/);
-  assert.match(corporate, /スマリハ<br><em>管理ダッシュボード<\/em>/);
+  assert.match(corporate, /スマリハ<br><em>プロトタイピング<\/em>/);
   assert.doesNotMatch(corporate, /rehainfo-main|Smart Rehab<br><em>患者・退院・AI処方箋<\/em>|スマリハスケジューラー/);
   assert.doesNotMatch(corporate, /スマリハ統合ポータル|スマリハ<br><em>統合ポータル<\/em>|href="\/smariha\/"|id="smariha-suite"/);
   assert.match(corporate, /公開中/);
@@ -234,12 +234,13 @@ test('corporate homepage presents the seven methodmore products accurately', asy
   assert.match(corporate, /href="\/roboreha-app"[^>]*>Webアプリを開く/);
   assert.match(corporate, /<a href="\/#robocare-one">RoboCare One<\/a>/);
   assert.match(corporateStyles, /\.robocare-capabilities/);
-  for (const copy of ['病院別の管理業務を、見える化', '実績指数・FIM管理と院内連携パス管理を、病院別の提案用MVPで確認できるログイン制Webアプリです。', '実績指数・FIM管理', '院内連携パス管理', 'ログイン限定公開']) {
-    assert.ok(corporate.includes(copy), `スマリハ管理ダッシュボードの製品コピーがありません: ${copy}`);
+  for (const copy of ['スマリハ プロトタイピング', 'プロトタイプ・限定公開', '現場のアイデアを、触れる画面へ', '仮説をすばやく、', '操作できる形', '医療・リハビリ現場の課題や新機能のアイデアを、架空データを使った操作可能な画面にし、導入前の認識合わせと改善に活かすログイン制プロトタイプです。', '検証テーマ', '画面案', '確認済み', '検証フロー', '仮説を画面で検証', '架空データで操作', 'フィードバックを反映']) {
+    assert.ok(corporate.includes(copy), `スマリハ プロトタイピングの製品コピーがありません: ${copy}`);
   }
-  assert.match(corporate, /href="\/rehainfo\/"[^>]*aria-label="スマリハ管理ダッシュボードのWebアプリを開く"[^>]*>Webアプリを開く/);
+  assert.doesNotMatch(corporate, /スマリハ管理ダッシュボード|病院別の管理業務を、見える化|実績指数・FIM管理と院内連携パス管理を、病院別の提案用MVPで確認/);
+  assert.match(corporate, /href="\/rehainfo\/"[^>]*aria-label="スマリハ プロトタイピングを開く"[^>]*>プロトタイプを開く/);
   assert.doesNotMatch(corporate, /method-more\.com\/ai-ocr|href="\/ai-ocr"/);
-  assert.match(corporate, /<a href="\/#smariha-dashboard">スマリハ管理ダッシュボード<\/a>/);
+  assert.match(corporate, /<a href="\/#smariha-prototyping">スマリハ プロトタイピング<\/a>/);
   assert.match(corporateStyles, /\.smariha-dashboard-preview/);
   assert.match(smarihaDemo, /<title>スマリハ管理ダッシュボード｜methodmore<\/title>/);
   assert.match(smarihaDemo, /<link rel="canonical" href="https:\/\/method-more\.com\/smariha-dashboard\/">/);
