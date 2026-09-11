@@ -691,13 +691,14 @@ createServer(async (request, response) => {
         response.end(JSON.stringify({ model: 'smariha-prescription-local-stub', result: {
           prescriptionDate: prescriptionDate.replaceAll('-', '/'), medicalInstitution: '公開確認用医療機関', doctorName: '確認用 医師',
           medications: [{ name: '確認用薬剤', amount: '1', unit: '錠', usage: '1日1回', days: '3日分', notes: '架空データ' }],
+          patient: { patientId: `RX-PUBLIC-${Date.now()}`, familyName: '処方箋', firstName: '花子', familyNameKana: 'ショホウセン', firstNameKana: 'ハナコ', gender: '女性', birthDate: '1975-04-18', rehabilitationClass: '', rehabilitationStartDate: '', entryExit: '', hospitalizationStartDate: '', wardName: '', primaryDiagnosis: '' },
           notes: 'ローカル検証用の架空読取結果です。', confidence: 1, warnings: ['実患者データではありません'],
         } }));
         return;
       }
       const prompt = [
         'あなたは日本の医療文書OCR支援者です。添付された処方箋画像だけを読み取り、推測で補完せずJSONのみ返してください。',
-        'スキーマ: {"prescriptionDate":"YYYY/MM/DDまたは空文字","medicalInstitution":"","doctorName":"","medications":[{"name":"","amount":"","unit":"","usage":"","days":"","notes":""}],"notes":"","confidence":0から1,"warnings":[""]}',
+        'スキーマ: {"prescriptionDate":"YYYY/MM/DDまたは空文字","medicalInstitution":"","doctorName":"","patient":{"patientId":"","familyName":"","firstName":"","familyNameKana":"","firstNameKana":"","gender":"男性/女性/その他または空文字","birthDate":"YYYY-MM-DDまたは空文字","rehabilitationClass":"","rehabilitationStartDate":"YYYY-MM-DDまたは空文字","entryExit":"入院/外来または空文字","hospitalizationStartDate":"YYYY-MM-DDまたは空文字","wardName":"","primaryDiagnosis":""},"medications":[{"name":"","amount":"","unit":"","usage":"","days":"","notes":""}],"notes":"","confidence":0から1,"warnings":[""]}',
         '不鮮明・未記載は空文字にしてwarningsへ理由を記載してください。',
         `患者ID ${patientId}、画面指定日 ${prescriptionDate} は照合用であり、画像にない情報として転記しないでください。`,
       ].join('\n');

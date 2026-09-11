@@ -1,5 +1,5 @@
 <!DOCTYPE HTML>
-<html data-rehainfo-source-template="templates/prescription/read.html" data-rehainfo-source-sha256="3FF0B231216D75AAA445EF2523970EF215B57B1E2BEBF65F33D0A0522C6923D1" xmlns:th="http://www.thymeleaf.org" lang="ja">
+<html data-rehainfo-source-template="templates/prescription/read.html" data-rehainfo-source-sha256="5F317A23032361FEA7F98F82B0DA4F7ED7F73D67708CDE2484F808FF2490F92F" xmlns:th="http://www.thymeleaf.org" lang="ja">
 <head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -153,7 +153,7 @@
 			--body-bg-color: #E8E9ED !important;
 		}
 	</style>
-	<script src="/rehainfo/source-demo-adapter.js?v=20260911-10"></script>
+	<script src="/rehainfo/source-demo-adapter.js?v=20260911-12"></script>
 </head>
 <head>
     <meta charset="UTF-8" />
@@ -165,6 +165,7 @@
     <link href="/rehainfo/css/jquery.datetimepicker.min.css" rel="stylesheet" />
     <link href="/rehainfo/css/ocr/evaluationSelect.css" rel="stylesheet" />
     <script>window.ocrMode = 'prescription';</script>
+    <script>window.prescriptionPatientAddFlow = new URLSearchParams(window.location.search).get('flow') === 'patient-add';</script>
     
     <script src="/rehainfo/js/jquery.datetimepicker.full.min.js"></script>
     

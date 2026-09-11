@@ -216,6 +216,14 @@
     return match ? decodeURIComponent(match[1]) : '';
   }
 
+  function prescriptionPatientAddFlow() {
+    return new URLSearchParams(location.search).get('flow') === 'patient-add';
+  }
+
+  function prescriptionPatientAddQuery() {
+    return prescriptionPatientAddFlow() ? '?flow=patient-add' : '';
+  }
+
   function ocrRouteRecId() {
     const match = /^\/rehainfo\/ocr\/patient\/([^/]+)\/(?:evaluation-select|list)\/?$/.exec(location.pathname);
     return match ? decodeURIComponent(match[1]) : '';
@@ -243,6 +251,11 @@
 
   function prescriptionSummary(result) {
     const lines = [];
+    if (result.patient && typeof result.patient === 'object') {
+      const patientName = [result.patient.familyName, result.patient.firstName].filter(Boolean).join(' ');
+      if (result.patient.patientId) lines.push(`患者ID：${result.patient.patientId}`);
+      if (patientName) lines.push(`患者名：${patientName}`);
+    }
     if (result.prescriptionDate) lines.push(`処方日：${result.prescriptionDate}`);
     if (result.medicalInstitution) lines.push(`医療機関：${result.medicalInstitution}`);
     if (result.doctorName) lines.push(`医師：${result.doctorName}`);
@@ -583,6 +596,7 @@
         status: 'OCR_DONE',
         createdAt: new Date().toISOString(),
         model: analyzed.model || '',
+        patient: analyzed.result.patient || {},
         fictionalDemoOnly: true
       };
       writePrescriptionStore([record].concat(readPrescriptionStore()));
@@ -1163,6 +1177,146 @@
     }
   }
 
+  const prescriptionPatientRequiredFields = {
+    patientId: '患者IDを入力してください。', birth: '生年月日を入力してください。',
+    familyName: '姓を入力してください。', firstName: '名を入力してください。',
+    familyNameKana: '姓カナを入力してください。', firstNameKana: '名カナを入力してください。',
+    gender: '性別を選択してください。', entryExit: '入外区分を選択してください。',
+    rehabilitationClass: 'リハビリテーション区分を入力してください。',
+    rehabilitationStartDate: 'リハビリ開始日を入力してください。'
+  };
+
+  function prescriptionPatientFormValue(form, name) {
+    return String(new FormData(form).get(name) || '').trim();
+  }
+
+  function clearPrescriptionPatientErrors(form) {
+    form.querySelectorAll('.invalid').forEach(function (field) { field.classList.remove('invalid'); });
+    form.querySelectorAll('.field-error').forEach(function (error) { error.textContent = ''; });
+  }
+
+  function showPrescriptionPatientErrors(form, errors) {
+    clearPrescriptionPatientErrors(form);
+    Object.keys(errors).forEach(function (name) {
+      const field = form.elements.namedItem(name);
+      const error = form.querySelector(`[data-error-for="${name}"]`);
+      if (field) field.classList.add('invalid');
+      if (error) error.textContent = errors[name];
+    });
+    const first = form.querySelector('.invalid');
+    if (first) first.focus();
+  }
+
+  function splitPrescriptionPatientName(value) {
+    const parts = String(value || '').trim().split(/[\s　]+/).filter(Boolean);
+    return { familyName: parts[0] || '', firstName: parts.slice(1).join(' ') };
+  }
+
+  function prescriptionPatientDraft(record) {
+    const source = record.patient && typeof record.patient === 'object' ? record.patient : {};
+    const name = splitPrescriptionPatientName(source.patientName || source.name);
+    const kana = splitPrescriptionPatientName(source.patientNameKana || source.nameKana);
+    return {
+      patientId: String(source.patientId || record.patientId || ''),
+      birth: String(source.birth || source.birthDate || '').replaceAll('/', '-').slice(0, 10),
+      familyName: String(source.familyName || name.familyName || ''), firstName: String(source.firstName || name.firstName || ''),
+      familyNameKana: String(source.familyNameKana || kana.familyName || ''), firstNameKana: String(source.firstNameKana || kana.firstName || ''),
+      gender: String(source.gender || ''), entryExit: String(source.entryExit || ''),
+      rehabilitationClass: String(source.rehabilitationClass || ''),
+      rehabilitationStartDate: String(source.rehabilitationStartDate || source.startDate || '').replaceAll('/', '-').slice(0, 10),
+      hospitalizationStartDate: String(source.hospitalizationStartDate || '').replaceAll('/', '-').slice(0, 10),
+      wardName: String(source.wardName || ''), primaryDiagnosis: String(source.primaryDiagnosis || '')
+    };
+  }
+
+  function validatePrescriptionPatient(form) {
+    const errors = {};
+    Object.keys(prescriptionPatientRequiredFields).forEach(function (name) {
+      if (!prescriptionPatientFormValue(form, name)) errors[name] = prescriptionPatientRequiredFields[name];
+    });
+    const patientId = prescriptionPatientFormValue(form, 'patientId');
+    if (patientId && !/^[A-Za-z0-9._-]{1,64}$/.test(patientId)) errors.patientId = '患者IDは半角英数字・ハイフン・アンダースコア・ピリオドで入力してください。';
+    if (patientId && patientListRows.some(function (patient) { return patient.patientId === patientId; })) errors.patientId = 'この患者IDは登録済みです。別の患者IDを入力してください。';
+    if (prescriptionPatientFormValue(form, 'entryExit') === '入院') {
+      if (!prescriptionPatientFormValue(form, 'hospitalizationStartDate')) errors.hospitalizationStartDate = '入院日を入力してください。';
+      if (!prescriptionPatientFormValue(form, 'wardName')) errors.wardName = '病棟名を入力してください。';
+    }
+    return errors;
+  }
+
+  function registerPrescriptionPatient(record, form) {
+    const patientId = prescriptionPatientFormValue(form, 'patientId');
+    const birth = prescriptionPatientFormValue(form, 'birth');
+    const entryExit = prescriptionPatientFormValue(form, 'entryExit');
+    const recId = `RX-${patientId}-${Date.now()}`;
+    const patient = normalizePatientAdmissionFields({
+      patientId: patientId,
+      patientName: `${prescriptionPatientFormValue(form, 'familyName')} ${prescriptionPatientFormValue(form, 'firstName')}`,
+      patientNameKana: `${prescriptionPatientFormValue(form, 'familyNameKana')} ${prescriptionPatientFormValue(form, 'firstNameKana')}`,
+      gender: prescriptionPatientFormValue(form, 'gender'), birth: birth.replaceAll('-', '/'), age: patientAge(birth),
+      rehabilitationClass: prescriptionPatientFormValue(form, 'rehabilitationClass'),
+      startDate: prescriptionPatientFormValue(form, 'rehabilitationStartDate').replaceAll('-', '/'), entryExit: entryExit,
+      hospitalizationStartDate: prescriptionPatientFormValue(form, 'hospitalizationStartDate').replaceAll('-', '/'),
+      hospitalizationEndDate: '', wardName: entryExit === '入院' ? prescriptionPatientFormValue(form, 'wardName') : '',
+      serviceName: 'スマートリハビリテーション病院', recId: recId, groupId: 'DEMO-GROUP', fitbitId: '', patientActive: 'T',
+      treatmentTimes: 0, rehabStartTime: null, assigned: true, externalEmrId: patientId,
+      importedFrom: 'prescription-ocr', fictionalDemoOnly: true,
+      primaryDiagnosis: prescriptionPatientFormValue(form, 'primaryDiagnosis') || '未設定', impairments: [], risks: [], goal: '目標未設定',
+      professions: ['PT'], plannedUnitsPerDay: 0, targetDischargeDate: '', fim: { total: 0, motor: 0, cognitive: 0, previousTotal: 0 },
+      attendingPhysician: '担当医未設定', sourcePrescriptionId: record.id
+    });
+    const importedPatients = readImportedPatientStore();
+    importedPatients.push(patient);
+    writeImportedPatientStore(importedPatients);
+    patientListRows.push(patient);
+    window.REHAINFO_DEMO_PATIENTS = patientListRows;
+    const prescriptions = readPrescriptionStore();
+    const target = prescriptions.find(function (item) { return item.id === record.id; });
+    if (target) target.patientImport = { patientId: patientId, recId: recId, importedAt: new Date().toISOString() };
+    writePrescriptionStore(prescriptions);
+    return patient;
+  }
+
+  function openPrescriptionPatientDialog(record) {
+    const dialog = document.getElementById('prescriptionPatientDialog');
+    const form = document.getElementById('prescriptionPatientForm');
+    const status = document.getElementById('prescriptionPatientStatus');
+    const submit = document.getElementById('prescriptionPatientSubmit');
+    if (!dialog || !form || !status || !submit) return;
+    clearPrescriptionPatientErrors(form);
+    const draft = prescriptionPatientDraft(record);
+    Object.keys(draft).forEach(function (name) { const field = form.elements.namedItem(name); if (field) field.value = draft[name]; });
+    const missing = {};
+    Object.keys(prescriptionPatientRequiredFields).forEach(function (name) { if (!draft[name]) missing[name] = prescriptionPatientRequiredFields[name]; });
+    if (draft.entryExit === '入院') {
+      if (!draft.hospitalizationStartDate) missing.hospitalizationStartDate = '入院日を入力してください。';
+      if (!draft.wardName) missing.wardName = '病棟名を入力してください。';
+    }
+    status.className = 'patient-dialog-status';
+    status.textContent = record.patientImport ? 'この処方箋から患者を追加済みです。'
+      : Object.keys(missing).length ? '読取できなかった必須項目を入力してください。' : '読取結果を確認して「患者として追加」を押してください。';
+    submit.disabled = Boolean(record.patientImport);
+    if (!record.patientImport) showPrescriptionPatientErrors(form, missing);
+    form.onsubmit = function (event) {
+      event.preventDefault();
+      const errors = validatePrescriptionPatient(form);
+      if (Object.keys(errors).length) {
+        status.className = 'patient-dialog-status error';
+        status.textContent = '赤く表示された必須項目を確認してください。';
+        showPrescriptionPatientErrors(form, errors);
+        return;
+      }
+      const patient = registerPrescriptionPatient(record, form);
+      status.className = 'patient-dialog-status success';
+      status.textContent = `${patient.patientName}さんを患者として追加しました。`;
+      submit.disabled = true;
+      window.setTimeout(function () { window.location.href = `/rehainfo/?patientId=${encodeURIComponent(patient.patientId)}`; }, 250);
+    };
+    dialog.showModal();
+    const first = form.querySelector('.invalid');
+    if (first) first.focus();
+  }
+
   window.fetch = function (input, options) {
     const url = typeof input === 'string' ? input : input.url;
     const path = new URL(url, location.origin).pathname;
@@ -1178,6 +1332,12 @@
   document.addEventListener('DOMContentLoaded', function () {
     const emrPatientImportButton = document.getElementById('emrPatientImportButton');
     if (emrPatientImportButton) emrPatientImportButton.addEventListener('click', openEmrPatientImportDialog);
+    const prescriptionPatientDialog = document.getElementById('prescriptionPatientDialog');
+    if (prescriptionPatientDialog) {
+      prescriptionPatientDialog.querySelectorAll('.patient-dialog-close, .patient-dialog-cancel').forEach(function (button) {
+        button.addEventListener('click', function () { prescriptionPatientDialog.close(); });
+      });
+    }
     const prescriptionPage = document.body.dataset.prescriptionPage || '';
     const patientPage = document.body.dataset.patientPage || '';
     const ocrPage = document.body.dataset.ocrPage || '';
@@ -1307,11 +1467,14 @@
       const empty = document.getElementById('prescription-list-empty');
       const warning = document.querySelector('.warning');
       const records = readPrescriptionStore().filter(function (item) { return item.recId === recId; }).slice(0, 10);
+      const patientAddFlow = prescriptionPatientAddFlow();
       if (title) title.textContent = `${targetPatient.patientName}さんの保存済み処方箋`;
-      if (readLink) readLink.href = `/rehainfo/prescriptions/patient/${encodeURIComponent(recId)}/read`;
+      if (readLink) readLink.href = `/rehainfo/prescriptions/patient/${encodeURIComponent(recId)}/read${prescriptionPatientAddQuery()}`;
       if (warning) warning.textContent = '公開版は架空データ専用です。電カル取得データとAI読取結果は参考情報のため、必ず原本と照合してください。';
       if (body) {
         body.textContent = '';
+        const patientColumn = table ? table.querySelector('thead th:last-child') : null;
+        if (patientColumn && patientColumn.textContent.includes('患者登録') && !patientAddFlow) patientColumn.remove();
         records.forEach(function (item) {
           const row = document.createElement('tr');
           const dateCell = document.createElement('td');
@@ -1327,6 +1490,17 @@
           statusCell.appendChild(badge);
           createdCell.textContent = new Date(item.createdAt).toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
           [dateCell, resultCell, statusCell, createdCell].forEach(function (cell) { row.appendChild(cell); });
+          if (patientAddFlow) {
+            const actionCell = document.createElement('td');
+            const add = document.createElement('button');
+            add.type = 'button';
+            add.className = 'btn-patient-add';
+            add.textContent = item.patientImport ? '追加済み' : '患者として追加';
+            add.disabled = Boolean(item.patientImport);
+            add.addEventListener('click', function () { openPrescriptionPatientDialog(item); });
+            actionCell.appendChild(add);
+            row.appendChild(actionCell);
+          }
           body.appendChild(row);
         });
       }
@@ -1354,12 +1528,16 @@
       });
       const assigned = document.getElementById('radio_api');
       if (assigned) assigned.addEventListener('change', applyPatientFilters);
+      const requestedPatientId = new URLSearchParams(location.search).get('patientId');
+      const patientIdInput = document.getElementById('condition_patientId');
+      if (requestedPatientId && patientIdInput) patientIdInput.value = requestedPatientId;
+      applyPatientFilters();
       window.onPatientClick = function (_event, _groupId, selectedRecId) { window.location.href = `/rehainfo/patient/${encodeURIComponent(selectedRecId)}/top`; };
     }
 
     document.addEventListener('submit', function (event) {
       const form = event.target;
-      if (form instanceof HTMLFormElement && form.action && !form.action.endsWith('/rehainfo/login')) {
+      if (form instanceof HTMLFormElement && form.id !== 'prescriptionPatientForm' && form.action && !form.action.endsWith('/rehainfo/login')) {
         event.preventDefault();
         window.alert('この公開版ではローカル実画面の表示確認のみ行えます。');
       }

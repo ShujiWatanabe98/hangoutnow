@@ -1,5 +1,5 @@
 <!DOCTYPE HTML>
-<html data-rehainfo-source-template="templates/ocr/patientList.html" data-rehainfo-source-sha256="1E6FDDCB2B7320BDCD5B59283C976D1E493F693A7BA77320D82FE163FD4367D9" xmlns:th="http://www.thymeleaf.org" lang="ja">
+<html data-rehainfo-source-template="templates/ocr/patientList.html" data-rehainfo-source-sha256="BC4876B70763B0562736A99ACFA3C3A05B6F72A543EEC2E3E847A272493366C0" xmlns:th="http://www.thymeleaf.org" lang="ja">
 <head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -153,7 +153,7 @@
 			--body-bg-color: #E8E9ED !important;
 		}
 	</style>
-	<script src="/rehainfo/source-demo-adapter.js?v=20260911-10"></script>
+	<script src="/rehainfo/source-demo-adapter.js?v=20260911-12"></script>
 </head>
 <head>
     <meta charset="UTF-8" />
@@ -170,6 +170,7 @@
         window.initialResponsibleOnly = /*[[${responsibleOnly}]]*/ true;
         window.hasInitialData = /*[[${hasInitialData}]]*/ false;
         window.prescriptionMode = false;
+        window.prescriptionPatientAddFlow = /*[[${patientAddFlow}]]*/ false;
     </script>
     <script>
         try {
@@ -178,7 +179,7 @@
             window.initialPatientsData = [];
         }
     </script>
-    <script src="/rehainfo/js/ocr/PatientList.js?v=1.0.4"></script>
+    <script src="/rehainfo/js/ocr/PatientList.js?v=1.0.5"></script>
     <style>
         body {
             background-color: #E8E9ED;
@@ -685,6 +686,7 @@
 
             <div>
                 <form class="search-filter-section" id="searchForm">
+                    <input type="hidden" name="flow" value="patient-add" />
                     <span class="search-label">検索条件</span>
                     
                     <div class="search-input-group">

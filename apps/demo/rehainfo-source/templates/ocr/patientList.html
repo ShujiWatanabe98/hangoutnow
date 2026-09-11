@@ -16,6 +16,7 @@
         window.initialResponsibleOnly = /*[[${responsibleOnly}]]*/ true;
         window.hasInitialData = /*[[${hasInitialData}]]*/ false;
         window.prescriptionMode = /*[[${prescriptionMode}]]*/ false;
+        window.prescriptionPatientAddFlow = /*[[${patientAddFlow}]]*/ false;
     </script>
     <script>
         try {
@@ -24,7 +25,7 @@
             window.initialPatientsData = [];
         }
     </script>
-    <script src="/rehainfo/js/ocr/PatientList.js?v=1.0.4"></script>
+    <script src="/rehainfo/js/ocr/PatientList.js?v=1.0.5"></script>
     <style>
         body {
             background-color: #E8E9ED;
@@ -504,6 +505,7 @@
 
             <div>
                 <form class="search-filter-section" id="searchForm">
+                    <input th:if="${patientAddFlow}" type="hidden" name="flow" value="patient-add" />
                     <span class="search-label">検索条件</span>
                     
                     <div class="search-input-group">

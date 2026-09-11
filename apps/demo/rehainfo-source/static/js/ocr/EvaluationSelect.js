@@ -1072,7 +1072,7 @@ var ImageManager = {
 var handleOnclickBack = () => {
     showLoadingSpinner();
     window.location.href = window.ocrMode === 'prescription'
-        ? '/rehainfo/prescriptions/patients'
+        ? '/rehainfo/prescriptions/patients' + (window.prescriptionPatientAddFlow ? '?flow=patient-add' : '')
         : '/rehainfo/ocr/patients';
 }
 
@@ -1341,7 +1341,7 @@ var handleSubmit = async function () {
 
         // Redirect to the saved result list for the active workflow.
         window.location.href = window.ocrMode === 'prescription'
-            ? '/rehainfo/prescriptions/patient/' + recId + '/list'
+            ? '/rehainfo/prescriptions/patient/' + recId + '/list' + (window.prescriptionPatientAddFlow ? '?flow=patient-add' : '')
             : '/rehainfo/ocr/patient/' + recId + '/list';
 
     } catch (error) {

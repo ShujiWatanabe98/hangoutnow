@@ -8,6 +8,8 @@
     <link href="/rehainfo/css/bootstrap.min.css" rel="stylesheet" />
     <link href="/rehainfo/css/bootstrap-icons-1.9.1/bootstrap-icons.css" rel="stylesheet" />
     <script src="/rehainfo/js/Common.js?v=1.0.2"></script>
+    <script th:inline="javascript">window.prescriptionPatientAddFlow = /*[[${patientAddFlow}]]*/ false;</script>
+    <script src="/rehainfo/js/PrescriptionPatientImport.js?v=1.0.0" defer="defer"></script>
     <style>
         body { background: #E8E9ED; font-family: 'Hiragino Kaku Gothic Pro', 'Noto Sans JP', sans-serif; }
         main { padding: 24px; }
@@ -26,9 +28,33 @@
         .warning { color: #92400e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 10px 12px; margin-top: 16px; }
         .actions { display: flex; justify-content: flex-end; margin-top: 16px; }
         .btn-read { background: #1C2950; color: #fff; border: 0; border-radius: 4px; padding: 10px 18px; text-decoration: none; }
+        .btn-patient-add { background: #1C2950; color: #fff; border: 0; border-radius: 4px; padding: 9px 14px; font-weight: 600; white-space: nowrap; }
         .empty { text-align: center; padding: 60px 20px; color: #6b7280; }
         .pagination { justify-content: center; gap: 6px; margin-top: 20px; }
         .page-link { color: #1C2950; }
+        #prescriptionPatientDialog { width: min(900px, calc(100vw - 32px)); max-height: calc(100vh - 40px); padding: 0; border: 0; border-radius: 10px; box-shadow: 0 24px 80px rgba(0,0,0,.28); }
+        #prescriptionPatientDialog::backdrop { background: rgba(13,22,45,.55); }
+        .patient-dialog-header { display: flex; justify-content: space-between; gap: 16px; padding: 20px 24px 16px; border-bottom: 1px solid #d9dee8; }
+        .patient-dialog-header h2 { margin: 0 0 4px; font-size: 22px; }
+        .patient-dialog-header p { margin: 0; color: #59657b; font-size: 13px; }
+        .patient-dialog-close { border: 0; background: transparent; font-size: 28px; line-height: 1; }
+        .patient-dialog-body { padding: 20px 24px 24px; overflow: auto; }
+        .patient-dialog-status { min-height: 24px; margin-bottom: 12px; color: #59657b; }
+        .patient-dialog-status.error { color: #b42318; }
+        .patient-dialog-status.success { color: #166534; }
+        .patient-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; }
+        .patient-form-field { display: flex; flex-direction: column; gap: 5px; }
+        .patient-form-field.full { grid-column: 1 / -1; }
+        .patient-form-field label { font-size: 13px; font-weight: 700; color: #303b50; }
+        .patient-form-field input, .patient-form-field select { min-height: 42px; border: 1px solid #b8c0cf; border-radius: 6px; padding: 8px 10px; }
+        .patient-form-field input.invalid, .patient-form-field select.invalid { border-color: #dc2626; background: #fff7f7; }
+        .field-error { min-height: 17px; color: #b42318; font-size: 12px; }
+        .required-label { color: #b42318; font-size: 11px; margin-left: 5px; }
+        .patient-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        .patient-dialog-actions button { min-height: 42px; border-radius: 6px; padding: 8px 18px; }
+        .patient-dialog-cancel { border: 1px solid #8b95a8; background: #fff; color: #303b50; }
+        .patient-dialog-submit { border: 1px solid #1C2950; background: #1C2950; color: #fff; font-weight: 700; }
+        @media (max-width: 700px) { .patient-form-grid { grid-template-columns: 1fr; } .patient-form-field.full { grid-column: auto; } }
     </style>
 </head>
 <body>
@@ -37,17 +63,17 @@
     <main>
         <div class="content">
             <h1 class="page-title">
-                <i class="bi bi-arrow-left back-icon" onclick="showLoadingSpinner(); window.location.href='/rehainfo/prescriptions/patients';"></i>
+                <i class="bi bi-arrow-left back-icon" onclick="showLoadingSpinner(); window.location.href='/rehainfo/prescriptions/patients' + (window.prescriptionPatientAddFlow ? '?flow=patient-add' : '');"></i>
                 <span th:text="|${patientInfo.name}さんの保存済み処方箋|">保存済み処方箋</span>
             </h1>
             <div class="warning"><i class="bi bi-exclamation-triangle me-2"></i>電カル取得データとAI読取結果は参考情報です。薬剤名・用量・用法・日数を必ず処方箋原本と照合してください。</div>
             <div class="actions">
-                <a class="btn-read" th:href="|/rehainfo/prescriptions/patient/${recId}/read|"><i class="bi bi-prescription2 me-2"></i>処方箋読込</a>
+                <a class="btn-read" th:href="|/rehainfo/prescriptions/patient/${recId}/read${patientAddFlowQuery}|"><i class="bi bi-prescription2 me-2"></i>処方箋読込</a>
             </div>
 
             <div class="list-card">
                 <table th:if="${totalItems > 0}">
-                    <thead><tr><th>処方日</th><th>処方箋データ</th><th>状態</th><th>保存日時</th></tr></thead>
+                    <thead><tr><th>処方日</th><th>処方箋データ</th><th>状態</th><th>保存日時</th><th th:if="${patientAddFlow}">患者登録</th></tr></thead>
                     <tbody>
                         <tr th:each="item : ${prescriptions}">
                             <td th:text="${#dates.format(item.evaluationDate, 'yyyy/MM/dd')}">2026/09/10</td>
@@ -62,6 +88,12 @@
                                 <span class="status status-reading" th:if="${item.status == 'READING'}">読取中</span>
                             </td>
                             <td th:text="${#dates.format(item.createdAt, 'yyyy/MM/dd HH:mm')}">2026/09/10 10:00</td>
+                            <td th:if="${patientAddFlow}">
+                                <button th:if="${item.status == 'OCR_DONE'}" type="button" class="btn-patient-add"
+                                    th:attr="data-prescription-id=${item.id}"
+                                    onclick="PrescriptionPatientImport.open(this.getAttribute('data-prescription-id'))">患者として追加</button>
+                                <span th:if="${item.status != 'OCR_DONE'}">―</span>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
@@ -86,5 +118,30 @@
             </nav>
         </div>
     </main>
+    <dialog id="prescriptionPatientDialog" aria-labelledby="prescriptionPatientDialogTitle">
+        <div class="patient-dialog-header">
+            <div><h2 id="prescriptionPatientDialogTitle">処方箋から患者を追加</h2><p>読取結果を確認し、不足している必須項目を入力してください。</p></div>
+            <button type="button" class="patient-dialog-close" aria-label="閉じる">×</button>
+        </div>
+        <form id="prescriptionPatientForm" class="patient-dialog-body" novalidate="novalidate">
+            <div id="prescriptionPatientStatus" class="patient-dialog-status" role="status"></div>
+            <div class="patient-form-grid">
+                <div class="patient-form-field"><label for="rxPatientId">患者ID<span class="required-label">必須</span></label><input id="rxPatientId" name="patientId" maxlength="64" /><div class="field-error" data-error-for="patientId"></div></div>
+                <div class="patient-form-field"><label for="rxBirth">生年月日<span class="required-label">必須</span></label><input id="rxBirth" name="birth" type="date" /><div class="field-error" data-error-for="birth"></div></div>
+                <div class="patient-form-field"><label for="rxFamilyName">姓<span class="required-label">必須</span></label><input id="rxFamilyName" name="familyName" /><div class="field-error" data-error-for="familyName"></div></div>
+                <div class="patient-form-field"><label for="rxFirstName">名<span class="required-label">必須</span></label><input id="rxFirstName" name="firstName" /><div class="field-error" data-error-for="firstName"></div></div>
+                <div class="patient-form-field"><label for="rxFamilyNameKana">姓カナ<span class="required-label">必須</span></label><input id="rxFamilyNameKana" name="familyNameKana" /><div class="field-error" data-error-for="familyNameKana"></div></div>
+                <div class="patient-form-field"><label for="rxFirstNameKana">名カナ<span class="required-label">必須</span></label><input id="rxFirstNameKana" name="firstNameKana" /><div class="field-error" data-error-for="firstNameKana"></div></div>
+                <div class="patient-form-field"><label for="rxGender">性別<span class="required-label">必須</span></label><select id="rxGender" name="gender"><option value="">選択してください</option><option value="男性">男性</option><option value="女性">女性</option><option value="その他">その他</option></select><div class="field-error" data-error-for="gender"></div></div>
+                <div class="patient-form-field"><label for="rxEntryExit">入外区分<span class="required-label">必須</span></label><select id="rxEntryExit" name="entryExit"><option value="">選択してください</option><option value="入院">入院</option><option value="外来">外来</option></select><div class="field-error" data-error-for="entryExit"></div></div>
+                <div class="patient-form-field"><label for="rxRehabilitationClass">リハビリテーション区分<span class="required-label">必須</span></label><input id="rxRehabilitationClass" name="rehabilitationClass" placeholder="例：運動器（Ⅰ）" /><div class="field-error" data-error-for="rehabilitationClass"></div></div>
+                <div class="patient-form-field"><label for="rxRehabilitationStartDate">リハビリ開始日<span class="required-label">必須</span></label><input id="rxRehabilitationStartDate" name="rehabilitationStartDate" type="date" /><div class="field-error" data-error-for="rehabilitationStartDate"></div></div>
+                <div class="patient-form-field"><label for="rxHospitalizationStartDate">入院日<span class="required-label" data-inpatient-required="true">入院時必須</span></label><input id="rxHospitalizationStartDate" name="hospitalizationStartDate" type="date" /><div class="field-error" data-error-for="hospitalizationStartDate"></div></div>
+                <div class="patient-form-field"><label for="rxWardName">病棟名<span class="required-label" data-inpatient-required="true">入院時必須</span></label><input id="rxWardName" name="wardName" /><div class="field-error" data-error-for="wardName"></div></div>
+                <div class="patient-form-field full"><label for="rxPrimaryDiagnosis">主病名</label><input id="rxPrimaryDiagnosis" name="primaryDiagnosis" /><div class="field-error" data-error-for="primaryDiagnosis"></div></div>
+            </div>
+            <div class="patient-dialog-actions"><button type="button" class="patient-dialog-cancel">キャンセル</button><button type="submit" id="prescriptionPatientSubmit" class="patient-dialog-submit">患者として追加</button></div>
+        </form>
+    </dialog>
 </body>
 </html>

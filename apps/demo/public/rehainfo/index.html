@@ -1,5 +1,5 @@
 <!DOCTYPE HTML>
-<html data-rehainfo-source-template="templates/patientList.html" data-rehainfo-source-sha256="EB0E57D7D09710FA01377E3586C63086A35644D4CB5A00518F922C1ABCD69785" xmlns:th="http://www.thymeleaf.org" lang="ja">
+<html data-rehainfo-source-template="templates/patientList.html" data-rehainfo-source-sha256="4FA37D1BFDE171AC99276A2B3CA282975FF8FB8DAEEA6258584317A6221270B4" xmlns:th="http://www.thymeleaf.org" lang="ja">
 
 <head>
 	<meta charset="UTF-8" />
@@ -154,7 +154,7 @@
 			--body-bg-color: #E8E9ED !important;
 		}
 	</style>
-	<script src="/rehainfo/source-demo-adapter.js?v=20260911-10"></script>
+	<script src="/rehainfo/source-demo-adapter.js?v=20260911-12"></script>
 </head>
 <head>
 	<title>担当患者一覧</title>
@@ -693,7 +693,7 @@
         </div>
         患者一覧
         <div class="patient-import-actions">
-            <button type="button" id="prescriptionPatientImportButton" class="emr-patient-add-button" onclick="window.open('/rehainfo/prescriptions/patients', '_blank')">処方箋から患者追加</button>
+            <button type="button" id="prescriptionPatientImportButton" class="emr-patient-add-button" onclick="window.open('/rehainfo/prescriptions/patients?flow=patient-add', '_blank')">処方箋から患者追加</button>
             <button type="button" id="emrPatientImportButton" class="emr-patient-add-button">電カルから患者追加</button>
         </div>
     </div>

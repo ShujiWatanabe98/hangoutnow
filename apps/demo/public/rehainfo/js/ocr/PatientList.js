@@ -90,15 +90,23 @@ function navigateToOcrList(recId) {
 function navigateToPrescriptionRead(recId) {
     if (recId) {
         showLoadingSpinner();
-        window.location.href = '/rehainfo/prescriptions/patient/' + recId + '/read';
+        window.location.href = '/rehainfo/prescriptions/patient/' + recId + '/read'
+            + prescriptionPatientAddFlowQuery();
     }
 }
 
 function navigateToPrescriptionList(recId) {
     if (recId) {
         showLoadingSpinner();
-        window.location.href = '/rehainfo/prescriptions/patient/' + recId + '/list';
+        window.location.href = '/rehainfo/prescriptions/patient/' + recId + '/list'
+            + prescriptionPatientAddFlowQuery();
     }
+}
+
+function prescriptionPatientAddFlowQuery() {
+    return window.prescriptionPatientAddFlow === true
+        || window.prescriptionPatientAddFlow === 'true'
+        ? '?flow=patient-add' : '';
 }
 
 function importPrescriptionFromEmr(recId, button) {

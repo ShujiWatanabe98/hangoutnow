@@ -61,7 +61,7 @@ function publicMeta(common) {
   meta = removeElement(meta, '<script th:if=');
   meta = removeElement(meta, '(function(w,d,s,l,i)');
   meta = meta.replace('<head>', '<head>\n\t<meta charset="UTF-8" />\n\t<meta name="viewport" content="width=device-width,initial-scale=1" />\n\t<meta name="robots" content="noindex,nofollow,noarchive" />');
-  meta = meta.replace('</head>', '\t<script src="/rehainfo/source-demo-adapter.js?v=20260911-10"></script>\n</head>');
+  meta = meta.replace('</head>', '\t<script src="/rehainfo/source-demo-adapter.js?v=20260911-12"></script>\n</head>');
   return stripThymeleafAttributes(meta);
 }
 
@@ -206,6 +206,7 @@ function renderPrescriptionPatients(source, common, sourcePath, sourceHash) {
   html = html.replace(/<div th:replace="common :: loading"><\/div>/, publicLoading(common));
   html = html.replace('<title th:text="${prescriptionMode} ? \'患者一覧 - AI処方箋\' : \'患者一覧 - AIOCR\'">患者一覧</title>', '<title>患者一覧 - AI処方箋</title>');
   html = html.replace("window.prescriptionMode = /*[[${prescriptionMode}]]*/ false;", 'window.prescriptionMode = true;');
+  html = html.replace("window.prescriptionPatientAddFlow = /*[[${patientAddFlow}]]*/ false;", "window.prescriptionPatientAddFlow = new URLSearchParams(window.location.search).get('flow') === 'patient-add';");
   html = html.replace('<body th:attr="data-mode=${prescriptionMode} ? \'prescription\' : \'ocr\'">', '<body data-mode="prescription" data-prescription-page="patients">');
   html = html.replace('<h1 class="page-title" th:text="${prescriptionMode} ? \'AI処方箋 患者一覧\' : \'患者一覧\'">患者一覧</h1>', '<h1 class="page-title">AI処方箋 患者一覧</h1>');
   html = addSourceMarker(html, sourcePath, sourceHash);
@@ -222,6 +223,7 @@ function renderPrescriptionRead(source, common, sourcePath, sourceHash) {
   html = html.replace(/<div th:replace="common :: loading"><\/div>/, publicLoading(common));
   html = html.replace(/<div th:replace="common :: commonMessageModal">\s*<\/div>/, publicMessageModal(common));
   html = html.replace('<body>', '<body data-prescription-page="read">');
+  html = html.replace("window.prescriptionPatientAddFlow = /*[[${patientAddFlow}]]*/ false;", "window.prescriptionPatientAddFlow = new URLSearchParams(window.location.search).get('flow') === 'patient-add';");
   html = html.replace('<input type="hidden" id="patient-rec-id" th:value="${patientInfo.teamId}" />', '<input type="hidden" id="patient-rec-id" value="" />');
   html = html.replace('<span th:text="|${patientInfo.name}さんの処方箋読込|">処方箋読込</span>', '<span data-prescription-patient-title>処方箋読込</span>');
   html = addSourceMarker(html, sourcePath, sourceHash);
@@ -230,13 +232,16 @@ function renderPrescriptionRead(source, common, sourcePath, sourceHash) {
 
 function renderPrescriptionList(source, common, sourcePath, sourceHash) {
   source = removeElement(source, '<script src="/rehainfo/js/Common.js');
+  source = removeElement(source, '<script src="/rehainfo/js/PrescriptionPatientImport.js');
+  source = source.replace(/^[ \t]+$/gm, '');
   let html = source;
   html = html.replace(/<head th:replace="common :: meta_header">\s*<\/head>/, publicMeta(common));
   html = html.replace(/<div th:replace="common :: topHeaderOCR"><\/div>/, publicOcrHeader(common));
   html = html.replace(/<div th:replace="common :: loading"><\/div>/, publicLoading(common));
   html = html.replace('<body>', '<body data-prescription-page="list">');
+  html = html.replace("window.prescriptionPatientAddFlow = /*[[${patientAddFlow}]]*/ false;", "window.prescriptionPatientAddFlow = new URLSearchParams(window.location.search).get('flow') === 'patient-add';");
   html = html.replace('<span th:text="|${patientInfo.name}さんの保存済み処方箋|">保存済み処方箋</span>', '<span data-prescription-patient-title>保存済み処方箋</span>');
-  html = html.replace('<a class="btn-read" th:href="|/rehainfo/prescriptions/patient/${recId}/read|">', '<a class="btn-read" data-prescription-read-link href="/rehainfo/prescriptions/patients">');
+  html = html.replace(/<a class="btn-read" th:href="[^"]+">/, '<a class="btn-read" data-prescription-read-link href="/rehainfo/prescriptions/patients">');
   html = html.replace('<table th:if="${totalItems > 0}">', '<table id="prescription-list-table">');
   html = html.replace('<tbody>', '<tbody id="prescription-list-body">');
   html = html.replace('<div class="empty" th:if="${totalItems == 0}">', '<div class="empty" id="prescription-list-empty">');
