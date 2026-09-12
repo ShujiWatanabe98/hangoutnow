@@ -1,6 +1,7 @@
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import { createHospitalSeed } from './hospital.mjs';
 import { createAdvancedHospitalSeed } from './advanced-hospital.mjs';
+import { createRealWorldOperationsSeed } from './real-world-operations.mjs';
 
 const now = '2026-09-11T09:00:00+09:00';
 
@@ -763,6 +764,9 @@ function createComprehensiveSeed() {
   });
   hospital.masters.push(...clinicalMasters);
   hospital.inventory.push(...inventoryLots);
+  const realWorldOperations = createRealWorldOperationsSeed({
+    patients, hospital, medicationRequests, labOrders, records, advancedHospital
+  });
 
   const breakGlassGrants = [
     {
@@ -792,7 +796,7 @@ function createComprehensiveSeed() {
     patients, encounters, conditions, rehabilitationPlans, records, medicationRequests, labOrders,
     injectionOrders, imagingOrders, documents, summaries, dispenses, billingCharges,
     prescriptions, eligibilityChecks, receivedBundles, sentBundles, auditEvents, breakGlassGrants, idempotencyRecords: [], appointments,
-    vitalSigns, ...hospital, ...advancedHospital
+    vitalSigns, ...hospital, ...advancedHospital, ...realWorldOperations
   };
 }
 

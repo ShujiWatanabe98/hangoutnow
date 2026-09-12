@@ -361,6 +361,79 @@ async function renderAdvanced() {
   bindAction('[data-submit-claim]', async (event) => { try { const accepted = await api(`/api/v1/hospital/advanced/claims/${event.currentTarget.dataset.submitClaim}/transition`, { method: 'POST', body: JSON.stringify({ status: 'submitted', version: Number(event.currentTarget.dataset.version), resolved: event.currentTarget.dataset.resolved === 'true' }) }); showToast(accepted.status === 'accepted-for-delivery' ? 'レセプトを配信キューへ登録しました（外部送信完了ではありません）' : 'レセプトをローカル模擬送信しました'); await renderAdvanced(); } catch (error) { showToast(error.message, true); } });
 }
 
+async function renderOperations() {
+  const data = await api('/api/v1/operations/overview');
+  const items = (resource) => data.resources[resource]?.items || [];
+  const total = (resource) => data.totals[resource] || 0;
+  const openCount = (resource) => items(resource).filter((item) => !['completed', 'closed', 'resolved', 'cosigned', 'accepted', 'activated-for-demo'].includes(item.status)).length;
+  const empty = '<div class="empty">該当する現場運用項目はありません。</div>';
+  const rolePolicies = {
+    'medication-reconciliations': ['physician', 'pharmacist', 'nurse', 'administrator'],
+    'medication-safety-alerts': ['physician', 'pharmacist', 'administrator'],
+    'critical-result-alerts': ['physician', 'nurse', 'technician', 'administrator'],
+    'clinical-tasks': ['physician', 'nurse', 'pharmacist', 'technician', 'therapist', 'dietitian', 'social-worker', 'administrator'],
+    'nursing-risk-assessments': ['nurse', 'physician', 'administrator'],
+    'record-lifecycle': ['physician', 'administrator'],
+    'claim-adjudications': ['clerk', 'administrator'],
+    'downtime-procedures': ['administrator'],
+    'master-data-releases': ['administrator']
+  };
+  const nextStatus = {
+    'medication-reconciliations': { pending: 'reviewing', reviewing: 'completed', 'clarification-needed': 'reviewing' },
+    'medication-safety-alerts': { open: 'acknowledged', acknowledged: 'resolved' },
+    'critical-result-alerts': { open: 'acknowledged', acknowledged: 'closed' },
+    'clinical-tasks': { pending: 'in-progress', 'in-progress': 'completed' },
+    'nursing-risk-assessments': { draft: 'signed', signed: 'reviewed' },
+    'record-lifecycle': { requested: 'reviewed', reviewed: 'cosigned' },
+    'claim-adjudications': { returned: 'correcting', correcting: 'resubmitted', resubmitted: 'accepted' },
+    'downtime-procedures': { scheduled: 'in-progress', 'in-progress': 'completed' },
+    'master-data-releases': { 'review-required': 'validated-for-demo', 'validated-for-demo': 'activated-for-demo' }
+  };
+  const actionLabels = { reviewing: '確認開始', completed: '完了', acknowledged: '確認受領', resolved: '解決', closed: '対応完了', 'in-progress': '着手', signed: '確定', reviewed: 'レビュー済み', cosigned: '共同署名', correcting: '修正開始', resubmitted: '再請求', accepted: '受付結果反映', 'validated-for-demo': 'デモ検証済み', 'activated-for-demo': 'デモ反映' };
+  const action = (resource, item) => {
+    const next = nextStatus[resource]?.[item.status];
+    if (!next || !rolePolicies[resource]?.includes(state.role)) return '';
+    return ` <button class="primary button-small" data-ops-transition="${resource}" data-id="${item.id}" data-version="${item.version}" data-next="${next}">${actionLabels[next] || next}</button>`;
+  };
+  const compact = (resource, formatter, limit = 6) => {
+    const resourceItems = items(resource).slice(0, limit);
+    return resourceItems.length ? `<div class="card-body summary-list">${resourceItems.map((item) => `<div class="summary-item">${formatter(item)}${action(resource, item)}</div>`).join('')}</div>` : empty;
+  };
+  const status = (value) => `<span class="status ${statusClass(value)}">${escapeHtml(value)}</span>`;
+
+  app.innerHTML = `${heading('現場運用・安全・事業継続', '薬剤安全、結果通知、タスク、看護リスク、記録統制、返戻再請求、部門接続、BCP、大学病院専門領域を横断管理します。', `<span class="status status-info">操作ロール：${escapeHtml(roleName(state.role))}</span>`)}
+  <div class="notice-box warning-box"><strong>実装範囲</strong><p>${escapeHtml(data.boundaries.statement)} 実患者データは扱わず、外部接続項目は「接続試験待ち」のまま表示します。</p></div>
+  <section class="metrics advanced-metrics">
+    <article class="card metric"><small>薬剤安全未完了</small><strong>${openCount('medication-safety-alerts')}</strong><span>薬</span></article>
+    <article class="card metric"><small>結果通知未完了</small><strong>${openCount('critical-result-alerts')}</strong><span>!</span></article>
+    <article class="card metric"><small>臨床タスク未完了</small><strong>${openCount('clinical-tasks')}</strong><span>✓</span></article>
+    <article class="card metric"><small>部門接続試験待ち</small><strong>${items('integration-endpoints').filter((item) => item.status === 'connection-test-required').length}</strong><span>接</span></article>
+    <article class="card metric"><small>返戻・再請求中</small><strong>${items('claim-adjudications').filter((item) => item.status !== 'accepted').length}</strong><span>請</span></article>
+  </section>
+  <section class="advanced-grid">
+    <article class="card"><div class="card-header"><h2>持参薬・薬剤安全</h2><span>${total('medication-reconciliations') + total('medication-safety-alerts')}件</span></div>${compact('medication-reconciliations', (item) => `<small>${escapeHtml(patientName(item.patientId))} / ${escapeHtml(item.source)}</small><p><b>薬剤突合 ${item.medicationRequestIds.length}剤</b><br>${escapeHtml(item.discrepancies.join('・') || '差異なし')}</p>${status(item.status)}`, 4)}${compact('medication-safety-alerts', (item) => `<small>${escapeHtml(patientName(item.patientId))} / ${escapeHtml(item.category)} / ${escapeHtml(item.severity)}</small><p><b>${escapeHtml(item.medicationDisplay)}</b><br>${escapeHtml(item.recommendation)}</p>${status(item.status)}`, 4)}</article>
+    <article class="card"><div class="card-header"><h2>クリティカル値・タスク</h2><span>${total('critical-result-alerts') + total('clinical-tasks')}件</span></div>${compact('critical-result-alerts', (item) => `<small>${escapeHtml(patientName(item.patientId))} / 対応期限 ${dateTime(item.escalationDueAt)}</small><p><b>${escapeHtml(item.analyte)} ${item.value} ${escapeHtml(item.unit)}</b><br>read-back ${item.readBackConfirmed ? '確認済み' : '未確認'}</p>${status(item.status)}`, 4)}${compact('clinical-tasks', (item) => `<small>${escapeHtml(patientName(item.patientId))} / ${escapeHtml(roleName(item.assignedRole))} / ${escapeHtml(item.priority)}</small><p><b>${escapeHtml(item.title)}</b><br>期限 ${dateTime(item.dueAt)}</p>${status(item.status)}`, 4)}</article>
+    <article class="card"><div class="card-header"><h2>看護リスク再評価</h2><span>${total('nursing-risk-assessments')}件</span></div>${compact('nursing-risk-assessments', (item) => `<small>${escapeHtml(patientName(item.patientId))} / ${escapeHtml(item.instrument)}</small><p><b>スコア ${item.score} ${item.atRisk ? '・要介入' : '・標準観察'}</b><br>${item.interventions.map(escapeHtml).join('・')}</p>${status(item.status)}`)}</article>
+    <article class="card"><div class="card-header"><h2>記録訂正・共同署名</h2><span>${total('record-lifecycle')}件</span></div>${compact('record-lifecycle', (item) => `<small>${escapeHtml(patientName(item.patientId))} / ${escapeHtml(item.lifecycleType)} / 原本v${item.originalVersion}</small><p><b>${escapeHtml(item.reason)}</b><br>原本は保持し、追記・共同署名を別履歴で管理</p>${status(item.status)}`)}</article>
+    <article class="card"><div class="card-header"><h2>返戻・査定・再請求</h2><span>${total('claim-adjudications')}件</span></div>${compact('claim-adjudications', (item) => `<small>${escapeHtml(patientName(item.patientId))} / ${escapeHtml(item.responseCode)}</small><p><b>${escapeHtml(item.claimId)}</b><br>${escapeHtml(item.reasons.join('・') || '受付結果：正常')}</p>${status(item.status)}`)}</article>
+    <article class="card advanced-wide"><div class="card-header"><h2>部門・医療DX・医療機器接続</h2><span>${total('integration-endpoints')}系統</span></div><div class="table-wrap"><table><thead><tr><th>接続先</th><th>方式</th><th>現在地</th><th>残る外部証跡</th></tr></thead><tbody>${items('integration-endpoints').map((item) => `<tr><td><b>${escapeHtml(item.name)}</b></td><td>${escapeHtml(item.protocol)}</td><td>${status(item.status)}</td><td>${escapeHtml(item.requiredExternalEvidence)}</td></tr>`).join('')}</tbody></table></div></article>
+    <article class="card"><div class="card-header"><h2>障害時運用・サイバーBCP</h2><span>${total('downtime-procedures')}手順</span></div>${compact('downtime-procedures', (item) => `<small>${escapeHtml(item.owner)} / 次回 ${dateTime(item.nextExerciseAt)}</small><p><b>${escapeHtml(item.name)}</b><br>${escapeHtml(item.evidenceLevel)}</p>${status(item.status)}`, 8)}</article>
+    <article class="card"><div class="card-header"><h2>大学病院専門領域</h2><span>${total('academic-programs')}領域</span></div>${compact('academic-programs', (item) => `<small>${escapeHtml(item.name)} / 関連架空患者 ${item.linkedPatientIds.length}名</small><p>${item.capabilities.map(escapeHtml).join('・')}</p>${status(item.status)}`, 9)}</article>
+    <article class="card"><div class="card-header"><h2>標準マスター更新</h2><span>${total('master-data-releases')}系統</span></div>${compact('master-data-releases', (item) => `<small>${escapeHtml(item.authority)} / 影響 ${item.impactCount}件</small><p><b>${escapeHtml(item.name)}</b><br>${escapeHtml(item.sourceVersion)}</p>${status(item.status)}`, 7)}</article>
+  </section>`;
+
+  bindAction('[data-ops-transition]', async (event) => {
+    const button = event.currentTarget;
+    try {
+      await api(`/api/v1/operations/${button.dataset.opsTransition}/${button.dataset.id}/transition`, {
+        method: 'POST', body: JSON.stringify({ status: button.dataset.next, version: Number(button.dataset.version), note: '現場運用モックで対応内容を記録（架空）' })
+      });
+      showToast(`${actionLabels[button.dataset.next] || button.dataset.next}として監査記録へ反映しました`);
+      await renderOperations();
+    } catch (error) { showToast(error.message, true); }
+  });
+}
+
 async function renderAdmin() {
   const [users, masters, inventory, incidents, templates, audits, features, breakGlass] = await Promise.all(['users','masters','inventory','incidents','document-templates','audit'].map((resource) => api(`/api/v1/hospital/admin/${resource}`)).concat(api('/api/v1/hospital/features'), state.role === 'administrator' ? api('/api/v1/security/break-glass') : Promise.resolve({ items: [], total: 0 })));
   app.innerHTML = `${heading('管理・安全・標準機能', 'ユーザー権限、マスタ、物品、医療安全、文書ひな形、監査証跡を管理します。')}
@@ -394,7 +467,7 @@ function renderLogin() {
   document.querySelector('#demo-login').addEventListener('click', () => { if (document.querySelector('#login-otp').value !== '000000') return showToast('ワンタイムコードが違います', true); state.authenticated = true; sessionStorage.setItem('emr-demo-authenticated', 'true'); showToast('二要素認証デモに成功しました'); render(); });
 }
 
-const routes = { dashboard: renderDashboard, patients: renderPatients, records: renderRecords, encounter: renderEncounter, prescriptions: renderPrescriptions, labs: renderLabs, hospital: renderHospital, wards: renderWards, nursing: renderNursing, advanced: renderAdvanced, admin: renderAdmin, erx: renderErx, fhir: renderFhir };
+const routes = { dashboard: renderDashboard, patients: renderPatients, records: renderRecords, encounter: renderEncounter, prescriptions: renderPrescriptions, labs: renderLabs, hospital: renderHospital, wards: renderWards, nursing: renderNursing, advanced: renderAdvanced, operations: renderOperations, admin: renderAdmin, erx: renderErx, fhir: renderFhir };
 async function render() {
   updateRoleLabel();
   if (!state.authenticated) return renderLogin();

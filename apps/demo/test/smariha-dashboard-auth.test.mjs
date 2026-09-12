@@ -74,8 +74,8 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
   assert.deepEqual(emrRelease, {
     service: 'MediLink Chart',
     version: '0.5.0',
-    release: '2026-09-12-protected-fictional-demo',
-    candidateDigest: 'ba51c6a8d7c8996abf4b3e90249475a2da405cd4980ca2b2cd27c8305a7aaf7f',
+    release: '2026-09-12-real-world-operations',
+    candidateDigest: '61f6b4df8149c85ee6c539c3f584a7ea1733c841ce35bba405fd4a7286ccbf87',
     dataClassification: 'FICTIONAL_DEMO',
     productionReady: false,
     access: 'authentication-required',
@@ -219,8 +219,9 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
   assert.match(emrPage, /病院業務/);
   assert.match(emrPage, /看護・チーム/);
   assert.match(emrPage, /高度診療・請求/);
+  assert.match(emrPage, /現場運用/);
   assert.match(emrPage, /href="\/rehainfo\/"/);
-  const emrScript = await fetch(`${origin}/rehainfo/emr/app.js?v=20260912-1`, { headers: { cookie } });
+  const emrScript = await fetch(`${origin}/rehainfo/emr/app.js?v=20260912-2`, { headers: { cookie } });
   assert.equal(emrScript.status, 200);
   assert.equal(emrScript.headers.get('x-robots-tag'), 'noindex, nofollow, noarchive');
   assert.match(await emrScript.text(), /new URL\('\.', import\.meta\.url\)\.pathname/);
@@ -245,6 +246,14 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
   const emrHospitalOverview = await emrHospitalOverviewResponse.json();
   assert.equal(emrHospitalOverview.totals.staffMembers, 61);
   assert.equal(emrHospitalOverview.totals.occupiedBeds, 15);
+  const emrOperationsResponse = await fetch(`${origin}/rehainfo/emr/api/v1/operations/overview`, { headers: emrApiHeaders });
+  assert.equal(emrOperationsResponse.status, 200);
+  const emrOperations = await emrOperationsResponse.json();
+  assert.equal(Object.keys(emrOperations.resources).length, 11);
+  assert.equal(emrOperations.totals['integration-endpoints'], 14);
+  assert.equal(emrOperations.boundaries.realPatientData, false);
+  assert.equal(emrOperations.boundaries.externalConnections, false);
+  assert.equal(emrOperations.boundaries.certifiedForClinicalUse, false);
   const emrBundleResponse = await fetch(`${origin}/rehainfo/emr/api/v1/dx/patients/P0001001/fhir-bundle`, { headers: emrApiHeaders });
   assert.equal(emrBundleResponse.status, 200);
   assert.equal((await emrBundleResponse.json()).resourceType, 'Bundle');

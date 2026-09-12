@@ -204,6 +204,26 @@ test('高度診療データと職員参照が架空病院データへ整合し�
   }
 });
 
+test('現場運用データは閉ループ安全管理と外部接続境界を架空データで表す', () => {
+  const store = createStore();
+  const patientIds = new Set(store.patients.map((item) => item.id));
+  const patientCollections = [
+    'medicationReconciliations', 'medicationSafetyAlerts', 'criticalResultAlerts',
+    'clinicalTasks', 'nursingRiskAssessments', 'recordLifecycleCases', 'claimAdjudications'
+  ];
+  for (const name of patientCollections) {
+    assert.ok(store[name].length > 0, `${name} must not be empty`);
+    assert.ok(store[name].every((item) => patientIds.has(item.patientId)), `${name} patient reference`);
+    assert.ok(store[name].every((item) => item.dataClassification === 'FICTIONAL_DEMO' && item.version === 1), `${name} classification and version`);
+  }
+  assert.equal(store.integrationEndpoints.length, 14);
+  assert.ok(store.integrationEndpoints.every((item) => item.status === 'connection-test-required'));
+  assert.ok(store.integrationEndpoints.every((item) => item.mode === 'mock-boundary-only' && item.lastSuccessfulConnectionAt === null));
+  assert.equal(store.downtimeProcedures.length, 8);
+  assert.equal(store.academicPrograms.length, 9);
+  assert.equal(store.masterDataReleases.length, 7);
+});
+
 test('スマリハ連携済み10名は最新版電カルの架空患者・リハ計画へ一致する', () => {
   const store = createStore();
   const linkedPatients = store.patients.filter((item) => item.smartRehabId);

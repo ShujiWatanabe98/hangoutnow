@@ -109,6 +109,10 @@ const schemas = {
   }, ['status', 'version']),
   surgeryTransition: obj({ status: str({ enum: ['in-progress', 'completed'] }), version: int({ minimum: 1 }) }, ['status', 'version']),
   claimTransition: obj({ status: str({ enum: ['submitted'] }), version: int({ minimum: 1 }), resolved: bool }, ['status', 'version']),
+  operationsTransition: obj({
+    status: str({ enum: ['reviewing', 'completed', 'clarification-needed', 'acknowledged', 'resolved', 'closed', 'in-progress', 'cancelled', 'signed', 'reviewed', 'rejected', 'cosigned', 'correcting', 'resubmitted', 'accepted', 'validated-for-demo', 'activated-for-demo'] }),
+    version: int({ minimum: 1 }), note: str({ minLength: 3, maxLength: 2_000 })
+  }, ['status', 'version', 'note']),
   appointmentCreate: obj({ patientId: id, startsAt: str({ format: 'date-time', maxLength: 40 }), department: short, note }, ['patientId', 'startsAt', 'department']),
   appointmentUpdate: obj({ version: int({ minimum: 1 }), startsAt: str({ format: 'date-time', maxLength: 40 }), department: short, status: str({ enum: ['booked', 'arrived', 'cancelled', 'completed'] }), note }, ['version']),
   appointmentDelete: obj({ version: int({ minimum: 1 }) }, ['version']),
@@ -158,6 +162,7 @@ const routes = [
   ['POST', /^\/api\/v1\/hospital\/advanced\/medication-administrations\/[^/]+\/transition$/, schemas.medicationAdministrationTransition, 'EMR-MAR-4220', 'Medication administration validation failed'],
   ['POST', /^\/api\/v1\/hospital\/advanced\/surgical-cases\/[^/]+\/transition$/, schemas.surgeryTransition, 'EMR-SURG-4220', 'Surgical case validation failed'],
   ['POST', /^\/api\/v1\/hospital\/advanced\/claims\/[^/]+\/transition$/, schemas.claimTransition, 'EMR-CLAIM-4220', 'Claim validation failed'],
+  ['POST', /^\/api\/v1\/operations\/[^/]+\/[^/]+\/transition$/, schemas.operationsTransition, 'EMR-OPS-4220', 'Operational workflow validation failed'],
   ['POST', /^\/api\/v1\/appointments$/, schemas.appointmentCreate, 'EMR-APT-4220', 'Appointment validation failed'],
   ['PUT', /^\/api\/v1\/appointments\/[^/]+$/, schemas.appointmentUpdate, 'EMR-APT-4220', 'Appointment validation failed'],
   ['DELETE', /^\/api\/v1\/appointments\/[^/]+$/, schemas.appointmentDelete, 'EMR-APT-4220', 'Appointment validation failed'],

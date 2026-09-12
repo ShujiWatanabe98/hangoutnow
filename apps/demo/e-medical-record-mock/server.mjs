@@ -14,6 +14,7 @@ import { clinsAllergyBundle, clinsConditionBundle, clinsDischargeSummaryBundle, 
 import { applyPublicDeploymentGate, assessProductionReadiness } from './src/readiness.mjs';
 import { validateClinicalWrite } from './src/validation.mjs';
 import { createBffAuthService } from './src/bff-auth.mjs';
+import { operationalCollectionMap, operationalTransitionPolicies } from './src/real-world-operations.mjs';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 const publicDir = join(root, 'public');
@@ -219,6 +220,7 @@ const productionMutationRolePolicies = [
   [['POST'], /^\/api\/v1\/hospital\/advanced\/medication-administrations\/[^/]+\/transition$/, ['nurse', 'administrator']],
   [['POST'], /^\/api\/v1\/hospital\/advanced\/surgical-cases\/[^/]+\/transition$/, ['physician', 'administrator']],
   [['POST'], /^\/api\/v1\/hospital\/advanced\/claims\/[^/]+\/transition$/, ['clerk', 'administrator']],
+  [['POST'], /^\/api\/v1\/operations\/[^/]+\/[^/]+\/transition$/, [...clinicalAuthorRoles, 'clerk', 'administrator']],
   [['POST'], /^\/api\/v1\/hospital\/admin\/(?:inventory|incidents)$/, ['nurse', 'administrator']],
   [['POST', 'PUT'], /^\/api\/v1\/hospital\/admin\/[^/]+(?:\/[^/]+)?$/, ['administrator']],
   [['POST', 'PUT', 'DELETE'], /^\/api\/v1\/appointments(?:\/[^/]+)?$/, ['physician', 'nurse', 'clerk', 'administrator']],
@@ -284,6 +286,10 @@ const advancedCollections = {
   'dpc-episodes': 'dpcEpisodes', claims: 'claimSubmissions', 'discharge-plans': 'dischargePlans'
 };
 
+function operationsForPatient(store, patientId) {
+  return Object.fromEntries(Object.values(operationalCollectionMap).map((key) => [key, store[key].filter((item) => item.patientId === patientId)]));
+}
+
 const patientResourceLookups = [
   [/^\/api\/v1\/records\/([^/]+)\/sign$/, 'records'],
   [/^\/api\/v1\/lab-orders\/([^/]+)\/result$/, 'labOrders'],
@@ -331,6 +337,10 @@ function patientIdFromResourcePath(store, pathname) {
   const advancedMatch = pathname.match(/^\/api\/v1\/hospital\/advanced\/([^/]+)\/([^/]+)\/transition$/);
   if (advancedMatch && advancedCollections[advancedMatch[1]]) {
     return store[advancedCollections[advancedMatch[1]]].find((item) => item.id === safeDecodePathSegment(advancedMatch[2]))?.patientId || null;
+  }
+  const operationsMatch = pathname.match(/^\/api\/v1\/operations\/([^/]+)\/([^/]+)\/transition$/);
+  if (operationsMatch && operationalCollectionMap[operationsMatch[1]]) {
+    return store[operationalCollectionMap[operationsMatch[1]]].find((item) => item.id === safeDecodePathSegment(operationsMatch[2]))?.patientId || null;
   }
   return null;
 }
@@ -474,7 +484,14 @@ export function createAppServer({ store = createStore(), runtimeConfig = loadRun
           dpcClaimsAndDischargePlanning: true,
           breakGlassEmergencyAccess: true,
           idempotentMutationReceipts: true,
-          authorizationCodePkce: true
+          authorizationCodePkce: true,
+          closedLoopMedicationSafety: true,
+          criticalResultEscalation: true,
+          clinicalTaskInbox: true,
+          nursingRiskAssessments: true,
+          governedRecordLifecycle: true,
+          claimReturnAndResubmission: true,
+          downtimeAndAcademicWorkflows: true
         }
       });
       if (draining && pathname !== '/readyz') return sendProblem(res, 503, 'EMR-DRAINING-5030', 'Service draining', '安全な終了処理中のため新しい要求を受け付けていません。', requestId);
@@ -856,6 +873,7 @@ export function createAppServer({ store = createStore(), runtimeConfig = loadRun
         clinicalInstructions: store.clinicalInstructions.filter((item) => item.patientId === params.id),
         teamConferences: store.teamConferences.filter((item) => item.patientId === params.id),
         advancedClinical: advancedForPatient(store, params.id),
+        realWorldOperations: operationsForPatient(store, params.id),
         admission: store.admissions.find((item) => item.patientId === params.id && item.status === 'admitted') || null,
         bed: store.beds.find((item) => item.patientId === params.id) || null,
         receivedFhirDocuments: store.receivedBundles.filter((item) => item.patientId === params.id),
@@ -876,6 +894,7 @@ export function createAppServer({ store = createStore(), runtimeConfig = loadRun
           clinicalInstructions: store.clinicalInstructions.filter((item) => item.patientId === params.id),
           teamConferences: store.teamConferences.filter((item) => item.patientId === params.id),
           advancedClinical: advancedForPatient(store, params.id),
+          realWorldOperations: operationsForPatient(store, params.id),
           admission: store.admissions.find((item) => item.patientId === params.id && item.status === 'admitted') || null,
           bed: store.beds.find((item) => item.patientId === params.id) || null
         });
@@ -1093,6 +1112,58 @@ export function createAppServer({ store = createStore(), runtimeConfig = loadRun
         { id: 'lab', name: '検査システム', status: 'connected', mode: 'FHIR REST mock' }, { id: 'ris', name: '放射線システム', status: 'connected', mode: 'FHIR REST mock' },
         { id: 'billing', name: '会計システム', status: 'connected', mode: 'REST mock' }, { id: 'appointment', name: '予約システム', status: 'connected', mode: 'REST mock' }
       ] });
+
+      const visibleOperationalItems = (items) => runtimeConfig.mode !== 'production' || accessContext === 'system'
+        ? items
+        : items.filter((item) => !item.patientId || hasVisiblePatientAccess(item.patientId));
+      if (req.method === 'GET' && pathname === '/api/v1/operations/overview') {
+        const resources = Object.fromEntries(Object.entries(operationalCollectionMap).map(([resource, collection]) => {
+          const items = visibleOperationalItems(store[collection]);
+          return [resource, { items, total: items.length }];
+        }));
+        return sendJson(res, 200, {
+          assessedAt: '2026-09-12', scope: 'fictional operational workflow mock', resources,
+          totals: Object.fromEntries(Object.entries(resources).map(([resource, value]) => [resource, value.total])),
+          boundaries: {
+            realPatientData: false, externalConnections: false, certifiedForClinicalUse: false,
+            statement: '画面・API・状態遷移は架空データで操作できます。正規接続、実機、診療報酬審査、病院承認は別途必要です。'
+          }
+        });
+      }
+      params = match(pathname, '/api/v1/operations/:resource');
+      if (req.method === 'GET' && params) {
+        const collection = operationalCollectionMap[params.resource];
+        if (!collection) return sendProblem(res, 404, 'EMR-OPS-4040', 'Operational resource not found', '現場運用リソースが見つかりません。', requestId);
+        const patientId = url.searchParams.get('patientId'); const status = url.searchParams.get('status');
+        const items = visibleOperationalItems(store[collection]).filter((item) => (!patientId || item.patientId === patientId) && (!status || item.status === status));
+        return sendJson(res, 200, { resource: params.resource, items, total: items.length });
+      }
+      params = match(pathname, '/api/v1/operations/:resource/:id/transition');
+      if (req.method === 'POST' && params) {
+        const collection = operationalCollectionMap[params.resource]; const policy = operationalTransitionPolicies[params.resource];
+        if (!collection || !policy) return sendProblem(res, 405, 'EMR-OPS-4050', 'Transition not supported', 'この現場運用リソースは状態変更できません。', requestId);
+        const role = requestRole(req, principal, runtimeConfig);
+        if (!policy.roles.includes(role)) return sendProblem(res, 403, 'EMR-RBAC-4030', 'Forbidden', 'この現場運用を更新する職種権限がありません。', requestId);
+        const item = store[collection].find((candidate) => candidate.id === params.id);
+        if (!item) return sendProblem(res, 404, 'EMR-OPS-4041', 'Operational item not found', '現場運用項目が見つかりません。', requestId);
+        const body = await readBody(req);
+        if (body.version !== item.version) return sendProblem(res, 409, 'EMR-LOCK-4090', 'Version conflict', '他の利用者が現場運用項目を更新しました。', requestId);
+        const allowed = policy.transitions[item.status] || [];
+        if (!allowed.includes(body.status)) return sendProblem(res, 409, 'EMR-OPS-4090', 'Invalid transition', `${item.status} から ${body.status} へは変更できません。`, requestId);
+        const changedAt = new Date().toISOString();
+        item.status = body.status; item.version += 1; item.updatedAt = changedAt;
+        item.lastAction = { status: body.status, note: body.note, practitionerId: principal.practitioner_id, changedAt };
+        if (body.status === 'acknowledged') item.acknowledgedAt = changedAt;
+        if (body.status === 'resolved') item.resolvedAt = changedAt;
+        if (body.status === 'closed') { item.closedAt = changedAt; item.readBackConfirmed = true; }
+        if (body.status === 'completed') item.completedAt = changedAt;
+        if (body.status === 'reviewed') item.reviewedAt = changedAt;
+        if (body.status === 'cosigned') item.cosignedAt = changedAt;
+        if (body.status === 'correcting') item.correctedAt = changedAt;
+        if (body.status === 'resubmitted') item.submittedAt = changedAt;
+        audit(store, { action: `operations:transition:${body.status}`, resourceType: policy.resourceType, resourceId: item.id, practitionerId: principal.practitioner_id, requestId, details: { resource: params.resource } });
+        return sendJson(res, 200, item);
+      }
 
       if (req.method === 'GET' && pathname === '/api/v1/hospital/overview') return sendJson(res, 200, {
         hospital: hospitalProfile,
