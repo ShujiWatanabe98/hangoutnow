@@ -180,7 +180,7 @@ export function practitionerResource(staff) {
     resourceType: 'Practitioner', id: staff.id, active: staff.active,
     identifier: [{ system: 'https://mock.example.jp/fhir/IdSystem/professional-license', value: staff.professionalLicenseId }],
     name: [humanName(staff.name)],
-    qualification: [{ identifier: [{ value: staff.professionalLicenseId }], code: { text: staff.profession || staff.role }, issuer: { reference: 'Organization/ORG-KTUMH-DEMO' } }]
+    qualification: [{ identifier: [{ value: staff.professionalLicenseId }], code: { text: staff.profession || staff.role }, issuer: { reference: 'Organization/ORG-MLUMH-DEMO' } }]
   };
 }
 
@@ -189,7 +189,7 @@ export function careTeamResource(team) {
     resourceType: 'CareTeam', id: team.id, status: team.status, name: team.name,
     subject: { reference: `Patient/${team.patientId}` },
     participant: team.members.filter((member) => member.staffId).map((member) => ({ role: [{ text: member.role }], member: { reference: `Practitioner/${member.staffId}`, display: member.name } })),
-    managingOrganization: [{ reference: 'Organization/ORG-KTUMH-DEMO' }]
+    managingOrganization: [{ reference: 'Organization/ORG-MLUMH-DEMO' }]
   };
 }
 

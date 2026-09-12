@@ -41,7 +41,7 @@ async function api(path, options = {}) {
 function applyRuntimeLabels() {
   const production = state.runtime?.mode === 'production';
   document.querySelector('#environment-badge').textContent = production ? 'PRODUCTION' : 'DEMO';
-  document.querySelector('#facility-environment').textContent = production ? '公開候補 / 架空データ専用 / 外部OIDC' : '架空病院 / TENANT-KTUMH-DEMO';
+  document.querySelector('#facility-environment').textContent = production ? '公開候補 / 架空データ専用 / 外部OIDC' : '架空病院 / TENANT-MLUMH-DEMO';
 }
 
 function applySessionIdentity(user) {

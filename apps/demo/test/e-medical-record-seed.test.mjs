@@ -126,7 +126,9 @@ test('100名全員が最新病院モックの患者コンテキストと業務�
 test('架空大学病院の職員・勤務・受け持ち・申し送り・指示が入院患者へ整合している', () => {
   const store = createStore();
   const staffIds = new Set(store.staffMembers.map((item) => item.id));
-  assert.equal(store.hospitalProfile.name, '慶応技術大学病院');
+  assert.equal(store.hospitalProfile.name, 'メディリンク架空大学病院');
+  assert.equal(store.hospitalProfile.id, 'ORG-MLUMH-DEMO');
+  assert.equal(store.hospitalProfile.tenantId, 'TENANT-MLUMH-DEMO');
   assert.equal(store.hospitalProfile.dataClassification, 'FICTIONAL_DEMO');
   assert.equal(store.organizationUnits.length, 32);
   assert.equal(store.staffMembers.length, 61);
@@ -147,6 +149,12 @@ test('架空大学病院の職員・勤務・受け持ち・申し送り・指�
     assert.equal(store.clinicalInstructions.filter((item) => item.admissionId === admission.id).length, 2);
     assert.equal(store.teamConferences.filter((item) => item.admissionId === admission.id).length, 1);
   }
+});
+
+test('電カル公開データに特定大学を連想させる旧名称・識別子を含めない', () => {
+  const searchable = JSON.stringify(createStore()).toLowerCase();
+  const forbidden = ['慶' + '応', '慶' + '應', 'Ke' + 'io', 'KT' + 'UMH'];
+  for (const value of forbidden) assert.equal(searchable.includes(value.toLowerCase()), false, `${value} must be absent`);
 });
 
 test('各患者のFHIR Bundleに患者・傷病・処方・検査・バイタルを含む', () => {

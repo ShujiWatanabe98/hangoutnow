@@ -244,7 +244,7 @@ export function clinsReferralBundle(store, patientId) {
   const patientItem = patientEntry(patient, timestamp);
   const author = referralPractitionerEntry(patient.primaryPhysician || '架空 担当医', `REF-AUTH-${patient.id}`, timestamp);
   const recipient = referralPractitionerEntry('連携先 架空医師', `REF-TO-${patient.id}`, timestamp);
-  const source = referralOrganizationEntry({ id: `REF-FROM-${patient.id}`, number: fictionalInstitutionNumber, name: '慶応技術大学病院（架空）', department: patient.department, timestamp });
+  const source = referralOrganizationEntry({ id: `REF-FROM-${patient.id}`, number: fictionalInstitutionNumber, name: 'メディリンク架空大学病院', department: patient.department, timestamp });
   const destination = referralOrganizationEntry({ id: `REF-DEST-${patient.id}`, number: '1319999998', name: '連携先架空病院', department: '地域連携科', timestamp });
   const compositionFullUrl = `urn:uuid:${uuidFor(`referral-composition-${patient.id}`)}`;
   const allergyText = patient.allergies?.length ? patient.allergies.join('、') : '既知のアレルギーなし';
@@ -296,7 +296,7 @@ export function clinsDischargeSummaryBundle(store, patientId) {
   const dischargeDate = patient.admission?.dischargedAt?.slice(0, 10) || '2026-09-11';
   const patientItem = patientEntry(patient, timestamp);
   const author = referralPractitionerEntry(patient.primaryPhysician || '架空 担当医', `DIS-AUTH-${patient.id}`, timestamp);
-  const organization = referralOrganizationEntry({ id: `DIS-ORG-${patient.id}`, number: fictionalInstitutionNumber, name: '慶応技術大学病院（架空）', department: patient.department, timestamp });
+  const organization = referralOrganizationEntry({ id: `DIS-ORG-${patient.id}`, number: fictionalInstitutionNumber, name: 'メディリンク架空大学病院', department: patient.department, timestamp });
   const encounterFullUrl = `urn:uuid:${uuidFor(`discharge-encounter-${patient.id}`)}`;
   const encounter = {
     fullUrl: encounterFullUrl,
@@ -369,7 +369,7 @@ export function clinsPatientSummaryBundle(store, patientId) {
   const timestamp = '2026-09-11T17:00:00+09:00';
   const patientItem = patientEntry(patient, timestamp);
   const practitioner = referralPractitionerEntry(patient.primaryPhysician || '架空 担当医', `PCS-AUTH-${patient.id}`, timestamp);
-  const organization = referralOrganizationEntry({ id: `PCS-ORG-${patient.id}`, number: fictionalInstitutionNumber, name: '慶応技術大学病院（架空）', department: patient.department, timestamp });
+  const organization = referralOrganizationEntry({ id: `PCS-ORG-${patient.id}`, number: fictionalInstitutionNumber, name: 'メディリンク架空大学病院', department: patient.department, timestamp });
   const encounterFullUrl = `urn:uuid:${uuidFor(`pcs-encounter-${patient.id}`)}`;
   const careSettingInpatient = patient.careContext?.careSetting === '入院';
   const encounter = {
@@ -445,7 +445,7 @@ export function healthCheckupBundle(store, patientId) {
         { coding: [{ system: 'http://jpfhir.jp/fhir/eCheckup/CodeSystem/report-organization-code', code: 'exec-org' }] },
         { coding: [{ system: 'http://jpfhir.jp/fhir/eCheckup/CodeSystem/report-organization-code', code: 'doc-org' }] }
       ],
-      name: '慶応技術大学病院健診センター（架空）', telecom: [{ system: 'phone', value: '03-0000-0000' }],
+      name: 'メディリンク架空大学病院 健診センター', telecom: [{ system: 'phone', value: '03-0000-0000' }],
       address: [{ text: '東京都架空区1-1', postalCode: '100-0001', country: 'JP' }]
     }
   };

@@ -74,8 +74,8 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
   assert.deepEqual(emrRelease, {
     service: 'MediLink Chart',
     version: '0.5.0',
-    release: '2026-09-12-real-world-operations',
-    candidateDigest: '61f6b4df8149c85ee6c539c3f584a7ea1733c841ce35bba405fd4a7286ccbf87',
+    release: '2026-09-12-neutral-fictional-hospital',
+    candidateDigest: '79de4cd7e5bfc110935bfaad6e4306c2cf286a3aaeedd05dcf699b5d9f5d73d3',
     dataClassification: 'FICTIONAL_DEMO',
     productionReady: false,
     access: 'authentication-required',
@@ -214,14 +214,14 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
   assert.equal(emrPageResponse.status, 200);
   assert.equal(emrPageResponse.headers.get('x-robots-tag'), 'noindex, nofollow, noarchive');
   assert.match(emrPage, /MediLink Chart/);
-  assert.match(emrPage, /慶応技術大学病院/);
+  assert.match(emrPage, /メディリンク架空大学病院/);
   assert.match(emrPage, /架空データ専用・外部送信なし/);
   assert.match(emrPage, /病院業務/);
   assert.match(emrPage, /看護・チーム/);
   assert.match(emrPage, /高度診療・請求/);
   assert.match(emrPage, /現場運用/);
   assert.match(emrPage, /href="\/rehainfo\/"/);
-  const emrScript = await fetch(`${origin}/rehainfo/emr/app.js?v=20260912-2`, { headers: { cookie } });
+  const emrScript = await fetch(`${origin}/rehainfo/emr/app.js?v=20260912-3`, { headers: { cookie } });
   assert.equal(emrScript.status, 200);
   assert.equal(emrScript.headers.get('x-robots-tag'), 'noindex, nofollow, noarchive');
   assert.match(await emrScript.text(), /new URL\('\.', import\.meta\.url\)\.pathname/);

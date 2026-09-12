@@ -464,8 +464,8 @@ createServer(async (request, response) => {
     response.end(JSON.stringify({
       service: 'MediLink Chart',
       version: '0.5.0',
-      release: '2026-09-12-real-world-operations',
-      candidateDigest: '61f6b4df8149c85ee6c539c3f584a7ea1733c841ce35bba405fd4a7286ccbf87',
+      release: '2026-09-12-neutral-fictional-hospital',
+      candidateDigest: '79de4cd7e5bfc110935bfaad6e4306c2cf286a3aaeedd05dcf699b5d9f5d73d3',
       dataClassification: 'FICTIONAL_DEMO',
       productionReady: false,
       access: 'authentication-required',

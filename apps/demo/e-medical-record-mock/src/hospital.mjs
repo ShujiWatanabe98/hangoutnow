@@ -36,9 +36,9 @@ export const featureGroups = [
 ];
 
 export const hospitalProfile = {
-  id: 'ORG-KTUMH-DEMO', tenantId: 'TENANT-KTUMH-DEMO', facilityCode: 'KTUMH-DEMO-001',
-  name: '慶応技術大学病院', nameKana: 'ケイオウギジュツダイガクビョウイン',
-  type: '特定機能病院を想定した大学病院モック', operator: '学校法人 慶応技術大学（架空）',
+  id: 'ORG-MLUMH-DEMO', tenantId: 'TENANT-MLUMH-DEMO', facilityCode: 'MLUMH-DEMO-001',
+  name: 'メディリンク架空大学病院', nameKana: 'メディリンクカクウダイガクビョウイン',
+  type: '特定機能病院を想定した大学病院モック', operator: '架空法人 メディリンク医療大学',
   address: '東京都港区架空1-1-1', phone: '03-0000-0000', timezone: 'Asia/Tokyo',
   dataClassification: 'FICTIONAL_DEMO', medicalRecordSystem: 'MediLink Chart 0.5.0',
   bedScope: { licensed: 24, modeled: 24 },
@@ -61,8 +61,8 @@ export const organizationUnits = [
   ['WARD-3A', '一般病棟3A', 'ward', 'DEP-NUR'], ['WARD-4B', '一般病棟4B', 'ward', 'DEP-NUR'], ['WARD-5A', '回復期病棟5A', 'ward', 'DEP-NUR'],
   ['LOC-ER', '救急外来', 'care-location', 'DEP-MED'], ['LOC-OPD', '外来診療部', 'care-location', 'DEP-MED'], ['LOC-HOME', '在宅診療部', 'care-location', 'DEP-MED'],
   ['LOC-OR', '中央手術部', 'care-location', 'DEP-MED'], ['LOC-ICU', '集中治療部（データのみ）', 'care-location', 'DEP-MED']
-].map(([id, name, type, parentId = 'ORG-KTUMH-DEMO']) => ({
-  id, code: `KTUMH-${id}`, name, type, parentId, active: true, dataClassification: 'FICTIONAL_DEMO'
+].map(([id, name, type, parentId = 'ORG-MLUMH-DEMO']) => ({
+  id, code: `MLUMH-${id}`, name, type, parentId, active: true, dataClassification: 'FICTIONAL_DEMO'
 }));
 
 const physicianBlueprints = [
