@@ -74,7 +74,7 @@ test('canonical rehainfo source UI is login-protected and serves every audited s
   assert.deepEqual(emrRelease, {
     service: 'MediLink Chart',
     version: '0.5.0',
-    release: '2026-09-12-neutral-fictional-hospital',
+    release: '2026-09-12-patient-lookup-performer-type-fix',
     candidateDigest: '79de4cd7e5bfc110935bfaad6e4306c2cf286a3aaeedd05dcf699b5d9f5d73d3',
     dataClassification: 'FICTIONAL_DEMO',
     productionReady: false,
