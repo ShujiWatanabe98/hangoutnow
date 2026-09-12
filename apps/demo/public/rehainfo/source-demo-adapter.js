@@ -407,7 +407,18 @@
     const startDate = String(serviceRequest.occurrencePeriod?.start || serviceRequest.authoredOn || '').slice(0, 10);
     const encounterStartDate = String(hospitalizationEncounter.period?.start || '').slice(0, 10);
     const encounterEndDate = String(hospitalizationEncounter.period?.end || '').slice(0, 10);
-    const professions = (serviceRequest.performerType || []).map(function (role) { return role.coding?.[0]?.code || role.text; }).filter(Boolean);
+    // FHIR R4 ServiceRequest.performerType is a single CodeableConcept (0..1),
+    // whose coding array can contain more than one requested profession. Keep
+    // accepting the former array-shaped demo payload as a compatibility guard.
+    const performerTypes = Array.isArray(serviceRequest.performerType)
+      ? serviceRequest.performerType
+      : serviceRequest.performerType ? [serviceRequest.performerType] : [];
+    const professions = performerTypes.reduce(function (values, role) {
+      const codingValues = Array.isArray(role?.coding)
+        ? role.coding.map(function (coding) { return coding.code || coding.display; }).filter(Boolean)
+        : [];
+      return values.concat(codingValues.length ? codingValues : role?.text ? [role.text] : []);
+    }, []).filter(function (value, index, values) { return values.indexOf(value) === index; });
     return {
       patientId: externalEmrId,
       patientName: officialName,
