@@ -138,6 +138,23 @@
     [1012, '13:00', '13:40', 'SR-DEMO260908', 'ST02', 2, '言語訓練', '180755910']
   ];
 
+  const baselineReservationHistory = [
+    [2001, '2026-06-08', '09:00', '09:40', 'SR-DEMO260901', 'PT01', 2],
+    [2002, '2026-07-13', '10:00', '10:40', 'SR-DEMO260902', 'PT01', 2],
+    [2003, '2026-08-03', '11:00', '12:00', 'SR-DEMO260903', 'PT01', 3],
+    [2004, '2026-08-17', '13:40', '14:40', 'SR-DEMO260904', 'PT01', 3],
+    [2005, '2026-08-24', '09:00', '09:40', 'SR-DEMO260905', 'PT01', 2],
+    [2006, '2026-09-07', '10:00', '10:40', 'SR-DEMO260906', 'PT01', 2],
+    [2011, '2026-07-06', '09:00', '09:40', 'SR-DEMO260905', 'PT02', 2],
+    [2012, '2026-08-10', '13:00', '14:00', 'SR-DEMO260906', 'PT02', 3],
+    [2021, '2026-07-07', '09:00', '09:40', 'SR-DEMO260907', 'OT01', 2],
+    [2022, '2026-08-11', '11:00', '11:40', 'SR-DEMO260908', 'OT01', 2],
+    [2031, '2026-07-08', '10:00', '11:00', 'SR-DEMO260909', 'OT02', 3],
+    [2032, '2026-08-12', '14:00', '14:40', 'SR-DEMO260910', 'OT02', 2],
+    [2041, '2026-08-13', '09:00', '09:40', 'SR-DEMO260903', 'ST01', 2],
+    [2051, '2026-08-14', '13:00', '13:40', 'SR-DEMO260908', 'ST02', 2]
+  ];
+
   function json(body, status) {
     return new Response(JSON.stringify(body), { status: status || 200, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } });
   }
@@ -872,6 +889,123 @@
     });
   }
 
+  function assignmentPatientPool() {
+    const result = patients.slice();
+    patientListRows.forEach(function (row) {
+      if (result.some(function (item) { return item.id === row.patientId; })) return;
+      result.push({
+        id: row.patientId,
+        name: row.patientName,
+        subLabel: [row.gender, row.rehabilitationClass].filter(Boolean).join('・'),
+        ward: row.wardName || '-'
+      });
+    });
+    return result;
+  }
+
+  function allTherapistReservationEntries() {
+    const baseline = baselineReservationHistory.map(function (item) {
+      return enrich({ id: item[0], date: item[1], startTime: item[2], endTime: item[3], patientId: item[4], therapistId: item[5], units: item[6], note: '過去担当実績', orcaCode: '180755710' });
+    });
+    const store = readStore();
+    const stored = Object.keys(store).sort().flatMap(function (date) {
+      return Array.isArray(store[date]) ? store[date] : [];
+    });
+    const seen = new Set();
+    return baseline.concat(stored).filter(function (entry) {
+      const key = [entry.id, entry.date, entry.patientId, entry.therapistId].join('|');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  function therapistPatientAssignments(therapistId) {
+    const workflow = readWorkflowStore();
+    const assignments = workflow.therapistPatientAssignments || {};
+    return Array.isArray(assignments[therapistId]) ? assignments[therapistId] : [];
+  }
+
+  function persistTherapistPatientAssignment(therapistId, patientId) {
+    const workflow = readWorkflowStore();
+    workflow.therapistPatientAssignments = workflow.therapistPatientAssignments || {};
+    const assignments = Array.isArray(workflow.therapistPatientAssignments[therapistId])
+      ? workflow.therapistPatientAssignments[therapistId] : [];
+    if (!assignments.includes(patientId)) assignments.push(patientId);
+    workflow.therapistPatientAssignments[therapistId] = assignments;
+    writeWorkflowStore(workflow);
+  }
+
+  function therapistPatientOverview(therapistId) {
+    if (!therapist(therapistId)) return null;
+    const patientPool = assignmentPatientPool();
+    const patientById = new Map(patientPool.map(function (item) { return [item.id, item]; }));
+    const summaries = new Map();
+    const allReservations = allTherapistReservationEntries();
+    allReservations.forEach(function (entry) {
+      if (entry.therapistId !== therapistId || entry.status === '中止') return;
+      const target = patientById.get(entry.patientId);
+      if (!target) return;
+      if (!summaries.has(entry.patientId)) {
+        summaries.set(entry.patientId, {
+          patientId: target.id, patientName: target.name, patientCategory: target.subLabel, ward: target.ward,
+          appointmentCount: 0, totalUnits: 0, firstDate: null, lastDate: null
+        });
+      }
+      const summary = summaries.get(entry.patientId);
+      summary.appointmentCount += 1;
+      summary.totalUnits += Number(entry.units || 0);
+      if (!summary.firstDate || entry.date < summary.firstDate) summary.firstDate = entry.date;
+      if (!summary.lastDate || entry.date > summary.lastDate) summary.lastDate = entry.date;
+    });
+    const byName = function (left, right) {
+      return String(left.patientName || '').localeCompare(String(right.patientName || ''), 'ja')
+        || String(left.patientId).localeCompare(String(right.patientId));
+    };
+    const reservationPatients = Array.from(summaries.values()).sort(byName);
+    const reservationIds = new Set(reservationPatients.map(function (item) { return item.patientId; }));
+    const explicitIds = new Set(therapistPatientAssignments(therapistId));
+    const noReservationPatients = [];
+    const patientCandidates = [];
+    patientPool.forEach(function (target) {
+      if (reservationIds.has(target.id)) return;
+      const item = { patientId: target.id, patientName: target.name, patientCategory: target.subLabel, ward: target.ward, appointmentCount: 0, totalUnits: 0, firstDate: null, lastDate: null };
+      if (explicitIds.has(target.id)) noReservationPatients.push(item);
+      else patientCandidates.push(item);
+    });
+    noReservationPatients.sort(byName);
+
+    const today = new Date().toISOString().slice(0, 10);
+    const wardHistory = new Map();
+    const categoryHistory = new Map();
+    allReservations.forEach(function (entry) {
+      if (entry.therapistId !== therapistId || entry.status === '中止' || !entry.date || entry.date >= today) return;
+      const target = patientById.get(entry.patientId);
+      if (!target) return;
+      wardHistory.set(target.ward, (wardHistory.get(target.ward) || 0) + 1);
+      categoryHistory.set(target.subLabel, (categoryHistory.get(target.subLabel) || 0) + 1);
+    });
+    patientCandidates.forEach(function (candidate) {
+      const sameWard = wardHistory.get(candidate.ward) || 0;
+      const sameCategory = categoryHistory.get(candidate.patientCategory) || 0;
+      candidate.candidateScore = sameWard * 3 + sameCategory;
+      candidate.candidateReason = sameWard || sameCategory
+        ? `過去担当：同病棟${sameWard}件・同区分${sameCategory}件`
+        : '過去実績がないため患者名順';
+    });
+    patientCandidates.sort(function (left, right) {
+      return right.candidateScore - left.candidateScore || byName(left, right);
+    });
+    return {
+      reservationPatients: reservationPatients,
+      noReservationPatients: noReservationPatients,
+      patientCandidates: patientCandidates,
+      scheduledPatients: reservationPatients,
+      assignedWithoutReservations: noReservationPatients,
+      unassignedPatients: patientCandidates
+    };
+  }
+
   function defaultEntries(date) {
     return baseEntries.map(function (item) {
       return enrich({ id: item[0], date: date, startTime: item[1], endTime: item[2], patientId: item[3], therapistId: item[4], units: item[5], note: item[6], orcaCode: item[7] });
@@ -1233,7 +1367,21 @@
     }
     if (parsed.pathname.startsWith(API)) return demoApi(url, options);
     if (parsed.pathname.startsWith(THERAPIST_API)) {
-      if (method === 'GET') return json({ therapists: therapists });
+	  if (parsed.pathname === `${THERAPIST_API}/assigned-patients`) {
+		if (method === 'GET') {
+		  const therapistId = parsed.searchParams.get('therapistId') || '';
+		  const overview = therapistPatientOverview(therapistId);
+		  if (!overview) return json({ success: false, message: '対象療法士が見つかりません。' }, 404);
+		  return json(Object.assign({ success: true, therapistId: therapistId, patients: overview.reservationPatients, count: overview.reservationPatients.length }, overview));
+		}
+		if (method === 'POST') {
+		  if (!therapist(payload.therapistId)) return json({ success: false, message: '対象療法士が見つかりません。' }, 404);
+		  if (!assignmentPatientPool().some(function (item) { return item.id === payload.patientId; })) return json({ success: false, message: '対象患者が見つかりません。' }, 404);
+		  persistTherapistPatientAssignment(payload.therapistId, payload.patientId);
+		  return json({ success: true, message: '担当患者に設定しました。' });
+		}
+	  }
+	  if (method === 'GET' && parsed.pathname === THERAPIST_API) return json({ therapists: therapists });
       if (method === 'POST' && parsed.pathname === THERAPIST_API) {
         if (!payload.id || !payload.name) return json({ success: false, message: '療法士IDと氏名を入力してください。' }, 422);
         if (therapists.some(function (item) { return item.id === payload.id; })) return json({ success: false, message: '同じ療法士IDが登録済みです。' }, 409);

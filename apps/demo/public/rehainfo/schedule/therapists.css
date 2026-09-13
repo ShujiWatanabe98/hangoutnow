@@ -16,7 +16,7 @@
 .directory-toolbar span { margin-left: auto; color: #667085; }
 .directory-toolbar strong { color: #1b294e; font-size: 20px; }
 .directory-table-frame { margin-top: 14px; overflow: auto; border: 1px solid #dfe2e8; background: #fff; }
-.directory-table { width: 100%; min-width: 1060px; border-collapse: collapse; }
+.directory-table { width: 100%; min-width: 1200px; border-collapse: collapse; }
 .directory-table th { padding: 13px 14px; background: #1b294e; color: #fff; font-size: 13px; font-weight: 600; text-align: left; white-space: nowrap; }
 .directory-table td { padding: 14px; border-bottom: 1px solid #e4e7ec; font-size: 14px; }
 .directory-table tbody tr:hover { background: #f3f7fb; }
@@ -26,6 +26,30 @@
 .monthly-target-editor span { color: #667085; font-size: 13px; }
 .target-save-button { height: 36px; padding: 0 13px; border: 1px solid #1b294e; border-radius: 3px; background: #fff; color: #1b294e; font-weight: 600; }
 .target-save-button:hover, .target-save-button:focus { background: #1b294e; color: #fff; }
+.assigned-patients-button { min-width: 108px; height: 36px; padding: 0 12px; border: 1px solid #24726a; border-radius: 3px; background: #e9f7f4; color: #155f58; font-weight: 700; white-space: nowrap; }
+.assigned-patients-button:hover, .assigned-patients-button:focus { background: #24726a; color: #fff; }
+.assigned-patients-summary { margin: 0 0 12px; color: #475467; font-weight: 600; }
+.assigned-patients-summary:empty { display: none; }
+.patient-assignment-section + .patient-assignment-section { margin-top: 26px; padding-top: 24px; border-top: 1px solid #dfe2e8; }
+.patient-assignment-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
+.patient-assignment-heading h3 { margin: 0 0 3px; color: #202b4c; font-size: 17px; }
+.patient-assignment-heading p { margin: 0; color: #667085; font-size: 13px; }
+.patient-count-badge { flex: none; min-width: 52px; padding: 5px 10px; border-radius: 14px; background: #e8eef7; color: #1b294e; font-size: 13px; font-weight: 700; text-align: center; }
+.assigned-patients-table-frame { overflow: auto; border: 1px solid #dfe2e8; }
+.assigned-patients-table { width: 100%; min-width: 920px; border-collapse: collapse; }
+.assigned-patients-table th { position: sticky; top: 0; z-index: 1; padding: 11px 12px; background: #eef2f7; color: #344054; font-size: 13px; text-align: left; white-space: nowrap; }
+.assigned-patients-table td { padding: 11px 12px; border-top: 1px solid #e4e7ec; font-size: 14px; }
+.assigned-patients-table tbody tr:hover { background: #f7fafc; }
+.assigned-patients-table .number-cell { text-align: right; white-space: nowrap; }
+.compact-patient-table { min-width: 700px; }
+.candidate-patient-table { min-width: 930px; }
+.candidate-reason { color: #475467; font-size: 13px !important; }
+.patient-list-toggle-wrap { display: flex; justify-content: center; min-height: 20px; }
+.patient-list-toggle { display: inline-flex; align-items: center; gap: 7px; margin-top: 10px; padding: 6px 16px; border: 0; border-radius: 18px; background: #e8eef7; color: #1b294e; font-size: 13px; font-weight: 700; }
+.patient-list-toggle:hover, .patient-list-toggle:focus { background: #d5e1f0; outline: 2px solid #98a9c2; outline-offset: 2px; }
+.assign-patient-button { min-width: 96px; height: 34px; padding: 0 12px; border: 1px solid #24726a; border-radius: 3px; background: #24726a; color: #fff; font-weight: 700; white-space: nowrap; }
+.assign-patient-button:hover, .assign-patient-button:focus { background: #155f58; }
+.assign-patient-button:disabled { cursor: wait; opacity: .65; }
 .directory-empty { padding: 55px !important; color: #7a8495; text-align: center; }
 .directory-modal-content { border: 0; border-radius: 3px; }
 .directory-modal-content .modal-header { background: #1b294e; color: #fff; }
