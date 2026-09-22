@@ -1077,6 +1077,14 @@ function smoothMapBearing(now, target) {
     lastCameraBearingUpdateAt = now;
     return stabilizedMapBearing(map.getBearing(), target, elapsed);
 }
+function updateLiveMapBearing(now) {
+    if (map === null || mapCameraFollowTarget !== "USER" || mapOrientationMode !== "HEADING_UP")
+        return;
+    const next = smoothMapBearing(now, desiredMapBearing(now));
+    if (Math.abs(screenRelativeUserHeading(next, map.getBearing())) < 0.2)
+        return;
+    map.jumpTo({ bearing: next });
+}
 function stopMapCameraFollow() {
     mapCameraFollowTarget = "NONE";
     recenterAfterLocationPicker = false;
@@ -1132,13 +1140,17 @@ function updateDeviceHeading(heading) {
         && now > movementHeadingValidUntil
         && mapCameraFollowTarget === "USER"
         && pendingMapReportCategory === null) {
-        map?.jumpTo({ bearing: smoothMapBearing(now, deviceHeadingDegrees) });
+        updateLiveMapBearing(now);
     }
     updateUserLocationHeading(now);
 }
 function followRenderedUserLocation(now) {
     if (mapCameraFollowTarget !== "USER" || pendingMapReportCategory !== null)
         return;
+    if (connectionState.dataset.locationMotion === "stationary") {
+        updateLiveMapBearing(now);
+        return;
+    }
     map?.jumpTo({
         center: [renderedUserLocation[0], renderedUserLocation[1]],
         bearing: mapOrientationMode === "HEADING_UP"
