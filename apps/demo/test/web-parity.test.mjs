@@ -340,8 +340,8 @@ test('corporate homepage presents the seven methodmore products accurately', asy
   assert.match(coachDemoScript, /panelScroll\.addEventListener\("touchmove"/);
   assert.match(coachDemoScript, /dragDistance >= 88/);
   assert.match(coachDemo, /id="settings-heading">設定 <span>Setting<\/span>/);
-  assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260922-1"/);
-  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260922-1/);
+  assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260922-2"/);
+  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260922-2/);
   assert.match(coachBootstrap, /dataset\.clientError/);
   assert.match(coachDemoScript, /SYNTHETIC_ONLY/);
   assert.match(coachDemoScript, /counts: \{ underpasses: 1, policePriorityLocations: 1 \}/);
@@ -413,7 +413,7 @@ test('corporate homepage presents the seven methodmore products accurately', asy
   assert.match(coachDemoScript, /voiceInputEnabled\s+&& shouldRunPassiveVoiceCommandRecognition/);
   assert.match(coachDemoScript, /resolveVoiceInputRuntime/);
   assert.match(coachDemoScript, /voiceInputToggle\.disabled = voiceInputRuntime\.underDevelopment/);
-  assert.match(coachDemoScript, /現在開発中です。iOSアプリではまだ利用できません/);
+  assert.match(coachDemoScript, /現在開発中です。スマホアプリではまだ利用できません/);
   assert.match(coachDemoScript, /await requestSystemNotificationPermission\(\)/);
   assert.match(coachDemoScript, /startForegroundLocationMonitoring\(\)/);
   assert.doesNotMatch(coachDemoScript, /if \(approachDetectionEnabled\)\s+startForegroundLocationMonitoring\(\)/);

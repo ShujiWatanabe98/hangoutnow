@@ -468,10 +468,10 @@ function renderInputSettings() {
         voiceInputToggle.setAttribute("aria-checked", "false");
         voiceInputState.dataset.state = "off";
         if (voiceInputDescription !== null) {
-            voiceInputDescription.textContent = "現在開発中です。iOSアプリではまだ利用できません";
+            voiceInputDescription.textContent = "現在開発中です。スマホアプリではまだ利用できません";
         }
         inputPermissionStatus.dataset.state = "off";
-        inputPermissionStatus.textContent = "音声入力は現在開発中です。iOSアプリではOFFに固定されています。";
+        inputPermissionStatus.textContent = "音声入力は現在開発中です。スマホアプリではOFFに固定されています。";
     }
     else if (!voiceInputEnabled) {
         inputPermissionStatus.dataset.state = "off";
@@ -2222,7 +2222,7 @@ function openRegistrationDialog(startListening) {
     registrationError.textContent = "";
     voiceReportStatus.dataset.state = "idle";
     voiceReportStatus.textContent = voiceInputRuntime.underDevelopment
-        ? "iOSアプリの音声入力は現在開発中です。カテゴリーを押して登録してください。"
+        ? "スマホアプリの音声入力は現在開発中です。カテゴリーを押して登録してください。"
         : voiceInputEnabled
             ? "「音声で危険を登録」を押して、危険の種類を話してください。"
             : "音声入力はOFFです。カテゴリーを押して登録してください。";
