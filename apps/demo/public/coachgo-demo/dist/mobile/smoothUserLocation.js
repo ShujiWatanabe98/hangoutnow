@@ -73,4 +73,15 @@ export function screenRelativeUserHeading(heading, mapBearing) {
     }
     return ((heading - mapBearing + 540) % 360) - 180;
 }
+export function stabilizedMapBearing(currentBearing, targetBearing, elapsedMilliseconds, deadbandDegrees = 4, responseMilliseconds = 400) {
+    if (![currentBearing, targetBearing, elapsedMilliseconds, deadbandDegrees, responseMilliseconds].every(Number.isFinite)
+        || elapsedMilliseconds < 0 || deadbandDegrees < 0 || responseMilliseconds <= 0) {
+        throw new Error("map bearing values must be finite and non-negative");
+    }
+    const difference = ((targetBearing - currentBearing + 540) % 360) - 180;
+    if (Math.abs(difference) <= deadbandDegrees)
+        return currentBearing;
+    const blend = 1 - Math.exp(-elapsedMilliseconds / responseMilliseconds);
+    return currentBearing + difference * blend;
+}
 //# sourceMappingURL=smoothUserLocation.js.map

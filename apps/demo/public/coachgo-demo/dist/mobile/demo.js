@@ -1,16 +1,16 @@
-import { buildHazardPointGuidance, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260907-1";
-import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260907-1";
-import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260907-1";
-import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260907-1";
-import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260907-1";
-import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260907-1";
-import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260907-1";
-import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260907-1";
-import { blendUserLocation, interpolateUserLocation, MAX_LOCATION_PREDICTION_MS, predictUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260907-1";
-import { resolveVoiceInputRuntime, shouldRunPassiveVoiceCommandRecognition, } from "./voiceInputRuntime.js?v=20260907-1";
-import { aggregateNearbyUserReports, SAME_USER_REPORT_RADIUS_METERS, } from "./userReportAggregation.js?v=20260907-1";
-import { snapReportLocationToRoad } from "./roadSnapping.js?v=20260907-1";
-import { createSharedUserReport, deleteSharedUserReport, loadSharedUserReports, sharedUserReportHazard, } from "./sharedUserReports.js?v=20260907-1";
+import { buildHazardPointGuidance, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260922-1";
+import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260922-1";
+import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260922-1";
+import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260922-1";
+import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260922-1";
+import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260922-1";
+import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260922-1";
+import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260922-1";
+import { blendUserLocation, interpolateUserLocation, MAX_LOCATION_PREDICTION_MS, predictUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, stabilizedMapBearing, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260922-1";
+import { resolveVoiceInputRuntime, shouldRunPassiveVoiceCommandRecognition, } from "./voiceInputRuntime.js?v=20260922-1";
+import { aggregateNearbyUserReports, SAME_USER_REPORT_RADIUS_METERS, } from "./userReportAggregation.js?v=20260922-1";
+import { snapReportLocationToRoad } from "./roadSnapping.js?v=20260922-1";
+import { createSharedUserReport, deleteSharedUserReport, loadSharedUserReports, sharedUserReportHazard, } from "./sharedUserReports.js?v=20260922-1";
 function syntheticSharedMapPayload() {
     return {
         schemaVersion: 1,
@@ -207,6 +207,8 @@ let largeReportIconEnabled = storedInputSettings.largeReportIcon;
 let voiceInputEnabled = voiceInputRuntime.enabled;
 let demoVisibilityEnabled = storedInputSettings.demoVisible;
 let mapOrientationMode = readStoredMapOrientation();
+let mapCameraFollowTarget = "USER";
+let lastCameraBearingUpdateAt = null;
 let registrationMethod = "CURRENT";
 let pendingMapReportCategory = null;
 let reportRegistrationPending = false;
@@ -1066,6 +1068,20 @@ function desiredMapBearing(now) {
         return 0;
     return activeUserHeading(now) ?? map?.getBearing() ?? 0;
 }
+function smoothMapBearing(now, target) {
+    if (map === null)
+        return target;
+    const elapsed = lastCameraBearingUpdateAt === null
+        ? 70
+        : Math.min(70, Math.max(0, now - lastCameraBearingUpdateAt));
+    lastCameraBearingUpdateAt = now;
+    return stabilizedMapBearing(map.getBearing(), target, elapsed);
+}
+function stopMapCameraFollow() {
+    mapCameraFollowTarget = "NONE";
+    recenterAfterLocationPicker = false;
+    map?.stop();
+}
 function renderMapOrientationControl() {
     const headingUp = mapOrientationMode === "HEADING_UP";
     mapOrientationButton.setAttribute("aria-pressed", String(headingUp));
@@ -1087,12 +1103,11 @@ function setMapOrientationMode(mode) {
     renderMapOrientationControl();
     if (pendingMapReportCategory !== null)
         return;
-    if (demoDriveRunning) {
-        focusDemoVehicle(350);
-    }
-    else {
-        map?.easeTo({ bearing: desiredMapBearing(performance.now()), duration: 350 });
-    }
+    const targetBearing = mapCameraFollowTarget === "DEMO" && demoDriveSampler !== null
+        ? demoDriveSampler.positionAt(demoDriveProgress, DEMO_BEARING_LOOKAHEAD_METERS).bearing
+        : desiredMapBearing(performance.now());
+    map?.easeTo({ bearing: mode === "HEADING_UP" ? targetBearing : 0, duration: 350 });
+    lastCameraBearingUpdateAt = null;
     updateUserLocationHeading(performance.now());
 }
 function updateUserLocationHeading(now) {
@@ -1115,18 +1130,20 @@ function updateDeviceHeading(heading) {
     const now = performance.now();
     if (mapOrientationMode === "HEADING_UP"
         && now > movementHeadingValidUntil
-        && !demoDriveRunning
+        && mapCameraFollowTarget === "USER"
         && pendingMapReportCategory === null) {
-        map?.jumpTo({ bearing: deviceHeadingDegrees });
+        map?.jumpTo({ bearing: smoothMapBearing(now, deviceHeadingDegrees) });
     }
     updateUserLocationHeading(now);
 }
 function followRenderedUserLocation(now) {
-    if (demoDriveRunning || pendingMapReportCategory !== null)
+    if (mapCameraFollowTarget !== "USER" || pendingMapReportCategory !== null)
         return;
     map?.jumpTo({
         center: [renderedUserLocation[0], renderedUserLocation[1]],
-        bearing: desiredMapBearing(now),
+        bearing: mapOrientationMode === "HEADING_UP"
+            ? smoothMapBearing(now, desiredMapBearing(now))
+            : 0,
     });
 }
 function settleUserLocation(target, startedAt, duration) {
@@ -1185,7 +1202,7 @@ function handleUserLocationSample(target, now, focusOnFirstFix = false) {
         userLocationMarker?.setLngLat([target[0], target[1]]);
         connectionState.dataset.locationMotion = "stationary";
         updateUserLocationHeading(now);
-        if (firstLiveFix && focusOnFirstFix) {
+        if (firstLiveFix && focusOnFirstFix && mapCameraFollowTarget === "USER") {
             map?.easeTo({
                 center: [target[0], target[1]],
                 zoom: DEFAULT_LOCATION_ZOOM,
@@ -1217,6 +1234,8 @@ function handleUserLocationSample(target, now, focusOnFirstFix = false) {
     animateContinuousUserLocation(previousFix, target, now, sampleIntervalMs);
 }
 function handleDeviceOrientation(event) {
+    if (window.ReactNativeWebView !== undefined)
+        return;
     const compassEvent = event;
     if (typeof compassEvent.webkitCompassHeading === "number") {
         updateDeviceHeading(compassEvent.webkitCompassHeading);
@@ -1327,7 +1346,7 @@ function pauseLocationTrackingForPicker() {
     renderPermissionStatus();
 }
 function resumeLocationTrackingAfterPicker() {
-    recenterAfterLocationPicker = true;
+    recenterAfterLocationPicker = mapCameraFollowTarget === "USER";
     recenterMapButton.disabled = false;
     locationStatus.hidden = false;
     locationStatus.textContent = "現在地を取得中…";
@@ -1553,6 +1572,7 @@ function addClusteredHazardCategory(category) {
             const [longitude, latitude] = feature.geometry.coordinates;
             if (typeof longitude !== "number" || typeof latitude !== "number")
                 return;
+            stopMapCameraFollow();
             map?.easeTo({ center: [longitude, latitude], zoom: Math.min((map?.getZoom() ?? 10) + 2, 15), duration: 420 });
         });
         map.on("click", ids.point, (event) => {
@@ -1702,6 +1722,7 @@ function followDemoVehicle(position, now) {
     const cameraInterval = demoRenderQuality === "HIGH" ? 0 : DEMO_BALANCED_CAMERA_INTERVAL_MS;
     if (map === null
         || !demoDriveRunning
+        || mapCameraFollowTarget !== "DEMO"
         || now < demoCameraFollowStartsAt
         || now - lastDemoCameraFrameAt < cameraInterval)
         return;
@@ -1967,6 +1988,17 @@ function initializeMapbox() {
             renderMap();
             void initializeContinuousDemoDrive(token);
         });
+        map.on("dragstart", stopMapCameraFollow);
+        map.on("movestart", (event) => {
+            if (event.originalEvent)
+                stopMapCameraFollow();
+        });
+        map.on("zoomstart", (event) => {
+            if ("originalEvent" in event && event.originalEvent)
+                stopMapCameraFollow();
+        });
+        map.getCanvasContainer().addEventListener("touchmove", stopMapCameraFollow, { passive: true });
+        map.getCanvasContainer().addEventListener("wheel", stopMapCameraFollow, { passive: true });
         map.on("rotate", () => { updateUserLocationHeading(performance.now()); });
     }
     catch {
@@ -2117,7 +2149,6 @@ demoVisibilityToggle.addEventListener("click", () => {
         demoPlaybackButton.click();
     persistInputSettings();
     renderInputSettings();
-    returnToCurrentLocation();
 });
 for (const button of document.querySelectorAll("[data-category]")) {
     button.addEventListener("click", () => {
@@ -2146,9 +2177,13 @@ demoPlaybackButton.addEventListener("click", () => {
         lastVoiceProximityCheckAt = 0;
         if (hasLiveUserLocation)
             checkLiveLocationApproach(currentUserLocation, performance.now());
-        returnToCurrentLocation();
+        if (mapCameraFollowTarget === "DEMO") {
+            mapCameraFollowTarget = "USER";
+            returnToCurrentLocation();
+        }
     }
     else {
+        mapCameraFollowTarget = "DEMO";
         demoDriveProgress = 0;
         demoPlaybackStatus.dataset.notificationHistory = "";
         demoSmoothedBearing = null;
@@ -2265,7 +2300,9 @@ function openReportLocationPicker(category) {
     reportLocationPicker.hidden = false;
     reportLocationPickerStatus.dataset.state = "idle";
     reportLocationPickerStatus.textContent = `${categoryLabels[category]}の登録位置を、中央の＋で指定してください。`;
-    map?.easeTo({ center: currentUserLocation, zoom: Math.max(map.getZoom(), DEFAULT_LOCATION_ZOOM), duration: 320 });
+    if (mapCameraFollowTarget === "USER") {
+        map?.easeTo({ center: currentUserLocation, zoom: Math.max(map.getZoom(), DEFAULT_LOCATION_ZOOM), duration: 320 });
+    }
     pauseLocationTrackingForPicker();
 }
 async function snapAndRegisterSessionHazard(category, coordinates, errorTarget) {
@@ -2461,6 +2498,8 @@ requiredElement("#undo-report").addEventListener("click", () => {
     void deleteOwnedUserReports([lastReportId]);
 });
 function showCurrentLocationOnMap(location, message) {
+    mapCameraFollowTarget = "USER";
+    lastCameraBearingUpdateAt = null;
     map?.easeTo({
         center: [location[0], location[1]],
         zoom: DEFAULT_LOCATION_ZOOM,
@@ -2472,6 +2511,8 @@ function showCurrentLocationOnMap(location, message) {
     window.setTimeout(() => { locationStatus.hidden = true; }, 2_500);
 }
 function returnToCurrentLocation() {
+    mapCameraFollowTarget = "USER";
+    lastCameraBearingUpdateAt = null;
     if (window.ReactNativeWebView === undefined)
         requestDeviceHeadingPermission();
     locationStatus.hidden = false;
@@ -2499,7 +2540,9 @@ function returnToCurrentLocation() {
         const now = performance.now();
         handleUserLocationSample(location, now);
         checkLiveLocationApproach(location, now);
-        showCurrentLocationOnMap(location, "現在地を表示しました。");
+        if (mapCameraFollowTarget === "USER") {
+            showCurrentLocationOnMap(location, "現在地を表示しました。");
+        }
     }, (error) => {
         locationStatus.textContent = error.code === error.PERMISSION_DENIED
             ? "現在地の表示には位置情報の許可が必要です。"
