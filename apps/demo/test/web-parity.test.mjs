@@ -59,6 +59,22 @@ test('demo and production load the same application assets', async () => {
   assert.match(production, /production:true,demoAccounts:null/);
 });
 
+test('CoachGo Android tester page exposes the closed-test enrollment path', async () => {
+  const [testerPage, supportPage, sitemap] = await Promise.all([
+    readFile(new URL('coachgo-android-test.html', publicDirectory), 'utf8'),
+    readFile(new URL('coachgo-support.html', publicDirectory), 'utf8'),
+    readFile(new URL('sitemap.xml', publicDirectory), 'utf8'),
+  ]);
+
+  assert.match(testerPage, /https:\/\/groups\.google\.com\/g\/coachgo-android-testers-2026/);
+  assert.match(testerPage, /https:\/\/play\.google\.com\/apps\/testing\/com\.coachgo\.app/);
+  assert.match(testerPage, /12人以上が14日間継続して参加/);
+  assert.match(testerPage, /現在地ボタンを押すまで勝手に現在地へ戻らない/);
+  assert.match(testerPage, /進行方向モードで地図が不自然に震えない/);
+  assert.match(supportPage, /href="\/coachgo-android-test\.html"/);
+  assert.match(sitemap, /https:\/\/method-more\.com\/coachgo-android-test\.html/);
+});
+
 test('production uses the shared Hangout, talk, notification, and profile flows', async () => {
   const application = await readFile(new URL('app.js', publicDirectory), 'utf8');
 
