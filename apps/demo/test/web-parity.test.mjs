@@ -70,6 +70,7 @@ test('CoachGo Android tester page exposes the closed-test enrollment path', asyn
 
   assert.match(testerPage, /https:\/\/groups\.google\.com\/g\/coachgo-android-testers-2026/);
   assert.match(testerPage, /https:\/\/play\.google\.com\/apps\/testing\/com\.coachgo\.app/);
+  assert.match(testerPage, /mailto:info@method-more\.com\?subject=CoachGo%20Android/);
   assert.match(testerPage, /12人以上が14日間継続して参加/);
   assert.match(testerPage, /現在地ボタンを押すまで勝手に現在地へ戻らない/);
   assert.match(testerPage, /進行方向モードで地図が不自然に震えない/);
