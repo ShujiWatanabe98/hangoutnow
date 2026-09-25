@@ -148,6 +148,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .compass-control[aria-pressed="true"] .compass-needle-north { fill: #fff; stroke: #fff; }
 .compass-control-content .compass-needle-south { fill: currentColor; stroke: currentColor; opacity: 0.45; }
 .compass-control-content small { font-size: 7px; font-weight: 900; white-space: nowrap; }
+.compass-control.large-input-icon .compass-control-content { grid-template: 14px 34px 12px / 1fr; }
+.compass-control.large-input-icon .compass-control-content strong { font-size: 13px; }
+.compass-control.large-input-icon .compass-control-content svg { width: 34px; height: 34px; stroke-width: 1.6; }
+.compass-control.large-input-icon .compass-control-content small { font-size: 9px; }
 .map-action.report { color: #fff; background: #20252c; }
 .map-action.report.large-input-icon .report-action-label > span:first-child { font-size: 26px; }
 .map-action.report.large-input-icon .report-action-label > span:last-child { font-size: 12px; }
