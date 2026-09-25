@@ -360,9 +360,12 @@ test('corporate homepage presents the seven methodmore products accurately', asy
   assert.match(coachStyles, /\.map-action\.large-input-icon \{ width: 72px; height: 72px; min-width: 72px; \}/);
   assert.match(coachDemoScript, /panelScroll\.addEventListener\("touchmove"/);
   assert.match(coachDemoScript, /dragDistance >= 88/);
+  assert.doesNotMatch(coachDemoScript, /map\?\.stop\(\)/);
+  assert.doesNotMatch(coachDemoScript, /addEventListener\("touchmove", stopMapCameraFollow/);
+  assert.doesNotMatch(coachDemoScript, /addEventListener\("wheel", stopMapCameraFollow/);
   assert.match(coachDemo, /id="settings-heading">設定 <span>Setting<\/span>/);
-  assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260925-1"/);
-  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260925-1/);
+  assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260925-2"/);
+  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260925-2/);
   assert.match(coachBootstrap, /dataset\.clientError/);
   assert.match(coachDemoScript, /SYNTHETIC_ONLY/);
   assert.match(coachDemoScript, /counts: \{ underpasses: 1, policePriorityLocations: 1 \}/);

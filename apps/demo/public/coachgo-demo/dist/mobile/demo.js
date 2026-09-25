@@ -1088,7 +1088,6 @@ function updateLiveMapBearing(now) {
 function stopMapCameraFollow() {
     mapCameraFollowTarget = "NONE";
     recenterAfterLocationPicker = false;
-    map?.stop();
 }
 function renderMapOrientationControl() {
     const headingUp = mapOrientationMode === "HEADING_UP";
@@ -2009,8 +2008,6 @@ function initializeMapbox() {
             if ("originalEvent" in event && event.originalEvent)
                 stopMapCameraFollow();
         });
-        map.getCanvasContainer().addEventListener("touchmove", stopMapCameraFollow, { passive: true });
-        map.getCanvasContainer().addEventListener("wheel", stopMapCameraFollow, { passive: true });
         map.on("rotate", () => { updateUserLocationHeading(performance.now()); });
     }
     catch {
