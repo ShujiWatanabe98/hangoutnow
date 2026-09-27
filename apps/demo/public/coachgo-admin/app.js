@@ -11,6 +11,11 @@ const rows = document.querySelector('#report-rows');
 const summary = document.querySelector('#summary');
 const emptyMessage = document.querySelector('#empty-message');
 const refreshed = document.querySelector('#last-refreshed');
+const hazardMapElement = document.querySelector('#hazard-map');
+const hazardMapMessage = document.querySelector('#hazard-map-message');
+const hazardMapCount = document.querySelector('#hazard-map-count');
+let hazardMap = null;
+let latestMapReports = [];
 
 function headers(){return {'content-type':'application/json','x-admin-token':tokenInput.value,'x-admin-id':adminIdInput.value.trim()}}
 function showError(message){errorMessage.textContent=message;errorMessage.hidden=false}
@@ -18,6 +23,73 @@ function clearError(){errorMessage.hidden=true;errorMessage.textContent=''}
 function formatDate(value){return new Intl.DateTimeFormat('ja-JP',{dateStyle:'short',timeStyle:'short'}).format(new Date(value))}
 function textCell(value){const cell=document.createElement('td');cell.textContent=value;return cell}
 function actionButton(label,className,handler){const button=document.createElement('button');button.type='button';button.textContent=label;if(className)button.className=className;button.addEventListener('click',handler);return button}
+
+function validCoordinate(report){
+  return Number.isFinite(report.latitude)&&Number.isFinite(report.longitude)&&report.latitude>=-90&&report.latitude<=90&&report.longitude>=-180&&report.longitude<=180;
+}
+
+function reportFeatures(reports){
+  return {type:'FeatureCollection',features:reports.filter(validCoordinate).map(report=>({type:'Feature',geometry:{type:'Point',coordinates:[report.longitude,report.latitude]},properties:{id:report.id,category:report.category,status:report.status,createdAt:report.createdAt}}))};
+}
+
+function popupContent(properties){
+  const content=document.createElement('div');content.className='hazard-popup';
+  const title=document.createElement('strong');title.textContent=categoryLabels[properties.category]??properties.category;
+  const status=document.createElement('span');status.textContent=`状態：${statusLabels[properties.status]??properties.status}`;
+  const created=document.createElement('span');created.textContent=`登録：${formatDate(properties.createdAt)}`;
+  content.append(title,status,created);return content;
+}
+
+function updateMapViewport(reports){
+  if(!hazardMap||reports.length===0)return;
+  if(reports.length===1){hazardMap.jumpTo({center:[reports[0].longitude,reports[0].latitude],zoom:13});return}
+  const bounds=new globalThis.mapboxgl.LngLatBounds();
+  for(const report of reports)bounds.extend([report.longitude,report.latitude]);
+  hazardMap.fitBounds(bounds,{padding:48,maxZoom:13,duration:0});
+}
+
+function updateMapSource(){
+  if(!hazardMap||!hazardMap.isStyleLoaded())return;
+  const source=hazardMap.getSource('coachgo-database-hazards');
+  if(!source)return;
+  const validReports=latestMapReports.filter(validCoordinate);
+  source.setData(reportFeatures(validReports));
+  updateMapViewport(validReports);
+  hazardMap.resize();
+}
+
+function initializeHazardMap(){
+  const mapbox=globalThis.mapboxgl;
+  const accessToken=globalThis.COACHGO_CONFIG?.mapboxAccessToken;
+  if(!mapbox||typeof accessToken!=='string'||!accessToken.startsWith('pk.')){
+    hazardMapElement.hidden=true;
+    hazardMapMessage.textContent='地図設定を利用できないため、危険地帯は下の一覧で確認できます。';
+    return;
+  }
+  mapbox.accessToken=accessToken;
+  hazardMap=new mapbox.Map({container:hazardMapElement,style:'mapbox://styles/mapbox/streets-v12',center:[138.2529,36.2048],zoom:4.2,attributionControl:true});
+  hazardMap.addControl(new mapbox.NavigationControl({showCompass:false}),'top-right');
+  hazardMap.on('load',()=>{
+    hazardMap.addSource('coachgo-database-hazards',{type:'geojson',data:reportFeatures([])});
+    hazardMap.addLayer({id:'coachgo-database-hazards',type:'circle',source:'coachgo-database-hazards',paint:{'circle-radius':['interpolate',['linear'],['zoom'],4,5,12,9],'circle-color':['match',['get','status'],'ACTIVE','#07966f','HIDDEN','#d99b11','DELETED','#c94840','EXPIRED','#758287','#087f71'],'circle-stroke-color':'#ffffff','circle-stroke-width':2,'circle-opacity':0.9}});
+    hazardMap.on('mouseenter','coachgo-database-hazards',()=>{hazardMap.getCanvas().style.cursor='pointer'});
+    hazardMap.on('mouseleave','coachgo-database-hazards',()=>{hazardMap.getCanvas().style.cursor=''});
+    hazardMap.on('click','coachgo-database-hazards',event=>{
+      const feature=event.features?.[0];if(!feature)return;
+      new mapbox.Popup({offset:12}).setLngLat(feature.geometry.coordinates).setDOMContent(popupContent(feature.properties)).addTo(hazardMap);
+    });
+    hazardMapMessage.textContent='';
+    updateMapSource();
+  });
+  hazardMap.on('error',()=>{hazardMapMessage.textContent='地図タイルを読み込めませんでした。危険地帯は下の一覧でも確認できます。'});
+}
+
+function renderHazardMap(reports){
+  latestMapReports=reports;
+  const validReports=reports.filter(validCoordinate);
+  hazardMapCount.textContent=`${validReports.length}件`;
+  if(!hazardMap)initializeHazardMap();else updateMapSource();
+}
 
 async function updateReport(report,status,label){
   const note=window.prompt(`${label}の理由を入力してください（管理履歴に保存されます）`);
@@ -57,7 +129,7 @@ async function loadReports(){
   const query=filter.value?`?status=${encodeURIComponent(filter.value)}`:'';
   const response=await fetch(`${API}${query}`,{headers:headers(),cache:'no-store'});
   if(!response.ok){dashboard.hidden=true;showError(response.status===403?'管理トークンが正しくありません。':'投稿データを取得できませんでした。');return}
-  const data=await response.json();renderSummary(data.summary);renderRows(data.reports);dashboard.hidden=false;refreshed.textContent=`最終更新：${new Date().toLocaleString('ja-JP')}（最大500件）`;
+  const data=await response.json();renderSummary(data.summary);renderRows(data.reports);dashboard.hidden=false;renderHazardMap(data.reports);refreshed.textContent=`最終更新：${new Date().toLocaleString('ja-JP')}（最大500件）`;
 }
 
 loginForm.addEventListener('submit',event=>{event.preventDefault();void loadReports()});

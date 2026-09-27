@@ -19,7 +19,13 @@ test('CoachGo shared reports use the API proxy and have a protected management d
   assert.match(runtime, /deleteSharedUserReport\(apiUrl, currentReportOwnerId, id\)/);
   assert.match(adminHtml, /<meta name="robots" content="noindex,nofollow,noarchive">/);
   assert.match(adminHtml, /管理トークンはブラウザへ保存しません/);
+  assert.match(adminHtml, /データベース危険地帯マップ/);
+  assert.match(adminHtml, /\/coachgo-demo\/runtime-config\.js/);
+  assert.match(adminHtml, /\/coachgo-demo\/vendor\/mapbox-gl\.js/);
   assert.match(adminScript, /'x-admin-token':tokenInput\.value/);
+  assert.match(adminScript, /addSource\('coachgo-database-hazards'/);
+  assert.match(adminScript, /renderHazardMap\(data\.reports\)/);
+  assert.match(adminScript, /statusLabels\[properties\.status\]/);
   assert.match(adminScript, /updateReport\(report,'HIDDEN'/);
   assert.match(adminScript, /updateReport\(report,'DELETED'/);
   assert.match(migration, /owner_token_hash/);

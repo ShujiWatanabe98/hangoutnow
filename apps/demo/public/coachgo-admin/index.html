@@ -5,8 +5,11 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow,noarchive">
   <title>CoachGo 危険投稿管理</title>
-  <link rel="stylesheet" href="/coachgo-admin/styles.css?v=20260901-1">
-  <script src="/coachgo-admin/app.js?v=20260901-1" defer></script>
+  <link rel="stylesheet" href="/coachgo-demo/vendor/mapbox-gl.css">
+  <link rel="stylesheet" href="/coachgo-admin/styles.css?v=20260927-1">
+  <script src="/coachgo-demo/runtime-config.js" defer></script>
+  <script src="/coachgo-demo/vendor/mapbox-gl.js" defer></script>
+  <script src="/coachgo-admin/app.js?v=20260927-1" defer></script>
 </head>
 <body>
   <header class="site-header">
@@ -39,6 +42,23 @@
         <button id="refresh" type="button">更新</button>
       </div>
       <div id="summary" class="summary" aria-label="投稿件数"></div>
+      <section class="hazard-map-card" aria-labelledby="hazard-map-title">
+        <div class="hazard-map-heading">
+          <div>
+            <h2 id="hazard-map-title">データベース危険地帯マップ</h2>
+            <p>管理APIから取得した危険投稿を、現在の表示状態フィルターに合わせて地図へ表示します。</p>
+          </div>
+          <strong id="hazard-map-count">0件</strong>
+        </div>
+        <p id="hazard-map-message" class="map-message" role="status">地図を準備しています。</p>
+        <div id="hazard-map" aria-label="データベースに保存された危険地帯の地図"></div>
+        <div class="map-legend" aria-label="地図の凡例">
+          <span><i class="ACTIVE"></i>公開中</span>
+          <span><i class="HIDDEN"></i>非表示</span>
+          <span><i class="DELETED"></i>削除済み</span>
+          <span><i class="EXPIRED"></i>期限切れ</span>
+        </div>
+      </section>
       <div class="table-wrap">
         <table>
           <thead><tr><th>種別</th><th>状態</th><th>登録日時</th><th>有効期限</th><th>位置</th><th>管理履歴</th><th>操作</th></tr></thead>
