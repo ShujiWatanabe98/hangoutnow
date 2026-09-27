@@ -1,16 +1,16 @@
-import { buildHazardPointGuidance, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260928-1";
-import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260928-1";
-import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260928-1";
-import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260928-1";
-import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260928-1";
-import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260928-1";
-import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260928-1";
-import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260928-1";
-import { blendUserLocation, interpolateUserLocation, MAX_LOCATION_PREDICTION_MS, predictUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, stabilizedMapBearing, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260928-1";
-import { resolveVoiceInputRuntime, shouldRunPassiveVoiceCommandRecognition, } from "./voiceInputRuntime.js?v=20260928-1";
-import { aggregateNearbyUserReports, SAME_USER_REPORT_RADIUS_METERS, } from "./userReportAggregation.js?v=20260928-1";
-import { snapReportLocationToRoad } from "./roadSnapping.js?v=20260928-1";
-import { createSharedUserReport, deleteSharedUserReport, loadSharedUserReports, sharedUserReportHazard, } from "./sharedUserReports.js?v=20260928-1";
+import { buildHazardPointGuidance, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260928-2";
+import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260928-2";
+import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260928-2";
+import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260928-2";
+import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260928-2";
+import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260928-2";
+import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260928-2";
+import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260928-2";
+import { blendUserLocation, interpolateUserLocation, MAX_LOCATION_PREDICTION_MS, predictUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, stabilizedMapBearing, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260928-2";
+import { resolveVoiceInputRuntime, shouldRunPassiveVoiceCommandRecognition, } from "./voiceInputRuntime.js?v=20260928-2";
+import { aggregateNearbyUserReports, SAME_USER_REPORT_RADIUS_METERS, } from "./userReportAggregation.js?v=20260928-2";
+import { snapReportLocationToRoad } from "./roadSnapping.js?v=20260928-2";
+import { createSharedUserReport, deleteSharedUserReport, loadSharedUserReports, sharedUserReportHazard, } from "./sharedUserReports.js?v=20260928-2";
 function syntheticSharedMapPayload() {
     return {
         schemaVersion: 1,
@@ -129,6 +129,9 @@ const NATIONAL_HAZARD_SOURCE_ID = "coachgo-national-static-hazards";
 const NATIONAL_UNDERPASS_LAYER_ID = "coachgo-national-underpasses";
 const NATIONAL_LANDSLIDE_FILL_LAYER_ID = "coachgo-national-landslide-fill";
 const NATIONAL_TSUNAMI_FILL_LAYER_ID = "coachgo-national-tsunami-fill";
+const NATIONAL_POLICE_POINT_LAYER_ID = "coachgo-national-police-priority-points";
+const NATIONAL_POLICE_LINE_LAYER_ID = "coachgo-national-police-priority-lines";
+const NATIONAL_POLICE_FILL_LAYER_ID = "coachgo-national-police-priority-fill";
 const NATIONAL_HAZARD_OUTLINE_LAYER_ID = "coachgo-national-hazard-outline";
 const OFFICIAL_LANDSLIDE_RASTER_LAYERS = [
     ["coachgo-official-landslide-steep", "05_kyukeishakeikaikuiki"],
@@ -1654,7 +1657,9 @@ function nationalHazardPopup(properties, longitude, latitude) {
     source.textContent = `${properties.sourceName}（${properties.datasetVersion}）`;
     const warning = document.createElement("p");
     warning.className = "popup-message";
-    warning.textContent = "静的な想定区域・地点です。現在発生中の災害や通行可否を示しません。";
+    warning.textContent = properties.category === "POLICE_ENFORCEMENT"
+        ? "警察が公表する静的な重点路線・区域です。現在の取締り実施場所を示しません。交通ルールを守って走行してください。"
+        : "静的な想定区域・地点です。現在発生中の災害や通行可否を示しません。";
     const attribution = document.createElement("p");
     attribution.textContent = properties.attribution;
     content.append(badge, title, source, warning, attribution);
@@ -1756,17 +1761,55 @@ function renderNationalHazardLayers() {
                 "circle-stroke-width": 2,
             },
         });
+        map.addLayer({
+            id: NATIONAL_POLICE_FILL_LAYER_ID,
+            type: "fill",
+            source: NATIONAL_HAZARD_SOURCE_ID,
+            filter: ["all", ["==", ["get", "category"], "POLICE_ENFORCEMENT"], ["==", ["geometry-type"], "Polygon"]],
+            paint: { "fill-color": "#7540c8", "fill-opacity": 0.18 },
+        });
+        map.addLayer({
+            id: NATIONAL_POLICE_LINE_LAYER_ID,
+            type: "line",
+            source: NATIONAL_HAZARD_SOURCE_ID,
+            filter: [
+                "all",
+                ["==", ["get", "category"], "POLICE_ENFORCEMENT"],
+                ["in", ["geometry-type"], ["literal", ["LineString", "Polygon"]]],
+            ],
+            paint: {
+                "line-color": "#7540c8",
+                "line-width": ["interpolate", ["linear"], ["zoom"], 8, 2, 15, 6],
+                "line-opacity": 0.78,
+            },
+        });
+        map.addLayer({
+            id: NATIONAL_POLICE_POINT_LAYER_ID,
+            type: "circle",
+            source: NATIONAL_HAZARD_SOURCE_ID,
+            filter: ["all", ["==", ["get", "category"], "POLICE_ENFORCEMENT"], ["==", ["geometry-type"], "Point"]],
+            paint: {
+                "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 3, 15, 7],
+                "circle-color": "#7540c8",
+                "circle-stroke-color": "#ffffff",
+                "circle-stroke-width": 2,
+            },
+        });
         for (const layerId of [
             NATIONAL_UNDERPASS_LAYER_ID,
             NATIONAL_LANDSLIDE_FILL_LAYER_ID,
             NATIONAL_TSUNAMI_FILL_LAYER_ID,
+            NATIONAL_POLICE_FILL_LAYER_ID,
+            NATIONAL_POLICE_LINE_LAYER_ID,
+            NATIONAL_POLICE_POINT_LAYER_ID,
         ]) {
             map.on("click", layerId, (event) => {
                 const feature = event.features?.[0];
                 const properties = feature?.properties;
                 if (properties?.category !== "ROAD_FLOODING"
                     && properties?.category !== "LANDSLIDE"
-                    && properties?.category !== "TSUNAMI")
+                    && properties?.category !== "TSUNAMI"
+                    && properties?.category !== "POLICE_ENFORCEMENT")
                     return;
                 if (typeof properties.hazardType !== "string"
                     || typeof properties.label !== "string"
@@ -1785,10 +1828,14 @@ function renderNationalHazardLayers() {
     map.setLayoutProperty(NATIONAL_UNDERPASS_LAYER_ID, "visibility", nationalHazardLayerVisibility("ROAD_FLOODING"));
     map.setLayoutProperty(NATIONAL_LANDSLIDE_FILL_LAYER_ID, "visibility", nationalHazardLayerVisibility("LANDSLIDE"));
     map.setLayoutProperty(NATIONAL_TSUNAMI_FILL_LAYER_ID, "visibility", nationalHazardLayerVisibility("TSUNAMI"));
+    for (const layerId of [NATIONAL_POLICE_FILL_LAYER_ID, NATIONAL_POLICE_LINE_LAYER_ID, NATIONAL_POLICE_POINT_LAYER_ID]) {
+        map.setLayoutProperty(layerId, "visibility", nationalHazardLayerVisibility("POLICE_ENFORCEMENT"));
+    }
     map.setLayoutProperty(NATIONAL_HAZARD_OUTLINE_LAYER_ID, "visibility", selectedCategories.has("LANDSLIDE") || selectedCategories.has("TSUNAMI") ? "visible" : "none");
 }
 function selectedNationalHazardCategories() {
-    return ["ROAD_FLOODING", "LANDSLIDE", "TSUNAMI"].filter((category) => selectedCategories.has(category));
+    return ["ROAD_FLOODING", "LANDSLIDE", "TSUNAMI", "POLICE_ENFORCEMENT"]
+        .filter((category) => selectedCategories.has(category));
 }
 async function loadNationalHazardMapData() {
     if (map === null || !initialMapLoadCompleted)

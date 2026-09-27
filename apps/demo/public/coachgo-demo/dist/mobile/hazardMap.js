@@ -29,7 +29,7 @@ export const HAZARD_CATEGORIES = [
     },
     {
         id: "POLICE_ENFORCEMENT",
-        label: "警察取締",
+        label: "交通安全・取締重点",
         description: "警察が公開する重点地点等",
         icon: "🚨",
         selectedByDefault: true,
