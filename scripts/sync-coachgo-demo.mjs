@@ -55,19 +55,19 @@ const demoRuntime = await readFile(demoRuntimePath, 'utf8');
 await writeFile(
   demoRuntimePath,
   demoRuntime
-    .replace('./continuousDemoDrive.js', './continuousDemoDrive.js?v=20260925-1')
-    .replace('./divertNaviUnderpasses.js', './divertNaviUnderpasses.js?v=20260925-1')
-    .replace('./hazardMap.js', './hazardMap.js?v=20260925-1')
-    .replace('./kanagawaPolicePoints.js', './kanagawaPolicePoints.js?v=20260925-1')
-    .replace('./mapboxStyle.js', './mapboxStyle.js?v=20260925-1')
-    .replace('./naturalSpeech.js', './naturalSpeech.js?v=20260925-1')
-    .replace('./roadSnapping.js', './roadSnapping.js?v=20260925-1')
-    .replace('./sharedUserReports.js', './sharedUserReports.js?v=20260925-1')
-    .replace('./smoothUserLocation.js', './smoothUserLocation.js?v=20260925-1')
-    .replace('./userReportAggregation.js', './userReportAggregation.js?v=20260925-1')
-    .replace('./voiceApproach.js', './voiceApproach.js?v=20260925-1')
-    .replace('./voiceHazardReport.js', './voiceHazardReport.js?v=20260925-1')
-    .replace('./voiceInputRuntime.js', './voiceInputRuntime.js?v=20260925-1'),
+    .replace('./continuousDemoDrive.js', './continuousDemoDrive.js?v=20260928-1')
+    .replace('./divertNaviUnderpasses.js', './divertNaviUnderpasses.js?v=20260928-1')
+    .replace('./hazardMap.js', './hazardMap.js?v=20260928-1')
+    .replace('./kanagawaPolicePoints.js', './kanagawaPolicePoints.js?v=20260928-1')
+    .replace('./mapboxStyle.js', './mapboxStyle.js?v=20260928-1')
+    .replace('./naturalSpeech.js', './naturalSpeech.js?v=20260928-1')
+    .replace('./roadSnapping.js', './roadSnapping.js?v=20260928-1')
+    .replace('./sharedUserReports.js', './sharedUserReports.js?v=20260928-1')
+    .replace('./smoothUserLocation.js', './smoothUserLocation.js?v=20260928-1')
+    .replace('./userReportAggregation.js', './userReportAggregation.js?v=20260928-1')
+    .replace('./voiceApproach.js', './voiceApproach.js?v=20260928-1')
+    .replace('./voiceHazardReport.js', './voiceHazardReport.js?v=20260928-1')
+    .replace('./voiceInputRuntime.js', './voiceInputRuntime.js?v=20260928-1'),
   'utf8',
 );
 
@@ -75,7 +75,7 @@ const sharedUserReportsRuntimePath = resolve(destinationRoot, 'mobile/sharedUser
 const sharedUserReportsRuntime = await readFile(sharedUserReportsRuntimePath, 'utf8');
 await writeFile(
   sharedUserReportsRuntimePath,
-  sharedUserReportsRuntime.replace('./hazardMap.js', './hazardMap.js?v=20260925-1'),
+  sharedUserReportsRuntime.replace('./hazardMap.js', './hazardMap.js?v=20260928-1'),
   'utf8',
 );
 
@@ -84,10 +84,10 @@ const publicHtml = sourceHtml
   .replace('<meta name="theme-color" content="#f7f7f2">', '<meta name="theme-color" content="#f7f7f2">\n    <meta name="robots" content="noindex,nofollow,noarchive">\n    <link rel="canonical" href="https://method-more.com/coachgo-demo/">')
   .replace('href="/mobile-poc/manifest.webmanifest"', 'href="/coachgo-demo/manifest.webmanifest"')
   .replace('href="/vendor/mapbox-gl.css"', 'href="/coachgo-demo/vendor/mapbox-gl.css"')
-  .replace('href="/mobile-poc/styles.css"', 'href="/coachgo-demo/styles.css?v=20260925-1"')
+  .replace('href="/mobile-poc/styles.css"', 'href="/coachgo-demo/styles.css?v=20260928-1"')
   .replace('src="/runtime-config.js"', 'src="/coachgo-demo/runtime-config.js"')
   .replace('src="/vendor/mapbox-gl.js"', 'src="/coachgo-demo/vendor/mapbox-gl.js"')
-  .replace('src="/mobile-poc/bootstrap.js"', 'src="/coachgo-demo/bootstrap.js?v=20260925-2"');
+  .replace('src="/mobile-poc/bootstrap.js"', 'src="/coachgo-demo/bootstrap.js?v=20260928-1"');
 
 await mkdir(publicRoot, { recursive: true });
 await writeFile(resolve(publicRoot, 'index.html'), publicHtml, 'utf8');
@@ -200,7 +200,7 @@ await writeFile(resolve(repositoryRoot, 'apps/demo/public/coachgo-data-sources.h
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="CoachGoが表示・監視に使用する道路冠水想定箇所と交通安全重点地点の出典、加工内容、利用条件を掲載します。">
+  <meta name="description" content="CoachGoが表示する道路冠水想定箇所、土砂災害警戒区域、津波浸水想定、交通安全重点地点の出典と利用条件を掲載します。">
   <link rel="canonical" href="https://method-more.com/coachgo-data-sources.html">
   <title>データ出典 | CoachGo</title>
   <link rel="stylesheet" href="/legal.css?v=20260823-1">
@@ -209,10 +209,15 @@ await writeFile(resolve(repositoryRoot, 'apps/demo/public/coachgo-data-sources.h
   <header><div class="inner"><a class="brand" href="/coachgo-demo/">Coach<i>Go</i></a></div></header>
   <main>
     <h1>CoachGo データ出典</h1>
-    <p class="updated">最終確認日：2026年8月25日</p>
-    <p class="lead">CoachGoは、確認済みの利用条件に従い、公開された道路冠水想定箇所と交通安全重点地点を加工して表示・接近判定に使用します。</p>
-    <p class="warning">現在の冠水・取締り実施・通行可否を示すリアルタイム情報ではありません。現地標識、警察・道路管理者の通行規制、公的警報を優先してください。</p>
+    <p class="updated">最終確認日：2026年9月28日</p>
+    <p class="lead">CoachGoは、確認済みの利用条件に従い、公開された道路冠水想定箇所、土砂災害警戒区域、津波浸水想定、交通安全重点地点を地図に表示します。</p>
+    <p class="warning">静的な想定区域・地点であり、現在の災害・冠水・取締り実施・通行可否を示すリアルタイム情報ではありません。自治体の避難情報、公的警報、現地標識、警察・道路管理者の通行規制を優先してください。</p>
     <h2>利用中のデータ</h2>${attributionHtml}
+    <article>
+      <h3>国土交通省・国土地理院 ハザードマップポータルサイト</h3>
+      <p>「重ねるハザードマップ」の全国タイルを加工せず重ね、土砂災害警戒区域（急傾斜地の崩壊・土石流・地すべり）と津波浸水想定を表示します。</p>
+      <p><a href="https://disaportal.gsi.go.jp/hazardmap/copyright/opendata.html" rel="noreferrer">データ配信・提供（オープンデータ一覧）</a> · <a href="https://disaportal.gsi.go.jp/hazardmap/copyright/copyright.html" rel="noreferrer">利用規約・出典</a></p>
+    </article>
     <h2>除外したデータ</h2>
     <p>利用条件を一次資料で確定できていない${excludedUnderpasses.length}地点（${escapeHtml([...new Set(excludedUnderpasses.map((point) => point.sourceOrganization))].join('、'))}）は、App Store候補の監視データから除外しています。</p>
     <h2>地図・座標処理</h2>
@@ -226,7 +231,7 @@ await writeFile(resolve(repositoryRoot, 'apps/demo/public/coachgo-data-sources.h
 const sourceBootstrap = await readFile(resolve(coachGoRoot, 'mobile-poc/bootstrap.js'), 'utf8');
 await writeFile(
   resolve(publicRoot, 'bootstrap.js'),
-  sourceBootstrap.replace('/dist/mobile/demo.js', '/coachgo-demo/dist/mobile/demo.js?v=20260925-2'),
+  sourceBootstrap.replace('/dist/mobile/demo.js', '/coachgo-demo/dist/mobile/demo.js?v=20260928-1'),
   'utf8',
 );
 

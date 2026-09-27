@@ -1,16 +1,16 @@
-import { buildHazardPointGuidance, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260925-1";
-import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260925-1";
-import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260925-1";
-import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260925-1";
-import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260925-1";
-import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260925-1";
-import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260925-1";
-import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260925-1";
-import { blendUserLocation, interpolateUserLocation, MAX_LOCATION_PREDICTION_MS, predictUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, stabilizedMapBearing, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260925-1";
-import { resolveVoiceInputRuntime, shouldRunPassiveVoiceCommandRecognition, } from "./voiceInputRuntime.js?v=20260925-1";
-import { aggregateNearbyUserReports, SAME_USER_REPORT_RADIUS_METERS, } from "./userReportAggregation.js?v=20260925-1";
-import { snapReportLocationToRoad } from "./roadSnapping.js?v=20260925-1";
-import { createSharedUserReport, deleteSharedUserReport, loadSharedUserReports, sharedUserReportHazard, } from "./sharedUserReports.js?v=20260925-1";
+import { buildHazardPointGuidance, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260928-1";
+import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260928-1";
+import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260928-1";
+import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260928-1";
+import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260928-1";
+import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260928-1";
+import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260928-1";
+import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260928-1";
+import { blendUserLocation, interpolateUserLocation, MAX_LOCATION_PREDICTION_MS, predictUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, stabilizedMapBearing, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260928-1";
+import { resolveVoiceInputRuntime, shouldRunPassiveVoiceCommandRecognition, } from "./voiceInputRuntime.js?v=20260928-1";
+import { aggregateNearbyUserReports, SAME_USER_REPORT_RADIUS_METERS, } from "./userReportAggregation.js?v=20260928-1";
+import { snapReportLocationToRoad } from "./roadSnapping.js?v=20260928-1";
+import { createSharedUserReport, deleteSharedUserReport, loadSharedUserReports, sharedUserReportHazard, } from "./sharedUserReports.js?v=20260928-1";
 function syntheticSharedMapPayload() {
     return {
         schemaVersion: 1,
@@ -68,6 +68,7 @@ const openSettingsButton = requiredElement("#open-settings");
 const closePanelButton = requiredElement("#close-panel");
 const mapLoadState = requiredElement("#map-load-state");
 const sharedDataStatus = requiredElement("#shared-data-status");
+const nationalHazardStatus = requiredElement("#national-hazard-status");
 const selectedCount = requiredElement("#selected-count");
 const notificationPreview = requiredElement("#notification-preview");
 const notificationTitle = requiredElement("#notification-title");
@@ -124,6 +125,18 @@ const UNDERPASS_POINT_LAYER_ID = "coachgo-underpass-points";
 const ROAD_FLOODING_MARKER_IMAGE_ID = "coachgo-road-flooding-category-icon";
 const HAZARD_CLUSTER_MAX_ZOOM = 12;
 const HAZARD_CLUSTER_RADIUS = 48;
+const NATIONAL_HAZARD_SOURCE_ID = "coachgo-national-static-hazards";
+const NATIONAL_UNDERPASS_LAYER_ID = "coachgo-national-underpasses";
+const NATIONAL_LANDSLIDE_FILL_LAYER_ID = "coachgo-national-landslide-fill";
+const NATIONAL_TSUNAMI_FILL_LAYER_ID = "coachgo-national-tsunami-fill";
+const NATIONAL_HAZARD_OUTLINE_LAYER_ID = "coachgo-national-hazard-outline";
+const OFFICIAL_LANDSLIDE_RASTER_LAYERS = [
+    ["coachgo-official-landslide-steep", "05_kyukeishakeikaikuiki"],
+    ["coachgo-official-landslide-debris", "05_dosekiryukeikaikuiki"],
+    ["coachgo-official-landslide-slip", "05_jisuberikeikaikuiki"],
+];
+const OFFICIAL_TSUNAMI_RASTER_LAYER = ["coachgo-official-tsunami", "04_tsunami_newlegend_data"];
+const HAZARD_PORTAL_ATTRIBUTION = '<a href="https://disaportal.gsi.go.jp/" target="_blank" rel="noreferrer">ハザードマップポータルサイト</a>';
 const CLUSTERED_HAZARD_CATEGORIES = [
     ...HAZARD_CATEGORIES.filter((category) => category.id !== "RAIN_CLOUD").map((category) => category.id),
     ...USER_REPORT_CATEGORIES.map((category) => category.id),
@@ -153,6 +166,9 @@ let selectedHazard = null;
 let selectedSharedPoint = null;
 let activeMapPopup = null;
 let divertNaviMapData = null;
+let nationalHazardMapData = null;
+let nationalHazardLoadTimer = null;
+let nationalHazardAbortController = null;
 let sharedUserReports = [];
 const ownedSharedUserReportIds = new Set();
 let approachDetectionEnabled = true;
@@ -1617,6 +1633,235 @@ function renderClusteredHazardLayers() {
     for (const category of CLUSTERED_HAZARD_CATEGORIES)
         addClusteredHazardCategory(category);
 }
+function emptyNationalHazardFeatureCollection() {
+    return { type: "FeatureCollection", features: [] };
+}
+function nationalHazardLayerVisibility(category) {
+    return selectedCategories.has(category) ? "visible" : "none";
+}
+function nationalHazardPopup(properties, longitude, latitude) {
+    if (map === null || window.mapboxgl === undefined)
+        return;
+    removeActiveMapPopup();
+    const content = document.createElement("div");
+    content.className = "coachgo-hazard-popup";
+    const badge = document.createElement("small");
+    badge.className = properties.hazardType === "LANDSLIDE_SPECIAL_WARNING_AREA" ? "unverified" : "";
+    badge.textContent = properties.classification ?? categoryLabels[properties.category];
+    const title = document.createElement("strong");
+    title.textContent = properties.label;
+    const source = document.createElement("p");
+    source.textContent = `${properties.sourceName}（${properties.datasetVersion}）`;
+    const warning = document.createElement("p");
+    warning.className = "popup-message";
+    warning.textContent = "静的な想定区域・地点です。現在発生中の災害や通行可否を示しません。";
+    const attribution = document.createElement("p");
+    attribution.textContent = properties.attribution;
+    content.append(badge, title, source, warning, attribution);
+    activeMapPopup = new window.mapboxgl.Popup({ closeButton: true, offset: 8 })
+        .setLngLat([longitude, latitude])
+        .setDOMContent(content)
+        .addTo(map);
+}
+function ensureOfficialHazardRasterLayer(id, tileName, category) {
+    if (map === null)
+        return;
+    const sourceId = `${id}-source`;
+    if (map.getSource(sourceId) === undefined) {
+        map.addSource(sourceId, {
+            type: "raster",
+            tiles: [`https://disaportaldata.gsi.go.jp/raster/${tileName}/{z}/{x}/{y}.png`],
+            tileSize: 256,
+            minzoom: 2,
+            maxzoom: 17,
+            attribution: HAZARD_PORTAL_ATTRIBUTION,
+        });
+    }
+    if (map.getLayer(id) === undefined) {
+        map.addLayer({
+            id,
+            type: "raster",
+            source: sourceId,
+            paint: { "raster-opacity": category === "TSUNAMI" ? 0.58 : 0.62, "raster-fade-duration": 120 },
+        }, map.getLayer(UNDERPASS_CLUSTER_LAYER_ID) !== undefined ? UNDERPASS_CLUSTER_LAYER_ID : undefined);
+    }
+    map.setLayoutProperty(id, "visibility", selectedCategories.has(category) ? "visible" : "none");
+}
+function renderOfficialHazardRasterLayers() {
+    if (map === null || !initialMapLoadCompleted)
+        return;
+    for (const [id, tileName] of OFFICIAL_LANDSLIDE_RASTER_LAYERS) {
+        ensureOfficialHazardRasterLayer(id, tileName, "LANDSLIDE");
+    }
+    ensureOfficialHazardRasterLayer(OFFICIAL_TSUNAMI_RASTER_LAYER[0], OFFICIAL_TSUNAMI_RASTER_LAYER[1], "TSUNAMI");
+    const visible = selectedCategories.has("LANDSLIDE") || selectedCategories.has("TSUNAMI");
+    nationalHazardStatus.hidden = !visible;
+    if (visible) {
+        nationalHazardStatus.dataset.state = "ready";
+        nationalHazardStatus.dataset.dataScope = "official-tiles";
+        nationalHazardStatus.textContent = "国の全国ハザード区域を表示中（静的参考情報・リアルタイム警報ではありません）。";
+    }
+}
+function renderNationalHazardLayers() {
+    if (map === null || !initialMapLoadCompleted)
+        return;
+    if (!window.COACHGO_CONFIG?.hazardDataUrl) {
+        renderOfficialHazardRasterLayers();
+        return;
+    }
+    const data = nationalHazardMapData?.featureCollection ?? emptyNationalHazardFeatureCollection();
+    const existingSource = map.getSource(NATIONAL_HAZARD_SOURCE_ID);
+    if (existingSource !== undefined) {
+        existingSource.setData(data);
+    }
+    else {
+        map.addSource(NATIONAL_HAZARD_SOURCE_ID, { type: "geojson", data: data });
+        map.addLayer({
+            id: NATIONAL_TSUNAMI_FILL_LAYER_ID,
+            type: "fill",
+            source: NATIONAL_HAZARD_SOURCE_ID,
+            filter: ["==", ["get", "category"], "TSUNAMI"],
+            paint: { "fill-color": "#6b57d9", "fill-opacity": 0.28 },
+        });
+        map.addLayer({
+            id: NATIONAL_LANDSLIDE_FILL_LAYER_ID,
+            type: "fill",
+            source: NATIONAL_HAZARD_SOURCE_ID,
+            filter: ["==", ["get", "category"], "LANDSLIDE"],
+            paint: {
+                "fill-color": ["match", ["get", "hazardType"], "LANDSLIDE_SPECIAL_WARNING_AREA", "#d44735", "#d88a2b"],
+                "fill-opacity": 0.34,
+            },
+        });
+        map.addLayer({
+            id: NATIONAL_HAZARD_OUTLINE_LAYER_ID,
+            type: "line",
+            source: NATIONAL_HAZARD_SOURCE_ID,
+            filter: ["in", ["get", "category"], ["literal", ["LANDSLIDE", "TSUNAMI"]]],
+            paint: {
+                "line-color": ["match", ["get", "category"], "TSUNAMI", "#5a46c8", "#ad5b20"],
+                "line-width": ["interpolate", ["linear"], ["zoom"], 9, 0.6, 15, 1.7],
+                "line-opacity": 0.8,
+            },
+        });
+        map.addLayer({
+            id: NATIONAL_UNDERPASS_LAYER_ID,
+            type: "circle",
+            source: NATIONAL_HAZARD_SOURCE_ID,
+            filter: ["==", ["get", "category"], "ROAD_FLOODING"],
+            paint: {
+                "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 3, 15, 7],
+                "circle-color": "#008cff",
+                "circle-stroke-color": "#ffffff",
+                "circle-stroke-width": 2,
+            },
+        });
+        for (const layerId of [
+            NATIONAL_UNDERPASS_LAYER_ID,
+            NATIONAL_LANDSLIDE_FILL_LAYER_ID,
+            NATIONAL_TSUNAMI_FILL_LAYER_ID,
+        ]) {
+            map.on("click", layerId, (event) => {
+                const feature = event.features?.[0];
+                const properties = feature?.properties;
+                if (properties?.category !== "ROAD_FLOODING"
+                    && properties?.category !== "LANDSLIDE"
+                    && properties?.category !== "TSUNAMI")
+                    return;
+                if (typeof properties.hazardType !== "string"
+                    || typeof properties.label !== "string"
+                    || typeof properties.sourceName !== "string"
+                    || typeof properties.attribution !== "string"
+                    || typeof properties.datasetVersion !== "string")
+                    return;
+                nationalHazardPopup(properties, event.lngLat.lng, event.lngLat.lat);
+            });
+            map.on("mouseenter", layerId, () => { if (map !== null)
+                map.getCanvas().style.cursor = "pointer"; });
+            map.on("mouseleave", layerId, () => { if (map !== null)
+                map.getCanvas().style.cursor = ""; });
+        }
+    }
+    map.setLayoutProperty(NATIONAL_UNDERPASS_LAYER_ID, "visibility", nationalHazardLayerVisibility("ROAD_FLOODING"));
+    map.setLayoutProperty(NATIONAL_LANDSLIDE_FILL_LAYER_ID, "visibility", nationalHazardLayerVisibility("LANDSLIDE"));
+    map.setLayoutProperty(NATIONAL_TSUNAMI_FILL_LAYER_ID, "visibility", nationalHazardLayerVisibility("TSUNAMI"));
+    map.setLayoutProperty(NATIONAL_HAZARD_OUTLINE_LAYER_ID, "visibility", selectedCategories.has("LANDSLIDE") || selectedCategories.has("TSUNAMI") ? "visible" : "none");
+}
+function selectedNationalHazardCategories() {
+    return ["ROAD_FLOODING", "LANDSLIDE", "TSUNAMI"].filter((category) => selectedCategories.has(category));
+}
+async function loadNationalHazardMapData() {
+    if (map === null || !initialMapLoadCompleted)
+        return;
+    const url = window.COACHGO_CONFIG?.hazardDataUrl;
+    const categories = selectedNationalHazardCategories();
+    if (!url) {
+        renderOfficialHazardRasterLayers();
+        return;
+    }
+    if (categories.length === 0) {
+        nationalHazardMapData = null;
+        nationalHazardStatus.hidden = true;
+        renderNationalHazardLayers();
+        return;
+    }
+    const bounds = map.getBounds();
+    if (bounds === null)
+        return;
+    const west = Math.max(122, bounds.getWest());
+    const south = Math.max(20, bounds.getSouth());
+    const east = Math.min(154, bounds.getEast());
+    const north = Math.min(46, bounds.getNorth());
+    if (west >= east || south >= north || east - west > 8 || north - south > 8) {
+        nationalHazardStatus.hidden = false;
+        nationalHazardStatus.dataset.state = "loading";
+        nationalHazardStatus.textContent = "危険区域は日本国内へ拡大すると表示されます。";
+        return;
+    }
+    nationalHazardAbortController?.abort();
+    const controller = new AbortController();
+    nationalHazardAbortController = controller;
+    const requestUrl = new URL(url, window.location.href);
+    requestUrl.searchParams.set("bbox", [west, south, east, north].map((value) => value.toFixed(6)).join(","));
+    requestUrl.searchParams.set("zoom", map.getZoom().toFixed(2));
+    requestUrl.searchParams.set("categories", categories.join(","));
+    nationalHazardStatus.hidden = false;
+    nationalHazardStatus.dataset.state = "loading";
+    nationalHazardStatus.textContent = "公的な危険区域・地点を読み込み中…";
+    try {
+        const response = await fetch(requestUrl, { headers: { accept: "application/json" }, signal: controller.signal });
+        if (!response.ok)
+            throw new Error(`HTTP ${response.status}`);
+        const payload = await response.json();
+        if (payload.schemaVersion !== 1 || payload.featureCollection.type !== "FeatureCollection") {
+            throw new Error("unsupported response");
+        }
+        nationalHazardMapData = payload;
+        renderNationalHazardLayers();
+        const count = payload.featureCollection.features.length;
+        nationalHazardStatus.dataset.state = "ready";
+        nationalHazardStatus.dataset.featureCount = String(count);
+        nationalHazardStatus.dataset.dataScope = payload.dataScope.toLowerCase();
+        nationalHazardStatus.textContent = payload.polygonZoomRequired
+            ? `危険地点 ${count}件。土砂・津波区域はさらに拡大すると表示します（静的参考情報）。`
+            : `危険区域・地点 ${count}件を表示中（静的参考情報・リアルタイム警報ではありません）。${payload.truncated ? " さらに拡大してください。" : ""}`;
+    }
+    catch (error) {
+        if (controller.signal.aborted)
+            return;
+        nationalHazardStatus.dataset.state = "unavailable";
+        nationalHazardStatus.dataset.clientError = error instanceof Error ? error.message : "unknown data error";
+        nationalHazardStatus.textContent = "危険区域データを取得できません。地図上の既存地点のみ表示しています。";
+    }
+}
+function scheduleNationalHazardLoad(delay = 180) {
+    if (nationalHazardLoadTimer !== null)
+        window.clearTimeout(nationalHazardLoadTimer);
+    nationalHazardLoadTimer = window.setTimeout(() => {
+        nationalHazardLoadTimer = null;
+        void loadNationalHazardMapData();
+    }, delay);
+}
 function rainViewerFrame(value) {
     if (value === null || typeof value !== "object")
         throw new Error("RainViewer metadata is invalid");
@@ -1997,6 +2242,7 @@ function initializeMapbox() {
             addUserLocationMarker();
             updateDemoPlaybackAvailability();
             renderMap();
+            scheduleNationalHazardLoad(0);
             void initializeContinuousDemoDrive(token);
         });
         map.on("dragstart", stopMapCameraFollow);
@@ -2009,6 +2255,7 @@ function initializeMapbox() {
                 stopMapCameraFollow();
         });
         map.on("rotate", () => { updateUserLocationHeading(performance.now()); });
+        map.on("moveend", () => scheduleNationalHazardLoad());
     }
     catch {
         if (initialMapLoadTimeout !== null)
@@ -2026,6 +2273,7 @@ function renderMap() {
         button.setAttribute("aria-pressed", String(selectedCategories.has(category)));
     }
     renderClusteredHazardLayers();
+    renderNationalHazardLayers();
     renderUserReportMapMarkers();
     updateRainViewerLayer();
     if (selectedSharedPoint !== null && !selectedCategories.has(selectedSharedPoint.monitorCategory)) {
@@ -2168,6 +2416,7 @@ for (const button of document.querySelectorAll("[data-category]")) {
             selectedCategories.add(category);
         }
         renderMap();
+        scheduleNationalHazardLoad(0);
         activeNearbyPointIds.clear();
         lastVoiceProximityCheckAt = 0;
         if (hasLiveUserLocation && !demoDriveRunning) {
