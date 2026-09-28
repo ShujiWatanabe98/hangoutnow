@@ -18,6 +18,7 @@ const runtimeFiles = [
   'mobile/kyotoPolicePriorityPoints.js',
   'mobile/fukuokaPolicePriorityPoints.js',
   'mobile/niigataPolicePriorityPoints.js',
+  'mobile/osmSpeedCameraPoints.js',
   'mobile/saitamaPolicePriorityPoints.js',
   'mobile/tokyoPolicePriorityPoints.js',
   'mobile/mapboxStyle.js',
@@ -69,6 +70,7 @@ await writeFile(
     .replace('./kyotoPolicePriorityPoints.js', './kyotoPolicePriorityPoints.js?v=20260928-8')
     .replace('./fukuokaPolicePriorityPoints.js', './fukuokaPolicePriorityPoints.js?v=20260928-8')
     .replace('./niigataPolicePriorityPoints.js', './niigataPolicePriorityPoints.js?v=20260928-8')
+    .replace('./osmSpeedCameraPoints.js', './osmSpeedCameraPoints.js?v=20260928-9')
     .replace('./saitamaPolicePriorityPoints.js', './saitamaPolicePriorityPoints.js?v=20260928-8')
     .replace('./tokyoPolicePriorityPoints.js', './tokyoPolicePriorityPoints.js?v=20260928-8')
     .replace('./mapboxStyle.js', './mapboxStyle.js?v=20260928-8')
@@ -99,7 +101,7 @@ const publicHtml = sourceHtml
   .replace('href="/mobile-poc/styles.css"', 'href="/coachgo-demo/styles.css?v=20260928-8"')
   .replace('src="/runtime-config.js"', 'src="/coachgo-demo/runtime-config.js"')
   .replace('src="/vendor/mapbox-gl.js"', 'src="/coachgo-demo/vendor/mapbox-gl.js"')
-  .replace('src="/mobile-poc/bootstrap.js"', 'src="/coachgo-demo/bootstrap.js?v=20260928-8"');
+  .replace('src="/mobile-poc/bootstrap.js"', 'src="/coachgo-demo/bootstrap.js?v=20260928-9"');
 
 await mkdir(publicRoot, { recursive: true });
 await writeFile(resolve(publicRoot, 'index.html'), publicHtml, 'utf8');
@@ -109,7 +111,25 @@ const underpassFeed = JSON.parse(await readFile(
   resolve(repositoryRoot, 'apps/demo/public/divertnavi-app/data/underpasses.generated.json'),
   'utf8',
 ));
-const policeModule = await import(`${pathToFileURL(resolve(sourceRoot, 'mobile/kanagawaPolicePoints.js')).href}?sync=${Date.now()}`);
+const [
+  kanagawaPoliceModule,
+  tokyoPoliceModule,
+  saitamaPoliceModule,
+  chibaPoliceModule,
+  niigataPoliceModule,
+  kyotoPoliceModule,
+  fukuokaPoliceModule,
+  osmSpeedCameraModule,
+] = await Promise.all([
+  'kanagawaPolicePoints',
+  'tokyoPolicePriorityPoints',
+  'saitamaPolicePriorityPoints',
+  'chibaPolicePriorityPoints',
+  'niigataPolicePriorityPoints',
+  'kyotoPolicePriorityPoints',
+  'fukuokaPolicePriorityPoints',
+  'osmSpeedCameraPoints',
+].map((name) => import(`${pathToFileURL(resolve(sourceRoot, `mobile/${name}.js`)).href}?sync=${Date.now()}`)));
 const licensedUnderpassSources = new Map([
   ['国土交通省 北海道開発局', 'https://www.hkd.mlit.go.jp/ky/ki/kouhou/ud49g7000000omnw.html'],
   ['国土交通省 東北地方整備局', 'https://www.thr.mlit.go.jp/policy.pdf'],
@@ -134,12 +154,31 @@ const underpassAttribution = [...licensedUnderpassSources].map(([organization, t
   )].sort(),
   processingNotice: `${organization}が公開する道路冠水想定箇所KMLをmethodmoreが抽出・正規化して作成`,
 }));
-const policeAttribution = {
-  organization: '神奈川県警察',
-  termsUrl: 'https://www.police.pref.kanagawa.jp/guidance.html',
-  sourceUrls: [...policeModule.KANAGAWA_POLICE_SOURCE_URLS],
-  processingNotice: '神奈川県警察が公開する速度取締り指針をmethodmoreが抽出し、Mapbox Permanent Geocodingで代表点へ加工して作成',
+const officialPoliceSources = [
+  ['神奈川県警察', 'https://www.police.pref.kanagawa.jp/guidance.html', kanagawaPoliceModule.KANAGAWA_POLICE_SOURCE_URLS, kanagawaPoliceModule.KANAGAWA_POLICE_PRIORITY_POINTS],
+  ['警視庁', tokyoPoliceModule.TOKYO_POLICE_PRIORITY_INDEX_URL, tokyoPoliceModule.TOKYO_POLICE_PRIORITY_SOURCE_URLS, tokyoPoliceModule.TOKYO_POLICE_PRIORITY_POINTS],
+  ['埼玉県警察', saitamaPoliceModule.SAITAMA_POLICE_PRIORITY_INDEX_URL, saitamaPoliceModule.SAITAMA_POLICE_PRIORITY_SOURCE_URLS, saitamaPoliceModule.SAITAMA_POLICE_PRIORITY_POINTS],
+  ['千葉県警察', chibaPoliceModule.CHIBA_POLICE_PRIORITY_INDEX_URL, chibaPoliceModule.CHIBA_POLICE_PRIORITY_SOURCE_URLS, chibaPoliceModule.CHIBA_POLICE_PRIORITY_POINTS],
+  ['新潟県警察', niigataPoliceModule.NIIGATA_POLICE_PRIORITY_INDEX_URL, niigataPoliceModule.NIIGATA_POLICE_PRIORITY_SOURCE_URLS, niigataPoliceModule.NIIGATA_POLICE_PRIORITY_POINTS],
+  ['京都府警察', kyotoPoliceModule.KYOTO_POLICE_PRIORITY_INDEX_URL, kyotoPoliceModule.KYOTO_POLICE_PRIORITY_SOURCE_URLS, kyotoPoliceModule.KYOTO_POLICE_PRIORITY_POINTS],
+  ['福岡県警察', fukuokaPoliceModule.FUKUOKA_POLICE_PRIORITY_INDEX_URL, fukuokaPoliceModule.FUKUOKA_POLICE_PRIORITY_SOURCE_URLS, fukuokaPoliceModule.FUKUOKA_POLICE_PRIORITY_POINTS],
+];
+const policeAttribution = officialPoliceSources.map(([organization, termsUrl, sourceUrls]) => ({
+  organization,
+  termsUrl,
+  sourceUrls: [...sourceUrls],
+  processingNotice: `${organization}が公開する速度取締り指針をmethodmoreが抽出し、確認できた代表点へ加工して作成`,
+}));
+const osmAttribution = {
+  organization: '© OpenStreetMap contributors',
+  termsUrl: osmSpeedCameraModule.OSM_SPEED_CAMERA_COPYRIGHT_URL,
+  sourceUrls: [osmSpeedCameraModule.OSM_SPEED_CAMERA_TAG_URL],
+  processingNotice: 'OpenStreetMapのhighway=speed_camera登録地点を都道府県別に抽出して作成（ODbL 1.0）',
 };
+const policePoints = [
+  ...officialPoliceSources.flatMap(([, , , points]) => points),
+  ...osmSpeedCameraModule.OSM_SPEED_CAMERA_POINTS,
+];
 const excludedByOrganization = new Map();
 for (const point of excludedUnderpasses) {
   excludedByOrganization.set(
@@ -157,7 +196,7 @@ const monitorPoints = [
     kind: 'UNDERPASS',
     alertDistanceMeters: point.warningLeadDistanceMeters,
   })),
-  ...policeModule.KANAGAWA_POLICE_PRIORITY_POINTS.map((point) => ({
+  ...policePoints.map((point) => ({
     id: point.id,
     monitorCategory: point.monitorCategory,
     name: point.name,
@@ -180,10 +219,14 @@ await writeFile(resolve(publicRoot, 'underpasses.generated.json'), `${JSON.strin
   sources: licensedUnderpassFeedSources,
   items: licensedUnderpasses,
 })}\n`, 'utf8');
+await copyFile(
+  resolve(coachGoRoot, 'data/osm-speed-cameras/collected.generated.json'),
+  resolve(publicRoot, 'osm-speed-cameras.generated.json'),
+);
 await writeFile(resolve(publicRoot, 'monitor-points.generated.json'), `${JSON.stringify({
   schemaVersion: 1,
   generatedAt: underpassFeed.generatedAt,
-  attribution: [...underpassAttribution, policeAttribution],
+  attribution: [...underpassAttribution, ...policeAttribution, osmAttribution],
   excluded: [...excludedByOrganization]
     .map(([organization, count]) => ({ organization, count, reason: '商用利用・加工・再配布条件の一次資料確認が未完了' })),
   limitations: [
@@ -200,7 +243,7 @@ const escapeHtml = (value) => String(value)
   .replaceAll('>', '&gt;')
   .replaceAll('"', '&quot;')
   .replaceAll("'", '&#39;');
-const attributionHtml = [...underpassAttribution, policeAttribution].map((source) => `
+const attributionHtml = [...underpassAttribution, ...policeAttribution, osmAttribution].map((source) => `
       <article>
         <h3>${escapeHtml(source.organization)}</h3>
         <p>${escapeHtml(source.processingNotice)}</p>
@@ -226,6 +269,12 @@ await writeFile(resolve(repositoryRoot, 'apps/demo/public/coachgo-data-sources.h
     <p class="warning">静的な想定区域・地点であり、現在の災害・冠水・取締り実施・通行可否を示すリアルタイム情報ではありません。自治体の避難情報、公的警報、現地標識、警察・道路管理者の通行規制を優先してください。</p>
     <h2>利用中のデータ</h2>${attributionHtml}
     <article>
+      <h3>固定式速度カメラ抽出データ</h3>
+      <p>OpenStreetMapから抽出した166地点の再配布スナップショットです。27都道府県で登録を確認し、公式警察資料の代表点と合わせて31都道府県に実地点があります。</p>
+      <p><a href="/coachgo-demo/osm-speed-cameras.generated.json">ODbLデータをダウンロード</a></p>
+      <p>残る16県は確認済み地点がないため、県庁所在地などの代替点を表示していません。</p>
+    </article>
+    <article>
       <h3>国土交通省・国土地理院 ハザードマップポータルサイト</h3>
       <p>「重ねるハザードマップ」の全国タイルを加工せず重ね、土砂災害警戒区域（急傾斜地の崩壊・土石流・地すべり）と津波浸水想定を表示します。</p>
       <p><a href="https://disaportal.gsi.go.jp/hazardmap/copyright/opendata.html" rel="noreferrer">データ配信・提供（オープンデータ一覧）</a> · <a href="https://disaportal.gsi.go.jp/hazardmap/copyright/copyright.html" rel="noreferrer">利用規約・出典</a></p>
@@ -243,7 +292,7 @@ await writeFile(resolve(repositoryRoot, 'apps/demo/public/coachgo-data-sources.h
 const sourceBootstrap = await readFile(resolve(coachGoRoot, 'mobile-poc/bootstrap.js'), 'utf8');
 await writeFile(
   resolve(publicRoot, 'bootstrap.js'),
-  sourceBootstrap.replace('/dist/mobile/demo.js', '/coachgo-demo/dist/mobile/demo.js?v=20260928-8'),
+  sourceBootstrap.replace('/dist/mobile/demo.js', '/coachgo-demo/dist/mobile/demo.js?v=20260928-9'),
   'utf8',
 );
 

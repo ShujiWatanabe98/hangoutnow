@@ -6,6 +6,7 @@ import { CHIBA_POLICE_PRIORITY_POINTS } from "./chibaPolicePriorityPoints.js?v=2
 import { KYOTO_POLICE_PRIORITY_POINTS } from "./kyotoPolicePriorityPoints.js?v=20260928-8";
 import { FUKUOKA_POLICE_PRIORITY_POINTS } from "./fukuokaPolicePriorityPoints.js?v=20260928-8";
 import { NIIGATA_POLICE_PRIORITY_POINTS } from "./niigataPolicePriorityPoints.js?v=20260928-8";
+import { OSM_SPEED_CAMERA_POINTS } from "./osmSpeedCameraPoints.js?v=20260928-9";
 import { SAITAMA_POLICE_PRIORITY_POINTS } from "./saitamaPolicePriorityPoints.js?v=20260928-8";
 import { TOKYO_POLICE_PRIORITY_POINTS } from "./tokyoPolicePriorityPoints.js?v=20260928-8";
 import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260928-8";
@@ -17,6 +18,8 @@ import { resolveVoiceInputRuntime, shouldRunPassiveVoiceCommandRecognition, } fr
 import { aggregateNearbyUserReports, SAME_USER_REPORT_RADIUS_METERS, } from "./userReportAggregation.js?v=20260928-8";
 import { snapReportLocationToRoad } from "./roadSnapping.js?v=20260928-8";
 import { createSharedUserReport, deleteSharedUserReport, loadSharedUserReports, sharedUserReportHazard, } from "./sharedUserReports.js?v=20260928-8";
+const POLICE_DATA_REQUESTED_PREFECTURES = 47;
+const POLICE_DATA_PREFECTURES_WITH_POINTS = 31;
 function syntheticSharedMapPayload() {
     return {
         schemaVersion: 1,
@@ -2191,6 +2194,7 @@ function withOfficialPolicePriorities(payload) {
         ...KYOTO_POLICE_PRIORITY_POINTS,
         ...FUKUOKA_POLICE_PRIORITY_POINTS,
         ...NIIGATA_POLICE_PRIORITY_POINTS,
+        ...OSM_SPEED_CAMERA_POINTS,
     ];
     return {
         ...payload,
@@ -2200,11 +2204,11 @@ function withOfficialPolicePriorities(payload) {
         },
         attribution: {
             ...payload.attribution,
-            police: "警視庁・神奈川県警察・埼玉県警察・千葉県警察・新潟県警察・京都府警察・福岡県警察の速度取締り指針を加工して概略表示",
+            police: "都道府県警察の公開する速度取締り指針を加工した代表点、および © OpenStreetMap contributors（ODbL）の固定式速度カメラ登録地点を概略表示",
         },
         limitations: [
             ...payload.limitations.filter((item) => !item.includes("警察地点")),
-            "警察地点は公開された速度取締り重点区間の代表点であり、現在取締り実施中を示しません。",
+            "警察地点は公開された速度取締り重点区間の代表点または固定式設備の参考位置であり、現在取締り実施中や移動式取締りの場所を示しません。",
         ],
         items: [...nonPolice, ...officialPolicePriorities],
     };
@@ -2235,11 +2239,13 @@ async function loadDivertNaviMapData() {
         if (!isDivertNaviMapPayload(value))
             throw new Error("unsupported response");
         divertNaviMapData = value;
-        sharedDataStatus.textContent = "";
-        sharedDataStatus.hidden = true;
+        sharedDataStatus.textContent = `交通安全データ: 全国${POLICE_DATA_REQUESTED_PREFECTURES}都道府県を照合 / ${value.counts.policePriorityLocations}地点 / 実地点${POLICE_DATA_PREFECTURES_WITH_POINTS}都道府県（未確認16県）`;
+        sharedDataStatus.hidden = false;
         sharedDataStatus.dataset.state = "ready";
         sharedDataStatus.dataset.underpassCount = String(value.counts.underpasses);
         sharedDataStatus.dataset.policeCount = String(value.counts.policePriorityLocations);
+        sharedDataStatus.dataset.policeRequestedPrefectures = String(POLICE_DATA_REQUESTED_PREFECTURES);
+        sharedDataStatus.dataset.policePrefecturesWithPoints = String(POLICE_DATA_PREFECTURES_WITH_POINTS);
         updateDemoPlaybackAvailability();
         renderMap();
         if (hasLiveUserLocation && !demoDriveRunning) {

@@ -1,0 +1,2345 @@
+{
+  "schemaVersion": 1,
+  "contract": "jp.method-more.osm-fixed-speed-camera-review/v1",
+  "geocodingPolicyVersion": 1,
+  "generatedAt": "2026-09-28T03:27:48.123Z",
+  "sourceUrl": "https://wiki.openstreetmap.org/wiki/Tag:highway%3Dspeed_camera",
+  "termsUrl": "https://www.openstreetmap.org/copyright",
+  "attribution": "© OpenStreetMap contributors",
+  "license": "ODbL 1.0",
+  "dataType": "FIXED_SPEED_CAMERA_NOT_CURRENT_ENFORCEMENT",
+  "prefectureQueryCount": 47,
+  "osmNodeCount": 166,
+  "geocodedRecordCount": 166,
+  "coveredPrefectureCount": 27,
+  "missingPrefectures": [
+    "青森県",
+    "岩手県",
+    "山形県",
+    "群馬県",
+    "千葉県",
+    "新潟県",
+    "富山県",
+    "石川県",
+    "三重県",
+    "京都府",
+    "和歌山県",
+    "鳥取県",
+    "島根県",
+    "山口県",
+    "高知県",
+    "福岡県",
+    "佐賀県",
+    "長崎県",
+    "熊本県",
+    "鹿児島県"
+  ],
+  "prefectureCounts": {
+    "北海道": 3,
+    "青森県": 0,
+    "岩手県": 0,
+    "宮城県": 3,
+    "秋田県": 2,
+    "山形県": 0,
+    "福島県": 2,
+    "茨城県": 6,
+    "栃木県": 6,
+    "群馬県": 0,
+    "埼玉県": 5,
+    "千葉県": 0,
+    "東京都": 34,
+    "神奈川県": 11,
+    "新潟県": 0,
+    "富山県": 0,
+    "石川県": 0,
+    "福井県": 1,
+    "山梨県": 3,
+    "長野県": 1,
+    "岐阜県": 5,
+    "静岡県": 6,
+    "愛知県": 6,
+    "三重県": 0,
+    "滋賀県": 3,
+    "京都府": 0,
+    "大阪府": 27,
+    "兵庫県": 16,
+    "奈良県": 4,
+    "和歌山県": 0,
+    "鳥取県": 0,
+    "島根県": 0,
+    "岡山県": 1,
+    "広島県": 1,
+    "山口県": 0,
+    "徳島県": 2,
+    "香川県": 6,
+    "愛媛県": 3,
+    "高知県": 0,
+    "福岡県": 0,
+    "佐賀県": 0,
+    "長崎県": 0,
+    "熊本県": 0,
+    "大分県": 1,
+    "宮崎県": 1,
+    "鹿児島県": 0,
+    "沖縄県": 7
+  },
+  "limitations": [
+    "固定式速度カメラとしてOpenStreetMapへ登録された地点であり、現在の取締り実施場所や可搬式・移動式取締りを示しません。",
+    "OpenStreetMapは利用者が編集するデータで、完全性・正確性・最新性は保証されません。",
+    "都道府県はOpenStreetMapのISO 3166-2行政区域で判定します。"
+  ],
+  "items": [
+    {
+      "type": "node",
+      "id": 3704154636,
+      "lat": 42.6594176,
+      "lon": 141.8188445,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "01",
+      "prefectureName": "北海道",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 4595606995,
+      "lat": 43.1173602,
+      "lon": 143.2344542,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "01",
+      "prefectureName": "北海道",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 10769048654,
+      "lat": 43.1302672,
+      "lon": 141.6487828,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "01",
+      "prefectureName": "北海道",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1912358490,
+      "lat": 38.0099207,
+      "lon": 140.8623279,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "04",
+      "prefectureName": "宮城県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 3016007638,
+      "lat": 38.41908,
+      "lon": 140.889088,
+      "tags": {
+        "description": "東京方向のみ。LHシステム",
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "04",
+      "prefectureName": "宮城県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 10813155657,
+      "lat": 38.1744893,
+      "lon": 140.7701904,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "04",
+      "prefectureName": "宮城県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1339346830,
+      "lat": 39.573384,
+      "lon": 140.0598577,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "05",
+      "prefectureName": "秋田県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1386204335,
+      "lat": 39.6635016,
+      "lon": 140.0701131,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "05",
+      "prefectureName": "秋田県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 3462896193,
+      "lat": 36.9396892,
+      "lon": 140.7716338,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "07",
+      "prefectureName": "福島県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 4984223153,
+      "lat": 37.5455327,
+      "lon": 140.0956928,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "07",
+      "prefectureName": "福島県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 775504931,
+      "lat": 36.1893612,
+      "lon": 140.2564491,
+      "tags": {
+        "direction": "forward",
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "08",
+      "prefectureName": "茨城県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 775528161,
+      "lat": 36.4576502,
+      "lon": 140.5350084,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "08",
+      "prefectureName": "茨城県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 3494209593,
+      "lat": 36.133975,
+      "lon": 140.1978964,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "08",
+      "prefectureName": "茨城県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 4747941246,
+      "lat": 35.951558,
+      "lon": 139.9738671,
+      "tags": {
+        "highway": "speed_camera",
+        "man_made": "surveillance",
+        "surveillance:type": "camera"
+      },
+      "prefectureCode": "08",
+      "prefectureName": "茨城県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 4747941247,
+      "lat": 35.9515299,
+      "lon": 139.9739884,
+      "tags": {
+        "highway": "speed_camera",
+        "name": "スピード違反監視装置（ＬＨシステム）"
+      },
+      "prefectureCode": "08",
+      "prefectureName": "茨城県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 4831973192,
+      "lat": 36.0500065,
+      "lon": 140.1017525,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "08",
+      "prefectureName": "茨城県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 5302767473,
+      "lat": 36.2787207,
+      "lon": 139.6100981,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "09",
+      "prefectureName": "栃木県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 5302767474,
+      "lat": 36.278456,
+      "lon": 139.6099545,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "09",
+      "prefectureName": "栃木県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 11124076047,
+      "lat": 36.9499233,
+      "lon": 140.0523154,
+      "tags": {
+        "highway": "speed_camera",
+        "maxspeed": "60"
+      },
+      "prefectureCode": "09",
+      "prefectureName": "栃木県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 11124076048,
+      "lat": 36.9499889,
+      "lon": 140.0522334,
+      "tags": {
+        "highway": "speed_camera",
+        "maxspeed": "60"
+      },
+      "prefectureCode": "09",
+      "prefectureName": "栃木県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 11124076049,
+      "lat": 36.5176269,
+      "lon": 139.918573,
+      "tags": {
+        "highway": "speed_camera",
+        "maxspeed": "60"
+      },
+      "prefectureCode": "09",
+      "prefectureName": "栃木県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 11124076050,
+      "lat": 36.5176592,
+      "lon": 139.9184259,
+      "tags": {
+        "highway": "speed_camera",
+        "maxspeed": "60"
+      },
+      "prefectureCode": "09",
+      "prefectureName": "栃木県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 2376693989,
+      "lat": 36.1458942,
+      "lon": 139.2225127,
+      "tags": {
+        "direction": "157",
+        "highway": "speed_camera",
+        "maxspeed": "100"
+      },
+      "prefectureCode": "11",
+      "prefectureName": "埼玉県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 6683397500,
+      "lat": 35.8492174,
+      "lon": 139.7940871,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "11",
+      "prefectureName": "埼玉県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 6683402924,
+      "lat": 35.8494402,
+      "lon": 139.7941462,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "11",
+      "prefectureName": "埼玉県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 7250277189,
+      "lat": 36.0256645,
+      "lon": 139.6725087,
+      "tags": {
+        "direction": "forward",
+        "highway": "speed_camera",
+        "maxspeed": "120"
+      },
+      "prefectureCode": "11",
+      "prefectureName": "埼玉県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 7250277190,
+      "lat": 36.0256066,
+      "lon": 139.6723519,
+      "tags": {
+        "direction": "forward",
+        "highway": "speed_camera",
+        "maxspeed": "120"
+      },
+      "prefectureCode": "11",
+      "prefectureName": "埼玉県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 31295427,
+      "lat": 35.6532708,
+      "lon": 139.7531188,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 267810141,
+      "lat": 35.680948,
+      "lon": 139.6979866,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 577524525,
+      "lat": 35.6784439,
+      "lon": 139.734905,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 696805836,
+      "lat": 35.6575012,
+      "lon": 139.3568194,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1059024895,
+      "lat": 35.7391231,
+      "lon": 139.2818686,
+      "tags": {
+        "highway": "speed_camera",
+        "official_name:en": "National Highway Route 468"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1059071384,
+      "lat": 35.6909788,
+      "lon": 139.7549636,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 2403824496,
+      "lat": 35.5660374,
+      "lon": 139.7363353,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 2468428725,
+      "lat": 35.739343,
+      "lon": 139.281785,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 2468464665,
+      "lat": 35.7840312,
+      "lon": 139.3142509,
+      "tags": {
+        "direction": "-73",
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 2476177846,
+      "lat": 35.73926,
+      "lon": 139.281782,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 3438615394,
+      "lat": 35.5462047,
+      "lon": 139.7889573,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 4196797452,
+      "lat": 35.6236141,
+      "lon": 139.6615711,
+      "tags": {
+        "highway": "speed_camera",
+        "source": "survey"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 4196797453,
+      "lat": 35.6236803,
+      "lon": 139.6615415,
+      "tags": {
+        "highway": "speed_camera",
+        "source": "survey"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 4204247709,
+      "lat": 35.5821236,
+      "lon": 139.7023987,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 5613509114,
+      "lat": 35.5484197,
+      "lon": 139.7440061,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 5658394129,
+      "lat": 35.5793021,
+      "lon": 139.7461046,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 5660574306,
+      "lat": 35.6939879,
+      "lon": 139.8313966,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 6918128201,
+      "lat": 35.6400643,
+      "lon": 139.6681866,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 8041133763,
+      "lat": 35.5912943,
+      "lon": 139.7361967,
+      "tags": {
+        "direction": "5",
+        "highway": "speed_camera",
+        "mapillary": "221501742691766"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 8442120924,
+      "lat": 35.7863926,
+      "lon": 139.2712522,
+      "tags": {
+        "direction": "-90",
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 8442120925,
+      "lat": 35.7863298,
+      "lon": 139.2712497,
+      "tags": {
+        "direction": "90",
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 9433026706,
+      "lat": 35.7496886,
+      "lon": 139.3943471,
+      "tags": {
+        "direction": "100",
+        "highway": "speed_camera",
+        "maxspeed": "50"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 10132262085,
+      "lat": 35.5833878,
+      "lon": 139.6812937,
+      "tags": {
+        "highway": "speed_camera",
+        "maxspeed": "60"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 10132262105,
+      "lat": 35.6170111,
+      "lon": 139.6359477,
+      "tags": {
+        "highway": "speed_camera",
+        "maxspeed": "60"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 11124076051,
+      "lat": 35.5067409,
+      "lon": 139.4731724,
+      "tags": {
+        "highway": "speed_camera",
+        "maxspeed": "60"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 11135957560,
+      "lat": 35.7037604,
+      "lon": 139.6547637,
+      "tags": {
+        "highway": "speed_camera",
+        "maxspeed": "50"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 11135957561,
+      "lat": 35.7493472,
+      "lon": 139.6800177,
+      "tags": {
+        "highway": "speed_camera",
+        "maxspeed": "50"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 11135957562,
+      "lat": 35.7651888,
+      "lon": 139.719254,
+      "tags": {
+        "highway": "speed_camera",
+        "maxspeed": "50"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 11135957563,
+      "lat": 35.7784233,
+      "lon": 139.7574545,
+      "tags": {
+        "highway": "speed_camera",
+        "maxspeed": "50"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 12654206580,
+      "lat": 35.5840336,
+      "lon": 139.7202163,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 12654206581,
+      "lat": 35.601096,
+      "lon": 139.8105941,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 12654206582,
+      "lat": 35.60103,
+      "lon": 139.8107622,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 13277735834,
+      "lat": 35.666145,
+      "lon": 139.7667065,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 13277772585,
+      "lat": 35.6734076,
+      "lon": 139.7727267,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "13",
+      "prefectureName": "東京都",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 603144363,
+      "lat": 35.61277,
+      "lon": 139.5958238,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "14",
+      "prefectureName": "神奈川県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 925552169,
+      "lat": 35.5127149,
+      "lon": 139.7170688,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "14",
+      "prefectureName": "神奈川県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1059024880,
+      "lat": 35.3872014,
+      "lon": 139.2773596,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "14",
+      "prefectureName": "神奈川県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1059024900,
+      "lat": 35.3718189,
+      "lon": 139.2635167,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "14",
+      "prefectureName": "神奈川県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1059024901,
+      "lat": 35.2979772,
+      "lon": 139.616887,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "14",
+      "prefectureName": "神奈川県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 2419626734,
+      "lat": 35.3720308,
+      "lon": 139.2638532,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "14",
+      "prefectureName": "神奈川県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 2419628569,
+      "lat": 35.387283,
+      "lon": 139.277335,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "14",
+      "prefectureName": "神奈川県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 5607484647,
+      "lat": 35.4341436,
+      "lon": 139.6280421,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "14",
+      "prefectureName": "神奈川県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 5613509088,
+      "lat": 35.5129145,
+      "lon": 139.7173789,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "14",
+      "prefectureName": "神奈川県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 6743732060,
+      "lat": 35.4356712,
+      "lon": 139.6319345,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "14",
+      "prefectureName": "神奈川県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 8810960183,
+      "lat": 35.4689593,
+      "lon": 139.5683446,
+      "tags": {
+        "highway": "speed_camera",
+        "maxspeed": "60"
+      },
+      "prefectureCode": "14",
+      "prefectureName": "神奈川県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 12438030844,
+      "lat": 36.1734447,
+      "lon": 136.2208195,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "18",
+      "prefectureName": "福井県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 2290187025,
+      "lat": 35.5868105,
+      "lon": 138.7429474,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "19",
+      "prefectureName": "山梨県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 14184115017,
+      "lat": 35.6318761,
+      "lon": 138.5413019,
+      "tags": {
+        "direction": "140",
+        "highway": "speed_camera",
+        "maxspeed": "80",
+        "name": "固定式オービス"
+      },
+      "prefectureCode": "19",
+      "prefectureName": "山梨県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 14184133221,
+      "lat": 35.6179054,
+      "lon": 138.628692,
+      "tags": {
+        "direction": "230",
+        "highway": "speed_camera",
+        "maxspeed": "80",
+        "name": "半固定式オービス"
+      },
+      "prefectureCode": "19",
+      "prefectureName": "山梨県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 6601519212,
+      "lat": 35.6645708,
+      "lon": 137.9035146,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "20",
+      "prefectureName": "長野県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 2420390627,
+      "lat": 35.3998116,
+      "lon": 136.7848419,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "21",
+      "prefectureName": "岐阜県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 14023183424,
+      "lat": 35.4001123,
+      "lon": 137.0016029,
+      "tags": {
+        "direction": "forward",
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "21",
+      "prefectureName": "岐阜県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 14094060066,
+      "lat": 35.4142128,
+      "lon": 137.0087964,
+      "tags": {
+        "highway": "speed_camera",
+        "maxspeed": "60"
+      },
+      "prefectureCode": "21",
+      "prefectureName": "岐阜県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 14094060067,
+      "lat": 35.4142672,
+      "lon": 137.008881,
+      "tags": {
+        "highway": "speed_camera",
+        "maxspeed": "60"
+      },
+      "prefectureCode": "21",
+      "prefectureName": "岐阜県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 14143665170,
+      "lat": 35.5715484,
+      "lon": 137.017468,
+      "tags": {
+        "direction": "both",
+        "highway": "speed_camera",
+        "maxspeed": "50"
+      },
+      "prefectureCode": "21",
+      "prefectureName": "岐阜県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1802514224,
+      "lat": 34.9426584,
+      "lon": 138.3263787,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "22",
+      "prefectureName": "静岡県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 2419530684,
+      "lat": 34.764845,
+      "lon": 137.945339,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "22",
+      "prefectureName": "静岡県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 2419582341,
+      "lat": 35.1520344,
+      "lon": 138.7809117,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "22",
+      "prefectureName": "静岡県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 2604063059,
+      "lat": 35.1521965,
+      "lon": 138.7806886,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "22",
+      "prefectureName": "静岡県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 5629840775,
+      "lat": 34.798869,
+      "lon": 138.1700236,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "22",
+      "prefectureName": "静岡県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 5629840776,
+      "lat": 34.7987999,
+      "lon": 138.1699812,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "22",
+      "prefectureName": "静岡県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 2417268474,
+      "lat": 35.0219774,
+      "lon": 136.9311909,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "23",
+      "prefectureName": "愛知県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 14023183423,
+      "lat": 35.3710279,
+      "lon": 136.9602762,
+      "tags": {
+        "direction": "forward",
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "23",
+      "prefectureName": "愛知県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 14023183425,
+      "lat": 35.3051623,
+      "lon": 137.0243672,
+      "tags": {
+        "direction": "forward",
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "23",
+      "prefectureName": "愛知県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 14023183426,
+      "lat": 35.0868844,
+      "lon": 137.09485,
+      "tags": {
+        "direction": "forward",
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "23",
+      "prefectureName": "愛知県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 14143704758,
+      "lat": 35.0886096,
+      "lon": 136.8321711,
+      "tags": {
+        "direction": "forward",
+        "highway": "speed_camera",
+        "maxspeed": "50"
+      },
+      "prefectureCode": "23",
+      "prefectureName": "愛知県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 14143704760,
+      "lat": 35.0885464,
+      "lon": 136.8322743,
+      "tags": {
+        "direction": "forward",
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "23",
+      "prefectureName": "愛知県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1834730147,
+      "lat": 35.0535142,
+      "lon": 136.1073861,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "25",
+      "prefectureName": "滋賀県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1998682620,
+      "lat": 35.1149987,
+      "lon": 136.2574008,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "25",
+      "prefectureName": "滋賀県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1998684029,
+      "lat": 35.1240366,
+      "lon": 136.2696421,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "25",
+      "prefectureName": "滋賀県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 241792914,
+      "lat": 34.6948527,
+      "lon": 135.5032666,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "27",
+      "prefectureName": "大阪府",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 241792980,
+      "lat": 34.6773742,
+      "lon": 135.510872,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "27",
+      "prefectureName": "大阪府",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 322035151,
+      "lat": 34.8341842,
+      "lon": 135.6920659,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "27",
+      "prefectureName": "大阪府",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 332537924,
+      "lat": 34.8063109,
+      "lon": 135.5183139,
+      "tags": {
+        "highway": "speed_camera",
+        "maxspeed": "60",
+        "type": "enforcement"
+      },
+      "prefectureCode": "27",
+      "prefectureName": "大阪府",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 367429988,
+      "lat": 34.7308325,
+      "lon": 135.5479393,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "27",
+      "prefectureName": "大阪府",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 519663394,
+      "lat": 34.6328145,
+      "lon": 135.5210459,
+      "tags": {
+        "highway": "speed_camera",
+        "maxspeed": "60"
+      },
+      "prefectureCode": "27",
+      "prefectureName": "大阪府",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 527123093,
+      "lat": 34.5860066,
+      "lon": 135.4843677,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "27",
+      "prefectureName": "大阪府",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1830690328,
+      "lat": 34.6284915,
+      "lon": 135.5253129,
+      "tags": {
+        "highway": "speed_camera",
+        "maxspeed": "60"
+      },
+      "prefectureCode": "27",
+      "prefectureName": "大阪府",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1998387813,
+      "lat": 34.7471554,
+      "lon": 135.5795849,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "27",
+      "prefectureName": "大阪府",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1998392096,
+      "lat": 34.4534483,
+      "lon": 135.4453727,
+      "tags": {
+        "highway": "speed_camera",
+        "maxspeed": "80"
+      },
+      "prefectureCode": "27",
+      "prefectureName": "大阪府",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1998449006,
+      "lat": 34.807212,
+      "lon": 135.4969387,
+      "tags": {
+        "highway": "speed_camera",
+        "maxspeed": "60",
+        "type": "enforcement"
+      },
+      "prefectureCode": "27",
+      "prefectureName": "大阪府",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1998476279,
+      "lat": 34.6079632,
+      "lon": 135.6236564,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "27",
+      "prefectureName": "大阪府",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1998480461,
+      "lat": 34.5657595,
+      "lon": 135.5046058,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "27",
+      "prefectureName": "大阪府",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1998483117,
+      "lat": 34.5358711,
+      "lon": 135.4528281,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "27",
+      "prefectureName": "大阪府",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1998495142,
+      "lat": 34.659424,
+      "lon": 135.509244,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "27",
+      "prefectureName": "大阪府",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1998496653,
+      "lat": 34.6585843,
+      "lon": 135.5003474,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "27",
+      "prefectureName": "大阪府",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1998515041,
+      "lat": 34.7413084,
+      "lon": 135.5605055,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "27",
+      "prefectureName": "大阪府",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1998519874,
+      "lat": 34.6985267,
+      "lon": 135.5093369,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "27",
+      "prefectureName": "大阪府",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1998530522,
+      "lat": 34.6783569,
+      "lon": 135.5685048,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "27",
+      "prefectureName": "大阪府",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1998540836,
+      "lat": 34.6762225,
+      "lon": 135.4749509,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "27",
+      "prefectureName": "大阪府",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1998547851,
+      "lat": 34.6685222,
+      "lon": 135.461951,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "27",
+      "prefectureName": "大阪府",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 3777298083,
+      "lat": 34.6321369,
+      "lon": 135.5218361,
+      "tags": {
+        "highway": "speed_camera",
+        "maxspeed": "60"
+      },
+      "prefectureCode": "27",
+      "prefectureName": "大阪府",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 3999991404,
+      "lat": 34.6278059,
+      "lon": 135.5258555,
+      "tags": {
+        "highway": "speed_camera",
+        "maxspeed": "60"
+      },
+      "prefectureCode": "27",
+      "prefectureName": "大阪府",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 5592599418,
+      "lat": 34.7819822,
+      "lon": 135.4972308,
+      "tags": {
+        "highway": "speed_camera",
+        "maxspeed": "60",
+        "type": "enforcement"
+      },
+      "prefectureCode": "27",
+      "prefectureName": "大阪府",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 5592599419,
+      "lat": 34.7980411,
+      "lon": 135.4951977,
+      "tags": {
+        "highway": "speed_camera",
+        "maxspeed": "60",
+        "type": "enforcement"
+      },
+      "prefectureCode": "27",
+      "prefectureName": "大阪府",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 5599344716,
+      "lat": 34.7818124,
+      "lon": 135.4970391,
+      "tags": {
+        "highway": "speed_camera",
+        "maxspeed": "60",
+        "type": "enforcement"
+      },
+      "prefectureCode": "27",
+      "prefectureName": "大阪府",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 11965762570,
+      "lat": 34.697052,
+      "lon": 135.5166999,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "27",
+      "prefectureName": "大阪府",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 258583840,
+      "lat": 35.3297158,
+      "lon": 134.9079919,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "28",
+      "prefectureName": "兵庫県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 317164169,
+      "lat": 34.7750135,
+      "lon": 134.3779433,
+      "tags": {
+        "highway": "speed_camera",
+        "maxspeed": "80"
+      },
+      "prefectureCode": "28",
+      "prefectureName": "兵庫県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 560643724,
+      "lat": 34.837339,
+      "lon": 135.2544206,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "28",
+      "prefectureName": "兵庫県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 832650215,
+      "lat": 34.902879,
+      "lon": 135.0673826,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "28",
+      "prefectureName": "兵庫県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1831470613,
+      "lat": 34.7169832,
+      "lon": 135.3305617,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "28",
+      "prefectureName": "兵庫県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1998586925,
+      "lat": 34.818206,
+      "lon": 135.3437351,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "28",
+      "prefectureName": "兵庫県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 2888488968,
+      "lat": 34.9409029,
+      "lon": 134.8195974,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "28",
+      "prefectureName": "兵庫県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 2899128990,
+      "lat": 35.0058996,
+      "lon": 134.7649691,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "28",
+      "prefectureName": "兵庫県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 3999991402,
+      "lat": 34.2675731,
+      "lon": 134.6926406,
+      "tags": {
+        "highway": "speed_camera",
+        "maxspeed": "100"
+      },
+      "prefectureCode": "28",
+      "prefectureName": "兵庫県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 7036395815,
+      "lat": 34.7625463,
+      "lon": 134.3774293,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "28",
+      "prefectureName": "兵庫県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 9685692782,
+      "lat": 35.4609756,
+      "lon": 134.6020847,
+      "tags": {
+        "direction": "15",
+        "highway": "speed_camera",
+        "maxspeed": "50"
+      },
+      "prefectureCode": "28",
+      "prefectureName": "兵庫県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 12026047409,
+      "lat": 34.7795543,
+      "lon": 135.3934933,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "28",
+      "prefectureName": "兵庫県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 12026047410,
+      "lat": 34.7794912,
+      "lon": 135.393584,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "28",
+      "prefectureName": "兵庫県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 12026047411,
+      "lat": 34.779532,
+      "lon": 135.3935186,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "28",
+      "prefectureName": "兵庫県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 12026047412,
+      "lat": 34.7795139,
+      "lon": 135.3935587,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "28",
+      "prefectureName": "兵庫県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 12088179170,
+      "lat": 34.8292815,
+      "lon": 134.3590922,
+      "tags": {
+        "direction": "305;125",
+        "highway": "speed_camera",
+        "maxspeed": "50"
+      },
+      "prefectureCode": "28",
+      "prefectureName": "兵庫県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 3999960984,
+      "lat": 34.6073652,
+      "lon": 135.9055,
+      "tags": {
+        "highway": "speed_camera",
+        "maxspeed": "60"
+      },
+      "prefectureCode": "29",
+      "prefectureName": "奈良県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 3999991403,
+      "lat": 34.6114139,
+      "lon": 135.9462722,
+      "tags": {
+        "highway": "speed_camera",
+        "maxspeed": "60"
+      },
+      "prefectureCode": "29",
+      "prefectureName": "奈良県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 12971218843,
+      "lat": 34.715069,
+      "lon": 135.7908496,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "29",
+      "prefectureName": "奈良県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 12971237225,
+      "lat": 34.7151318,
+      "lon": 135.7909192,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "29",
+      "prefectureName": "奈良県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 5358951973,
+      "lat": 34.7876313,
+      "lon": 134.1504874,
+      "tags": {
+        "direction": "80",
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "33",
+      "prefectureName": "岡山県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1140218445,
+      "lat": 34.3647803,
+      "lon": 132.3311384,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "34",
+      "prefectureName": "広島県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 260952723,
+      "lat": 34.1388787,
+      "lon": 134.5754879,
+      "tags": {
+        "highway": "speed_camera",
+        "maxspeed": "60"
+      },
+      "prefectureCode": "36",
+      "prefectureName": "徳島県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 5027311790,
+      "lat": 34.0983526,
+      "lon": 134.5738238,
+      "tags": {
+        "highway": "speed_camera",
+        "maxspeed": "60"
+      },
+      "prefectureCode": "36",
+      "prefectureName": "徳島県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 309014745,
+      "lat": 34.0977963,
+      "lon": 134.0022014,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "37",
+      "prefectureName": "香川県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 538715409,
+      "lat": 34.2875246,
+      "lon": 134.0931425,
+      "tags": {
+        "highway": "speed_camera",
+        "source": "survey",
+        "survey_date": "2012-10-28"
+      },
+      "prefectureCode": "37",
+      "prefectureName": "香川県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 634339521,
+      "lat": 34.3530088,
+      "lon": 133.9927325,
+      "tags": {
+        "highway": "speed_camera",
+        "source": "survey;Bing(position)",
+        "survey_date": "2012-11-01"
+      },
+      "prefectureCode": "37",
+      "prefectureName": "香川県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 2339276652,
+      "lat": 34.2657103,
+      "lon": 134.1170621,
+      "tags": {
+        "highway": "speed_camera",
+        "source": "survey; Bing(position)",
+        "survey_date": "2012-10-28"
+      },
+      "prefectureCode": "37",
+      "prefectureName": "香川県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 2468642834,
+      "lat": 34.3065543,
+      "lon": 133.9872151,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "37",
+      "prefectureName": "香川県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 8119414991,
+      "lat": 34.3213368,
+      "lon": 134.1594064,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "37",
+      "prefectureName": "香川県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 612807214,
+      "lat": 33.8841093,
+      "lon": 133.1316817,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "38",
+      "prefectureName": "愛媛県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1740868448,
+      "lat": 33.8782132,
+      "lon": 132.7520936,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "38",
+      "prefectureName": "愛媛県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1740874458,
+      "lat": 33.7735485,
+      "lon": 132.7874204,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "38",
+      "prefectureName": "愛媛県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 2006325528,
+      "lat": 33.1464072,
+      "lon": 131.6578222,
+      "tags": {
+        "highway": "speed_camera",
+        "source": "survey"
+      },
+      "prefectureCode": "44",
+      "prefectureName": "大分県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 2138478417,
+      "lat": 31.8200751,
+      "lon": 131.2908937,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "45",
+      "prefectureName": "宮崎県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1647653772,
+      "lat": 26.3122322,
+      "lon": 127.7621587,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "47",
+      "prefectureName": "沖縄県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1647653781,
+      "lat": 26.3122138,
+      "lon": 127.7623147,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "47",
+      "prefectureName": "沖縄県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1993615366,
+      "lat": 26.2085974,
+      "lon": 127.6628747,
+      "tags": {
+        "highway": "speed_camera",
+        "source": "survey",
+        "survey:date": "2012-10-01"
+      },
+      "prefectureCode": "47",
+      "prefectureName": "沖縄県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1993615367,
+      "lat": 26.2412257,
+      "lon": 127.7784946,
+      "tags": {
+        "highway": "speed_camera",
+        "source": "survey",
+        "survey:date": "2012-10-01"
+      },
+      "prefectureCode": "47",
+      "prefectureName": "沖縄県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 1993615368,
+      "lat": 26.2627632,
+      "lon": 127.7725528,
+      "tags": {
+        "highway": "speed_camera",
+        "source": "survey",
+        "survey:date": "2012-10-01"
+      },
+      "prefectureCode": "47",
+      "prefectureName": "沖縄県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 4382023789,
+      "lat": 26.5134887,
+      "lon": 127.9997453,
+      "tags": {
+        "camera:type": "fixed",
+        "highway": "speed_camera",
+        "man_made": "surveillance",
+        "surveillance": "outdoor",
+        "surveillance:type": "camera",
+        "surveillance:zone": "traffic"
+      },
+      "prefectureCode": "47",
+      "prefectureName": "沖縄県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    },
+    {
+      "type": "node",
+      "id": 7624775613,
+      "lat": 26.3797789,
+      "lon": 127.7451521,
+      "tags": {
+        "highway": "speed_camera"
+      },
+      "prefectureCode": "47",
+      "prefectureName": "沖縄県",
+      "matchedAddress": null,
+      "reviewStatus": "NEEDS_REVIEW"
+    }
+  ]
+}
