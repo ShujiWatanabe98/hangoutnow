@@ -73,7 +73,7 @@ await writeFile(
     .replace('./niigataPolicePriorityPoints.js', './niigataPolicePriorityPoints.js?v=20260928-8')
     .replace('./osmSpeedCameraPoints.js', './osmSpeedCameraPoints.js?v=20260928-9')
     .replace('./saitamaPolicePriorityPoints.js', './saitamaPolicePriorityPoints.js?v=20260928-8')
-    .replace('./supplementalPolicePriorityPoints.js', './supplementalPolicePriorityPoints.js?v=20260928-10')
+    .replace('./supplementalPolicePriorityPoints.js', './supplementalPolicePriorityPoints.js?v=20260928-11')
     .replace('./tokyoPolicePriorityPoints.js', './tokyoPolicePriorityPoints.js?v=20260928-8')
     .replace('./mapboxStyle.js', './mapboxStyle.js?v=20260928-8')
     .replace('./naturalSpeech.js', './naturalSpeech.js?v=20260928-8')
@@ -103,7 +103,7 @@ const publicHtml = sourceHtml
   .replace('href="/mobile-poc/styles.css"', 'href="/coachgo-demo/styles.css?v=20260928-8"')
   .replace('src="/runtime-config.js"', 'src="/coachgo-demo/runtime-config.js"')
   .replace('src="/vendor/mapbox-gl.js"', 'src="/coachgo-demo/vendor/mapbox-gl.js"')
-  .replace('src="/mobile-poc/bootstrap.js"', 'src="/coachgo-demo/bootstrap.js?v=20260928-10"');
+  .replace('src="/mobile-poc/bootstrap.js"', 'src="/coachgo-demo/bootstrap.js?v=20260928-11"');
 
 await mkdir(publicRoot, { recursive: true });
 await writeFile(resolve(publicRoot, 'index.html'), publicHtml, 'utf8');
@@ -166,7 +166,12 @@ const officialPoliceSources = [
   ['新潟県警察', niigataPoliceModule.NIIGATA_POLICE_PRIORITY_INDEX_URL, niigataPoliceModule.NIIGATA_POLICE_PRIORITY_SOURCE_URLS, niigataPoliceModule.NIIGATA_POLICE_PRIORITY_POINTS],
   ['京都府警察', kyotoPoliceModule.KYOTO_POLICE_PRIORITY_INDEX_URL, kyotoPoliceModule.KYOTO_POLICE_PRIORITY_SOURCE_URLS, kyotoPoliceModule.KYOTO_POLICE_PRIORITY_POINTS],
   ['福岡県警察', fukuokaPoliceModule.FUKUOKA_POLICE_PRIORITY_INDEX_URL, fukuokaPoliceModule.FUKUOKA_POLICE_PRIORITY_SOURCE_URLS, fukuokaPoliceModule.FUKUOKA_POLICE_PRIORITY_POINTS],
-  ...['青森県警察', '岩手県警察', '山形県警察', '群馬県警察'].map((organization, index) => [
+  ...[
+    '青森県警察', '岩手県警察', '山形県警察', '群馬県警察',
+    '富山県警察', '石川県警察', '三重県警察', '和歌山県警察',
+    '鳥取県警察', '島根県警察', '山口県警察', '高知県警察',
+    '佐賀県警察', '長崎県警察', '熊本県警察', '鹿児島県警察',
+  ].map((organization, index) => [
     organization,
     supplementalPoliceModule.SUPPLEMENTAL_POLICE_PRIORITY_TERMS_URLS[index],
     [
@@ -285,9 +290,9 @@ await writeFile(resolve(repositoryRoot, 'apps/demo/public/coachgo-data-sources.h
     <h2>利用中のデータ</h2>${attributionHtml}
     <article>
       <h3>固定式速度カメラ抽出データ</h3>
-      <p>OpenStreetMapから抽出した166地点の再配布スナップショットです。27都道府県で登録を確認し、公式警察資料の代表点と合わせて35都道府県に実地点があります。</p>
+      <p>OpenStreetMapから抽出した166地点の再配布スナップショットです。27都道府県で登録を確認し、公式警察資料の代表点と合わせて47都道府県すべてに実地点があります。</p>
       <p><a href="/coachgo-demo/osm-speed-cameras.generated.json">ODbLデータをダウンロード</a></p>
-      <p>残る12県は確認済み地点がないため、県庁所在地などの代替点を表示していません。</p>
+      <p>公式資料の代表点は現在の取締り場所ではなく、県庁所在地などの代替点も使用していません。</p>
     </article>
     <article>
       <h3>国土交通省・国土地理院 ハザードマップポータルサイト</h3>
@@ -307,7 +312,7 @@ await writeFile(resolve(repositoryRoot, 'apps/demo/public/coachgo-data-sources.h
 const sourceBootstrap = await readFile(resolve(coachGoRoot, 'mobile-poc/bootstrap.js'), 'utf8');
 await writeFile(
   resolve(publicRoot, 'bootstrap.js'),
-  sourceBootstrap.replace('/dist/mobile/demo.js', '/coachgo-demo/dist/mobile/demo.js?v=20260928-10'),
+  sourceBootstrap.replace('/dist/mobile/demo.js', '/coachgo-demo/dist/mobile/demo.js?v=20260928-11'),
   'utf8',
 );
 

@@ -374,8 +374,8 @@ test('corporate homepage presents the seven methodmore products accurately', asy
   assert.doesNotMatch(coachDemoScript, /addEventListener\("touchmove", stopMapCameraFollow/);
   assert.doesNotMatch(coachDemoScript, /addEventListener\("wheel", stopMapCameraFollow/);
   assert.match(coachDemo, /id="settings-heading">設定 <span>Setting<\/span>/);
-  assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260928-10"/);
-  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260928-10/);
+  assert.match(coachDemo, /src="\/coachgo-demo\/bootstrap\.js\?v=20260928-11"/);
+  assert.match(coachBootstrap, /\/coachgo-demo\/dist\/mobile\/demo\.js\?v=20260928-11/);
   assert.match(coachDemo, /id="national-hazard-status"/);
   assert.match(coachDemoScript, /05_kyukeishakeikaikuiki/);
   assert.match(coachDemoScript, /05_dosekiryukeikaikuiki/);
@@ -526,7 +526,7 @@ test('corporate homepage presents the seven methodmore products accurately', asy
   assert.match(coachDemoScript, /kyotoPolicePriorityPoints\.js\?v=20260928-8/);
   assert.match(coachDemoScript, /fukuokaPolicePriorityPoints\.js\?v=20260928-8/);
   assert.match(coachDemoScript, /niigataPolicePriorityPoints\.js\?v=20260928-8/);
-  assert.match(coachDemoScript, /supplementalPolicePriorityPoints\.js\?v=20260928-10/);
+  assert.match(coachDemoScript, /supplementalPolicePriorityPoints\.js\?v=20260928-11/);
   assert.match(coachDemoScript, /saitamaPolicePriorityPoints\.js\?v=20260928-8/);
   assert.match(coachDemoScript, /tokyoPolicePriorityPoints\.js\?v=20260928-8/);
   assert.match(coachDemoScript, /SAITAMA_POLICE_PRIORITY_POINTS/);
@@ -544,8 +544,10 @@ test('corporate homepage presents the seven methodmore products accurately', asy
   assert.equal((coachKyotoPoliceModule.match(/"id": "kyoto-/g) ?? []).length, 22);
   assert.equal((coachFukuokaPoliceModule.match(/"id": "fukuoka-/g) ?? []).length, 4);
   assert.equal((coachNiigataPoliceModule.match(/"id": "niigata-/g) ?? []).length, 30);
-  assert.equal((coachSupplementalPoliceModule.match(/id: "official-police-representative-/g) ?? []).length, 4);
+  assert.equal((coachSupplementalPoliceModule.match(/id: "official-police-representative-/g) ?? []).length, 16);
   assert.match(coachSupplementalPoliceModule, /現在の取締り実施場所や可搬式・移動式取締りを示す情報ではありません/);
+  assert.match(coachDemoScript, /const POLICE_DATA_PREFECTURES_WITH_POINTS = 47/);
+  assert.match(coachDemoScript, /（未確認0県）/);
   assert.match(coachTokyoPoliceModule, /現在の取締り実施場所を示す情報ではありません/);
   assert.match(coachSaitamaPoliceModule, /現在の取締り実施場所を示す情報ではありません/);
   assert.match(coachChibaPoliceModule, /現在の取締り実施場所を示す情報ではありません/);
@@ -570,9 +572,9 @@ test('corporate homepage presents the seven methodmore products accurately', asy
   assert.equal((coachPoliceModule.match(/"id": "kanagawa-/g) ?? []).length, 44);
   assert.equal(coachMonitorPoints.schemaVersion, 1);
   assert.equal(coachMonitorPoints.points.filter((point) => point.kind === 'UNDERPASS').length, 4449);
-  assert.equal(coachMonitorPoints.points.filter((point) => point.kind === 'POLICE_PRIORITY').length, 715);
-  assert.equal(coachMonitorPoints.points.length, 5164);
-  assert.equal(coachMonitorPoints.attribution.length, 20);
+  assert.equal(coachMonitorPoints.points.filter((point) => point.kind === 'POLICE_PRIORITY').length, 727);
+  assert.equal(coachMonitorPoints.points.length, 5176);
+  assert.equal(coachMonitorPoints.attribution.length, 32);
   assert.match(coachOsmSpeedCameraModule, /OSM_SPEED_CAMERA_POINTS/);
   assert.equal(coachOsmSpeedCameras.osmNodeCount, 166);
   assert.equal(coachOsmSpeedCameras.coveredPrefectureCount, 27);

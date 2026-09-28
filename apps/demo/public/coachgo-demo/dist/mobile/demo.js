@@ -8,7 +8,7 @@ import { FUKUOKA_POLICE_PRIORITY_POINTS } from "./fukuokaPolicePriorityPoints.js
 import { NIIGATA_POLICE_PRIORITY_POINTS } from "./niigataPolicePriorityPoints.js?v=20260928-8";
 import { OSM_SPEED_CAMERA_POINTS } from "./osmSpeedCameraPoints.js?v=20260928-9";
 import { SAITAMA_POLICE_PRIORITY_POINTS } from "./saitamaPolicePriorityPoints.js?v=20260928-8";
-import { SUPPLEMENTAL_POLICE_PRIORITY_POINTS } from "./supplementalPolicePriorityPoints.js?v=20260928-10";
+import { SUPPLEMENTAL_POLICE_PRIORITY_POINTS } from "./supplementalPolicePriorityPoints.js?v=20260928-11";
 import { TOKYO_POLICE_PRIORITY_POINTS } from "./tokyoPolicePriorityPoints.js?v=20260928-8";
 import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260928-8";
 import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260928-8";
@@ -20,7 +20,7 @@ import { aggregateNearbyUserReports, SAME_USER_REPORT_RADIUS_METERS, } from "./u
 import { snapReportLocationToRoad } from "./roadSnapping.js?v=20260928-8";
 import { createSharedUserReport, deleteSharedUserReport, loadSharedUserReports, sharedUserReportHazard, } from "./sharedUserReports.js?v=20260928-8";
 const POLICE_DATA_REQUESTED_PREFECTURES = 47;
-const POLICE_DATA_PREFECTURES_WITH_POINTS = 35;
+const POLICE_DATA_PREFECTURES_WITH_POINTS = 47;
 function syntheticSharedMapPayload() {
     return {
         schemaVersion: 1,
@@ -2241,7 +2241,7 @@ async function loadDivertNaviMapData() {
         if (!isDivertNaviMapPayload(value))
             throw new Error("unsupported response");
         divertNaviMapData = value;
-        sharedDataStatus.textContent = `交通安全データ: 全国${POLICE_DATA_REQUESTED_PREFECTURES}都道府県を照合 / ${value.counts.policePriorityLocations}地点 / 実地点${POLICE_DATA_PREFECTURES_WITH_POINTS}都道府県（未確認12県）`;
+        sharedDataStatus.textContent = `交通安全データ: 全国${POLICE_DATA_REQUESTED_PREFECTURES}都道府県を照合 / ${value.counts.policePriorityLocations}地点 / 実地点${POLICE_DATA_PREFECTURES_WITH_POINTS}都道府県（未確認0県）`;
         sharedDataStatus.hidden = false;
         sharedDataStatus.dataset.state = "ready";
         sharedDataStatus.dataset.underpassCount = String(value.counts.underpasses);
