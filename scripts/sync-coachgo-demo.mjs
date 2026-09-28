@@ -14,6 +14,7 @@ const runtimeFiles = [
   'mobile/divertNaviUnderpasses.js',
   'mobile/hazardMap.js',
   'mobile/kanagawaPolicePoints.js',
+  'mobile/tokyoPolicePriorityPoints.js',
   'mobile/mapboxStyle.js',
   'mobile/naturalSpeech.js',
   'mobile/roadSnapping.js',
@@ -55,19 +56,20 @@ const demoRuntime = await readFile(demoRuntimePath, 'utf8');
 await writeFile(
   demoRuntimePath,
   demoRuntime
-    .replace('./continuousDemoDrive.js', './continuousDemoDrive.js?v=20260928-2')
-    .replace('./divertNaviUnderpasses.js', './divertNaviUnderpasses.js?v=20260928-2')
-    .replace('./hazardMap.js', './hazardMap.js?v=20260928-2')
-    .replace('./kanagawaPolicePoints.js', './kanagawaPolicePoints.js?v=20260928-2')
-    .replace('./mapboxStyle.js', './mapboxStyle.js?v=20260928-2')
-    .replace('./naturalSpeech.js', './naturalSpeech.js?v=20260928-2')
-    .replace('./roadSnapping.js', './roadSnapping.js?v=20260928-2')
-    .replace('./sharedUserReports.js', './sharedUserReports.js?v=20260928-2')
-    .replace('./smoothUserLocation.js', './smoothUserLocation.js?v=20260928-2')
-    .replace('./userReportAggregation.js', './userReportAggregation.js?v=20260928-2')
-    .replace('./voiceApproach.js', './voiceApproach.js?v=20260928-2')
-    .replace('./voiceHazardReport.js', './voiceHazardReport.js?v=20260928-2')
-    .replace('./voiceInputRuntime.js', './voiceInputRuntime.js?v=20260928-2'),
+    .replace('./continuousDemoDrive.js', './continuousDemoDrive.js?v=20260928-3')
+    .replace('./divertNaviUnderpasses.js', './divertNaviUnderpasses.js?v=20260928-3')
+    .replace('./hazardMap.js', './hazardMap.js?v=20260928-3')
+    .replace('./kanagawaPolicePoints.js', './kanagawaPolicePoints.js?v=20260928-3')
+    .replace('./tokyoPolicePriorityPoints.js', './tokyoPolicePriorityPoints.js?v=20260928-3')
+    .replace('./mapboxStyle.js', './mapboxStyle.js?v=20260928-3')
+    .replace('./naturalSpeech.js', './naturalSpeech.js?v=20260928-3')
+    .replace('./roadSnapping.js', './roadSnapping.js?v=20260928-3')
+    .replace('./sharedUserReports.js', './sharedUserReports.js?v=20260928-3')
+    .replace('./smoothUserLocation.js', './smoothUserLocation.js?v=20260928-3')
+    .replace('./userReportAggregation.js', './userReportAggregation.js?v=20260928-3')
+    .replace('./voiceApproach.js', './voiceApproach.js?v=20260928-3')
+    .replace('./voiceHazardReport.js', './voiceHazardReport.js?v=20260928-3')
+    .replace('./voiceInputRuntime.js', './voiceInputRuntime.js?v=20260928-3'),
   'utf8',
 );
 
@@ -75,7 +77,7 @@ const sharedUserReportsRuntimePath = resolve(destinationRoot, 'mobile/sharedUser
 const sharedUserReportsRuntime = await readFile(sharedUserReportsRuntimePath, 'utf8');
 await writeFile(
   sharedUserReportsRuntimePath,
-  sharedUserReportsRuntime.replace('./hazardMap.js', './hazardMap.js?v=20260928-2'),
+  sharedUserReportsRuntime.replace('./hazardMap.js', './hazardMap.js?v=20260928-3'),
   'utf8',
 );
 
@@ -84,10 +86,10 @@ const publicHtml = sourceHtml
   .replace('<meta name="theme-color" content="#f7f7f2">', '<meta name="theme-color" content="#f7f7f2">\n    <meta name="robots" content="noindex,nofollow,noarchive">\n    <link rel="canonical" href="https://method-more.com/coachgo-demo/">')
   .replace('href="/mobile-poc/manifest.webmanifest"', 'href="/coachgo-demo/manifest.webmanifest"')
   .replace('href="/vendor/mapbox-gl.css"', 'href="/coachgo-demo/vendor/mapbox-gl.css"')
-  .replace('href="/mobile-poc/styles.css"', 'href="/coachgo-demo/styles.css?v=20260928-2"')
+  .replace('href="/mobile-poc/styles.css"', 'href="/coachgo-demo/styles.css?v=20260928-3"')
   .replace('src="/runtime-config.js"', 'src="/coachgo-demo/runtime-config.js"')
   .replace('src="/vendor/mapbox-gl.js"', 'src="/coachgo-demo/vendor/mapbox-gl.js"')
-  .replace('src="/mobile-poc/bootstrap.js"', 'src="/coachgo-demo/bootstrap.js?v=20260928-2"');
+  .replace('src="/mobile-poc/bootstrap.js"', 'src="/coachgo-demo/bootstrap.js?v=20260928-3"');
 
 await mkdir(publicRoot, { recursive: true });
 await writeFile(resolve(publicRoot, 'index.html'), publicHtml, 'utf8');
@@ -231,7 +233,7 @@ await writeFile(resolve(repositoryRoot, 'apps/demo/public/coachgo-data-sources.h
 const sourceBootstrap = await readFile(resolve(coachGoRoot, 'mobile-poc/bootstrap.js'), 'utf8');
 await writeFile(
   resolve(publicRoot, 'bootstrap.js'),
-  sourceBootstrap.replace('/dist/mobile/demo.js', '/coachgo-demo/dist/mobile/demo.js?v=20260928-2'),
+  sourceBootstrap.replace('/dist/mobile/demo.js', '/coachgo-demo/dist/mobile/demo.js?v=20260928-3'),
   'utf8',
 );
 

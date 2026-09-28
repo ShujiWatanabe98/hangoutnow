@@ -1,16 +1,17 @@
-import { buildHazardPointGuidance, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260928-2";
-import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260928-2";
-import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260928-2";
-import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260928-2";
-import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260928-2";
-import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260928-2";
-import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260928-2";
-import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260928-2";
-import { blendUserLocation, interpolateUserLocation, MAX_LOCATION_PREDICTION_MS, predictUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, stabilizedMapBearing, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260928-2";
-import { resolveVoiceInputRuntime, shouldRunPassiveVoiceCommandRecognition, } from "./voiceInputRuntime.js?v=20260928-2";
-import { aggregateNearbyUserReports, SAME_USER_REPORT_RADIUS_METERS, } from "./userReportAggregation.js?v=20260928-2";
-import { snapReportLocationToRoad } from "./roadSnapping.js?v=20260928-2";
-import { createSharedUserReport, deleteSharedUserReport, loadSharedUserReports, sharedUserReportHazard, } from "./sharedUserReports.js?v=20260928-2";
+import { buildHazardPointGuidance, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260928-3";
+import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260928-3";
+import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260928-3";
+import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260928-3";
+import { TOKYO_POLICE_PRIORITY_POINTS } from "./tokyoPolicePriorityPoints.js?v=20260928-3";
+import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260928-3";
+import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260928-3";
+import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260928-3";
+import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260928-3";
+import { blendUserLocation, interpolateUserLocation, MAX_LOCATION_PREDICTION_MS, predictUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, stabilizedMapBearing, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260928-3";
+import { resolveVoiceInputRuntime, shouldRunPassiveVoiceCommandRecognition, } from "./voiceInputRuntime.js?v=20260928-3";
+import { aggregateNearbyUserReports, SAME_USER_REPORT_RADIUS_METERS, } from "./userReportAggregation.js?v=20260928-3";
+import { snapReportLocationToRoad } from "./roadSnapping.js?v=20260928-3";
+import { createSharedUserReport, deleteSharedUserReport, loadSharedUserReports, sharedUserReportHazard, } from "./sharedUserReports.js?v=20260928-3";
 function syntheticSharedMapPayload() {
     return {
         schemaVersion: 1,
@@ -2175,23 +2176,24 @@ async function initializeContinuousDemoDrive(token) {
     renderDemoPlaybackState();
     renderDemoMapVisibility();
 }
-function withKanagawaPolice(payload) {
+function withOfficialPolicePriorities(payload) {
     const nonPolice = payload.items.filter((point) => point.kind !== "POLICE_PRIORITY");
+    const officialPolicePriorities = [...KANAGAWA_POLICE_PRIORITY_POINTS, ...TOKYO_POLICE_PRIORITY_POINTS];
     return {
         ...payload,
         counts: {
             ...payload.counts,
-            policePriorityLocations: KANAGAWA_POLICE_PRIORITY_POINTS.length,
+            policePriorityLocations: officialPolicePriorities.length,
         },
         attribution: {
             ...payload.attribution,
-            police: "神奈川県警察 15署の速度取締り指針を加工して概略表示",
+            police: "警視庁・神奈川県警察の速度取締り指針を加工して概略表示",
         },
         limitations: [
             ...payload.limitations.filter((item) => !item.includes("警察地点")),
             "警察地点は公開された速度取締り重点区間の代表点であり、現在取締り実施中を示しません。",
         ],
-        items: [...nonPolice, ...KANAGAWA_POLICE_PRIORITY_POINTS],
+        items: [...nonPolice, ...officialPolicePriorities],
     };
 }
 async function loadDivertNaviMapData() {
@@ -2207,7 +2209,7 @@ async function loadDivertNaviMapData() {
                     if (!response.ok)
                         throw new Error(`HTTP ${response.status}`);
                     const publicPayload = buildNationalUnderpassMapPayload(await response.json());
-                    return withKanagawaPolice(publicPayload);
+                    return withOfficialPolicePriorities(publicPayload);
                 })()
                 : await (async () => {
                     const response = await fetch(runtimeConfig?.mapDataUrl ?? "/api/divertnavi/map-points", {
@@ -2215,7 +2217,7 @@ async function loadDivertNaviMapData() {
                     });
                     if (!response.ok)
                         throw new Error(`HTTP ${response.status}`);
-                    return withKanagawaPolice(await response.json());
+                    return withOfficialPolicePriorities(await response.json());
                 })();
         if (!isDivertNaviMapPayload(value))
             throw new Error("unsupported response");
