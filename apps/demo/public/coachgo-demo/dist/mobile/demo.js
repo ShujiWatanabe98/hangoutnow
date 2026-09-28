@@ -1,19 +1,20 @@
-import { buildHazardPointGuidance, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260928-5";
-import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260928-5";
-import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260928-5";
-import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260928-5";
-import { CHIBA_POLICE_PRIORITY_POINTS } from "./chibaPolicePriorityPoints.js?v=20260928-5";
-import { SAITAMA_POLICE_PRIORITY_POINTS } from "./saitamaPolicePriorityPoints.js?v=20260928-5";
-import { TOKYO_POLICE_PRIORITY_POINTS } from "./tokyoPolicePriorityPoints.js?v=20260928-5";
-import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260928-5";
-import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260928-5";
-import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260928-5";
-import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260928-5";
-import { blendUserLocation, interpolateUserLocation, MAX_LOCATION_PREDICTION_MS, predictUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, stabilizedMapBearing, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260928-5";
-import { resolveVoiceInputRuntime, shouldRunPassiveVoiceCommandRecognition, } from "./voiceInputRuntime.js?v=20260928-5";
-import { aggregateNearbyUserReports, SAME_USER_REPORT_RADIUS_METERS, } from "./userReportAggregation.js?v=20260928-5";
-import { snapReportLocationToRoad } from "./roadSnapping.js?v=20260928-5";
-import { createSharedUserReport, deleteSharedUserReport, loadSharedUserReports, sharedUserReportHazard, } from "./sharedUserReports.js?v=20260928-5";
+import { buildHazardPointGuidance, defaultSelectedCategories, filterHazardsByCategory, HAZARD_CATEGORIES, SYNTHETIC_HAZARD_POINTS, USER_REPORT_CATEGORIES, } from "./hazardMap.js?v=20260928-6";
+import { COACHGO_MAP_LANGUAGE, COACHGO_MAP_LOCALE, COACHGO_MAP_STYLE, COACHGO_WASHI_AURORA_CONFIG, } from "./mapboxStyle.js?v=20260928-6";
+import { buildNationalUnderpassMapPayload } from "./divertNaviUnderpasses.js?v=20260928-6";
+import { KANAGAWA_POLICE_PRIORITY_POINTS } from "./kanagawaPolicePoints.js?v=20260928-6";
+import { CHIBA_POLICE_PRIORITY_POINTS } from "./chibaPolicePriorityPoints.js?v=20260928-6";
+import { KYOTO_POLICE_PRIORITY_POINTS } from "./kyotoPolicePriorityPoints.js?v=20260928-6";
+import { SAITAMA_POLICE_PRIORITY_POINTS } from "./saitamaPolicePriorityPoints.js?v=20260928-6";
+import { TOKYO_POLICE_PRIORITY_POINTS } from "./tokyoPolicePriorityPoints.js?v=20260928-6";
+import { advanceDemoProgress, createDemoRouteSampler, FALLBACK_YOKOHAMA_TO_HON_ATSUGI_ROUTE, HON_ATSUGI_STATION, parseMapboxDrivingRoute, screenRelativeBearing, smoothBearing, YOKOHAMA_STATION, } from "./continuousDemoDrive.js?v=20260928-6";
+import { createRouteApproachIndex, nearbyIndexedMonitoredPoints, nearbyMonitoredPointsAtLocation, voiceApproachMessage, } from "./voiceApproach.js?v=20260928-6";
+import { recognizeVoiceHazardCategory } from "./voiceHazardReport.js?v=20260928-6";
+import { createNaturalJapaneseSpeechPlan, NATURAL_JAPANESE_SPEECH_SETTINGS, selectNaturalJapaneseVoice, } from "./naturalSpeech.js?v=20260928-6";
+import { blendUserLocation, interpolateUserLocation, MAX_LOCATION_PREDICTION_MS, predictUserLocation, screenRelativeUserHeading, shouldAnimateUserLocation, stabilizedMapBearing, userLocationAnimationDuration, userLocationDistanceMeters, userLocationMovementBearing, } from "./smoothUserLocation.js?v=20260928-6";
+import { resolveVoiceInputRuntime, shouldRunPassiveVoiceCommandRecognition, } from "./voiceInputRuntime.js?v=20260928-6";
+import { aggregateNearbyUserReports, SAME_USER_REPORT_RADIUS_METERS, } from "./userReportAggregation.js?v=20260928-6";
+import { snapReportLocationToRoad } from "./roadSnapping.js?v=20260928-6";
+import { createSharedUserReport, deleteSharedUserReport, loadSharedUserReports, sharedUserReportHazard, } from "./sharedUserReports.js?v=20260928-6";
 function syntheticSharedMapPayload() {
     return {
         schemaVersion: 1,
@@ -2185,6 +2186,7 @@ function withOfficialPolicePriorities(payload) {
         ...TOKYO_POLICE_PRIORITY_POINTS,
         ...SAITAMA_POLICE_PRIORITY_POINTS,
         ...CHIBA_POLICE_PRIORITY_POINTS,
+        ...KYOTO_POLICE_PRIORITY_POINTS,
     ];
     return {
         ...payload,
@@ -2194,7 +2196,7 @@ function withOfficialPolicePriorities(payload) {
         },
         attribution: {
             ...payload.attribution,
-            police: "警視庁・神奈川県警察・埼玉県警察・千葉県警察の速度取締り指針を加工して概略表示",
+            police: "警視庁・神奈川県警察・埼玉県警察・千葉県警察・京都府警察の速度取締り指針を加工して概略表示",
         },
         limitations: [
             ...payload.limitations.filter((item) => !item.includes("警察地点")),
