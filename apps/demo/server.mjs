@@ -1097,7 +1097,11 @@ createServer(async (request, response) => {
     response.writeHead(200, {
       ...securityHeaders,
       'content-type': types[extname(file)] ?? 'application/octet-stream',
-      'cache-control': !isMutableKoiNoShioriAsset && isVersionedAsset ? 'public, max-age=86400, stale-while-revalidate=604800' : 'no-cache',
+      'cache-control': isYotsuyaRobocarePath
+        ? 'no-store'
+        : !isMutableKoiNoShioriAsset && isVersionedAsset
+          ? 'public, max-age=86400, stale-while-revalidate=604800'
+          : 'no-cache',
       ...(isApplicationPage && !isKoiNoShioriPage ? { 'x-robots-tag': 'noindex, nofollow, noarchive' } : {}),
     });
     response.end(body);

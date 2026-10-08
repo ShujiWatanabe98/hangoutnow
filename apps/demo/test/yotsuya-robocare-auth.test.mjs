@@ -100,6 +100,7 @@ test('四ツ谷ロボケア requires login and accepts the configured credential
   assert.ok(assetPath, 'app script path is missing');
   const asset = await fetch(`${origin}${assetPath}`, { headers: { cookie } });
   assert.equal(asset.status, 200);
+  assert.equal(asset.headers.get('cache-control'), 'no-store');
   assert.match(await asset.text(), /四ツ谷ロボケア/);
 
   const loggedInLoginPage = await fetch(`${origin}/yotsuya-robocare/login.html`, { headers: { cookie }, redirect: 'manual' });
