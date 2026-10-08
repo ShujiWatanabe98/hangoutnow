@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="theme-color" content="#102f4b">
+  <link rel="canonical" href="https://method-more.com/yotsuya-robocare/login.html">
+  <link rel="stylesheet" href="/yotsuya-robocare/login.css?v=20261008-1">
+  <script src="/yotsuya-robocare/login.js?v=20261008-1" defer></script>
+  <title>ログイン｜四ツ谷ロボケア 記録支援</title>
+</head>
+<body>
+  <main class="login-shell">
+    <section class="brand-panel" aria-label="四ツ谷ロボケア 記録支援">
+      <a class="methodmore" href="/">methodmore</a>
+      <div class="brand-copy">
+        <span class="brand-mark" aria-hidden="true">YR</span>
+        <p class="eyebrow">YOTSUYA ROBOCARE</p>
+        <h1>記録を整え、<br>ケアの次へ。</h1>
+        <p>面談音声、SOAP記録、HAL資料、月次レポートをひとつにつなぐ、四ツ谷ロボケアの記録支援デモです。</p>
+      </div>
+      <p class="fictional-note">このデモに表示される人物・記録はすべて架空です。</p>
+    </section>
+
+    <section class="form-panel" aria-labelledby="login-title">
+      <div class="form-card">
+        <span class="demo-label"><i aria-hidden="true"></i> デモ・架空データ</span>
+        <h2 id="login-title">ログイン</h2>
+        <p>発行されたユーザー名とパスワードを入力してください。</p>
+        <div class="error-message" id="loginError" role="alert" hidden></div>
+        <form method="post" action="/yotsuya-robocare/login">
+          <label for="username">ユーザー名</label>
+          <input id="username" name="username" type="text" autocomplete="username" required autofocus>
+          <label for="password">パスワード</label>
+          <div class="password-field">
+            <input id="password" name="password" type="password" autocomplete="current-password" required>
+            <button id="togglePassword" type="button" aria-controls="password" aria-pressed="false">表示</button>
+          </div>
+          <button class="submit-button" type="submit">記録支援システムを開く</button>
+        </form>
+        <a class="back-link" href="/">methodmore Productへ戻る</a>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

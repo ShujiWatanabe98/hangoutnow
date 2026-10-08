@@ -67,6 +67,15 @@ const smarihaDashboardLoginAttempts = new Map();
 const smartRehabAiAttempts = new Map();
 const smarihaDashboardAuthDisabled = process.env.NODE_ENV !== 'production' && process.env.SMARIHA_DASHBOARD_AUTH_DISABLED === 'true';
 const smarihaPrescriptionStubEnabled = process.env.NODE_ENV !== 'production' && process.env.SMARIHA_PRESCRIPTION_STUB_ENABLED === 'true';
+const yotsuyaRobocarePath = '/yotsuya-robocare';
+const yotsuyaRobocareUsername = process.env.YOTSUYA_ROBOCARE_USERNAME?.trim() || 'yotsuyarobo';
+const yotsuyaRobocarePasswordHash = process.env.YOTSUYA_ROBOCARE_PASSWORD_SHA256?.trim().toLowerCase()
+  || 'b288ae64ebf6d78aa3b96cad7b141f53fdd8ef98abd7aea96863f957490c2e4d';
+const yotsuyaRobocareSessionSecret = process.env.YOTSUYA_ROBOCARE_SESSION_SECRET?.trim() || randomBytes(32).toString('hex');
+const yotsuyaRobocareCookieName = '__Secure-yotsuya_robocare';
+const yotsuyaRobocareSessionSeconds = 8 * 60 * 60;
+const yotsuyaRobocareLoginAttempts = new Map();
+const yotsuyaRobocareAuthDisabled = process.env.NODE_ENV !== 'production' && process.env.YOTSUYA_ROBOCARE_AUTH_DISABLED === 'true';
 const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.map': 'application/json; charset=utf-8', '.webmanifest': 'application/manifest+json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.xml': 'application/xml; charset=utf-8', '.txt': 'text/plain; charset=utf-8' };
 const securityHeaders = {
   'content-security-policy': "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://api.mapbox.com https://*.tiles.mapbox.com https://tilecache.rainviewer.com https://disaportaldata.gsi.go.jp https://hangoutnow-demo.onrender.com https://play.google.com https://tools.applemediaservices.com; media-src 'self' blob:; frame-src https://maps.google.com; connect-src 'self' https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com https://api.rainviewer.com https://tilecache.rainviewer.com https://disaportaldata.gsi.go.jp https://api.open-meteo.com https://www.google-analytics.com https://region1.google-analytics.com; font-src 'self'; worker-src 'self' blob:; upgrade-insecure-requests",
@@ -114,6 +123,31 @@ function validSmarihaDashboardCredentials(username, password) {
   const suppliedHash = createHash('sha256').update(password).digest('hex');
   const passwordValid = /^[a-f0-9]{64}$/.test(smarihaDashboardPasswordHash)
     && timingSafeEqual(Buffer.from(suppliedHash, 'hex'), Buffer.from(smarihaDashboardPasswordHash, 'hex'));
+  return usernameValid && passwordValid;
+}
+
+function yotsuyaRobocareSessionToken() {
+  const expiresAt = Math.floor(Date.now() / 1000) + yotsuyaRobocareSessionSeconds;
+  const payload = `v1.${expiresAt}`;
+  const signature = createHmac('sha256', yotsuyaRobocareSessionSecret).update(payload).digest('base64url');
+  return `${payload}.${signature}`;
+}
+
+function hasValidYotsuyaRobocareSession(request) {
+  if (yotsuyaRobocareAuthDisabled) return true;
+  const token = parseCookies(request)[yotsuyaRobocareCookieName] ?? '';
+  const match = /^v1\.(\d{10})\.([A-Za-z0-9_-]{43})$/.exec(token);
+  if (!match || Number(match[1]) <= Math.floor(Date.now() / 1000)) return false;
+  const payload = `v1.${match[1]}`;
+  const expected = createHmac('sha256', yotsuyaRobocareSessionSecret).update(payload).digest('base64url');
+  return secureEqual(match[2], expected, yotsuyaRobocareSessionSecret);
+}
+
+function validYotsuyaRobocareCredentials(username, password) {
+  const usernameValid = secureEqual(username, yotsuyaRobocareUsername, yotsuyaRobocareSessionSecret);
+  const suppliedHash = createHash('sha256').update(password).digest('hex');
+  const passwordValid = /^[a-f0-9]{64}$/.test(yotsuyaRobocarePasswordHash)
+    && timingSafeEqual(Buffer.from(suppliedHash, 'hex'), Buffer.from(yotsuyaRobocarePasswordHash, 'hex'));
   return usernameValid && passwordValid;
 }
 
@@ -432,6 +466,81 @@ createServer(async (request, response) => {
     }
     await proxyRoboreha(request, response);
     return;
+  }
+  const isYotsuyaRobocarePath = normalizedRequestedPath === yotsuyaRobocarePath
+    || requestedPath.startsWith(`${yotsuyaRobocarePath}/`);
+  if (isYotsuyaRobocarePath) {
+    const loginPath = `${yotsuyaRobocarePath}/login.html`;
+    const loginActionPath = `${yotsuyaRobocarePath}/login`;
+    const logoutPath = `${yotsuyaRobocarePath}/logout`;
+    const sessionValid = hasValidYotsuyaRobocareSession(request);
+
+    if (request.method === 'POST' && requestedPath === loginActionPath) {
+      const key = loginClientKey(request);
+      const now = Date.now();
+      const previous = yotsuyaRobocareLoginAttempts.get(key);
+      if (previous?.lockedUntil > now) {
+        response.writeHead(303, { ...securityHeaders, location: `${loginPath}?error=locked`, 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });
+        response.end();
+        return;
+      }
+      try {
+        const form = await readSmallForm(request);
+        if (validYotsuyaRobocareCredentials(form.get('username') ?? '', form.get('password') ?? '')) {
+          yotsuyaRobocareLoginAttempts.delete(key);
+          response.writeHead(303, {
+            ...securityHeaders,
+            location: `${yotsuyaRobocarePath}/`,
+            'set-cookie': `${yotsuyaRobocareCookieName}=${yotsuyaRobocareSessionToken()}; Path=${yotsuyaRobocarePath}; Max-Age=${yotsuyaRobocareSessionSeconds}; HttpOnly; Secure; SameSite=Strict`,
+            'cache-control': 'no-store',
+            'x-robots-tag': 'noindex, nofollow, noarchive',
+          });
+          response.end();
+          return;
+        }
+        const failures = (previous?.failures ?? 0) + 1;
+        yotsuyaRobocareLoginAttempts.set(key, { failures, lockedUntil: failures >= 5 ? now + 15 * 60_000 : 0 });
+        response.writeHead(303, { ...securityHeaders, location: `${loginPath}?error=invalid`, 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });
+        response.end();
+        return;
+      } catch {
+        response.writeHead(400, { ...securityHeaders, 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });
+        response.end('Invalid login request.');
+        return;
+      }
+    }
+
+    if ((request.method === 'GET' || request.method === 'HEAD') && requestedPath === logoutPath) {
+      response.writeHead(303, {
+        ...securityHeaders,
+        location: loginPath,
+        'set-cookie': `${yotsuyaRobocareCookieName}=; Path=${yotsuyaRobocarePath}; Max-Age=0; HttpOnly; Secure; SameSite=Strict`,
+        'cache-control': 'no-store',
+        'x-robots-tag': 'noindex, nofollow, noarchive',
+      });
+      response.end();
+      return;
+    }
+
+    const publicLoginAsset = (request.method === 'GET' || request.method === 'HEAD')
+      && [loginPath, `${yotsuyaRobocarePath}/login.css`, `${yotsuyaRobocarePath}/login.js`].includes(requestedPath);
+    if (publicLoginAsset) {
+      if (sessionValid && requestedPath === loginPath) {
+        response.writeHead(303, { ...securityHeaders, location: `${yotsuyaRobocarePath}/`, 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });
+        response.end();
+        return;
+      }
+    } else if (!sessionValid) {
+      const protectedPage = normalizedRequestedPath === yotsuyaRobocarePath
+        || (request.method === 'GET' && (!extname(requestedPath) || extname(requestedPath) === '.html'));
+      if ((request.method === 'GET' || request.method === 'HEAD') && protectedPage) {
+        response.writeHead(302, { ...securityHeaders, location: loginPath, 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });
+      } else {
+        response.writeHead(401, { ...securityHeaders, 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive' });
+      }
+      response.end();
+      return;
+    }
   }
   const activeRehainfoPath = rehainfoUiPaths
     .find((path) => normalizedRequestedPath === path || requestedPath.startsWith(`${path}/`));
@@ -929,6 +1038,8 @@ createServer(async (request, response) => {
       ? '/minnade-kaigo/index.html'
     : requestedPath === '/koi-no-shiori' || requestedPath === '/koi-no-shiori/'
       ? '/koi-no-shiori/index.html'
+    : requestedPath === '/yotsuya-robocare' || requestedPath === '/yotsuya-robocare/'
+      ? '/yotsuya-robocare/index.html'
     : requestedPath === '/smariha-dashboard' || requestedPath === '/smariha-dashboard/'
       ? '/smariha-dashboard/index.html'
     : requestedPath === '/smariha-dashboard/taisho' || requestedPath === '/smariha-dashboard/taisho/'
@@ -977,7 +1088,7 @@ createServer(async (request, response) => {
   try {
     const fileBody = await readFile(file);
     const isKoiNoShioriPage = requestedPath === '/koi-no-shiori' || requestedPath.startsWith('/koi-no-shiori/');
-    const isApplicationPage = isHangoutNowAdminPath || requestedPath === '/demo.html' || requestedPath === '/app.html' || requestedPath.startsWith('/coachgo-demo') || requestedPath.startsWith('/coachgo-admin') || requestedPath.startsWith('/divertnavi-app') || requestedPath.startsWith('/minnade-kaigo') || requestedPath.startsWith('/smariha-dashboard') || requestedPath.startsWith('/smariha-scheduler') || requestedPath.startsWith('/smariha/') || requestedPath === '/smariha' || rehainfoUiPaths.some((path) => requestedPath.startsWith(`${path}/`) || requestedPath === path) || isKoiNoShioriPage;
+    const isApplicationPage = isHangoutNowAdminPath || requestedPath === '/demo.html' || requestedPath === '/app.html' || requestedPath.startsWith('/coachgo-demo') || requestedPath.startsWith('/coachgo-admin') || requestedPath.startsWith('/divertnavi-app') || requestedPath.startsWith('/minnade-kaigo') || requestedPath.startsWith('/yotsuya-robocare') || requestedPath.startsWith('/smariha-dashboard') || requestedPath.startsWith('/smariha-scheduler') || requestedPath.startsWith('/smariha/') || requestedPath === '/smariha' || rehainfoUiPaths.some((path) => requestedPath.startsWith(`${path}/`) || requestedPath === path) || isKoiNoShioriPage;
     const body = extname(file) === '.html' && !isApplicationPage
       ? Buffer.from(fileBody.toString('utf8').replace('<head>', '<head><link rel="stylesheet" href="/cookie-consent.css?v=20260816-2"><link rel="stylesheet" href="/share.css?v=20260821-2"><script src="/analytics.js?v=20260820-2" defer></script><script src="/attribution.js?v=20260821-2" defer></script><script src="/share.js?v=20260821-3" defer></script>'))
       : fileBody;
