@@ -75,6 +75,21 @@ WHERE s.store_id='10000000-0000-0000-0000-000000000001' AND s.active=true
   AND extract(isodow FROM d.day) NOT IN (3,4)
 ON CONFLICT (staff_id,work_date) DO UPDATE SET shift_start=EXCLUDED.shift_start,shift_end=EXCLUDED.shift_end,status='confirmed',updated_at=now();
 
+-- テスト実行日が固定データ期間を過ぎても、全6名の直近シフトと休業日を検証できるようにする。
+DELETE FROM staff_shifts
+ WHERE store_id='10000000-0000-0000-0000-000000000001'
+   AND work_date BETWEEN current_date AND current_date + 14;
+INSERT INTO staff_shifts (id,staff_id,store_id,work_date,shift_start,shift_end,status)
+SELECT md5('gunma-current-shift-'||s.id||'-'||d.day::date)::uuid,s.id,
+  '10000000-0000-0000-0000-000000000001',d.day::date,
+  (d.day::date+time '10:00') AT TIME ZONE 'Asia/Tokyo',
+  (d.day::date+time '18:00') AT TIME ZONE 'Asia/Tokyo','confirmed'
+FROM staff_members s
+CROSS JOIN generate_series(current_date,current_date+14,interval '1 day') d(day)
+WHERE s.store_id='10000000-0000-0000-0000-000000000001' AND s.active=true
+  AND extract(isodow FROM d.day) NOT IN (3,4)
+ON CONFLICT (staff_id,work_date) DO UPDATE SET shift_start=EXCLUDED.shift_start,shift_end=EXCLUDED.shift_end,status='confirmed',updated_at=now();
+
 -- 8月は全営業日に出退勤実績を登録。
 INSERT INTO attendance_records (id,staff_id,store_id,work_date,clock_in,clock_out,break_minutes,status,approved_by,approved_at,note)
 SELECT md5('gunma-attendance-'||ss.staff_id||'-'||ss.work_date)::uuid,ss.staff_id,ss.store_id,ss.work_date,
