@@ -170,7 +170,7 @@ test('homepage targets Shinjuku solo participants with measurable acquisition li
   assert.match(server, /location: '\/shinjuku-working-adult-friends\.html'/);
 });
 
-test('corporate homepage presents the eight methodmore products accurately', async () => {
+test('corporate homepage presents the nine methodmore products accurately', async () => {
   const [corporate, hangout, divertnavi, divertnaviPrivacy, sitemap, corporateStyles, divertStyles, coachDemo, coachStyles, coachBootstrap, coachDemoScript, coachDriveModule, coachUnderpassModule, coachPoliceModule, coachChibaPoliceModule, coachKyotoPoliceModule, coachFukuokaPoliceModule, coachNiigataPoliceModule, coachSaitamaPoliceModule, coachTokyoPoliceModule, coachSupplementalPoliceModule, coachOsmSpeedCameraModule, coachNaturalSpeechModule, coachRoadSnappingModule, coachSmoothLocationModule, coachUserReportAggregationModule, coachVoiceApproachModule, coachMonitorPointsJson, coachUnderpassFeedJson, coachOsmSpeedCameraJson, coachPrivacy, coachSupport, coachDataSources, careDemo, careStyles, careApp, carePersonas, careManifestJson, smarihaDemo, smarihaStyles, smarihaScript, smarihaLogin, smarihaLoginScript, smarihaTaisho, smarihaKeijinkai, schedulerDemo, schedulerStyles, schedulerScript, schedulerLogin, schedulerLoginScript, server] = await Promise.all([
     readFile(new URL('../public/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/hangout-now.html', import.meta.url), 'utf8'),
@@ -230,7 +230,7 @@ test('corporate homepage presents the eight methodmore products accurately', asy
 
   assert.match(corporate, /<title>methodmore｜日常の選択を、もっと前へ。<\/title>/);
   assert.match(corporate, /<link rel="canonical" href="https:\/\/method-more\.com\/">/);
-  assert.equal((corporate.match(/<article class="product-card/g) ?? []).length, 8);
+  assert.equal((corporate.match(/<article class="product-card/g) ?? []).length, 9);
   assert.match(corporate, /href="\/hangout-now\.html"/);
   assert.match(corporate, /href="\/divertnavi\.html"/);
   assert.match(corporate, /href="\/divertnavi-app\/">Webアプリを開く<\/a>/);
@@ -241,6 +241,8 @@ test('corporate homepage presents the eight methodmore products accurately', asy
   assert.match(corporate, /恋の<em>しおり<\/em>/);
   assert.match(corporate, /RoboCare <em>One<\/em>/);
   assert.match(corporate, /スマリハ<br><em>プロトタイピング<\/em>/);
+  assert.match(corporate, /AI<em>OCRV2<\/em>/);
+  assert.match(corporate, /href="\/aiocrv2\/"/);
   assert.doesNotMatch(corporate, /rehainfo-main|Smart Rehab<br><em>患者・退院・AI処方箋<\/em>|スマリハスケジューラー/);
   assert.doesNotMatch(corporate, /スマリハ統合ポータル|スマリハ<br><em>統合ポータル<\/em>|href="\/smariha\/"|id="smariha-suite"/);
   assert.match(corporate, /公開中/);

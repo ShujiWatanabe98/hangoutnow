@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="theme-color" content="#102f4b">
+  <link rel="canonical" href="https://method-more.com/aiocrv2/login.html">
+  <link rel="stylesheet" href="/aiocrv2/login.css?v=20261012-1">
+  <script src="/aiocrv2/login.js?v=20261012-1" defer></script>
+  <title>ログイン | AIOCRV2</title>
+</head>
+<body>
+  <main class="login-shell">
+    <section class="brand-panel" aria-label="AIOCRV2 OT評価フォーム生成">
+      <a class="methodmore" href="/">methodmore</a>
+      <div class="brand-copy">
+        <span class="brand-mark" aria-hidden="true">AI</span>
+        <p class="eyebrow">AIOCRV2 · OT FORM STUDIO</p>
+        <h1>評価用紙を、<br>使える画面へ。</h1>
+        <p>Excel原本の読み取りから項目抽出、DB紐づけ、入力画面、評価結果、退院時サマリまでを一つの流れで確認できます。</p>
+      </div>
+      <p class="fictional-note">このデモに表示される患者・評価記録はすべて架空です。</p>
+    </section>
+
+    <section class="form-panel" aria-labelledby="login-title">
+      <div class="form-card">
+        <span class="demo-label"><i aria-hidden="true"></i> ログイン制デモ・架空データ</span>
+        <h2 id="login-title">AIOCRV2 ログイン</h2>
+        <p>発行されたユーザー名とパスワードを入力してください。</p>
+        <div class="error-message" id="loginError" role="alert" hidden></div>
+        <form method="post" action="/aiocrv2/login">
+          <label for="username">ユーザー名</label>
+          <input id="username" name="username" type="text" autocomplete="username" required autofocus>
+          <label for="password">パスワード</label>
+          <div class="password-field">
+            <input id="password" name="password" type="password" autocomplete="current-password" required>
+            <button id="togglePassword" type="button" aria-controls="password" aria-pressed="false">表示</button>
+          </div>
+          <button class="submit-button" type="submit">AIOCRV2を開く</button>
+        </form>
+        <a class="back-link" href="/">methodmore Productへ戻る</a>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
